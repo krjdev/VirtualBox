@@ -1,0 +1,20 @@
+# Editor backup files
+*~
+*.*.swp
+*.*.kate-swp
+
+# TODO's
+TODO
+
+# Testing
+test
+
+# SVN
+.svn
+
+# Emacs
+.dir-locals.el
+
+# GIT templates
+GIT_commit.txt
+GIT_tag.txt

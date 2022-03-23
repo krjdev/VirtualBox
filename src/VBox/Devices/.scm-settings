@@ -1,0 +1,28 @@
+# $Id: .scm-settings 93944 2022-02-24 21:15:14Z vboxsync $
+## @file
+# Source code massager settings for the PDM Devices and Drivers.
+#
+
+#
+# Copyright (C) 2019-2022 Oracle Corporation
+#
+# This file is part of VirtualBox Open Source Edition (OSE), as
+# available from http://www.virtualbox.org. This file is free software;
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License (GPL) as published by the Free Software
+# Foundation, in version 2 as it comes in the "COPYING" file of the
+# VirtualBox OSE distribution. VirtualBox OSE is distributed in the
+# hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+#
+
+/*.h: --guard-relative-to-dir .
+/Graphics/vmsvga_glext/*.h|/Graphics/vmsvga/*.h: --guard-relative-to-dir ''
+/*.h: --only-guest-host-page
+
+# Same as for the VMM, careful with page stuff.
+/*.h:   --only-guest-host-page --no-ASMMemPage-use
+/*.cpp: --only-guest-host-page --no-ASMMemPage-use
+/*.m:   --only-guest-host-page --no-ASMMemPage-use
+
+# This defines it's own PAGE_XXX macros.
+/PC/ipxe/src/include/ipxe/virtio-ring.h: --no-page-restrictions

@@ -1,0 +1,30 @@
+# $Id: ApprovedLanguages.kmk 93478 2022-01-28 14:37:31Z vboxsync $
+## @file
+# ApprovedLanguages.kmk - List of approved VBoxManage translations.
+#
+
+#
+# Copyright (C) 2007-2022 Oracle Corporation
+#
+# This file is part of VirtualBox Open Source Edition (OSE), as
+# available from http://www.virtualbox.org. This file is free software;
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License (GPL) as published by the Free Software
+# Foundation, in version 2 as it comes in the "COPYING" file of the
+# VirtualBox OSE distribution. VirtualBox OSE is distributed in the
+# hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+#
+
+# The list of approved VBoxManage languages.
+VBOX_APPROVED_VBOXMANAGE_LANGUAGES := \
+	ru
+
+# The list of approved VBoxManage language codes for built-in docbook
+# help. Order matters for codes in the case of a language used in
+# multiple countries. The language code used when no country is
+# specified should be placed before other codes with the same language.
+# For example: if en_US, en_UK and en_AU are approved the en_US should
+# be placed before others allowing en_US to be used when the user
+# specifies "en" as the desired language.
+VBOX_APPROVED_VBOXMANAGE_DOCBOOK_LANGUAGES := \
+	ru_RU
