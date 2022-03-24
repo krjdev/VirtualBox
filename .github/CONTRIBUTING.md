@@ -42,7 +42,7 @@ A  .github/CONTRIBUTING.md
 $ 
 ```
 
-### SIGEND-OFF
+### SIGNED-OFF
 
 Use the follwing additional argument to get the **required** field in the final message.
 
