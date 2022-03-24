@@ -1,70 +1,142 @@
-arch: amd64
+jobs:
+    include:
+        arch: amd64
+        os: linux
+        dist: bionic
 
-dist: bionic
+        language:
+            - c
 
-language:
-    - c
+        compiler:
+            - gcc
 
-compiler:
-    - gcc
+        before_install:
+            - sudo apt-get update
+            - sudo apt-get install acpica-tools
+            - sudo apt-get install chrpath
+            - sudo apt-get install doxygen
+            - sudo apt-get install g++-multilib
+            - sudo apt-get install libasound2-dev
+            - sudo apt-get install libcap-dev
+            - sudo apt-get install libcurl4-openssl-dev
+            - sudo apt-get install libdevmapper-dev
+            - sudo apt-get install libidl-dev
+            - sudo apt-get install libopus-dev
+            - sudo apt-get install libpam0g-dev
+            - sudo apt-get install libpulse-dev
+            - sudo apt-get install libqt5opengl5-dev
+            - sudo apt-get install libqt5x11extras5-dev
+            - sudo apt-get install qttools5-dev
+            - sudo apt-get install libsdl1.2-dev
+            - sudo apt-get install libsdl-ttf2.0-dev
+            - sudo apt-get install libssl-dev
+            - sudo apt-get install libvpx-dev
+            - sudo apt-get install libxcursor-dev
+            - sudo apt-get install libxinerama-dev
+            - sudo apt-get install libxml2-dev
+            - sudo apt-get install libxml2-utils
+            - sudo apt-get install libxmu-dev
+            - sudo apt-get install libxrandr-dev
+            - sudo apt-get install make
+            - sudo apt-get install nasm
+            - sudo apt-get install python3-dev
+            - sudo apt-get install python-dev
+            - sudo apt-get install qttools5-dev-tools
+            - sudo apt-get install texlive
+            - sudo apt-get install texlive-fonts-extra
+            - sudo apt-get install texlive-latex-extra
+            - sudo apt-get install unzip
+            - sudo apt-get install xsltproc
+            - sudo apt-get install default-jdk
+            - sudo apt-get install libstdc++5
+            - sudo apt-get install libxslt1-dev
+            - sudo apt-get install linux-headers-5.4.0-1062-gcp
+            - sudo apt-get install makeself
+            - sudo apt-get install mesa-common-dev
+            - sudo apt-get install subversion
+            - sudo apt-get install yasm
+            - sudo apt-get install zlib1g-dev
+            - sudo apt-get install lib32ncurses5
+            - sudo apt-get install lib32z1
+            - sudo apt-get install libc6-dev-i386
+            - sudo apt-get install lib32gcc1
+            - sudo apt-get install lib32stdc++6
+            - sudo apt-get install pylint
+            - sudo apt-get install python3-psycopg2
+            - sudo apt-get install python3-willow
+            - sudo apt-get install python-psycopg2
+            - sudo apt-get install python-pil
 
-before_install:
-    - sudo apt-get update
-    - sudo apt-get install acpica-tools
-    - sudo apt-get install chrpath
-    - sudo apt-get install doxygen
-    - sudo apt-get install g++-multilib
-    - sudo apt-get install libasound2-dev
-    - sudo apt-get install libcap-dev
-    - sudo apt-get install libcurl4-openssl-dev
-    - sudo apt-get install libdevmapper-dev
-    - sudo apt-get install libidl-dev
-    - sudo apt-get install libopus-dev
-    - sudo apt-get install libpam0g-dev
-    - sudo apt-get install libpulse-dev
-    - sudo apt-get install libqt5opengl5-dev
-    - sudo apt-get install libqt5x11extras5-dev
-    - sudo apt-get install qttools5-dev
-    - sudo apt-get install libsdl1.2-dev
-    - sudo apt-get install libsdl-ttf2.0-dev
-    - sudo apt-get install libssl-dev
-    - sudo apt-get install libvpx-dev
-    - sudo apt-get install libxcursor-dev
-    - sudo apt-get install libxinerama-dev
-    - sudo apt-get install libxml2-dev
-    - sudo apt-get install libxml2-utils
-    - sudo apt-get install libxmu-dev
-    - sudo apt-get install libxrandr-dev
-    - sudo apt-get install make
-    - sudo apt-get install nasm
-    - sudo apt-get install python3-dev
-    - sudo apt-get install python-dev
-    - sudo apt-get install qttools5-dev-tools
-    - sudo apt-get install texlive
-    - sudo apt-get install texlive-fonts-extra
-    - sudo apt-get install texlive-latex-extra
-    - sudo apt-get install unzip
-    - sudo apt-get install xsltproc
-    - sudo apt-get install default-jdk
-    - sudo apt-get install libstdc++5
-    - sudo apt-get install libxslt1-dev
-    - sudo apt-get install linux-headers-5.4.0-1062-gcp
-    - sudo apt-get install makeself
-    - sudo apt-get install mesa-common-dev
-    - sudo apt-get install subversion
-    - sudo apt-get install yasm
-    - sudo apt-get install zlib1g-dev
-    - sudo apt-get install lib32ncurses5
-    - sudo apt-get install lib32z1
-    - sudo apt-get install libc6-dev-i386
-    - sudo apt-get install lib32gcc1
-    - sudo apt-get install lib32stdc++6
-    - sudo apt-get install pylint
-    - sudo apt-get install python3-psycopg2
-    - sudo apt-get install python3-willow
-    - sudo apt-get install python-psycopg2
-    - sudo apt-get install python-pil
-    - sudo apt-get install libtpms-dev
+        script:
+            - make
 
-script:
-    - make
+    include:
+        arch: amd64
+        os: linux
+        dist: focal
+
+        language:
+            - c
+
+        compiler:
+            - gcc
+
+        before_install:
+            - sudo apt-get update
+            - sudo apt-get install acpica-tools
+            - sudo apt-get install chrpath
+            - sudo apt-get install doxygen
+            - sudo apt-get install g++-multilib
+            - sudo apt-get install libasound2-dev
+            - sudo apt-get install libcap-dev
+            - sudo apt-get install libcurl4-openssl-dev
+            - sudo apt-get install libdevmapper-dev
+            - sudo apt-get install libidl-dev
+            - sudo apt-get install libopus-dev
+            - sudo apt-get install libpam0g-dev
+            - sudo apt-get install libpulse-dev
+            - sudo apt-get install libqt5opengl5-dev
+            - sudo apt-get install libqt5x11extras5-dev
+            - sudo apt-get install qttools5-dev
+            - sudo apt-get install libsdl1.2-dev
+            - sudo apt-get install libsdl-ttf2.0-dev
+            - sudo apt-get install libssl-dev
+            - sudo apt-get install libvpx-dev
+            - sudo apt-get install libxcursor-dev
+            - sudo apt-get install libxinerama-dev
+            - sudo apt-get install libxml2-dev
+            - sudo apt-get install libxml2-utils
+            - sudo apt-get install libxmu-dev
+            - sudo apt-get install libxrandr-dev
+            - sudo apt-get install make
+            - sudo apt-get install nasm
+            - sudo apt-get install python3-dev
+            - sudo apt-get install python-dev
+            - sudo apt-get install qttools5-dev-tools
+            - sudo apt-get install texlive
+            - sudo apt-get install texlive-fonts-extra
+            - sudo apt-get install texlive-latex-extra
+            - sudo apt-get install unzip
+            - sudo apt-get install xsltproc
+            - sudo apt-get install default-jdk
+            - sudo apt-get install libstdc++5
+            - sudo apt-get install libxslt1-dev
+            - sudo apt-get install linux-headers-5.4.0-1062-gcp
+            - sudo apt-get install makeself
+            - sudo apt-get install mesa-common-dev
+            - sudo apt-get install subversion
+            - sudo apt-get install yasm
+            - sudo apt-get install zlib1g-dev
+            - sudo apt-get install lib32ncurses5
+            - sudo apt-get install lib32z1
+            - sudo apt-get install libc6-dev-i386
+            - sudo apt-get install lib32gcc1
+            - sudo apt-get install lib32stdc++6
+            - sudo apt-get install pylint
+            - sudo apt-get install python3-psycopg2
+            - sudo apt-get install python3-willow
+            - sudo apt-get install python-psycopg2
+            - sudo apt-get install python-pil
+
+        script:
+            - make
