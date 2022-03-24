@@ -64,6 +64,7 @@ before_install:
     - sudo apt-get install python3-willow
     - sudo apt-get install python-psycopg2
     - sudo apt-get install python-pil
+    - sudo apt-get install libtpms-dev
 
 script:
     - make
