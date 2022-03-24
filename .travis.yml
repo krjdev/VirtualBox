@@ -48,7 +48,7 @@ before_install:
     - sudo apt-get install default-jdk
     - sudo apt-get install libstdc++5
     - sudo apt-get install libxslt1-dev
-    - sudo apt-get install linux-kernel-headers
+    - sudo apt-get install linux-headers
     - sudo apt-get install makeself
     - sudo apt-get install mesa-common-dev
     - sudo apt-get install subversion
