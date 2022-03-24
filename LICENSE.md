@@ -9,7 +9,7 @@ Unofficial **GitHub** mirror from the offical **SVN** repository at [https://www
 
 The base source code for **VirtualBox** is licensed under the **GPLv2**. The **VirtualBox Extension Pack** sources are **ONLY** for personal, educational or evaluation usage and licensed under the **PUEL**.
 
-See [Licensing: Frequently Asked Questions](https://www.virtualbox.org/wiki/Licensing_FAQ) for additional information.
+See [licensing: Frequently Asked Questions](https://www.virtualbox.org/wiki/Licensing_FAQ) at the offical [VirtualBox website](https://www.virtualbox.org) for additional information.
 
 ### GNU General Public License, version 2 (GPLv2)
 
@@ -361,6 +361,10 @@ Public License instead of this License.
 [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
 ### Oracle VM VirtualBox Extension Pack Personal Use and Evaluation License (PUEL)
+
+#### LICENSE TEXT
+
+Follow the link in license source below.
 
 #### SOURCE
 
