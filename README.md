@@ -1,6 +1,6 @@
 # Oracle VM VirtualBox
 
-Unofficial **GitHub** mirror from the offical **SVN** repository at [https://www.virtualbox.org/svn/vbox/trunk/](https://www.virtualbox.org/svn/vbox/trunk/)
+Unofficial **GitHub** mirror from the offical **SVN** repository at [https://www.virtualbox.org/svn/vbox/trunk](https://www.virtualbox.org/svn/vbox/trunk/)
 
 ## Official Website
 [https://www.virtualbox.org](https://www.virtualbox.org)
@@ -20,3 +20,8 @@ It is **NOT allowed** to use the name **VirtualBox** in custom revisions of ship
 ## BUILD
 
 See [build instructions](https://www.virtualbox.org/wiki/Build_instructions) from the official website.
+
+## CONTRIBUTING
+
+Contributing to this repository is allowed, but I'm **currently** will not backport these changes to
+the official **VirtualBox** SVN repository. Feel free to contact the **VirtualBox** developers yourself.
