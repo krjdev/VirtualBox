@@ -70,7 +70,6 @@ jobs:
         script:
             - make
 
-    include:
         arch: amd64
         os: linux
         dist: focal
