@@ -1,14 +1,17 @@
+arch: amd64
+
+os:
+    - linux
+
+dist: 
+    - bionic
+    - focal
+
+    language:
+        - c
+
 jobs:
-    include:
-        arch: amd64
-        os: linux
         dist: bionic
-
-        language:
-            - c
-
-        compiler:
-            - gcc
 
         before_install:
             - sudo apt-get update
@@ -70,15 +73,7 @@ jobs:
         script:
             - make
 
-        arch: amd64
-        os: linux
         dist: focal
-
-        language:
-            - c
-
-        compiler:
-            - gcc
 
         before_install:
             - sudo apt-get update
