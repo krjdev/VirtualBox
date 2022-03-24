@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -120,19 +120,6 @@ typedef VMCPU   VMCPUCC;
 # define VMCC_GET_VMR0_FOR_CALL(a_pVM)  ((a_pVM)->ring3_only_macro)
 #endif
 
-
-/**
- * Used to pick ring-0 or ring-3 VM component data.
- *
- * @code{.cpp}
- *    pVM->VMCC_CTX(pdm).s.pfnWorker
- * @endcode
- */
-#ifdef IN_RING0
-# define VMCC_CTX(a_Name)   a_Name ## r0
-#else
-# define VMCC_CTX(a_Name)   a_Name
-#endif
 
 #endif /* !VBOX_INCLUDED_vmm_vmcc_h */
 

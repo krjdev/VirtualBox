@@ -1,10 +1,10 @@
-/* $Id: tstSupSem-Zombie.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstSupSem-Zombie.cpp $ */
 /** @file
  * Support Library Testcase - Ring-3 Semaphore interface - Zombie bugs.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,7 +55,7 @@ static DECLCALLBACK(int) tstSupSemSRETimed(RTTHREAD hSelf, void *pvUser)
     SUPSEMEVENT hEvent = (SUPSEMEVENT)pvUser;
     RTThreadUserSignal(hSelf);
     int rc = SUPSemEventWaitNoResume(g_pSession, hEvent, 120*1000);
-    AssertReleaseMsg(rc == VERR_INTERRUPTED, ("%Rrc\n", rc));
+    AssertReleaseMsgFailed(("%Rrc\n", rc));
     return rc;
 }
 
@@ -65,7 +65,7 @@ static DECLCALLBACK(int) tstSupSemMRETimed(RTTHREAD hSelf, void *pvUser)
     SUPSEMEVENTMULTI hEventMulti = (SUPSEMEVENTMULTI)pvUser;
     RTThreadUserSignal(hSelf);
     int rc = SUPSemEventMultiWaitNoResume(g_pSession, hEventMulti, 120*1000);
-    AssertReleaseMsg(rc == VERR_INTERRUPTED, ("%Rrc\n", rc));
+    AssertReleaseMsgFailed(("%Rrc\n", rc));
     return rc;
 }
 
@@ -75,7 +75,7 @@ static DECLCALLBACK(int) tstSupSemSREInf(RTTHREAD hSelf, void *pvUser)
     SUPSEMEVENT hEvent = (SUPSEMEVENT)pvUser;
     RTThreadUserSignal(hSelf);
     int rc = SUPSemEventWaitNoResume(g_pSession, hEvent, RT_INDEFINITE_WAIT);
-    AssertReleaseMsg(rc == VERR_INTERRUPTED, ("%Rrc\n", rc));
+    AssertReleaseMsgFailed(("%Rrc\n", rc));
     return rc;
 }
 
@@ -85,7 +85,7 @@ static DECLCALLBACK(int) tstSupSemMREInf(RTTHREAD hSelf, void *pvUser)
     SUPSEMEVENTMULTI hEventMulti = (SUPSEMEVENTMULTI)pvUser;
     RTThreadUserSignal(hSelf);
     int rc = SUPSemEventMultiWaitNoResume(g_pSession, hEventMulti, RT_INDEFINITE_WAIT);
-    AssertReleaseMsg(rc == VERR_INTERRUPTED, ("%Rrc\n", rc));
+    AssertReleaseMsgFailed(("%Rrc\n", rc));
     return rc;
 }
 
@@ -94,7 +94,7 @@ static int mainChild(void)
     /*
      * Init.
      */
-    int rc = RTR3InitExeNoArguments(RTR3INIT_FLAGS_TRY_SUPLIB);
+    int rc = RTR3InitExeNoArguments(RTR3INIT_FLAGS_SUPLIB);
     if (RT_FAILURE(rc))
     {
         RTPrintf("tstSupSem-Zombie-Child: fatal error: RTR3InitExeNoArguments failed with rc=%Rrc\n", rc);

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -132,7 +132,7 @@ public:
      *
      * @param   rcObj       IPRT status code object from an automatic cast.
      */
-    RTErrStrictType(RTErrStrictType2 const rcObj) RT_NO_THROW_DEF
+    RTErrStrictType(RTErrStrictType2 const rcObj)
         : m_rc(rcObj.getValue())
     {
     }
@@ -142,7 +142,7 @@ public:
      *
      * @param   rc          IPRT style status code.
      */
-    RTErrStrictType(int32_t rc) RT_NO_THROW_DEF
+    RTErrStrictType(int32_t rc)
         : m_rc(rc)
     {
     }
@@ -162,7 +162,7 @@ public:
     /**
      * Test for success.
      */
-    bool success() const RT_NO_THROW_DEF
+    bool success() const
     {
         return m_rc >= 0;
     }
@@ -170,13 +170,13 @@ public:
 private:
     /** @name Try ban a number of wrong types.
      * @{ */
-    RTErrStrictType(uint8_t rc)  RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(uint16_t rc) RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(uint32_t rc) RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(uint64_t rc) RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(int8_t rc)   RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(int16_t rc)  RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
-    RTErrStrictType(int64_t rc)  RT_NO_THROW_DEF : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(uint8_t rc)         : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(uint16_t rc)        : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(uint32_t rc)        : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(uint64_t rc)        : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(int8_t rc)          : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(int16_t rc)         : m_rc(-999) { NOREF(rc); }
+    RTErrStrictType(int64_t rc)         : m_rc(-999) { NOREF(rc); }
     /** @todo fight long here - clashes with int32_t/int64_t on some platforms. */
     /** @} */
 };
@@ -281,40 +281,60 @@ RTDECL(int)  RTErrConvertFromWin32(unsigned uNativeCode);
  */
 RTDECL(int)  RTErrConvertToErrno(int iErr);
 
-
-#ifndef DECLARED_FNRTSTROUTPUT          /* duplicated in iprt/string.h & iprt/log.h */
-#define DECLARED_FNRTSTROUTPUT
-/**
- * Output callback.
- *
- * @returns number of bytes written.
- * @param   pvArg       User argument.
- * @param   pachChars   Pointer to an array of utf-8 characters.
- * @param   cbChars     Number of bytes in the character array pointed to by pachChars.
- */
-typedef DECLCALLBACKTYPE(size_t, FNRTSTROUTPUT,(void *pvArg, const char *pachChars, size_t cbChars));
-/** Pointer to callback function. */
-typedef FNRTSTROUTPUT *PFNRTSTROUTPUT;
-#endif
-
 #ifdef IN_RING3
 
-RTDECL(bool)    RTErrIsKnown(int rc);
-RTDECL(ssize_t) RTErrQueryDefine(int rc, char *pszBuf, size_t cbBuf, bool fFailIfUnknown);
-RTDECL(ssize_t) RTErrQueryMsgShort(int rc, char *pszBuf, size_t cbBuf, bool fFailIfUnknown);
-RTDECL(ssize_t) RTErrQueryMsgFull(int rc, char *pszBuf, size_t cbBuf, bool fFailIfUnknown);
+/**
+ * iprt status code message.
+ */
+typedef struct RTSTATUSMSG
+{
+    /** Pointer to the short message string. */
+    const char *pszMsgShort;
+    /** Pointer to the full message string. */
+    const char *pszMsgFull;
+    /** Pointer to the define string. */
+    const char *pszDefine;
+    /** Status code number. */
+    int         iCode;
+} RTSTATUSMSG;
+/** Pointer to iprt status code message. */
+typedef RTSTATUSMSG *PRTSTATUSMSG;
+/** Pointer to const iprt status code message. */
+typedef const RTSTATUSMSG *PCRTSTATUSMSG;
 
-/** @name Error formatters used internally by RTStrFormat.
- * @internal
- * @{ */
-RTDECL(size_t)  RTErrFormatDefine(  int rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-RTDECL(size_t)  RTErrFormatMsgShort(int rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-RTDECL(size_t)  RTErrFormatMsgFull( int rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-RTDECL(size_t)  RTErrFormatMsgAll(  int rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-/** @} */
+/**
+ * Get the message structure corresponding to a given iprt status code.
+ *
+ * @returns Pointer to read-only message description.
+ * @param   rc      The status code.
+ */
+RTDECL(PCRTSTATUSMSG) RTErrGet(int rc);
 
+/**
+ * Get the define corresponding to a given iprt status code.
+ *
+ * @returns Pointer to read-only string with the \#define identifier.
+ * @param   rc      The status code.
+ */
+#define RTErrGetDefine(rc)      (RTErrGet(rc)->pszDefine)
 
-# ifdef RT_OS_WINDOWS
+/**
+ * Get the short description corresponding to a given iprt status code.
+ *
+ * @returns Pointer to read-only string with the description.
+ * @param   rc      The status code.
+ */
+#define RTErrGetShort(rc)       (RTErrGet(rc)->pszMsgShort)
+
+/**
+ * Get the full description corresponding to a given iprt status code.
+ *
+ * @returns Pointer to read-only string with the description.
+ * @param   rc      The status code.
+ */
+#define RTErrGetFull(rc)        (RTErrGet(rc)->pszMsgFull)
+
+#ifdef RT_OS_WINDOWS
 /**
  * Windows error code message.
  */
@@ -332,18 +352,18 @@ typedef RTWINERRMSG *PRTWINERRMSG;
 /** Pointer to const Windows error code message. */
 typedef const RTWINERRMSG *PCRTWINERRMSG;
 
-RTDECL(bool)    RTErrWinIsKnown(long rc);
-RTDECL(ssize_t) RTErrWinQueryDefine(long rc, char *pszBuf, size_t cbBuf, bool fFailIfUnknown);
+/**
+ * Get the message structure corresponding to a given Windows error code.
+ *
+ * @returns Pointer to read-only message description.
+ * @param   rc      The status code.
+ */
+RTDECL(PCRTWINERRMSG) RTErrWinGet(long rc);
 
-/** @name Error formatters used internally by RTStrFormat.
- * @internal
- * @{ */
-RTDECL(size_t)  RTErrWinFormatDefine(long rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-RTDECL(size_t)  RTErrWinFormatMsg(   long rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-RTDECL(size_t)  RTErrWinFormatMsgAll(long rc, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, char *pszTmp, size_t cbTmp);
-/** @} */
+/** On windows COM errors are part of the Windows error database. */
+typedef RTWINERRMSG RTCOMERRMSG;
 
-# else  /* !RT_OS_WINDOWS */
+#else  /* !RT_OS_WINDOWS */
 
 /**
  * COM/XPCOM error code message.
@@ -357,6 +377,7 @@ typedef struct RTCOMERRMSG
     /** Error code number. */
     uint32_t    iCode;
 } RTCOMERRMSG;
+#endif /* !RT_OS_WINDOWS */
 /** Pointer to a XPCOM/COM error code message. */
 typedef RTCOMERRMSG *PRTCOMERRMSG;
 /** Pointer to const a XPCOM/COM error code message. */
@@ -369,8 +390,6 @@ typedef const RTCOMERRMSG *PCRTCOMERRMSG;
  * @param   rc      The status code.
  */
 RTDECL(PCRTCOMERRMSG) RTErrCOMGet(uint32_t rc);
-
-# endif /* !RT_OS_WINDOWS */
 
 #endif /* IN_RING3 */
 
@@ -629,16 +648,16 @@ RTDECL(int)         RTErrInfoLogAndAddV(PRTERRINFO pErrInfo, int rc, uint32_t iL
 #  define RTERRINFO_LOG_ADD_F(a_pErrInfo, a_rc, ...)                RTErrInfoLogAndAddF(a_pErrInfo, a_rc, LOG_GROUP, 0, __VA_ARGS__)
 #  define RTERRINFO_LOG_SET_F(a_pErrInfo, a_rc, ...)                RTErrInfoLogAndSetF(a_pErrInfo, a_rc, LOG_GROUP, 0, __VA_ARGS__)
 # else
-#  define RTERRINFO_LOG_ADD_F                                       RTErrInfoAddF
-#  define RTERRINFO_LOG_SET_F                                       RTErrInfoSetF
+#  define RTERRINFO_LOG_ADD_F                                       RTErrInfoSetF
+#  define RTERRINFO_LOG_SET_F                                       RTErrInfoAddF
 # endif
 #else
 # define RTERRINFO_LOG_SET(  a_pErrInfo, a_rc, a_pszMsg)            RTErrInfoSet( a_pErrInfo, a_rc, a_pszMsg)
 # define RTERRINFO_LOG_SET_V(a_pErrInfo, a_rc, a_pszMsg, a_va)      RTErrInfoSetV(a_pErrInfo, a_rc, a_pszMsg, a_va)
 # define RTERRINFO_LOG_ADD(  a_pErrInfo, a_rc, a_pszMsg)            RTErrInfoAdd( a_pErrInfo, a_rc, a_pszMsg)
 # define RTERRINFO_LOG_ADD_V(a_pErrInfo, a_rc, a_pszMsg, a_va)      RTErrInfoAddV(a_pErrInfo, a_rc, a_pszMsg, a_va)
-# define RTERRINFO_LOG_ADD_F                                        RTErrInfoAddF
-# define RTERRINFO_LOG_SET_F                                        RTErrInfoSetF
+# define RTERRINFO_LOG_ADD_F                                        RTErrInfoSetF
+# define RTERRINFO_LOG_SET_F                                        RTErrInfoAddF
 #endif
 
 #define RTERRINFO_LOG_REL_SET(  a_pErrInfo, a_rc, a_pszMsg)         RTErrInfoLogAndSet( a_pErrInfo, a_rc, LOG_GROUP, RTERRINFO_LOG_F_RELEASE, a_pszMsg)
@@ -649,8 +668,8 @@ RTDECL(int)         RTErrInfoLogAndAddV(PRTERRINFO pErrInfo, int rc, uint32_t iL
 # define RTERRINFO_LOG_REL_ADD_F(a_pErrInfo, a_rc, ...)             RTErrInfoLogAndAddF(a_pErrInfo, a_rc, LOG_GROUP, RTERRINFO_LOG_F_RELEASE, __VA_ARGS__)
 # define RTERRINFO_LOG_REL_SET_F(a_pErrInfo, a_rc, ...)             RTErrInfoLogAndSetF(a_pErrInfo, a_rc, LOG_GROUP, RTERRINFO_LOG_F_RELEASE, __VA_ARGS__)
 #else
-# define RTERRINFO_LOG_REL_ADD_F                                    RTErrInfoAddF
-# define RTERRINFO_LOG_REL_SET_F                                    RTErrInfoSetF
+# define RTERRINFO_LOG_REL_ADD_F                                    RTErrInfoSetF
+# define RTERRINFO_LOG_REL_SET_F                                    RTErrInfoAddF
 #endif
 /** @} */
 

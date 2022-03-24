@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,11 +34,7 @@
 #if !defined(_MT) && !defined(_DLL) && _MSC_VER < 1400
 # define errno msvcrt_errno
 #endif
-#if _MSC_VER >= 1900
-# include <vcruntime.h>
-#else
-# include <../include/stddef.h>
-#endif
+#include <../include/stddef.h>
 #undef errno
 
 #undef ssize_t

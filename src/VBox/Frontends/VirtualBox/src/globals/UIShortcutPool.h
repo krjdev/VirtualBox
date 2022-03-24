@@ -1,10 +1,10 @@
-/* $Id: UIShortcutPool.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIShortcutPool.h $ */
 /** @file
  * VBox Qt GUI - UIShortcutPool class declaration.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -118,10 +118,10 @@ class SHARED_LIBRARY_STUFF UIShortcutPool : public QIWithRetranslateUI3<QObject>
 
 signals:
 
-    /** Notifies about Manager UI shortcuts changed. */
-    void sigManagerShortcutsReloaded();
+    /** Notifies about Selector UI shortcuts changed. */
+    void sigSelectorShortcutsReloaded();
     /** Notifies about Runtime UI shortcuts changed. */
-    void sigRuntimeShortcutsReloaded();
+    void sigMachineShortcutsReloaded();
 
 public:
 
@@ -147,7 +147,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

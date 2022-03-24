@@ -1,10 +1,10 @@
-/* $Id: DrvTAP.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvTAP.cpp $ */
 /** @file
  * DrvTAP - Universal TAP network transport driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -814,14 +814,14 @@ static DECLCALLBACK(void) drvTAPDestruct(PPDMDRVINS pDrvIns)
     if (!pThis->fStatic)
         RTStrFree(pThis->pszDeviceName);    /* allocated by drvTAPSetupApplication */
     else
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDeviceName);
+        MMR3HeapFree(pThis->pszDeviceName);
 #else
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDeviceName);
+    MMR3HeapFree(pThis->pszDeviceName);
 #endif
     pThis->pszDeviceName = NULL;
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszSetupApplication);
+    MMR3HeapFree(pThis->pszSetupApplication);
     pThis->pszSetupApplication = NULL;
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszTerminateApplication);
+    MMR3HeapFree(pThis->pszTerminateApplication);
     pThis->pszTerminateApplication = NULL;
 
     /*
@@ -853,8 +853,7 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVTAP         pThis = PDMINS_2_DATA(pDrvIns, PDRVTAP);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVTAP pThis = PDMINS_2_DATA(pDrvIns, PDRVTAP);
 
     /*
      * Init the static parts.
@@ -897,12 +896,8 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "Device"
-                                           "|FileHandle"
-                                           "|TAPSetupApplication"
-                                           "|TAPTerminateApplication"
-                                           "|MAC",
-                                           "");
+    if (!CFGMR3AreValuesValid(pCfg, "Device\0InitProg\0TermProg\0FileHandle\0TAPSetupApplication\0TAPTerminateApplication\0MAC"))
+        return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES, "");
 
     /*
      * Check that no-one is attached to us.
@@ -924,7 +919,7 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
      */
     int rc;
 #if defined(RT_OS_SOLARIS)   /** @todo Other platforms' TAP code should be moved here from ConsoleImpl. */
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "TAPSetupApplication", &pThis->pszSetupApplication);
+    rc = CFGMR3QueryStringAlloc(pCfg, "TAPSetupApplication", &pThis->pszSetupApplication);
     if (RT_SUCCESS(rc))
     {
         if (!RTPathExists(pThis->pszSetupApplication))
@@ -934,7 +929,7 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
     else if (rc != VERR_CFGM_VALUE_NOT_FOUND)
         return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Configuration error: failed to query \"TAPTerminateApplication\""));
 
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "TAPTerminateApplication", &pThis->pszTerminateApplication);
+    rc = CFGMR3QueryStringAlloc(pCfg, "TAPTerminateApplication", &pThis->pszTerminateApplication);
     if (RT_SUCCESS(rc))
     {
         if (!RTPathExists(pThis->pszTerminateApplication))
@@ -944,7 +939,7 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
     else if (rc != VERR_CFGM_VALUE_NOT_FOUND)
         return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Configuration error: failed to query \"TAPTerminateApplication\""));
 
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Device", &pThis->pszDeviceName);
+    rc = CFGMR3QueryStringAlloc(pCfg, "Device", &pThis->pszDeviceName);
     if (RT_FAILURE(rc))
         pThis->fStatic = false;
 
@@ -967,7 +962,7 @@ static DECLCALLBACK(int) drvTAPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
 #else /* !RT_OS_SOLARIS */
 
     uint64_t u64File;
-    rc = pHlp->pfnCFGMQueryU64(pCfg, "FileHandle", &u64File);
+    rc = CFGMR3QueryU64(pCfg, "FileHandle", &u64File);
     if (RT_FAILURE(rc))
         return PDMDRV_SET_ERROR(pDrvIns, rc,
                                 N_("Configuration error: Query for \"FileHandle\" 32-bit signed integer failed"));

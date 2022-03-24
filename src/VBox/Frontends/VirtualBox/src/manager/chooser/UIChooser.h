@@ -1,10 +1,10 @@
-/* $Id: UIChooser.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooser.h $ */
 /** @file
  * VBox Qt GUI - UIChooser class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,9 +28,11 @@
 #include "UIExtraDataDefs.h"
 
 /* Forward declarations: */
+class QVBoxLayout;
 class UIActionPool;
 class UIChooserModel;
 class UIChooserView;
+class UIVirtualBoxManagerWidget;
 class UIVirtualMachineItem;
 
 /** QWidget extension used as VM Chooser-pane. */
@@ -40,10 +42,26 @@ class UIChooser : public QWidget
 
 signals:
 
+    /** @name General stuff.
+      * @{ */
+        /** Notifies listeners about selection changed. */
+        void sigSelectionChanged();
+        /** Notifies listeners about selection invalidated. */
+        void sigSelectionInvalidated();
+
+        /** Notifies listeners about toggling started. */
+        void sigToggleStarted();
+        /** Notifies listeners about toggling finished. */
+        void sigToggleFinished();
+
+        /** Notifies listeners about tool popup-menu request for certain tool @a enmClass and in specified @a position. */
+        void sigToolMenuRequested(UIToolClass enmClass, const QPoint &position);
+    /** @} */
+
     /** @name Cloud machine stuff.
       * @{ */
-        /** Notifies listeners about state change for cloud machine with certain @a uId. */
-        void sigCloudMachineStateChange(const QUuid &uId);
+        /** Notifies about state change for cloud machine with certain @a strId. */
+        void sigCloudMachineStateChange(const QString &strId);
     /** @} */
 
     /** @name Group saving stuff.
@@ -52,68 +70,25 @@ signals:
         void sigGroupSavingStateChanged();
     /** @} */
 
-    /** @name Cloud update stuff.
-      * @{ */
-        /** Notifies listeners about cloud update state change. */
-        void sigCloudUpdateStateChanged();
-    /** @} */
-
-    /** @name Tool stuff.
-      * @{ */
-        /** Notifies listeners about tool popup-menu request for certain @a enmClass and @a position. */
-        void sigToolMenuRequested(UIToolClass enmClass, const QPoint &position);
-    /** @} */
-
-    /** @name Selection stuff.
-      * @{ */
-        /** Notifies listeners about selection changed. */
-        void sigSelectionChanged();
-        /** Notifies listeners about selection invalidated. */
-        void sigSelectionInvalidated();
-
-        /** Notifies listeners about group toggling started. */
-        void sigToggleStarted();
-        /** Notifies listeners about group toggling finished. */
-        void sigToggleFinished();
-    /** @} */
-
-    /** @name Action stuff.
-      * @{ */
-        /** Notifies listeners about start or show request. */
-        void sigStartOrShowRequest();
-        /** Notifies listeners about machine search widget visibility changed to @a fVisible. */
-        void sigMachineSearchWidgetVisibilityChanged(bool fVisible);
-    /** @} */
-
 public:
 
-    /** Constructs Chooser-pane passing @a pParent to the base-class.
-      * @param  pActionPool  Brings the action-pool reference.  */
-    UIChooser(QWidget *pParent, UIActionPool *pActionPool);
+    /** Constructs Chooser-pane passing @a pParent to the base-class. */
+    UIChooser(UIVirtualBoxManagerWidget *pParent);
     /** Destructs Chooser-pane. */
-    virtual ~UIChooser() RT_OVERRIDE;
+    virtual ~UIChooser() /* override */;
 
     /** @name General stuff.
       * @{ */
+        /** Returns the manager-widget reference. */
+        UIVirtualBoxManagerWidget *managerWidget() const { return m_pManagerWidget; }
+
         /** Returns the action-pool reference. */
-        UIActionPool *actionPool() const { return m_pActionPool; }
+        UIActionPool *actionPool() const;
 
         /** Return the Chooser-model instance. */
         UIChooserModel *model() const { return m_pChooserModel; }
         /** Return the Chooser-view instance. */
         UIChooserView *view() const { return m_pChooserView; }
-    /** @} */
-
-    /** @name Group saving stuff.
-      * @{ */
-        /** Returns whether group saving is in progress. */
-        bool isGroupSavingInProgress() const;
-    /** @} */
-
-    /** @name Cloud update stuff.
-      * @{ */
-        /** Returns whether at least one cloud profile currently being updated. */
-        bool isCloudProfileUpdateInProgress() const;
     /** @} */
 
     /** @name Current-item stuff.
@@ -129,58 +104,25 @@ public:
         bool isGlobalItemSelected() const;
         /** Returns whether machine item is selected. */
         bool isMachineItemSelected() const;
-        /** Returns whether local machine item is selected. */
-        bool isLocalMachineItemSelected() const;
-        /** Returns whether cloud machine item is selected. */
-        bool isCloudMachineItemSelected() const;
 
         /** Returns whether single group is selected. */
         bool isSingleGroupSelected() const;
-        /** Returns whether single local group is selected. */
-        bool isSingleLocalGroupSelected() const;
-        /** Returns whether single cloud provider group is selected. */
-        bool isSingleCloudProviderGroupSelected() const;
-        /** Returns whether single cloud profile group is selected. */
-        bool isSingleCloudProfileGroupSelected() const;
-        /** Returns whether all items of one group are selected. */
+        /** Returns whether all machine items of one group is selected. */
         bool isAllItemsOfOneGroupSelected() const;
-
-        /** Returns full name of currently selected group. */
-        QString fullGroupName() const;
     /** @} */
 
-    /** @name Action handling stuff.
+    /** @name Group saving stuff.
       * @{ */
-        /** Opens group name editor. */
-        void openGroupNameEditor();
-        /** Disbands group. */
-        void disbandGroup();
-        /** Removes machine. */
-        void removeMachine();
-        /** Moves machine to a group with certain @a strName. */
-        void moveMachineToGroup(const QString &strName);
-        /** Returns possible groups for machine with passed @a uId to move to. */
-        QStringList possibleGroupsForMachineToMove(const QUuid &uId);
-        /** Returns possible groups for group with passed @a strFullName to move to. */
-        QStringList possibleGroupsForGroupToMove(const QString &strFullName);
-        /** Refreshes machine. */
-        void refreshMachine();
-        /** Sorts group. */
-        void sortGroup();
-        /** Toggle machine search widget to be @a fVisible. */
-        void setMachineSearchWidgetVisibility(bool fVisible);
-        /** Changes current machine to the one with certain @a uId. */
-        void setCurrentMachine(const QUuid &uId);
-        /** Set global tools to be the current item. */
-        void setCurrentGlobal();
+        /** Returns whether group saving is in progress. */
+        bool isGroupSavingInProgress() const;
     /** @} */
 
 public slots:
 
-    /** @name Layout stuff.
+    /** @name General stuff.
       * @{ */
-        /** Defines global item @a iHeight. */
-        void setGlobalItemHeightHint(int iHeight);
+        /** Handles toolbar resize to @a newSize. */
+        void sltHandleToolbarResize(const QSize &newSize);
     /** @} */
 
 private slots:
@@ -197,28 +139,32 @@ private:
       * @{ */
         /** Prepares all. */
         void prepare();
+        /** Prepares palette. */
+        void preparePalette();
+        /** Prepares layout. */
+        void prepareLayout();
         /** Prepares model. */
         void prepareModel();
-        /** Prepares widgets. */
-        void prepareWidgets();
+        /** Prepares view. */
+        void prepareView();
         /** Prepares connections. */
         void prepareConnections();
-        /** Init model. */
-        void initModel();
+        /** Loads settings. */
+        void loadSettings();
 
-        /** Deinit model. */
-        void deinitModel();
-        /** Cleanups connections. */
-        void cleanupConnections();
+        /** Saves settings. */
+        void saveSettings();
         /** Cleanups all. */
         void cleanup();
     /** @} */
 
     /** @name General stuff.
       * @{ */
-        /** Holds the action-pool reference. */
-        UIActionPool *m_pActionPool;
+        /** Holds the manager-widget reference. */
+        UIVirtualBoxManagerWidget *m_pManagerWidget;
 
+        /** Holds the main layout instane. */
+        QVBoxLayout    *m_pMainLayout;
         /** Holds the Chooser-model instane. */
         UIChooserModel *m_pChooserModel;
         /** Holds the Chooser-view instane. */

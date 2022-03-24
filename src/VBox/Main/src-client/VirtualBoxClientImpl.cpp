@@ -1,10 +1,10 @@
-/* $Id: VirtualBoxClientImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VirtualBoxClientImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,12 +23,10 @@
 #include "AutoCaller.h"
 #include "VBoxEvents.h"
 #include "VBox/com/ErrorInfo.h"
-#include "VBox/com/listeners.h"
 
 #include <iprt/asm.h>
 #include <iprt/thread.h>
 #include <iprt/critsect.h>
-#include <iprt/path.h>
 #include <iprt/semaphore.h>
 #include <iprt/cpp/utils.h>
 #include <iprt/utf16.h>
@@ -38,8 +36,6 @@
 # include <msi.h>
 # include <WbemIdl.h>
 #endif
-
-#include <new>
 
 
 /** Waiting time between probing whether VBoxSVC is alive. */
@@ -51,93 +47,9 @@ uint32_t VirtualBoxClient::g_cInstances = 0;
 
 LONG VirtualBoxClient::s_cUnnecessaryAtlModuleLocks = 0;
 
-#ifdef VBOX_WITH_MAIN_NLS
-
-/* listener class for language updates */
-class VBoxEventListener
-{
-public:
-    VBoxEventListener()
-    {}
-
-
-    HRESULT init(void *)
-    {
-        return S_OK;
-    }
-
-    HRESULT init()
-    {
-        return S_OK;
-    }
-
-    void uninit()
-    {
-    }
-
-    virtual ~VBoxEventListener()
-    {
-    }
-
-    STDMETHOD(HandleEvent)(VBoxEventType_T aType, IEvent *aEvent)
-    {
-        switch(aType)
-        {
-            case VBoxEventType_OnLanguageChanged:
-            {
-                /*
-                 * Proceed with uttmost care as we might be racing com::Shutdown()
-                 * and have the ground open up beneath us.
-                 */
-                LogFunc(("VBoxEventType_OnLanguageChanged\n"));
-                VirtualBoxTranslator *pTranslator = VirtualBoxTranslator::tryInstance();
-                if (pTranslator)
-                {
-                    ComPtr<ILanguageChangedEvent> pEvent = aEvent;
-                    Assert(pEvent);
-
-                    /* This call may fail if we're racing COM shutdown. */
-                    com::Bstr bstrLanguageId;
-                    HRESULT hrc = pEvent->COMGETTER(LanguageId)(bstrLanguageId.asOutParam());
-                    if (SUCCEEDED(hrc))
-                    {
-                        try
-                        {
-                            com::Utf8Str strLanguageId(bstrLanguageId);
-                            LogFunc(("New language ID: %s\n", strLanguageId.c_str()));
-                            pTranslator->i_loadLanguage(strLanguageId.c_str());
-                        }
-                        catch (std::bad_alloc &)
-                        {
-                            LogFunc(("Caught bad_alloc"));
-                        }
-                    }
-                    else
-                        LogFunc(("Failed to get new language ID: %Rhrc\n", hrc));
-
-                    pTranslator->release();
-                }
-                break;
-            }
-
-            default:
-              AssertFailed();
-        }
-
-        return S_OK;
-    }
-};
-
-typedef ListenerImpl<VBoxEventListener> VBoxEventListenerImpl;
-
-VBOX_LISTENER_DECLARE(VBoxEventListenerImpl)
-
-#endif /* VBOX_WITH_MAIN_NLS */
-
 // constructor / destructor
 /////////////////////////////////////////////////////////////////////////////
 
-/** @relates VirtualBoxClient::FinalConstruct() */
 HRESULT VirtualBoxClient::FinalConstruct()
 {
     HRESULT rc = init();
@@ -162,6 +74,24 @@ void VirtualBoxClient::FinalRelease()
  */
 HRESULT VirtualBoxClient::init()
 {
+
+#if defined(RT_OS_WINDOWS) && defined(VBOX_WITH_SDS)
+    // setup COM Security to enable impersonation
+    // This works for console VirtualBox clients, GUI has own security settings
+    //  For GUI VirtualBox it will be second call so can return TOO_LATE error
+    HRESULT hrGUICoInitializeSecurity = CoInitializeSecurity(NULL,
+                                                             -1,
+                                                             NULL,
+                                                             NULL,
+                                                             RPC_C_AUTHN_LEVEL_DEFAULT,
+                                                             RPC_C_IMP_LEVEL_IMPERSONATE,
+                                                             NULL,
+                                                             EOAC_NONE,
+                                                             NULL);
+    NOREF(hrGUICoInitializeSecurity);
+    Assert(SUCCEEDED(hrGUICoInitializeSecurity) || hrGUICoInitializeSecurity == RPC_E_TOO_LATE);
+#endif
+
     LogFlowThisFuncEnter();
 
     /* Enclose the state transition NotReady->InInit->Ready */
@@ -180,7 +110,7 @@ HRESULT VirtualBoxClient::init()
     try
     {
         if (ASMAtomicIncU32(&g_cInstances) != 1)
-            AssertFailedStmt(throw setError(E_FAIL, "Attempted to create more than one VirtualBoxClient instance"));
+            AssertFailedStmt(throw setError(E_FAIL, tr("Attempted to create more than one VirtualBoxClient instance")));
 
         mData.m_ThreadWatcher = NIL_RTTHREAD;
         mData.m_SemEvWatcher = NIL_RTSEMEVENT;
@@ -200,47 +130,18 @@ HRESULT VirtualBoxClient::init()
             throw rc;
 
         rc = unconst(mData.m_pEventSource).createObject();
-        AssertComRCThrow(rc, setError(rc, "Could not create EventSource for VirtualBoxClient"));
+        AssertComRCThrow(rc, setError(rc, tr("Could not create EventSource for VirtualBoxClient")));
         rc = mData.m_pEventSource->init();
-        AssertComRCThrow(rc, setError(rc, "Could not initialize EventSource for VirtualBoxClient"));
+        AssertComRCThrow(rc, setError(rc, tr("Could not initialize EventSource for VirtualBoxClient")));
 
         /* HACK ALERT! This is for DllCanUnloadNow(). */
         s_cUnnecessaryAtlModuleLocks++;
         AssertMsg(s_cUnnecessaryAtlModuleLocks == 1, ("%d\n", s_cUnnecessaryAtlModuleLocks));
 
-        int vrc;
-#ifdef VBOX_WITH_MAIN_NLS
-        /* Create the translator singelton (must work) and try load translations (non-fatal). */
-        mData.m_pVBoxTranslator = VirtualBoxTranslator::instance();
-        if (mData.m_pVBoxTranslator == NULL)
-            throw setError(VBOX_E_IPRT_ERROR, "Failed to create translator instance");
-
-        char szNlsPath[RTPATH_MAX];
-        vrc = RTPathAppPrivateNoArch(szNlsPath, sizeof(szNlsPath));
-        if (RT_SUCCESS(vrc))
-            vrc = RTPathAppend(szNlsPath, sizeof(szNlsPath), "nls" RTPATH_SLASH_STR "VirtualBoxAPI");
-
-        if (RT_SUCCESS(vrc))
-        {
-            vrc = mData.m_pVBoxTranslator->registerTranslation(szNlsPath, true, &mData.m_pTrComponent);
-            if (RT_SUCCESS(vrc))
-            {
-                rc = i_reloadApiLanguage();
-                if (SUCCEEDED(rc))
-                    i_registerEventListener(); /* for updates */
-                else
-                    LogRelFunc(("i_reloadApiLanguage failed: %Rhrc\n", rc));
-            }
-            else
-                LogRelFunc(("Register translation failed: %Rrc\n", vrc));
-        }
-        else
-            LogRelFunc(("Path constructing failed: %Rrc\n", vrc));
-#endif
         /* Setting up the VBoxSVC watcher thread. If anything goes wrong here it
          * is not considered important enough to cause any sort of visible
          * failure. The monitoring will not be done, but that's all. */
-        vrc = RTSemEventCreate(&mData.m_SemEvWatcher);
+        int vrc = RTSemEventCreate(&mData.m_SemEvWatcher);
         if (RT_FAILURE(vrc))
         {
             mData.m_SemEvWatcher = NIL_RTSEMEVENT;
@@ -306,7 +207,7 @@ HRESULT VirtualBoxClient::i_investigateVirtualBoxObjectCreationFailure(HRESULT h
             return setError(hrcCaller,
                             tr("VBoxSDS is misconfigured to run under the '%ls' account instead of the SYSTEM one.\n"
                                "Reinstall VirtualBox to fix it.  Alternatively you can fix it using the Windows Service Control "
-                               "Manager or by running 'sc config VBoxSDS obj=LocalSystem' on a command line."), wszBuffer);
+                               "Manager or by running 'qc config VBoxSDS obj=LocalSystem' on a command line."), wszBuffer);
         if (uStartType == SERVICE_DISABLED)
             return setError(hrcCaller,
                             tr("The VBoxSDS windows service is disabled.\n"
@@ -578,14 +479,7 @@ void VirtualBoxClient::uninit()
     /* Enclose the state transition Ready->InUninit->NotReady */
     AutoUninitSpan autoUninitSpan(this);
     if (autoUninitSpan.uninitDone())
-    {
-        LogFlowThisFunc(("already done\n"));
         return;
-    }
-
-#ifdef VBOX_WITH_MAIN_NLS
-    i_unregisterEventListener();
-#endif
 
     if (mData.m_ThreadWatcher != NIL_RTTHREAD)
     {
@@ -598,20 +492,11 @@ void VirtualBoxClient::uninit()
         RTSemEventDestroy(mData.m_SemEvWatcher);
         mData.m_SemEvWatcher = NIL_RTSEMEVENT;
     }
-#ifdef VBOX_WITH_MAIN_NLS
-    if (mData.m_pVBoxTranslator != NULL)
-    {
-        mData.m_pVBoxTranslator->release();
-        mData.m_pVBoxTranslator = NULL;
-        mData.m_pTrComponent = NULL;
-    }
-#endif
+
     mData.m_pToken.setNull();
     mData.m_pVirtualBox.setNull();
 
     ASMAtomicDecU32(&g_cInstances);
-
-    LogFlowThisFunc(("returns\n"));
 }
 
 // IVirtualBoxClient properties
@@ -732,7 +617,7 @@ DECLCALLBACK(int) VirtualBoxClient::SVCWatcherThread(RTTHREAD ThreadSelf,
                          * usable as VBoxSVC terminated in the mean time. */
                         pThis->mData.m_pVirtualBox.setNull();
                     }
-                    ::FireVBoxSVCAvailabilityChangedEvent(pThis->mData.m_pEventSource, FALSE);
+                    fireVBoxSVCAvailabilityChangedEvent(pThis->mData.m_pEventSource, FALSE);
                 }
             }
             else
@@ -755,13 +640,8 @@ DECLCALLBACK(int) VirtualBoxClient::SVCWatcherThread(RTTHREAD ThreadSelf,
                          * VBoxSVC again from now on. */
                         pThis->mData.m_pVirtualBox = pVirtualBox;
                         pThis->mData.m_pToken = pToken;
-#ifdef VBOX_WITH_MAIN_NLS
-                        /* update language using new instance of IVirtualBox in case the language settings was changed */
-                        pThis->i_reloadApiLanguage();
-                        pThis->i_registerEventListener();
-#endif
                     }
-                    ::FireVBoxSVCAvailabilityChangedEvent(pThis->mData.m_pEventSource, TRUE);
+                    fireVBoxSVCAvailabilityChangedEvent(pThis->mData.m_pEventSource, TRUE);
                     cMillies = VBOXCLIENT_DEFAULT_INTERVAL;
                 }
             }
@@ -770,55 +650,5 @@ DECLCALLBACK(int) VirtualBoxClient::SVCWatcherThread(RTTHREAD ThreadSelf,
     }
     return 0;
 }
-
-#ifdef VBOX_WITH_MAIN_NLS
-
-HRESULT VirtualBoxClient::i_reloadApiLanguage()
-{
-    if (mData.m_pVBoxTranslator == NULL)
-        return S_OK;
-
-    HRESULT rc = mData.m_pVBoxTranslator->loadLanguage(mData.m_pVirtualBox);
-    if (FAILED(rc))
-        setError(rc, tr("Failed to load user language instance"));
-    return rc;
-}
-
-HRESULT VirtualBoxClient::i_registerEventListener()
-{
-    HRESULT rc = mData.m_pVirtualBox->COMGETTER(EventSource)(mData.m_pVBoxEventSource.asOutParam());
-    if (SUCCEEDED(rc))
-    {
-        ComObjPtr<VBoxEventListenerImpl> pVBoxListener;
-        pVBoxListener.createObject();
-        pVBoxListener->init(new VBoxEventListener());
-        mData.m_pVBoxEventListener = pVBoxListener;
-        com::SafeArray<VBoxEventType_T> eventTypes;
-        eventTypes.push_back(VBoxEventType_OnLanguageChanged);
-        rc = mData.m_pVBoxEventSource->RegisterListener(pVBoxListener, ComSafeArrayAsInParam(eventTypes), true);
-        if (FAILED(rc))
-        {
-            rc = setError(rc, tr("Failed to register listener"));
-            mData.m_pVBoxEventListener.setNull();
-            mData.m_pVBoxEventSource.setNull();
-        }
-    }
-    else
-        rc = setError(rc, tr("Failed to get event source from VirtualBox"));
-    return rc;
-}
-
-void VirtualBoxClient::i_unregisterEventListener()
-{
-    if (mData.m_pVBoxEventListener.isNotNull())
-    {
-        if (mData.m_pVBoxEventSource.isNotNull())
-            mData.m_pVBoxEventSource->UnregisterListener(mData.m_pVBoxEventListener);
-        mData.m_pVBoxEventListener.setNull();
-    }
-    mData.m_pVBoxEventSource.setNull();
-}
-
-#endif /* VBOX_WITH_MAIN_NLS */
 
 /* vi: set tabstop=4 shiftwidth=4 expandtab: */

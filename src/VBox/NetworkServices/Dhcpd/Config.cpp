@@ -1,10 +1,10 @@
-/* $Id: Config.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Config.cpp $ */
 /** @file
  * DHCP server - server configuration
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -412,7 +412,7 @@ Config *Config::create(int argc, char **argv) RT_NOEXCEPT
     }
 
     /*
-     * Read the config file.
+     * Read the log file.
      */
     RTMsgInfo("reading config from '%s'...\n", pszConfig);
     std::unique_ptr<Config> ptrConfig;
@@ -429,7 +429,7 @@ Config *Config::create(int argc, char **argv) RT_NOEXCEPT
 
 /**
  *
- * @note The release log is not operational when this method is called.
+ * @note The release log has is not operational when this method is called.
  */
 Config *Config::i_read(const char *pszFileName, bool fStrict) RT_NOEXCEPT
 {

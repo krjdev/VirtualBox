@@ -1,10 +1,10 @@
-/* $Id: EventImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: EventImpl.h $ */
 /** @file
  * VirtualBox COM IEvent implementation
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,11 +26,11 @@
 #include "VetoEventWrap.h"
 
 
-class ATL_NO_VTABLE VBoxEvent
-    : public EventWrap
+class ATL_NO_VTABLE VBoxEvent :
+    public EventWrap
 {
 public:
-    DECLARE_COMMON_CLASS_METHODS(VBoxEvent)
+    DECLARE_EMPTY_CTOR_DTOR(VBoxEvent)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -54,11 +54,11 @@ private:
 };
 
 
-class ATL_NO_VTABLE VBoxVetoEvent
-    : public VetoEventWrap
+class ATL_NO_VTABLE VBoxVetoEvent :
+    public VetoEventWrap
 {
 public:
-    DECLARE_COMMON_CLASS_METHODS(VBoxVetoEvent)
+    DECLARE_EMPTY_CTOR_DTOR(VBoxVetoEvent)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -93,7 +93,7 @@ class ATL_NO_VTABLE EventSource :
     public EventSourceWrap
 {
 public:
-    DECLARE_COMMON_CLASS_METHODS(EventSource)
+    DECLARE_EMPTY_CTOR_DTOR(EventSource)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -122,7 +122,7 @@ private:
 
 
     struct Data;
-    Data *m;
+    Data* m;
 
     friend class ListenerRecord;
 };
@@ -133,18 +133,22 @@ public:
     VBoxEventDesc() : mEvent(0), mEventSource(0)
     {}
 
-    VBoxEventDesc(IEvent *aEvent, IEventSource *aSource)
-        : mEvent(aEvent), mEventSource(aSource)
-    {}
-
     ~VBoxEventDesc()
     {}
 
-    void init(IEvent *aEvent, IEventSource *aSource)
-    {
-        mEvent       = aEvent;
-        mEventSource = aSource;
-    }
+    /**
+     * This function to be used with some care, as arguments order must match
+     * attribute declaration order event class and its superclasses up to
+     * IEvent. If unsure, consult implementation in generated VBoxEvents.cpp.
+     */
+    HRESULT init(IEventSource* aSource, VBoxEventType_T aType, ...);
+
+    /**
+    * Function similar to the above, but assumes that init() for this type
+    * already called once, so no need to allocate memory, and only reinit
+    * fields. Assumes event is subtype of IReusableEvent, asserts otherwise.
+    */
+    HRESULT reinit(VBoxEventType_T aType, ...);
 
     void uninit()
     {
@@ -162,8 +166,8 @@ public:
         if (mEventSource && mEvent)
         {
             BOOL fDelivered = FALSE;
-            HRESULT hrc = mEventSource->FireEvent(mEvent, aTimeout, &fDelivered);
-            AssertComRCReturn(hrc, FALSE);
+            int rc = mEventSource->FireEvent(mEvent, aTimeout, &fDelivered);
+            AssertRCReturn(rc, FALSE);
             return fDelivered;
         }
         return FALSE;

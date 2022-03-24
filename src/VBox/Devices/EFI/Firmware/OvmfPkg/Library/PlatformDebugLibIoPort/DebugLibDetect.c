@@ -1,5 +1,5 @@
 /** @file
-  Detection code for hypervisor debug port.
+  Detection code for QEMU debug port.
   Non-SEC instance, caches the result of detection.
 
   Copyright (c) 2017, Red Hat, Inc.<BR>

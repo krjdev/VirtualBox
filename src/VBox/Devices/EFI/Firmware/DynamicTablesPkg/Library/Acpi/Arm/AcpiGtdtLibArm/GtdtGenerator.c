@@ -259,6 +259,16 @@ AddGTBlockTimerFrames (
   ASSERT (GtBlockFrame != NULL);
   ASSERT (GTBlockTimerFrameList != NULL);
 
+  if (GTBlockFrameCount > 8) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "ERROR: GTDT: GT Block Frame Count %d is greater than 8\n",
+      GTBlockFrameCount
+      ));
+    ASSERT (GTBlockFrameCount <= 8);
+    return EFI_INVALID_PARAMETER;
+  }
+
   IsFrameNumberDuplicated = FindDuplicateValue (
                               GTBlockTimerFrameList,
                               GTBlockFrameCount,
@@ -340,7 +350,6 @@ AddGTBlockList (
   EFI_ACPI_6_3_GTDT_GT_BLOCK_TIMER_STRUCTURE  * GtBlockFrame;
   CM_ARM_GTBLOCK_TIMER_FRAME_INFO             * GTBlockTimerFrameList;
   UINT32                                        GTBlockTimerFrameCount;
-  UINTN                                         Length;
 
   ASSERT (Gtdt != NULL);
   ASSERT (GTBlockInfo != NULL);
@@ -367,27 +376,11 @@ AddGTBlockList (
       return Status;
     }
 
-    Length = sizeof (EFI_ACPI_6_3_GTDT_GT_BLOCK_STRUCTURE) +
-               (sizeof (EFI_ACPI_6_3_GTDT_GT_BLOCK_TIMER_STRUCTURE) *
-                GTBlockInfo->GTBlockTimerFrameCount);
-
-    // Check that the length of the GT block does not
-    // exceed MAX_UINT16
-    if (Length > MAX_UINT16) {
-      Status = EFI_INVALID_PARAMETER;
-      DEBUG ((
-        DEBUG_ERROR,
-        "ERROR: GTDT: Too many GT Frames. Count = %d. " \
-        "Maximum supported GT Block size exceeded. " \
-        "Status = %r\n",
-        GTBlockInfo->GTBlockTimerFrameCount,
-        Status
-        ));
-      return Status;
-    }
-
     GTBlock->Type = EFI_ACPI_6_3_GTDT_GT_BLOCK;
-    GTBlock->Length = (UINT16)Length;
+    GTBlock->Length = sizeof (EFI_ACPI_6_3_GTDT_GT_BLOCK_STRUCTURE) +
+                        (sizeof (EFI_ACPI_6_3_GTDT_GT_BLOCK_TIMER_STRUCTURE) *
+                          GTBlockInfo->GTBlockTimerFrameCount);
+
     GTBlock->Reserved = EFI_ACPI_RESERVED_BYTE;
     GTBlock->CntCtlBase = GTBlockInfo->GTBlockPhysicalAddress;
     GTBlock->GTBlockTimerCount = GTBlockInfo->GTBlockTimerFrameCount;
@@ -745,8 +738,8 @@ ACPI_TABLE_GENERATOR GtdtGenerator = {
 EFI_STATUS
 EFIAPI
 AcpiGtdtLibConstructor (
-  IN  EFI_HANDLE           ImageHandle,
-  IN  EFI_SYSTEM_TABLE  *  SystemTable
+  IN CONST EFI_HANDLE                ImageHandle,
+  IN       EFI_SYSTEM_TABLE  * CONST SystemTable
   )
 {
   EFI_STATUS  Status;
@@ -768,8 +761,8 @@ AcpiGtdtLibConstructor (
 EFI_STATUS
 EFIAPI
 AcpiGtdtLibDestructor (
-  IN  EFI_HANDLE           ImageHandle,
-  IN  EFI_SYSTEM_TABLE  *  SystemTable
+  IN CONST EFI_HANDLE                ImageHandle,
+  IN       EFI_SYSTEM_TABLE  * CONST SystemTable
   )
 {
   EFI_STATUS  Status;

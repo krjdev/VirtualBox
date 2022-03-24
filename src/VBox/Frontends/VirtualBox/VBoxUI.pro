@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -19,6 +19,30 @@
 
 TEMPLATE	= app
 LANGUAGE	= C++
+
+FORMS = \
+    src/settings/UISettingsDialog.ui \
+    src/settings/global/UIGlobalSettingsGeneral.ui \
+    src/settings/global/UIGlobalSettingsInput.ui \
+    src/settings/global/UIGlobalSettingsUpdate.ui \
+    src/settings/global/UIGlobalSettingsLanguage.ui \
+    src/settings/global/UIGlobalSettingsDisplay.ui \
+    src/settings/global/UIGlobalSettingsNetwork.ui \
+    src/settings/global/UIGlobalSettingsNetworkDetailsNAT.ui \
+    src/settings/global/UIGlobalSettingsExtension.ui \
+    src/settings/global/UIGlobalSettingsProxy.ui \
+    src/settings/machine/UIMachineSettingsGeneral.ui \
+    src/settings/machine/UIMachineSettingsSystem.ui \
+    src/settings/machine/UIMachineSettingsDisplay.ui \
+    src/settings/machine/UIMachineSettingsStorage.ui \
+    src/settings/machine/UIMachineSettingsAudio.ui \
+    src/settings/machine/UIMachineSettingsNetwork.ui \
+    src/settings/machine/UIMachineSettingsSerial.ui \
+    src/settings/machine/UIMachineSettingsUSB.ui \
+    src/settings/machine/UIMachineSettingsUSBFilterDetails.ui \
+    src/settings/machine/UIMachineSettingsSF.ui \
+    src/settings/machine/UIMachineSettingsSFDetails.ui \
+    src/settings/machine/UIMachineSettingsInterface.ui
 
 TRANSLATIONS = \
 	nls/VirtualBox_bg.ts \

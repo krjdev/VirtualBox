@@ -1,10 +1,10 @@
-/* $Id: RTCRestClientApiBaseOci.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTCRestClientApiBaseOci.cpp $ */
 /** @file
  * IPRT - C++ REST, RTCRestClientApiBase implementation, OCI specific bits.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,7 +43,7 @@
 
 
 /**
- * Ensures that we've got an 'X-Date' or 'Date' header.
+ * Ensures that we've got a 'Content-Length' header.
  *
  * @returns IPRT status code.
  * @param   hHttp       The HTTP client handle.
@@ -79,13 +79,9 @@ static int ociSignRequestEnsureXContentSha256(RTHTTP hHttp, void const *pvConten
         return VINF_SUCCESS;
 
 #ifdef RT_STRICT
-    if (cbContent != 0)
-    {
-        const char *pszContentLength = RTHttpGetHeader(hHttp, RT_STR_TUPLE("Content-Length"));
-        Assert(pszContentLength);
-        AssertMsg(!pszContentLength || RTStrToUInt64(pszContentLength) == cbContent,
-                  ("'%s' vs %RU64\n", pszContentLength, cbContent));
-    }
+    const char *pszContentLength = RTHttpGetHeader(hHttp, RT_STR_TUPLE("Content-Length"));
+    Assert(pszContentLength);
+    AssertMsg(!pszContentLength || RTStrToUInt64(pszContentLength) == cbContent, ("'%s' vs %RU64\n", pszContentLength, cbContent));
 #endif
 
     uint8_t abHash[RTSHA256_HASH_SIZE];
@@ -147,19 +143,15 @@ int RTCRestClientApiBase::ociSignRequest(RTHTTP a_hHttp, RTCString const &a_rStr
     int rc = ociSignRequestEnsureHost(a_hHttp, a_rStrFullUrl.c_str());
     if (RT_SUCCESS(rc))
     {
-        bool fHasBody
-            =  a_rStrXmitBody.isNotEmpty()
-               /* but sometimes we need an empty body signed too */
-            || (a_fFlags & kDoCall_RequireBody)
-            || a_enmHttpMethod == RTHTTPMETHOD_POST
-            || a_enmHttpMethod == RTHTTPMETHOD_PUT;
+        bool fHasBody = a_rStrXmitBody.isNotEmpty() || (a_fFlags & kDoCall_RequireBody);
 
-        if (fHasBody)
-        {
+        if (   fHasBody
+            || a_enmHttpMethod == RTHTTPMETHOD_POST
+            || a_enmHttpMethod == RTHTTPMETHOD_PUT)
             rc = ociSignRequestEnsureContentLength(a_hHttp, a_rStrXmitBody.length());
-            if (RT_SUCCESS(rc))
-                rc = ociSignRequestEnsureXContentSha256(a_hHttp, a_rStrXmitBody.c_str(), a_rStrXmitBody.length());
-        }
+        if (   RT_SUCCESS(rc)
+            && fHasBody)
+            rc = ociSignRequestEnsureXContentSha256(a_hHttp, a_rStrXmitBody.c_str(), a_rStrXmitBody.length());
         if (RT_SUCCESS(rc))
             rc = ociSignRequestEnsureDateOrXDate(a_hHttp);
         if (RT_SUCCESS(rc))

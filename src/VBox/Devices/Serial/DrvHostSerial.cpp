@@ -1,10 +1,10 @@
-/* $Id: DrvHostSerial.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostSerial.cpp $ */
 /** @file
  * VBox serial devices: Host serial driver
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -627,7 +627,7 @@ static void drvHostSerialIoLoopError(PDRVHOSTSERIAL pThis, PPDMTHREAD pThread)
              * Sleep a bit to avoid excessive I/O loop CPU usage, timing is not important in
              * this mode.
              */
-            PDMDrvHlpThreadSleep(pThis->pDrvIns, pThread, 100);
+            PDMR3ThreadSleep(pThread, 100);
         }
     }
 }
@@ -762,7 +762,7 @@ static DECLCALLBACK(void) drvHostSerialDestruct(PPDMDRVINS pDrvIns)
 
     if (pThis->pszDevicePath)
     {
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDevicePath);
+        MMR3HeapFree(pThis->pszDevicePath);
         pThis->pszDevicePath = NULL;
     }
 }
@@ -776,11 +776,9 @@ static DECLCALLBACK(void) drvHostSerialDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvHostSerialConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     RT_NOREF1(fFlags);
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHOSTSERIAL  pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTSERIAL);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    PDRVHOSTSERIAL pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTSERIAL);
     LogFlow(("%s: iInstance=%d\n", __FUNCTION__, pDrvIns->iInstance));
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
      * Init basic data members and interfaces.
@@ -807,15 +805,10 @@ static DECLCALLBACK(int) drvHostSerialConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pC
     pThis->ISerialConnector.pfnQueuesFlush       = drvHostSerialQueuesFlush;
 
     /*
-     * Validate the config.
-     */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "DevicePath", "");
-
-    /*
      * Query configuration.
      */
     /* Device */
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "DevicePath", &pThis->pszDevicePath);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "DevicePath", &pThis->pszDevicePath);
     if (RT_FAILURE(rc))
     {
         AssertMsgFailed(("Configuration error: query for \"DevicePath\" string returned %Rra.\n", rc));

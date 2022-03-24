@@ -1,10 +1,10 @@
-/* $Id: strtonum.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: strtonum.cpp $ */
 /** @file
  * IPRT - String To Number Conversion.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -633,26 +633,17 @@ RTDECL(int) RTStrToInt64Ex(const char *pszValue, char **ppszNext, unsigned uBase
         psz++;
     }
 
-    /* Mixing pi64 assigning and overflow checks is to pacify a tstRTCRest-1
-       asan overflow warning.  */
-    if (!(u64 & RT_BIT_64(63)))
-    {
-        if (psz == pszValue)
-            rc = VERR_NO_DIGITS;
-        if (pi64)
-            *pi64 = fPositive ? u64 : -(int64_t)u64;
-    }
-    else if (!fPositive && u64 == RT_BIT_64(63))
-    {
-        if (pi64)
-            *pi64 = INT64_MIN;
-    }
+    if (   !(u64 & RT_BIT_64(63))
+        || (!fPositive && u64 == RT_BIT_64(63)) )
+    { /* likely */ }
     else
-    {
         rc = VWRN_NUMBER_TOO_BIG;
-        if (pi64)
-            *pi64 = fPositive ? u64 : -(int64_t)u64;
-    }
+
+    if (pi64)
+        *pi64 = fPositive ? u64 : -(int64_t)u64;
+
+    if (psz == pszValue)
+        rc = VERR_NO_DIGITS;
 
     if (ppszNext)
         *ppszNext = (char *)psz;

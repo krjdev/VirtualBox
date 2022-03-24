@@ -1,10 +1,10 @@
-/* $Id: SUPHardenedVerify-win.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPHardenedVerify-win.h $ */
 /** @file
  * VirtualBox Support Library/Driver - Hardened Verification, Windows.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -75,8 +75,8 @@ typedef enum SUPHARDNTVPKIND
  */
 #define SUPHARDNTVP_F_EXEC_ALLOC_REPLACE_WITH_RW        RT_BIT_32(0)
 /** @} */
-DECLHIDDEN(int)     supHardenedWinVerifyProcess(HANDLE hProcess, HANDLE hThread, SUPHARDNTVPKIND enmKind,
-                                                uint32_t fFlags, uint32_t *pcFixes, PRTERRINFO pErrInfo);
+DECLHIDDEN(int)     supHardenedWinVerifyProcess(HANDLE hProcess, HANDLE hThread, SUPHARDNTVPKIND enmKind, uint32_t fFlags,
+                                                uint32_t *pcFixes, PRTERRINFO pErrInfo);
 DECLHIDDEN(int)     supHardNtVpThread(HANDLE hProcess, HANDLE hThread, PRTERRINFO pErrInfo);
 DECLHIDDEN(int)     supHardNtVpDebugger(HANDLE hProcess, PRTERRINFO pErrInfo);
 
@@ -84,7 +84,7 @@ DECLHIDDEN(bool)    supHardViUtf16PathIsEqualEx(PCRTUTF16 pawcLeft, size_t cwcLe
 DECLHIDDEN(bool)    supHardViUniStrPathStartsWithUniStr(UNICODE_STRING const *pUniStrLeft,
                                                         UNICODE_STRING const *pUniStrRight, bool fCheckSlash);
 DECLHIDDEN(bool)    supHardViUtf16PathStartsWithEx(PCRTUTF16 pwszLeft, uint32_t cwcLeft,
-                                                   PCRTUTF16 pwszRight, uint32_t cwcRight, bool fCheckSlash);
+                                                PCRTUTF16 pwszRight, uint32_t cwcRight, bool fCheckSlash);
 DECLHIDDEN(bool)    supHardViIsAppPatchDir(PCRTUTF16 pwszPath, uint32_t cwcName);
 
 
@@ -125,8 +125,8 @@ DECLHIDDEN(int)  supHardNtViRdrCreate(HANDLE hFile, PCRTUTF16 pwszName, uint32_t
 DECLHIDDEN(bool) supHardenedWinIsWinVerifyTrustCallable(void);
 DECLHIDDEN(int)  supHardenedWinVerifyImageTrust(HANDLE hFile, PCRTUTF16 pwszName, uint32_t fFlags, int rc,
                                                 bool *pfWinVerifyTrust, PRTERRINFO pErrInfo);
-DECLHIDDEN(int)  supHardenedWinVerifyImageByHandle(HANDLE hFile, PCRTUTF16 pwszName, uint32_t fFlags,
-                                                   bool fAvoidWinVerifyTrust, bool *pfWinVerifyTrust, PRTERRINFO pErrInfo);
+DECLHIDDEN(int)  supHardenedWinVerifyImageByHandle(HANDLE hFile, PCRTUTF16 pwszName, uint32_t fFlags, bool fAvoidWinVerifyTrust,
+                                                   bool *pfWinVerifyTrust, PRTERRINFO pErrInfo);
 DECLHIDDEN(int)  supHardenedWinVerifyImageByHandleNoName(HANDLE hFile, uint32_t fFlags, PRTERRINFO pErrInfo);
 DECLHIDDEN(int)  supHardenedWinVerifyImageByLdrMod(RTLDRMOD hLdrMod, PCRTUTF16 pwszName, PSUPHNTVIRDR pNtViRdr,
                                                    bool fAvoidWinVerifyTrust, bool *pfWinVerifyTrust, PRTERRINFO pErrInfo);
@@ -221,8 +221,7 @@ extern SUPSYSROOTDIRBUF g_SupLibHardenedAppBinNtPath;
 
 #   ifdef IN_RING0
 /** Pointer to NtQueryVirtualMemory. */
-typedef DECLCALLBACKPTR_EX(NTSTATUS, NTAPI, PFNNTQUERYVIRTUALMEMORY,(HANDLE, void const *, MEMORY_INFORMATION_CLASS,
-                                                                     PVOID, SIZE_T, PSIZE_T));
+typedef NTSTATUS (NTAPI *PFNNTQUERYVIRTUALMEMORY)(HANDLE, void const *, MEMORY_INFORMATION_CLASS, PVOID, SIZE_T, PSIZE_T);
 extern PFNNTQUERYVIRTUALMEMORY g_pfnNtQueryVirtualMemory;
 #   endif
 

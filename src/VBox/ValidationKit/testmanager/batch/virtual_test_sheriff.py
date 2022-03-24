@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: virtual_test_sheriff.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: virtual_test_sheriff.py $
 # pylint: disable=line-too-long
 
 """
@@ -16,7 +16,7 @@ from __future__ import print_function;
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 146365 $"
 
 
 # Standard python imports
@@ -50,9 +50,9 @@ from email.mime.text        import MIMEText;
 from email.utils            import COMMASPACE;
 
 if sys.version_info[0] >= 3:
-    from io       import BytesIO as BytesIO;        # pylint: disable=import-error,no-name-in-module,useless-import-alias
+    from io       import StringIO as StringIO;      # pylint: disable=import-error,no-name-in-module,useless-import-alias
 else:
-    from StringIO import StringIO as BytesIO;       # pylint: disable=import-error,no-name-in-module,useless-import-alias
+    from StringIO import StringIO as StringIO;      # pylint: disable=import-error,no-name-in-module,useless-import-alias
 from optparse import OptionParser;                  # pylint: disable=deprecated-module
 from PIL import Image;                              # pylint: disable=import-error
 
@@ -154,7 +154,7 @@ class VirtualTestSheriffCaseFile(object):
     def isVBoxUnitTest(self):
         """ Test case classification: The unit test doing all our testcase/*.cpp stuff. """
         return self.isVBoxTest() \
-           and (self.oTestCase.sName.lower() == 'unit tests' or self.oTestCase.sName.lower().startswith('misc: unit tests'));
+           and (self.oTestCase.sName.lower() == 'unit tests' or self.oTestCase.sName.lower() == 'misc: unit tests');
 
     def isVBoxInstallTest(self):
         """ Test case classification: VirtualBox Guest installation test. """
@@ -265,16 +265,17 @@ class VirtualTestSheriffCaseFile(object):
             self.oSheriff.vprint(u'Error reading the "%s" image file: %s' % (oFile.sFile, oXcpt,))
         else:
             try:
-                oImage = Image.open(BytesIO(abImageFile));
+                oImage = Image.open(StringIO(abImageFile));
             except Exception as oXcpt:
                 self.oSheriff.vprint(u'Error opening the "%s" image bytes using PIL.Image.open: %s' % (oFile.sFile, oXcpt,))
             else:
                 try:
                     oHash = hashlib.sha256();
-                    if hasattr(oImage, 'tobytes'):
-                        oHash.update(oImage.tobytes());
-                    else:
+                    if sys.version_info < (3, 9, 0):
+                        # Removed since Python 3.9.
                         oHash.update(oImage.tostring()); # pylint: disable=no-member
+                    else:
+                        oHash.update(oImage.tobytes());
                 except Exception as oXcpt:
                     self.oSheriff.vprint(u'Error hashing the uncompressed image bytes for "%s": %s' % (oFile.sFile, oXcpt,))
                 else:
@@ -339,8 +340,8 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         (self.oConfig, _) = oParser.parse_args();
 
         if self.oConfig.sLogFile:
-            self.oLogFile = open(self.oConfig.sLogFile, "a");   # pylint: disable=consider-using-with
-            self.oLogFile.write('VirtualTestSheriff: $Revision: 94129 $ \n');
+            self.oLogFile = open(self.oConfig.sLogFile, "a");
+            self.oLogFile.write('VirtualTestSheriff: $Revision: 146365 $ \n');
 
 
     def eprint(self, sText):
@@ -350,10 +351,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         """
         print('error: %s' % (sText,));
         if self.oLogFile is not None:
-            if sys.version_info[0] >= 3:
-                self.oLogFile.write(u'error: %s\n' % (sText,));
-            else:
-                self.oLogFile.write((u'error: %s\n' % (sText,)).encode('utf-8'));
+            self.oLogFile.write((u'error: %s\n' % (sText,)).encode('utf-8'));
         return 1;
 
     def dprint(self, sText):
@@ -364,10 +362,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             if not self.oConfig.fQuiet:
                 print('debug: %s' % (sText, ));
             if self.oLogFile is not None:
-                if sys.version_info[0] >= 3:
-                    self.oLogFile.write(u'debug: %s\n' % (sText,));
-                else:
-                    self.oLogFile.write((u'debug: %s\n' % (sText,)).encode('utf-8'));
+                self.oLogFile.write((u'debug: %s\n' % (sText,)).encode('utf-8'));
         return 0;
 
     def vprint(self, sText):
@@ -377,10 +372,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         if not self.oConfig.fQuiet:
             print('info: %s' % (sText,));
         if self.oLogFile is not None:
-            if sys.version_info[0] >= 3:
-                self.oLogFile.write(u'info: %s\n' % (sText,));
-            else:
-                self.oLogFile.write((u'info: %s\n' % (sText,)).encode('utf-8'));
+            self.oLogFile.write((u'info: %s\n' % (sText,)).encode('utf-8'));
         return 0;
 
     def getFailureReason(self, tReason):
@@ -517,7 +509,8 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
                         # This is an okay test result then.
                         ## @todo maybe check the elapsed time here, it could still be a bad run?
                         cOkay += 1;
-                        iFirstOkay = min(iFirstOkay, iSet);
+                        if iFirstOkay > iSet:
+                            iFirstOkay = iSet;
                 if iSet > 10:
                     break;
 
@@ -606,19 +599,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
 
     ## @name Failure reasons we know.
     ## @{
-
-    ktReason_Add_Installer_Win_Failed                  = ( 'Additions',         'Win GA install' );
-    ktReason_Add_ShFl_Automount                        = ( 'Additions',         'Automounting' );
-    ktReason_Add_ShFl_FsPerf                           = ( 'Additions',         'FsPerf' );
-    ktReason_Add_ShFl_FsPerf_Abend                     = ( 'Additions',         'FsPerf abend' );
-    ktReason_Add_GstCtl_Preparations                   = ( 'Additions',         'GstCtl preparations' );
-    ktReason_Add_GstCtl_SessionBasics                  = ( 'Additions',         'Session basics' );
-    ktReason_Add_GstCtl_SessionProcRefs                = ( 'Additions',         'Session process' );
-    ktReason_Add_GstCtl_Session_Reboot                 = ( 'Additions',         'Session reboot' );
-    ktReason_Add_GstCtl_CopyFromGuest_Timeout          = ( 'Additions',         'CopyFromGuest timeout' );
-    ktReason_Add_GstCtl_CopyToGuest_Timeout            = ( 'Additions',         'CopyToGuest timeout' );
-    ktReason_Add_GstCtl_CopyToGuest_DstEmpty           = ( 'Additions',         'CopyToGuest dst empty' );
-    ktReason_Add_GstCtl_CopyToGuest_DstExists          = ( 'Additions',         'CopyToGuest dst exists' );
+    ktReason_Add_CopyToGuest_Timeout                   = ( 'Additions',         'CopyToGuest Timeout' );
     ktReason_Add_FlushViewOfFile                       = ( 'Additions',         'FlushViewOfFile' );
     ktReason_Add_Mmap_Coherency                        = ( 'Additions',         'mmap coherency' );
     ktReason_BSOD_Recovery                             = ( 'BSOD',              'Recovery' );
@@ -638,13 +619,9 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
     ktReason_Host_DriverNotUnloading                   = ( 'Host',              'Driver not unloading' );
     ktReason_Host_DriverNotCompilable                  = ( 'Host',              'Driver not compilable' );
     ktReason_Host_InstallationFailed                   = ( 'Host',              'Installation failed' );
-    ktReason_Host_InstallationWantReboot               = ( 'Host',              'Installation want reboot' );
-    ktReason_Host_InvalidPackage                       = ( 'Host',              'ERROR_INSTALL_PACKAGE_INVALID' );
-    ktReason_Host_InstallSourceAbsent                  = ( 'Host',              'ERROR_INSTALL_SOURCE_ABSENT' );
     ktReason_Host_NotSignedWithBuildCert               = ( 'Host',              'Not signed with build cert' );
     ktReason_Host_DoubleFreeHeap                       = ( 'Host',              'Double free or corruption' );
     ktReason_Host_LeftoverService                      = ( 'Host',              'Leftover service' );
-    ktReason_Host_win32com_gen_py                      = ( 'Host',              'win32com.gen_py' );
     ktReason_Host_Reboot_OSX_Watchdog_Timeout          = ( 'Host Reboot',       'OSX Watchdog Timeout' );
     ktReason_Host_Modprobe_Failed                      = ( 'Host',              'Modprobe failed' );
     ktReason_Host_Install_Hang                         = ( 'Host',              'Install hang' );
@@ -721,16 +698,16 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             # Try promote to single reason.
             atValues = dReasonForResultId.values();
             fSingleReason = True;
-            if len(dReasonForResultId) == 1 and next(iter(dReasonForResultId.keys())) != oCaseFile.oTestSet.idTestResult:
-                self.dprint(u'Promoting single reason to whole set: %s' % (next(iter(atValues)),));
-            elif len(dReasonForResultId) > 1 and len(atValues) == list(atValues).count(next(iter(atValues))):
-                self.dprint(u'Merged %d reasons to a single one: %s' % (len(atValues), next(iter(atValues))));
+            if len(dReasonForResultId) == 1 and dReasonForResultId.keys()[0] != oCaseFile.oTestSet.idTestResult:
+                self.dprint(u'Promoting single reason to whole set: %s' % (atValues[0],));
+            elif len(dReasonForResultId) > 1 and len(atValues) == atValues.count(atValues[0]):
+                self.dprint(u'Merged %d reasons to a single one: %s' % (len(atValues), atValues[0]));
             else:
                 fSingleReason = False;
             if fSingleReason:
-                dReasonForResultId = { oCaseFile.oTestSet.idTestResult: next(iter(atValues)), };
+                dReasonForResultId = { oCaseFile.oTestSet.idTestResult: atValues[0], };
                 if dCommentForResultId:
-                    dCommentForResultId = { oCaseFile.oTestSet.idTestResult: next(iter(dCommentForResultId.values())), };
+                    dCommentForResultId = { oCaseFile.oTestSet.idTestResult: dCommentForResultId.values()[0], };
         elif oCaseFile.tReason is not None:
             dReasonForResultId = { oCaseFile.oTestSet.idTestResult: oCaseFile.tReason, };
         else:
@@ -738,7 +715,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             return False;
 
         self.vprint(u'Closing %s with following reason%s: %s'
-                    % ( oCaseFile.sName, 's' if len(dReasonForResultId) > 1 else '', dReasonForResultId, ));
+                    % ( oCaseFile.sName, 's' if dReasonForResultId > 0 else '', dReasonForResultId, ));
 
         #
         # Add the test failure reason record(s).
@@ -746,7 +723,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         for idTestResult, tReason in dReasonForResultId.items():
             oFailureReason = self.getFailureReason(tReason);
             if oFailureReason is not None:
-                sComment = 'Set by $Revision: 94129 $' # Handy for reverting later.
+                sComment = 'Set by $Revision: 146365 $' # Handy for reverting later.
                 if idTestResult in dCommentForResultId:
                     sComment += ': ' + dCommentForResultId[idTestResult];
 
@@ -875,13 +852,6 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             ( True, ktReason_Host_DriverNotUnloading, 'Unloading: NetFilter (Crossbow) module ...FAILED!' ),
             ( True, ktReason_Host_InstallationFailed, 'svcadm: Couldn\'t bind to svc.configd.' ),
             ( True, ktReason_Host_InstallationFailed, 'pkgadd: ERROR: postinstall script did not complete successfully' ),
-        ],
-        'win': [
-            # ( Whether to stop on hit, reason tuple, needle text. )
-            ( True,  ktReason_Host_InstallationWantReboot, 'ERROR_SUCCESS_REBOOT_REQUIRED' ),
-            ( False, ktReason_Host_InstallationFailed, 'Installation error.' ),
-            ( True,  ktReason_Host_InvalidPackage, 'Uninstaller failed, exit code: 1620' ),
-            ( True,  ktReason_Host_InstallSourceAbsent, 'Uninstaller failed, exit code: 1612' ),
         ],
     };
 
@@ -1028,7 +998,8 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             # one of the first three entries.
             #
             cHits = 0;
-            for asBacktrace in dStacks.values():
+            for iCpu in dStacks:
+                asBacktrace = dStacks[iCpu];
                 for iFrame in xrange(min(3, len(asBacktrace))):
                     if asBacktrace[iFrame].find('kvm_lock_spinning') >= 0:
                         cHits += 1;
@@ -1088,8 +1059,6 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
     ## This we search a main log for to figure out why something went bust.
     katSimpleMainLogReasons = [
         # ( Whether to stop on hit, reason tuple, needle text. )
-        ( False, ktReason_Host_win32com_gen_py,                     'ModuleNotFoundError: No module named \'win32com.gen_py' ),
-
     ];
 
     ## This we search a VM log  for to figure out why something went bust.
@@ -1203,39 +1172,14 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         Investigates a failed VM run.
         """
         enmReason = None;
-        sParentName = oFailedResult.oParent.sName if oFailedResult.oParent else '';
-        if oFailedResult.sName == 'VBoxWindowsAdditions.exe' or sResultLog.find('VBoxWindowsAdditions.exe" failed with') > 0:
-            enmReason = self.ktReason_Add_Installer_Win_Failed;
-        # guest control:
-        elif sParentName == 'Guest Control' and oFailedResult.sName == 'Preparations':
-            enmReason = self.ktReason_Add_GstCtl_Preparations;
-        elif oFailedResult.sName == 'Session Basics':
-            enmReason = self.ktReason_Add_GstCtl_SessionBasics;
-        elif oFailedResult.sName == 'Session Process References':
-            enmReason = self.ktReason_Add_GstCtl_SessionProcRefs;
-        elif oFailedResult.sName == 'Copy from guest':
-            if sResultLog.find('*** abort action ***') >= 0:
-                enmReason = self.ktReason_Add_GstCtl_CopyFromGuest_Timeout;
-        elif oFailedResult.sName == 'Copy to guest':
-            off = sResultLog.find('"Guest directory "');
-            if off > 0 and sResultLog.find('" already exists"', off, off + 80):
-                enmReason = self.ktReason_Add_GstCtl_CopyToGuest_DstExists;
-            elif sResultLog.find('Guest destination must not be empty') >= 0:
-                enmReason = self.ktReason_Add_GstCtl_CopyToGuest_DstEmpty;
-            elif sResultLog.find('*** abort action ***') >= 0:
-                enmReason = self.ktReason_Add_GstCtl_CopyToGuest_Timeout;
-        elif oFailedResult.sName.find('Session w/ Guest Reboot') >= 0:
-            enmReason = self.ktReason_Add_GstCtl_Session_Reboot;
-        # shared folders:
-        elif sParentName == 'Shared Folders' and oFailedResult.sName == 'Automounting':
-            enmReason = self.ktReason_Add_ShFl_Automount;
-        elif oFailedResult.sName == 'mmap':
+        if oFailedResult.sName == 'mmap':
             if sResultLog.find('FsPerf: Flush issue at offset ') >= 0:
                 enmReason = self.ktReason_Add_Mmap_Coherency;
             elif sResultLog.find('FlushViewOfFile') >= 0:
                 enmReason = self.ktReason_Add_FlushViewOfFile;
-        elif sParentName == 'Shared Folders' and oFailedResult.sName == 'Running FsPerf':
-            enmReason = self.ktReason_Add_ShFl_FsPerf;  ## Maybe it would be better to be more specific...
+        elif oFailedResult.sName == 'Copy to guest':
+            if sResultLog.find('*** abort action ***') >= 0:
+                enmReason = self.ktReason_Add_CopyToGuest_Timeout;
 
         if enmReason is not None:
             return oCaseFile.noteReasonForId(enmReason, oFailedResult.idTestResult);
@@ -1244,14 +1188,12 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
         self.dprint(u'%s + %s <<\n%s\n<<' % (oFailedResult.tsCreated, oFailedResult.tsElapsed, sResultLog,));
         return False;
 
-    def isResultFromGATest(self, oCaseFile, oFailedResult):
+    def isResultFromGATest(self, oFailedResult):
         """
         Checks if this result and corresponding log snippet looks like a GA test run.
         """
         while oFailedResult is not None:
-            if oFailedResult.sName in [ 'Guest Control', 'Shared Folders', 'FsPerf', 'VBoxWindowsAdditions.exe' ]:
-                return True;
-            if oCaseFile.oTestCase.sName == 'Guest Additions' and oFailedResult.sName in [ 'Install', ]:
+            if oFailedResult.sName in [ 'Guest Control', 'Shared Folders', 'FsPerf', ]:
                 return True;
             oFailedResult = oFailedResult.oParent;
         return False;
@@ -1561,7 +1503,7 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             elif self.isResultFromVMRun(oFailedResult, sResultLog):
                 self.investigateVMResult(oCaseFile, oFailedResult, sResultLog);
 
-            elif self.isResultFromGATest(oCaseFile, oFailedResult):
+            elif self.isResultFromGATest(oFailedResult):
                 self.investigateGATest(oCaseFile, oFailedResult, sResultLog);
 
             elif sResultLog.find('most likely not unique') > 0:
@@ -1580,13 +1522,6 @@ class VirtualTestSheriff(object): # pylint: disable=too-few-public-methods
             else:
                 self.vprint(u'TODO: Cannot place idTestResult=%u - %s' % (oFailedResult.idTestResult, oFailedResult.sName,));
                 self.dprint(u'%s + %s <<\n%s\n<<' % (oFailedResult.tsCreated, oFailedResult.tsElapsed, sResultLog,));
-
-        #
-        # Windows python/com screwup.
-        #
-        if sMainLog.find('ModuleNotFoundError: No module named \'win32com.gen_py') > 0:
-            oCaseFile.noteReason(self.ktReason_Host_win32com_gen_py);
-            return self.caseClosed(oCaseFile);
 
         #
         # Check VBoxSVC.log and VBoxHardening.log for VM crashes if inconclusive on single VM runs.

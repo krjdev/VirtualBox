@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestLibSharedFoldersInline.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestLibSharedFoldersInline.h $ */
 /** @file
  * VBoxGuestLib - Shared Folders Host Request Helpers (ring-0).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation

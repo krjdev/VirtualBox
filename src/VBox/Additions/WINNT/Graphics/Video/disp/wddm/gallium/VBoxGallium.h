@@ -1,10 +1,10 @@
-/* $Id: VBoxGallium.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGallium.h $ */
 /** @file
  * VirtualBox Windows Guest Mesa3D - Gallium driver interface for WDDM user mode driver.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,12 +26,6 @@
 #include <VBoxGaDriver.h>
 
 #include "GaDdi.h"
-
-#include <iprt/cdefs.h>
-#pragma warning(push)
-#if RT_MSC_PREREQ(RT_MSC_VER_VC142)
-# pragma warning(disable: 5204) /* warning C5204: 'IGaDirect3DDevice9Ex': class has virtual functions, but its trivial destructor is not virtual; instances of objects derived from this class may not be destructed correctly */
-#endif
 
 class IGalliumStack;
 struct ID3DAdapter9;
@@ -85,8 +79,6 @@ class IGalliumStack: public IUnknown
         STDMETHOD_(uint32_t, GaDrvGetSurfaceId)(struct pipe_screen *pScreen, struct pipe_resource *pResource) PURE;
         STDMETHOD_(void, GaDrvContextFlush)(struct pipe_context *pPipeContext) PURE;
 };
-
-#pragma warning(pop)
 
 
 HRESULT GalliumStackCreate(IGalliumStack **ppOut);

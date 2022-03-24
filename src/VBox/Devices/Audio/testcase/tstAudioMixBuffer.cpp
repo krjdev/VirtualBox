@@ -1,10 +1,10 @@
-/* $Id: tstAudioMixBuffer.cpp 93944 2022-02-24 21:15:14Z vboxsync $ */
+/* $Id: tstAudioMixBuffer.cpp $ */
 /** @file
  * Audio testcase - Mixing buffer.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,11 +23,11 @@
 #include <iprt/initterm.h>
 #include <iprt/mem.h>
 #include <iprt/rand.h>
+#include <iprt/param.h>
 #include <iprt/stream.h>
 #include <iprt/string.h>
 #include <iprt/test.h>
 
-#include <VBox/vmm/pdm.h>
 #include <VBox/vmm/pdmaudioinline.h>
 
 #include "../AudioMixBuffer.h"
@@ -158,37 +158,37 @@ static void tstBasics(RTTEST hTest)
 
     /* DrvAudioHlpClearBuf: */
     uint8_t *pbPage;
-    int rc = RTTestGuardedAlloc(hTest, HOST_PAGE_SIZE, 0, false /*fHead*/, (void **)&pbPage);
+    int rc = RTTestGuardedAlloc(hTest, PAGE_SIZE, 0, false /*fHead*/, (void **)&pbPage);
     RTTESTI_CHECK_RC_OK_RETV(rc);
 
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoS16, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE / 4);
-    RTTESTI_CHECK(ASMMemIsZero(pbPage, HOST_PAGE_SIZE));
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoS16, pbPage, PAGE_SIZE, PAGE_SIZE / 4);
+    RTTESTI_CHECK(ASMMemIsZero(pbPage, PAGE_SIZE));
 
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoU16, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE / 4);
-    for (uint32_t off = 0; off < HOST_PAGE_SIZE; off += 2)
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoU16, pbPage, PAGE_SIZE, PAGE_SIZE / 4);
+    for (uint32_t off = 0; off < PAGE_SIZE; off += 2)
         RTTESTI_CHECK_MSG(pbPage[off] == 0 && pbPage[off + 1] == 0x80, ("off=%#x: %#x %x\n", off, pbPage[off], pbPage[off + 1]));
 
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoU32, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE / 8);
-    for (uint32_t off = 0; off < HOST_PAGE_SIZE; off += 4)
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoU32, pbPage, PAGE_SIZE, PAGE_SIZE / 8);
+    for (uint32_t off = 0; off < PAGE_SIZE; off += 4)
         RTTESTI_CHECK(pbPage[off] == 0 && pbPage[off + 1] == 0 && pbPage[off + 2] == 0 && pbPage[off + 3] == 0x80);
 
 
     RTTestDisableAssertions(hTest);
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoS16, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE); /* should adjust down the frame count. */
-    RTTESTI_CHECK(ASMMemIsZero(pbPage, HOST_PAGE_SIZE));
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoS16, pbPage, PAGE_SIZE, PAGE_SIZE); /* should adjust down the frame count. */
+    RTTESTI_CHECK(ASMMemIsZero(pbPage, PAGE_SIZE));
 
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoU16, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE); /* should adjust down the frame count. */
-    for (uint32_t off = 0; off < HOST_PAGE_SIZE; off += 2)
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoU16, pbPage, PAGE_SIZE, PAGE_SIZE); /* should adjust down the frame count. */
+    for (uint32_t off = 0; off < PAGE_SIZE; off += 2)
         RTTESTI_CHECK_MSG(pbPage[off] == 0 && pbPage[off + 1] == 0x80, ("off=%#x: %#x %x\n", off, pbPage[off], pbPage[off + 1]));
 
-    memset(pbPage, 0x42, HOST_PAGE_SIZE);
-    PDMAudioPropsClearBuffer(&Cfg441StereoU32, pbPage, HOST_PAGE_SIZE, HOST_PAGE_SIZE); /* should adjust down the frame count. */
-    for (uint32_t off = 0; off < HOST_PAGE_SIZE; off += 4)
+    memset(pbPage, 0x42, PAGE_SIZE);
+    PDMAudioPropsClearBuffer(&Cfg441StereoU32, pbPage, PAGE_SIZE, PAGE_SIZE); /* should adjust down the frame count. */
+    for (uint32_t off = 0; off < PAGE_SIZE; off += 4)
         RTTESTI_CHECK(pbPage[off] == 0 && pbPage[off + 1] == 0 && pbPage[off + 2] == 0 && pbPage[off + 3] == 0x80);
     RTTestRestoreAssertions(hTest);
 

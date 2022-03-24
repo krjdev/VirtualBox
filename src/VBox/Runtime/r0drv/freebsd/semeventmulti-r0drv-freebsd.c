@@ -1,4 +1,4 @@
-/* $Id: semeventmulti-r0drv-freebsd.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semeventmulti-r0drv-freebsd.c $ */
 /** @file
  * IPRT - Multiple Release Event Semaphores, Ring-0 Driver, FreeBSD.
  */
@@ -6,7 +6,7 @@
 /*
  * Contributed by knut st. osmundsen.
  *
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -341,12 +341,4 @@ RTDECL(uint32_t) RTSemEventMultiGetResolution(void)
     return rtR0SemBsdWaitGetResolution();
 }
 RT_EXPORT_SYMBOL(RTSemEventMultiGetResolution);
-
-
-RTR0DECL(bool) RTSemEventMultiIsSignalSafe(void)
-{
-    /** @todo check the code...   */
-    return false;
-}
-RT_EXPORT_SYMBOL(RTSemEventMultiIsSignalSafe);
 

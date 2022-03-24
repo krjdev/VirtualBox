@@ -1,10 +1,10 @@
-/* $Id: UIToolsView.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolsView.cpp $ */
 /** @file
  * VBox Qt GUI - UIToolsView class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -52,7 +52,7 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE
+    virtual int childCount() const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
@@ -62,7 +62,7 @@ public:
     }
 
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE
+    virtual QAccessibleInterface *child(int iIndex) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
@@ -74,7 +74,7 @@ public:
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), QString());
@@ -183,7 +183,8 @@ void UIToolsView::preparePalette()
 {
     /* Setup palette: */
     QPalette pal = qApp->palette();
-    pal.setColor(QPalette::Active, QPalette::Base, pal.color(QPalette::Active, QPalette::Window));
+    const QColor bodyColor = pal.color(QPalette::Active, QPalette::Midlight).darker(110);
+    pal.setColor(QPalette::Base, bodyColor);
     setPalette(pal);
 }
 

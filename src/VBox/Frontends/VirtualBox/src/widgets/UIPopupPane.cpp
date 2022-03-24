@@ -1,10 +1,10 @@
-/* $Id: UIPopupPane.cpp 93982 2022-02-28 14:15:03Z vboxsync $ */
+/* $Id: UIPopupPane.cpp $ */
 /** @file
  * VBox Qt GUI - UIPopupPane class implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -239,7 +239,7 @@ void UIPopupPane::prepare()
 void UIPopupPane::prepareBackground()
 {
     /* Prepare palette: */
-    QPalette pal = QApplication::palette();
+    QPalette pal = palette();
     pal.setColor(QPalette::Window, QApplication::palette().color(QPalette::Window));
     setPalette(pal);
 }
@@ -524,11 +524,7 @@ void UIPopupPane::prepareDetailsList(QStringPairList &aDetailsList) const
         return;
 
     /* Split details into paragraphs: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    QStringList aParagraphs(m_strDetails.split("<!--EOP-->", Qt::SkipEmptyParts));
-#else
     QStringList aParagraphs(m_strDetails.split("<!--EOP-->", QString::SkipEmptyParts));
-#endif
     /* Make sure details-text has at least one paragraph: */
     AssertReturnVoid(!aParagraphs.isEmpty());
 
@@ -536,11 +532,7 @@ void UIPopupPane::prepareDetailsList(QStringPairList &aDetailsList) const
     foreach (const QString &strParagraph, aParagraphs)
     {
         /* Split each paragraph into pairs: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        QStringList aParts(strParagraph.split("<!--EOM-->", Qt::KeepEmptyParts));
-#else
         QStringList aParts(strParagraph.split("<!--EOM-->", QString::KeepEmptyParts));
-#endif
         /* Make sure each paragraph consist of 2 parts: */
         AssertReturnVoid(aParts.size() == 2);
         /* Append each pair into details-list: */

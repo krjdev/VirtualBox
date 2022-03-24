@@ -1,4 +1,4 @@
-/* $Id: HGSMIHost.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HGSMIHost.cpp $ */
 /** @file
  * VBox Host Guest Shared Memory Interface (HGSMI), host part.
  *
@@ -9,7 +9,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -161,7 +161,7 @@ typedef struct HGSMIHOSTHEAP
 
 typedef struct HGSMIINSTANCE
 {
-    PPDMDEVINS  pDevIns;               /**< The device instance. */
+    PVM pVM;                           /**< The VM. */
 
     const char *pszName;               /**< A name for the instance. Mostyl used in the log. */
 
@@ -191,7 +191,7 @@ typedef struct HGSMIINSTANCE
 } HGSMIINSTANCE;
 
 
-typedef DECLCALLBACKTYPE(void, FNHGSMIHOSTFIFOCALLBACK,(void *pvCallback));
+typedef DECLCALLBACK(void) FNHGSMIHOSTFIFOCALLBACK(void *pvCallback);
 typedef FNHGSMIHOSTFIFOCALLBACK *PFNHGSMIHOSTFIFOCALLBACK;
 
 typedef struct HGSMIHOSTFIFOENTRY
@@ -327,7 +327,7 @@ HGSMIOFFSET HGSMIGuestRead(PHGSMIINSTANCE pIns)
 
     AssertPtr(pIns);
 
-    Assert(PDMDevHlpGetVMCPU(pIns->pDevIns) != NULL);
+    Assert(VMMGetCpu(pIns->pVM) != NULL);
 
 #ifndef VBOX_WITH_WDDM
     /* Currently there is no functionality here. */
@@ -344,7 +344,7 @@ HGSMIOFFSET HGSMIGuestRead(PHGSMIINSTANCE pIns)
 
 static bool hgsmiProcessHostCmdCompletion(HGSMIINSTANCE *pIns, HGSMIOFFSET offBuffer, bool fCompleteFirst)
 {
-    Assert(PDMDevHlpGetVMCPU(pIns->pDevIns) != NULL);
+    Assert(VMMGetCpu(pIns->pVM) != NULL);
 
     int rc = hgsmiFIFOLock(pIns);
     if (RT_SUCCESS(rc))
@@ -414,7 +414,7 @@ HGSMIOFFSET HGSMIHostRead(HGSMIINSTANCE *pIns)
 {
     LogFlowFunc(("pIns %p\n", pIns));
 
-    Assert(PDMDevHlpGetVMCPU(pIns->pDevIns) != NULL);
+    Assert(VMMGetCpu(pIns->pVM) != NULL);
 
     AssertPtrReturn(pIns->pHGFlags, HGSMIOFFSET_VOID);
     int rc = hgsmiFIFOLock(pIns);
@@ -1513,7 +1513,7 @@ static DECLCALLBACK(int) hgsmiChannelHandler(void *pvHandler, uint16_t u16Channe
 }
 
 int HGSMICreate(PHGSMIINSTANCE *ppIns,
-                PPDMDEVINS      pDevIns,
+                PVM             pVM,
                 const char     *pszName,
                 HGSMIOFFSET     offBase,
                 uint8_t        *pu8MemBase,
@@ -1522,10 +1522,10 @@ int HGSMICreate(PHGSMIINSTANCE *ppIns,
                 void           *pvNotifyGuest,
                 size_t          cbContext)
 {
-    LogFlowFunc(("ppIns = %p, pDevIns = %p, pszName = [%s], offBase = 0x%08X, pu8MemBase = %p, cbMem = 0x%08X, "
+    LogFlowFunc(("ppIns = %p, pVM = %p, pszName = [%s], offBase = 0x%08X, pu8MemBase = %p, cbMem = 0x%08X, "
                  "pfnNotifyGuest = %p, pvNotifyGuest = %p, cbContext = %d\n",
                  ppIns,
-                 pDevIns,
+                 pVM,
                  pszName,
                  offBase,
                  pu8MemBase,
@@ -1536,7 +1536,7 @@ int HGSMICreate(PHGSMIINSTANCE *ppIns,
                ));
 
     AssertPtrReturn(ppIns, VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pDevIns, VERR_INVALID_PARAMETER);
+    AssertPtrReturn(pVM, VERR_INVALID_PARAMETER);
     AssertPtrReturn(pu8MemBase, VERR_INVALID_PARAMETER);
 
     int rc;
@@ -1552,8 +1552,8 @@ int HGSMICreate(PHGSMIINSTANCE *ppIns,
             rc = RTCritSectInit(&pIns->hostFIFOCritSect);
         if (RT_SUCCESS (rc))
         {
-            pIns->pDevIns        = pDevIns;
-            pIns->pszName        = RT_VALID_PTR(pszName) ? pszName : "";
+            pIns->pVM            = pVM;
+            pIns->pszName        = VALID_PTR(pszName) ? pszName : "";
 
             hgsmiHostHeapSetupUninitialized(&pIns->hostHeap);
 

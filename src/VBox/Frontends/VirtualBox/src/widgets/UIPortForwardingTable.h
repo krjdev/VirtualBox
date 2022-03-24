@@ -1,10 +1,10 @@
-/* $Id: UIPortForwardingTable.h 94017 2022-03-01 09:42:53Z vboxsync $ */
+/* $Id: UIPortForwardingTable.h $ */
 /** @file
  * VBox Qt GUI - UIPortForwardingTable class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,11 +35,11 @@
 /* Forward declarations: */
 class QAction;
 class QHBoxLayout;
-class QItemEditorFactory;
 class QIDialogButtonBox;
 class QITableView;
 class UIPortForwardingModel;
-class QIToolBar;
+class UIToolBar;
+
 
 /** QString subclass used to distinguish name data from simple QString. */
 class NameData : public QString
@@ -76,6 +76,8 @@ public:
     PortData() : m_uValue(0) {}
     /** Constructs port data based on @a uValue. */
     PortData(ushort uValue) : m_uValue(uValue) {}
+    /** Constructs port data based on @a other port data value. */
+    PortData(const PortData &other) : m_uValue(other.value()) {}
 
     /** Returns whether this port data is equal to @a another. */
     bool operator==(const PortData &another) const { return m_uValue == another.m_uValue; }
@@ -175,7 +177,7 @@ struct UIPortForwardingDataUnique
     {}
 
     /** Returns whether this port data is equal to @a another. */
-    bool operator==(const UIPortForwardingDataUnique &another) const
+    bool operator==(const UIPortForwardingDataUnique &another)
     {
         return    protocol == another.protocol
                && hostPort == another.hostPort
@@ -198,11 +200,6 @@ class SHARED_LIBRARY_STUFF UIPortForwardingTable : public QIWithRetranslateUI<QW
 {
     Q_OBJECT;
 
-signals:
-
-    /** Notifies listeners about table data changed. */
-    void sigDataChanged();
-
 public:
 
     /** Constructs Port Forwarding table.
@@ -210,18 +207,9 @@ public:
       * @param  fIPv6                Brings whether this table contains IPv6 rules, not IPv4.
       * @param  fAllowEmptyGuestIPs  Brings whether this table allows empty guest IPs. */
     UIPortForwardingTable(const UIPortForwardingDataList &rules, bool fIPv6, bool fAllowEmptyGuestIPs);
-    /** Destructs Port Forwarding table. */
-    virtual ~UIPortForwardingTable() RT_OVERRIDE;
-    /** Returns the list of port forwarding rules. */
-    UIPortForwardingDataList rules() const;
-    /** Defines the list of port forwarding @a newRules.
-      * @param  fHoldPosition  Holds whether we should try to keep
-      *                        port forwarding rule position intact. */
-    void setRules(const UIPortForwardingDataList &newRules,
-                  bool fHoldPosition = false);
 
-    /** Defines guest address @a strHint. */
-    void setGuestAddressHint(const QString &strHint);
+    /** Returns the list of port forwarding rules. */
+    const UIPortForwardingDataList rules() const;
 
     /** Validates the table. */
     bool validate() const;
@@ -235,10 +223,10 @@ public:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 
@@ -250,7 +238,7 @@ private slots:
     void sltRemoveRule();
 
     /** Marks table data as changed. */
-    void sltTableDataChanged();
+    void sltTableDataChanged() { m_fTableDataChanged = true; }
 
     /** Handles current item change. */
     void sltCurrentChanged();
@@ -273,14 +261,9 @@ private:
     void prepareTableDelegates();
     /** Prepares toolbar. */
     void prepareToolbar();
-    /** Cleanups all. */
-    void cleanup();
 
-    /** Holds the list of port forwarding rules. */
-    UIPortForwardingDataList  m_rules;
-
-    /** Holds the guest address hint. */
-    QString  m_strGuestAddressHint;
+    /** Holds the _initial_ list of Port Forwarding rules. */
+    const UIPortForwardingDataList &m_rules;
 
     /** Holds whether this table contains IPv6 rules, not IPv4. */
     bool  m_fIPv6               : 1;
@@ -294,9 +277,7 @@ private:
     /** Holds the table-view instance. */
     QITableView *m_pTableView;
     /** Holds the tool-bar instance. */
-    QIToolBar   *m_pToolBar;
-    /** Holds the item editor factory instance. */
-    QItemEditorFactory *m_pItemEditorFactory;
+    UIToolBar   *m_pToolBar;
 
     /** Holds the table-model instance. */
     UIPortForwardingModel *m_pTableModel;

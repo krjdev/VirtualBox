@@ -1,10 +1,10 @@
-/* $Id: QILabelSeparator.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QILabelSeparator.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QILabelSeparator class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,15 +23,15 @@
 #include "QILabelSeparator.h"
 
 
-QILabelSeparator::QILabelSeparator(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
-    : QWidget(pParent, enmFlags)
+QILabelSeparator::QILabelSeparator(QWidget *pParent /* = 0 */, Qt::WindowFlags fFlags /* = 0 */)
+    : QWidget(pParent, fFlags)
     , m_pLabel(0)
 {
     prepare();
 }
 
-QILabelSeparator::QILabelSeparator(const QString &strText, QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
-    : QWidget(pParent, enmFlags)
+QILabelSeparator::QILabelSeparator(const QString &strText, QWidget *pParent /* = 0 */, Qt::WindowFlags fFlags /* = 0 */)
+    : QWidget(pParent, fFlags)
     , m_pLabel(0)
 {
     prepare();

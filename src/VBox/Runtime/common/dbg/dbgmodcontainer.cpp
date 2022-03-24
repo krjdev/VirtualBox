@@ -1,10 +1,10 @@
-/* $Id: dbgmodcontainer.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgmodcontainer.cpp $ */
 /** @file
  * IPRT - Debug Info Container.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -992,7 +992,7 @@ DECLHIDDEN(int) rtDbgModContainer_RemoveAll(PRTDBGMODINT pMod)
  * @param   cbSeg       The size of the initial segment. 0 if segments are to be
  *                      created manually later on.
  */
-DECLHIDDEN(int) rtDbgModContainerCreate(PRTDBGMODINT pMod, RTUINTPTR cbSeg)
+int rtDbgModContainerCreate(PRTDBGMODINT pMod, RTUINTPTR cbSeg)
 {
     PRTDBGMODCTN pThis = (PRTDBGMODCTN)RTMemAlloc(sizeof(*pThis));
     if (!pThis)

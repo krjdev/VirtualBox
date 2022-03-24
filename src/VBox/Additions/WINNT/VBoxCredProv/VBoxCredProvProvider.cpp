@@ -1,10 +1,10 @@
-/* $Id: VBoxCredProvProvider.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxCredProvProvider.cpp $ */
 /** @file
  * VBoxCredProvProvider - The actual credential provider class.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #include <new> /* For bad_alloc. */
 
 #include <iprt/win/windows.h>
-#include <iprt/win/credentialprovider.h>
+#include <credentialprovider.h>
 
 #include <iprt/errcore.h>
 #include <VBox/VBoxGuestLib.h>
@@ -33,12 +33,12 @@
 
 
 
-VBoxCredProvProvider::VBoxCredProvProvider(void)
-    : m_cRefs(1)
-    , m_pCred(NULL)
-    , m_pPoller(NULL)
-    , m_pEvents(NULL)
-    , m_fHandleRemoteSessions(false)
+VBoxCredProvProvider::VBoxCredProvProvider(void) :
+    m_cRefs(1),
+    m_pPoller(NULL),
+    m_pCred(NULL),
+    m_pEvents(NULL),
+    m_fHandleRemoteSessions(false)
 {
     VBoxCredentialProviderAcquire();
 

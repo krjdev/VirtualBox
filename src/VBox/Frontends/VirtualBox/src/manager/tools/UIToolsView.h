@@ -1,10 +1,10 @@
-/* $Id: UIToolsView.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolsView.h $ */
 /** @file
  * VBox Qt GUI - UIToolsView class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -71,10 +71,10 @@ protected:
     /** @name Event handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
     /** @} */
 
 private:

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -80,15 +80,15 @@ struct RAWPCIPERVM;
  *
  * @returns VBox status code.
  *
- * @param   pVmData         The per VM data.
+ * @param   pVM             The cross context VM structure.
  * @param   HCPhysStart     Physical address of region start on the host.
  * @param   GCPhysStart     Physical address of region start on the guest.
  * @param   cbMem           Region size in bytes.
  * @param   enmAction       Action performed (i.e. if page was mapped
  *                          or unmapped).
  */
-typedef DECLCALLBACKTYPE(int, FNRAWPCICONTIGPHYSMEMINFO,(struct RAWPCIPERVM *pVmData, RTHCPHYS HCPhysStart,
-                                                         RTGCPHYS GCPhysStart, uint64_t cbMem, PCIRAWMEMINFOACTION enmAction));
+typedef DECLCALLBACK(int) FNRAWPCICONTIGPHYSMEMINFO(struct RAWPCIPERVM *pVmData, RTHCPHYS HCPhysStart,
+                                                    RTGCPHYS GCPhysStart, uint64_t cbMem, PCIRAWMEMINFOACTION enmAction);
 typedef FNRAWPCICONTIGPHYSMEMINFO *PFNRAWPCICONTIGPHYSMEMINFO;
 
 /** Data being part of the VM structure. */
@@ -347,7 +347,7 @@ typedef struct RAWPCIDEVPORT *PRAWPCIDEVPORT;
  * @param   pvContext       Opaque user data passed to the handler.
  * @param   iIrq            Interrupt number.
  */
-typedef DECLCALLBACKTYPE(bool, FNRAWPCIISR,(void *pvContext, int32_t iIrq));
+typedef DECLCALLBACK(bool) FNRAWPCIISR(void *pvContext, int32_t iIrq);
 typedef FNRAWPCIISR *PFNRAWPCIISR;
 
 /**

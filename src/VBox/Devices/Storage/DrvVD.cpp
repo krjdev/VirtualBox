@@ -1,10 +1,10 @@
-/* $Id: DrvVD.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvVD.cpp $ */
 /** @file
  * DrvVD - Generic VBox disk media driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -127,8 +127,6 @@ typedef struct VBOXIMAGE
  */
 typedef struct DRVVDSTORAGEBACKEND
 {
-    /** The virtual disk driver instance. */
-    PVBOXDISK                   pVD;
     /** PDM async completion end point. */
     PPDMASYNCCOMPLETIONENDPOINT pEndpoint;
     /** The template. */
@@ -255,21 +253,6 @@ typedef VDLSTIOREQALLOC *PVDLSTIOREQALLOC;
 #define DRVVD_VDIOREQ_ALLOC_BINS    8
 
 /**
- * VD config node.
- */
-typedef struct VDCFGNODE
-{
-    /** List node for the list of config nodes. */
-    RTLISTNODE              NdLst;
-    /** Pointer to the driver helper callbacks. */
-    PCPDMDRVHLPR3           pHlp;
-    /** The config node. */
-    PCFGMNODE               pCfgNode;
-} VDCFGNODE;
-/** Pointer to a VD config node. */
-typedef VDCFGNODE *PVDCFGNODE;
-
-/**
  * VBox disk container media main structure, private part.
  *
  * @implements  PDMIMEDIA
@@ -384,17 +367,11 @@ typedef struct VBOXDISK
     /** Region list. */
     PVDREGIONLIST           pRegionList;
 
-    /** VD config support.
-     * @{ */
-    /** List head of config nodes. */
-    RTLISTANCHOR            LstCfgNodes;
-    /** @} */
-
     /** Cryptographic support
      * @{ */
     /** Pointer to the CFGM node containing the config of the crypto filter
      * if enable. */
-    VDCFGNODE                CfgCrypto;
+    PCFGMNODE                pCfgCrypto;
     /** Config interface for the encryption filter. */
     VDINTERFACECONFIG        VDIfCfg;
     /** Crypto interface for the encryption filter. */
@@ -648,7 +625,6 @@ static DECLCALLBACK(int) drvvdAsyncIOOpen(void *pvUser, const char *pszLocation,
     pStorageBackend = (PDRVVDSTORAGEBACKEND)RTMemAllocZ(sizeof(DRVVDSTORAGEBACKEND));
     if (pStorageBackend)
     {
-        pStorageBackend->pVD            = pThis;
         pStorageBackend->fSyncIoPending = false;
         pStorageBackend->rcReqLast      = VINF_SUCCESS;
         pStorageBackend->pfnCompleted   = pfnCompleted;
@@ -672,15 +648,14 @@ static DECLCALLBACK(int) drvvdAsyncIOOpen(void *pvUser, const char *pszLocation,
                 if (pThis->fAsyncIoWithHostCache)
                     fFlags |= PDMACEP_FILE_FLAGS_HOST_CACHE_ENABLED;
 
-                rc = PDMDrvHlpAsyncCompletionEpCreateForFile(pThis->pDrvIns,
-                                                             &pStorageBackend->pEndpoint,
-                                                             pszLocation, fFlags,
-                                                             pStorageBackend->pTemplate);
+                rc = PDMR3AsyncCompletionEpCreateForFile(&pStorageBackend->pEndpoint,
+                                                         pszLocation, fFlags,
+                                                         pStorageBackend->pTemplate);
 
                 if (RT_SUCCESS(rc))
                 {
                     if (pThis->pszBwGroup)
-                        rc = PDMDrvHlpAsyncCompletionEpSetBwMgr(pThis->pDrvIns, pStorageBackend->pEndpoint, pThis->pszBwGroup);
+                        rc = PDMR3AsyncCompletionEpSetBwMgr(pStorageBackend->pEndpoint, pThis->pszBwGroup);
 
                     if (RT_SUCCESS(rc))
                     {
@@ -690,10 +665,10 @@ static DECLCALLBACK(int) drvvdAsyncIOOpen(void *pvUser, const char *pszLocation,
                         return VINF_SUCCESS;
                     }
 
-                    PDMDrvHlpAsyncCompletionEpClose(pThis->pDrvIns, pStorageBackend->pEndpoint);
+                    PDMR3AsyncCompletionEpClose(pStorageBackend->pEndpoint);
                 }
 
-                PDMDrvHlpAsyncCompletionTemplateDestroy(pThis->pDrvIns, pStorageBackend->pTemplate);
+                PDMR3AsyncCompletionTemplateDestroy(pStorageBackend->pTemplate);
             }
             RTSemEventDestroy(pStorageBackend->EventSem);
         }
@@ -709,7 +684,6 @@ static DECLCALLBACK(int) drvvdAsyncIOClose(void *pvUser, void *pStorage)
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
     /*
      * We don't unclaim any block devices on purpose here because they
@@ -718,8 +692,8 @@ static DECLCALLBACK(int) drvvdAsyncIOClose(void *pvUser, void *pStorage)
      * Block devices will get unclaimed during destruction of the driver.
      */
 
-    PDMDrvHlpAsyncCompletionEpClose(pThis->pDrvIns, pStorageBackend->pEndpoint);
-    PDMDrvHlpAsyncCompletionTemplateDestroy(pThis->pDrvIns, pStorageBackend->pTemplate);
+    PDMR3AsyncCompletionEpClose(pStorageBackend->pEndpoint);
+    PDMR3AsyncCompletionTemplateDestroy(pStorageBackend->pTemplate);
     RTSemEventDestroy(pStorageBackend->EventSem);
     RTMemFree(pStorageBackend);
     return VINF_SUCCESS;;
@@ -730,7 +704,6 @@ static DECLCALLBACK(int) drvvdAsyncIOReadSync(void *pvUser, void *pStorage, uint
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
     RTSGSEG DataSeg;
     PPDMASYNCCOMPLETIONTASK pTask;
 
@@ -739,7 +712,7 @@ static DECLCALLBACK(int) drvvdAsyncIOReadSync(void *pvUser, void *pStorage, uint
     DataSeg.cbSeg = cbRead;
     DataSeg.pvSeg = pvBuf;
 
-    int rc = PDMDrvHlpAsyncCompletionEpRead(pThis->pDrvIns, pStorageBackend->pEndpoint, uOffset, &DataSeg, 1, cbRead, NULL, &pTask);
+    int rc = PDMR3AsyncCompletionEpRead(pStorageBackend->pEndpoint, uOffset, &DataSeg, 1, cbRead, NULL, &pTask);
     if (RT_FAILURE(rc))
         return rc;
 
@@ -763,7 +736,6 @@ static DECLCALLBACK(int) drvvdAsyncIOWriteSync(void *pvUser, void *pStorage, uin
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
     RTSGSEG DataSeg;
     PPDMASYNCCOMPLETIONTASK pTask;
 
@@ -772,7 +744,7 @@ static DECLCALLBACK(int) drvvdAsyncIOWriteSync(void *pvUser, void *pStorage, uin
     DataSeg.cbSeg = cbWrite;
     DataSeg.pvSeg = (void *)pvBuf;
 
-    int rc = PDMDrvHlpAsyncCompletionEpWrite(pThis->pDrvIns, pStorageBackend->pEndpoint, uOffset, &DataSeg, 1, cbWrite, NULL, &pTask);
+    int rc = PDMR3AsyncCompletionEpWrite(pStorageBackend->pEndpoint, uOffset, &DataSeg, 1, cbWrite, NULL, &pTask);
     if (RT_FAILURE(rc))
         return rc;
 
@@ -795,7 +767,6 @@ static DECLCALLBACK(int) drvvdAsyncIOFlushSync(void *pvUser, void *pStorage)
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
     PPDMASYNCCOMPLETIONTASK pTask;
 
     LogFlowFunc(("pvUser=%#p pStorage=%#p\n", pvUser, pStorage));
@@ -803,7 +774,7 @@ static DECLCALLBACK(int) drvvdAsyncIOFlushSync(void *pvUser, void *pStorage)
     bool fOld = ASMAtomicXchgBool(&pStorageBackend->fSyncIoPending, true);
     Assert(!fOld); NOREF(fOld);
 
-    int rc = PDMDrvHlpAsyncCompletionEpFlush(pThis->pDrvIns, pStorageBackend->pEndpoint, NULL, &pTask);
+    int rc = PDMR3AsyncCompletionEpFlush(pStorageBackend->pEndpoint, NULL, &pTask);
     if (RT_FAILURE(rc))
         return rc;
 
@@ -827,11 +798,9 @@ static DECLCALLBACK(int) drvvdAsyncIOReadAsync(void *pvUser, void *pStorage, uin
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
-    int rc = PDMDrvHlpAsyncCompletionEpRead(pThis->pDrvIns, pStorageBackend->pEndpoint,
-                                            uOffset, paSegments, (unsigned)cSegments, cbRead,
-                                            pvCompletion, (PPPDMASYNCCOMPLETIONTASK)ppTask);
+    int rc = PDMR3AsyncCompletionEpRead(pStorageBackend->pEndpoint, uOffset, paSegments, (unsigned)cSegments, cbRead,
+                                        pvCompletion, (PPPDMASYNCCOMPLETIONTASK)ppTask);
     if (rc == VINF_AIO_TASK_PENDING)
         rc = VERR_VD_ASYNC_IO_IN_PROGRESS;
 
@@ -845,11 +814,9 @@ static DECLCALLBACK(int) drvvdAsyncIOWriteAsync(void *pvUser, void *pStorage, ui
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
-    int rc = PDMDrvHlpAsyncCompletionEpWrite(pThis->pDrvIns, pStorageBackend->pEndpoint,
-                                             uOffset, paSegments, (unsigned)cSegments, cbWrite,
-                                             pvCompletion, (PPPDMASYNCCOMPLETIONTASK)ppTask);
+    int rc = PDMR3AsyncCompletionEpWrite(pStorageBackend->pEndpoint, uOffset, paSegments, (unsigned)cSegments, cbWrite,
+                                         pvCompletion, (PPPDMASYNCCOMPLETIONTASK)ppTask);
     if (rc == VINF_AIO_TASK_PENDING)
         rc = VERR_VD_ASYNC_IO_IN_PROGRESS;
 
@@ -861,10 +828,9 @@ static DECLCALLBACK(int) drvvdAsyncIOFlushAsync(void *pvUser, void *pStorage,
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
-    int rc = PDMDrvHlpAsyncCompletionEpFlush(pThis->pDrvIns, pStorageBackend->pEndpoint, pvCompletion,
-                                             (PPPDMASYNCCOMPLETIONTASK)ppTask);
+    int rc = PDMR3AsyncCompletionEpFlush(pStorageBackend->pEndpoint, pvCompletion,
+                                         (PPPDMASYNCCOMPLETIONTASK)ppTask);
     if (rc == VINF_AIO_TASK_PENDING)
         rc = VERR_VD_ASYNC_IO_IN_PROGRESS;
 
@@ -875,18 +841,16 @@ static DECLCALLBACK(int) drvvdAsyncIOGetSize(void *pvUser, void *pStorage, uint6
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
-    return PDMDrvHlpAsyncCompletionEpGetSize(pThis->pDrvIns, pStorageBackend->pEndpoint, pcbSize);
+    return PDMR3AsyncCompletionEpGetSize(pStorageBackend->pEndpoint, pcbSize);
 }
 
 static DECLCALLBACK(int) drvvdAsyncIOSetSize(void *pvUser, void *pStorage, uint64_t cbSize)
 {
     RT_NOREF(pvUser);
     PDRVVDSTORAGEBACKEND pStorageBackend = (PDRVVDSTORAGEBACKEND)pStorage;
-    PVBOXDISK pThis = pStorageBackend->pVD;
 
-    return PDMDrvHlpAsyncCompletionEpSetSize(pThis->pDrvIns, pStorageBackend->pEndpoint, cbSize);
+    return PDMR3AsyncCompletionEpSetSize(pStorageBackend->pEndpoint, cbSize);
 }
 
 static DECLCALLBACK(int) drvvdAsyncIOSetAllocationSize(void *pvUser, void *pvStorage, uint64_t cbSize, uint32_t fFlags)
@@ -937,30 +901,22 @@ static DECLCALLBACK(int) drvvdThreadFinishWrite(void *pvUser)
 
 static DECLCALLBACK(bool) drvvdCfgAreKeysValid(void *pvUser, const char *pszzValid)
 {
-    PVDCFGNODE      pVdCfgNode = (PVDCFGNODE)pvUser;
-    PCPDMDRVHLPR3   pHlp       = pVdCfgNode->pHlp;
-    return pHlp->pfnCFGMAreValuesValid(pVdCfgNode->pCfgNode, pszzValid);
+    return CFGMR3AreValuesValid((PCFGMNODE)pvUser, pszzValid);
 }
 
 static DECLCALLBACK(int) drvvdCfgQuerySize(void *pvUser, const char *pszName, size_t *pcb)
 {
-    PVDCFGNODE      pVdCfgNode = (PVDCFGNODE)pvUser;
-    PCPDMDRVHLPR3   pHlp       = pVdCfgNode->pHlp;
-    return pHlp->pfnCFGMQuerySize(pVdCfgNode->pCfgNode, pszName, pcb);
+    return CFGMR3QuerySize((PCFGMNODE)pvUser, pszName, pcb);
 }
 
 static DECLCALLBACK(int) drvvdCfgQuery(void *pvUser, const char *pszName, char *pszString, size_t cchString)
 {
-    PVDCFGNODE      pVdCfgNode = (PVDCFGNODE)pvUser;
-    PCPDMDRVHLPR3   pHlp       = pVdCfgNode->pHlp;
-    return pHlp->pfnCFGMQueryString(pVdCfgNode->pCfgNode, pszName, pszString, cchString);
+    return CFGMR3QueryString((PCFGMNODE)pvUser, pszName, pszString, cchString);
 }
 
 static DECLCALLBACK(int) drvvdCfgQueryBytes(void *pvUser, const char *pszName, void *ppvData, size_t cbData)
 {
-    PVDCFGNODE      pVdCfgNode = (PVDCFGNODE)pvUser;
-    PCPDMDRVHLPR3   pHlp       = pVdCfgNode->pHlp;
-    return pHlp->pfnCFGMQueryBytes(pVdCfgNode->pCfgNode, pszName, ppvData, cbData);
+    return CFGMR3QueryBytes((PCFGMNODE)pvUser, pszName, ppvData, cbData);
 }
 
 
@@ -1421,7 +1377,7 @@ static DECLCALLBACK(int) drvvdINIPPoke(VDSOCKET Sock)
  */
 static int drvvdKeyCheckPrereqs(PVBOXDISK pThis, bool fSetError)
 {
-    if (   pThis->CfgCrypto.pCfgNode
+    if (   pThis->pCfgCrypto
         && !pThis->pIfSecKey)
     {
         AssertPtr(pThis->pIfSecKeyHlp);
@@ -1535,7 +1491,7 @@ static DECLCALLBACK(int) drvvdReadPcBios(PPDMIMEDIA pInterface,
         return VERR_PDM_MEDIA_NOT_MOUNTED;
     }
 
-    if (   pThis->CfgCrypto.pCfgNode
+    if (   pThis->pCfgCrypto
         && !pThis->pIfSecKey)
         return VERR_VD_DEK_MISSING;
 
@@ -1723,7 +1679,7 @@ static DECLCALLBACK(int) drvvdSetSecKeyIf(PPDMIMEDIA pInterface, PPDMISECKEY pIf
     PVBOXDISK pThis = PDMIMEDIA_2_VBOXDISK(pInterface);
     int rc = VINF_SUCCESS;
 
-    if (pThis->CfgCrypto.pCfgNode)
+    if (pThis->pCfgCrypto)
     {
         PVDINTERFACE pVDIfFilter = NULL;
 
@@ -1745,7 +1701,7 @@ static DECLCALLBACK(int) drvvdSetSecKeyIf(PPDMIMEDIA pInterface, PPDMISECKEY pIf
             pThis->pIfSecKey = pIfSecKey;
 
             rc = VDInterfaceAdd(&pThis->VDIfCfg.Core, "DrvVD_Config", VDINTERFACETYPE_CONFIG,
-                                &pThis->CfgCrypto, sizeof(VDINTERFACECONFIG), &pVDIfFilter);
+                                pThis->pCfgCrypto, sizeof(VDINTERFACECONFIG), &pVDIfFilter);
             AssertRC(rc);
 
             rc = VDInterfaceAdd(&pThis->VDIfCrypto.Core, "DrvVD_Crypto", VDINTERFACETYPE_CRYPTO,
@@ -2195,7 +2151,7 @@ static DECLCALLBACK(void) drvvdBlkCacheReqComplete(void *pvUser1, void *pvUser2,
     PVBOXDISK pThis = (PVBOXDISK)pvUser1;
 
     AssertPtr(pThis->pBlkCache);
-    PDMDrvHlpBlkCacheIoXferComplete(pThis->pDrvIns, pThis->pBlkCache, (PPDMBLKCACHEIOXFER)pvUser2, rcReq);
+    PDMR3BlkCacheIoXferComplete(pThis->pBlkCache, (PPDMBLKCACHEIOXFER)pvUser2, rcReq);
 }
 
 
@@ -2216,7 +2172,7 @@ static DECLCALLBACK(int) drvvdBlkCacheXferEnqueue(PPDMDRVINS pDrvIns,
     int rc = VINF_SUCCESS;
     PVBOXDISK pThis = PDMINS_2_DATA(pDrvIns, PVBOXDISK);
 
-    Assert (!pThis->CfgCrypto.pCfgNode);
+    Assert (!pThis->pCfgCrypto);
 
     switch (enmXferDir)
     {
@@ -2237,9 +2193,9 @@ static DECLCALLBACK(int) drvvdBlkCacheXferEnqueue(PPDMDRVINS pDrvIns,
     }
 
     if (rc == VINF_VD_ASYNC_IO_FINISHED)
-        PDMDrvHlpBlkCacheIoXferComplete(pThis->pDrvIns, pThis->pBlkCache, hIoXfer, VINF_SUCCESS);
+        PDMR3BlkCacheIoXferComplete(pThis->pBlkCache, hIoXfer, VINF_SUCCESS);
     else if (RT_FAILURE(rc) && rc != VERR_VD_ASYNC_IO_IN_PROGRESS)
-        PDMDrvHlpBlkCacheIoXferComplete(pThis->pDrvIns, pThis->pBlkCache, hIoXfer, rc);
+        PDMR3BlkCacheIoXferComplete(pThis->pBlkCache, hIoXfer, rc);
 
     return VINF_SUCCESS;
 }
@@ -2255,9 +2211,9 @@ static DECLCALLBACK(int) drvvdBlkCacheXferEnqueueDiscard(PPDMDRVINS pDrvIns, PCR
                               drvvdBlkCacheReqComplete, pThis, hIoXfer);
 
     if (rc == VINF_VD_ASYNC_IO_FINISHED)
-        PDMDrvHlpBlkCacheIoXferComplete(pThis->pDrvIns, pThis->pBlkCache, hIoXfer, VINF_SUCCESS);
+        PDMR3BlkCacheIoXferComplete(pThis->pBlkCache, hIoXfer, VINF_SUCCESS);
     else if (RT_FAILURE(rc) && rc != VERR_VD_ASYNC_IO_IN_PROGRESS)
-        PDMDrvHlpBlkCacheIoXferComplete(pThis->pDrvIns, pThis->pBlkCache, hIoXfer, rc);
+        PDMR3BlkCacheIoXferComplete(pThis->pBlkCache, hIoXfer, rc);
 
     return VINF_SUCCESS;
 }
@@ -2749,8 +2705,8 @@ static int drvvdMediaExIoReqReadWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT pIo
     {
         if (pThis->pBlkCache)
         {
-            rc = PDMDrvHlpBlkCacheRead(pThis->pDrvIns, pThis->pBlkCache, pIoReq->ReadWrite.offStart,
-                                       pIoReq->ReadWrite.pSgBuf, cbReqIo, pIoReq);
+            rc = PDMR3BlkCacheRead(pThis->pBlkCache, pIoReq->ReadWrite.offStart,
+                                   pIoReq->ReadWrite.pSgBuf, cbReqIo, pIoReq);
             if (rc == VINF_SUCCESS)
                 rc = VINF_VD_ASYNC_IO_FINISHED;
             else if (rc == VINF_AIO_TASK_PENDING)
@@ -2764,7 +2720,7 @@ static int drvvdMediaExIoReqReadWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT pIo
     {
         void *pvBuf = RTSgBufGetNextSegment(pIoReq->ReadWrite.pSgBuf, &cbReqIo);
 
-        Assert(cbReqIo > 0 && RT_VALID_PTR(pvBuf));
+        Assert(cbReqIo > 0 && VALID_PTR(pvBuf));
         rc = VDRead(pThis->pDisk, pIoReq->ReadWrite.offStart, pvBuf, cbReqIo);
         if (RT_SUCCESS(rc))
             rc = VINF_VD_ASYNC_IO_FINISHED;
@@ -2798,8 +2754,8 @@ static int drvvdMediaExIoReqWriteWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT pI
     {
         if (pThis->pBlkCache)
         {
-            rc = PDMDrvHlpBlkCacheWrite(pThis->pDrvIns, pThis->pBlkCache, pIoReq->ReadWrite.offStart,
-                                        pIoReq->ReadWrite.pSgBuf, cbReqIo, pIoReq);
+            rc = PDMR3BlkCacheWrite(pThis->pBlkCache, pIoReq->ReadWrite.offStart,
+                                    pIoReq->ReadWrite.pSgBuf, cbReqIo, pIoReq);
             if (rc == VINF_SUCCESS)
                 rc = VINF_VD_ASYNC_IO_FINISHED;
             else if (rc == VINF_AIO_TASK_PENDING)
@@ -2813,7 +2769,7 @@ static int drvvdMediaExIoReqWriteWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT pI
     {
         void *pvBuf = RTSgBufGetNextSegment(pIoReq->ReadWrite.pSgBuf, &cbReqIo);
 
-        Assert(cbReqIo > 0 && RT_VALID_PTR(pvBuf));
+        Assert(cbReqIo > 0 && VALID_PTR(pvBuf));
         rc = VDWrite(pThis->pDisk, pIoReq->ReadWrite.offStart, pvBuf, cbReqIo);
         if (RT_SUCCESS(rc))
             rc = VINF_VD_ASYNC_IO_FINISHED;
@@ -2861,7 +2817,7 @@ static int drvvdMediaExIoReqFlushWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT pI
         {
             if (pThis->pBlkCache)
             {
-                rc = PDMDrvHlpBlkCacheFlush(pThis->pDrvIns, pThis->pBlkCache, pIoReq);
+                rc = PDMR3BlkCacheFlush(pThis->pBlkCache, pIoReq);
                 if (rc == VINF_SUCCESS)
                     rc = VINF_VD_ASYNC_IO_FINISHED;
                 else if (rc == VINF_AIO_TASK_PENDING)
@@ -2907,9 +2863,7 @@ static int drvvdMediaExIoReqDiscardWrapper(PVBOXDISK pThis, PPDMMEDIAEXIOREQINT 
     {
         if (pThis->pBlkCache)
         {
-            rc = PDMDrvHlpBlkCacheDiscard(pThis->pDrvIns, pThis->pBlkCache,
-                                          pIoReq->Discard.paRanges, pIoReq->Discard.cRanges,
-                                          pIoReq);
+            rc = PDMR3BlkCacheDiscard(pThis->pBlkCache, pIoReq->Discard.paRanges, pIoReq->Discard.cRanges, pIoReq);
             if (rc == VINF_SUCCESS)
                 rc = VINF_VD_ASYNC_IO_FINISHED;
             else if (rc == VINF_AIO_TASK_PENDING)
@@ -3810,8 +3764,7 @@ static DECLCALLBACK(int) drvvdIoReqQuerySuspendedNext(PPDMIMEDIAEX pInterface, P
  */
 static DECLCALLBACK(int) drvvdIoReqSuspendedSave(PPDMIMEDIAEX pInterface, PSSMHANDLE pSSM, PDMMEDIAEXIOREQ hIoReq)
 {
-    PVBOXDISK           pThis  = RT_FROM_MEMBER(pInterface, VBOXDISK, IMediaEx);
-    PCPDMDRVHLPR3       pHlp   = pThis->pDrvIns->pHlpR3;
+    PVBOXDISK pThis = RT_FROM_MEMBER(pInterface, VBOXDISK, IMediaEx);
     PPDMMEDIAEXIOREQINT pIoReq = hIoReq;
 
     AssertReturn(!drvvdMediaExIoReqIsVmRunning(pThis), VERR_INVALID_STATE);
@@ -3819,28 +3772,28 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedSave(PPDMIMEDIAEX pInterface, PSSMHA
     AssertReturn(   pIoReq->enmState == VDIOREQSTATE_SUSPENDED
                  || pIoReq->enmState == VDIOREQSTATE_ALLOCATED, VERR_INVALID_STATE);
 
-    pHlp->pfnSSMPutU32(pSSM, DRVVD_IOREQ_SAVED_STATE_VERSION);
-    pHlp->pfnSSMPutU32(pSSM, (uint32_t)pIoReq->enmType);
-    pHlp->pfnSSMPutU32(pSSM, pIoReq->uIoReqId);
-    pHlp->pfnSSMPutU32(pSSM, pIoReq->fFlags);
+    SSMR3PutU32(pSSM, DRVVD_IOREQ_SAVED_STATE_VERSION);
+    SSMR3PutU32(pSSM, (uint32_t)pIoReq->enmType);
+    SSMR3PutU32(pSSM, pIoReq->uIoReqId);
+    SSMR3PutU32(pSSM, pIoReq->fFlags);
     if (   pIoReq->enmType == PDMMEDIAEXIOREQTYPE_READ
         || pIoReq->enmType == PDMMEDIAEXIOREQTYPE_WRITE)
     {
-        pHlp->pfnSSMPutU64(pSSM, pIoReq->ReadWrite.offStart);
-        pHlp->pfnSSMPutU64(pSSM, pIoReq->ReadWrite.cbReq);
-        pHlp->pfnSSMPutU64(pSSM, pIoReq->ReadWrite.cbReqLeft);
+        SSMR3PutU64(pSSM, pIoReq->ReadWrite.offStart);
+        SSMR3PutU64(pSSM, pIoReq->ReadWrite.cbReq);
+        SSMR3PutU64(pSSM, pIoReq->ReadWrite.cbReqLeft);
     }
     else if (pIoReq->enmType == PDMMEDIAEXIOREQTYPE_DISCARD)
     {
-        pHlp->pfnSSMPutU32(pSSM, pIoReq->Discard.cRanges);
+        SSMR3PutU32(pSSM, pIoReq->Discard.cRanges);
         for (unsigned i = 0; i < pIoReq->Discard.cRanges; i++)
         {
-            pHlp->pfnSSMPutU64(pSSM, pIoReq->Discard.paRanges[i].offStart);
-            pHlp->pfnSSMPutU64(pSSM, pIoReq->Discard.paRanges[i].cbRange);
+            SSMR3PutU64(pSSM, pIoReq->Discard.paRanges[i].offStart);
+            SSMR3PutU64(pSSM, pIoReq->Discard.paRanges[i].cbRange);
         }
     }
 
-    return pHlp->pfnSSMPutU32(pSSM, UINT32_MAX); /* sanity/terminator */
+    return SSMR3PutU32(pSSM, UINT32_MAX); /* sanity/terminator */
 }
 
 /**
@@ -3848,8 +3801,7 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedSave(PPDMIMEDIAEX pInterface, PSSMHA
  */
 static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHANDLE pSSM, PDMMEDIAEXIOREQ hIoReq)
 {
-    PVBOXDISK           pThis  = RT_FROM_MEMBER(pInterface, VBOXDISK, IMediaEx);
-    PCPDMDRVHLPR3       pHlp   = pThis->pDrvIns->pHlpR3;
+    PVBOXDISK pThis = RT_FROM_MEMBER(pInterface, VBOXDISK, IMediaEx);
     PPDMMEDIAEXIOREQINT pIoReq = hIoReq;
 
     AssertReturn(!drvvdMediaExIoReqIsVmRunning(pThis), VERR_INVALID_STATE);
@@ -3861,10 +3813,10 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
     int rc = VINF_SUCCESS;
     bool fPlaceOnRedoList = true;
 
-    pHlp->pfnSSMGetU32(pSSM, &u32);
+    SSMR3GetU32(pSSM, &u32);
     if (u32 <= DRVVD_IOREQ_SAVED_STATE_VERSION)
     {
-        pHlp->pfnSSMGetU32(pSSM, &u32);
+        SSMR3GetU32(pSSM, &u32);
         AssertReturn(   u32 == PDMMEDIAEXIOREQTYPE_WRITE
                      || u32 == PDMMEDIAEXIOREQTYPE_READ
                      || u32 == PDMMEDIAEXIOREQTYPE_DISCARD
@@ -3872,19 +3824,19 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
                      VERR_SSM_DATA_UNIT_FORMAT_CHANGED);
         pIoReq->enmType = (PDMMEDIAEXIOREQTYPE)u32;
 
-        pHlp->pfnSSMGetU32(pSSM, &u32);
+        SSMR3GetU32(pSSM, &u32);
         AssertReturn(u32 == pIoReq->uIoReqId, VERR_SSM_DATA_UNIT_FORMAT_CHANGED);
 
-        pHlp->pfnSSMGetU32(pSSM, &u32);
+        SSMR3GetU32(pSSM, &u32);
         AssertReturn(u32 == pIoReq->fFlags, VERR_SSM_DATA_UNIT_FORMAT_CHANGED);
 
         if (   pIoReq->enmType == PDMMEDIAEXIOREQTYPE_READ
             || pIoReq->enmType == PDMMEDIAEXIOREQTYPE_WRITE)
         {
-            pHlp->pfnSSMGetU64(pSSM, &pIoReq->ReadWrite.offStart);
-            pHlp->pfnSSMGetU64(pSSM, &u64);
+            SSMR3GetU64(pSSM, &pIoReq->ReadWrite.offStart);
+            SSMR3GetU64(pSSM, &u64);
             pIoReq->ReadWrite.cbReq = (size_t)u64;
-            pHlp->pfnSSMGetU64(pSSM, &u64);
+            SSMR3GetU64(pSSM, &u64);
             pIoReq->ReadWrite.cbReqLeft = (size_t)u64;
 
             /*
@@ -3910,7 +3862,7 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
         }
         else if (pIoReq->enmType == PDMMEDIAEXIOREQTYPE_DISCARD)
         {
-            rc = pHlp->pfnSSMGetU32(pSSM, &pIoReq->Discard.cRanges);
+            rc = SSMR3GetU32(pSSM, &pIoReq->Discard.cRanges);
             if (RT_SUCCESS(rc))
             {
                 pIoReq->Discard.paRanges = (PRTRANGE)RTMemAllocZ(pIoReq->Discard.cRanges * sizeof(RTRANGE));
@@ -3918,8 +3870,8 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
                 {
                     for (unsigned i = 0; i < pIoReq->Discard.cRanges; i++)
                     {
-                        pHlp->pfnSSMGetU64(pSSM, &pIoReq->Discard.paRanges[i].offStart);
-                        pHlp->pfnSSMGetU64(pSSM, &u64);
+                        SSMR3GetU64(pSSM, &pIoReq->Discard.paRanges[i].offStart);
+                        SSMR3GetU64(pSSM, &u64);
                         pIoReq->Discard.paRanges[i].cbRange = (size_t)u64;
                     }
                 }
@@ -3929,7 +3881,7 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
         }
 
         if (RT_SUCCESS(rc))
-            rc = pHlp->pfnSSMGetU32(pSSM, &u32); /* sanity/terminator */
+            rc = SSMR3GetU32(pSSM, &u32); /* sanity/terminator */
         if (RT_SUCCESS(rc))
             AssertReturn(u32 == UINT32_MAX, VERR_SSM_DATA_UNIT_FORMAT_CHANGED);
         if (   RT_SUCCESS(rc)
@@ -3952,30 +3904,27 @@ static DECLCALLBACK(int) drvvdIoReqSuspendedLoad(PPDMIMEDIAEX pInterface, PSSMHA
  * Loads all configured plugins.
  *
  * @returns VBox status code.
- * @param   pDrvIns  Driver instance data.
  * @param   pCfg     CFGM node holding plugin list.
  */
-static int drvvdLoadPlugins(PPDMDRVINS pDrvIns, PCFGMNODE pCfg)
+static int drvvdLoadPlugins(PCFGMNODE pCfg)
 {
-    PCPDMDRVHLPR3 pHlp = pDrvIns->pHlpR3;
-
-    PCFGMNODE pCfgPlugins = pHlp->pfnCFGMGetChild(pCfg, "Plugins");
+    PCFGMNODE pCfgPlugins = CFGMR3GetChild(pCfg, "Plugins");
 
     if (pCfgPlugins)
     {
-        PCFGMNODE pPluginCur = pHlp->pfnCFGMGetFirstChild(pCfgPlugins);
+        PCFGMNODE pPluginCur = CFGMR3GetFirstChild(pCfgPlugins);
         while (pPluginCur)
         {
             int rc = VINF_SUCCESS;
             char *pszPluginFilename = NULL;
-            rc = pHlp->pfnCFGMQueryStringAlloc(pPluginCur, "Path", &pszPluginFilename);
+            rc = CFGMR3QueryStringAlloc(pPluginCur, "Path", &pszPluginFilename);
             if (RT_SUCCESS(rc))
                 rc = VDPluginLoadFromFilename(pszPluginFilename);
 
             if (RT_FAILURE(rc))
                 LogRel(("VD: Failed to load plugin '%s' with %Rrc, continuing\n", pszPluginFilename, rc));
 
-            pPluginCur = pHlp->pfnCFGMGetNextChild(pPluginCur);
+            pPluginCur = CFGMR3GetNextChild(pPluginCur);
         }
     }
 
@@ -3992,36 +3941,30 @@ static int drvvdLoadPlugins(PPDMDRVINS pDrvIns, PCFGMNODE pCfg)
  */
 static int drvvdSetupFilters(PVBOXDISK pThis, PCFGMNODE pCfg)
 {
-    PCPDMDRVHLPR3 pHlp = pThis->pDrvIns->pHlpR3;
     int rc = VINF_SUCCESS;
+    PCFGMNODE pCfgFilter = CFGMR3GetChild(pCfg, "Filters");
 
-    PCFGMNODE pCfgFilter = pHlp->pfnCFGMGetChild(pCfg, "Filters");
     if (pCfgFilter)
     {
-        PCFGMNODE pCfgFilterConfig = pHlp->pfnCFGMGetChild(pCfgFilter, "VDConfig");
+        PCFGMNODE pCfgFilterConfig = CFGMR3GetChild(pCfgFilter, "VDConfig");
         char *pszFilterName = NULL;
         VDINTERFACECONFIG VDIfConfig;
         PVDINTERFACE pVDIfsFilter = NULL;
 
-        rc = pHlp->pfnCFGMQueryStringAlloc(pCfgFilter, "FilterName", &pszFilterName);
+        rc = CFGMR3QueryStringAlloc(pCfgFilter, "FilterName", &pszFilterName);
         if (RT_SUCCESS(rc))
         {
-            VDCFGNODE CfgNode;
-
             VDIfConfig.pfnAreKeysValid = drvvdCfgAreKeysValid;
             VDIfConfig.pfnQuerySize    = drvvdCfgQuerySize;
             VDIfConfig.pfnQuery        = drvvdCfgQuery;
             VDIfConfig.pfnQueryBytes   = drvvdCfgQueryBytes;
-
-            CfgNode.pHlp     = pThis->pDrvIns->pHlpR3;
-            CfgNode.pCfgNode = pCfgFilterConfig;
             rc = VDInterfaceAdd(&VDIfConfig.Core, "DrvVD_Config", VDINTERFACETYPE_CONFIG,
-                                &CfgNode, sizeof(VDINTERFACECONFIG), &pVDIfsFilter);
+                                pCfgFilterConfig, sizeof(VDINTERFACECONFIG), &pVDIfsFilter);
             AssertRC(rc);
 
             rc = VDFilterAdd(pThis->pDisk, pszFilterName, VD_FILTER_FLAGS_DEFAULT, pVDIfsFilter);
 
-            PDMDrvHlpMMHeapFree(pThis->pDrvIns, pszFilterName);
+            MMR3HeapFree(pszFilterName);
         }
     }
 
@@ -4234,19 +4177,18 @@ static DECLCALLBACK(void *) drvvdQueryInterface(PPDMIBASE pInterface, const char
  */
 static DECLCALLBACK(int) drvvdLoadDone(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM)
 {
-    PVBOXDISK       pThis = PDMINS_2_DATA(pDrvIns, PVBOXDISK);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PVBOXDISK pThis = PDMINS_2_DATA(pDrvIns, PVBOXDISK);
     Assert(!pThis->fErrorUseRuntime);
 
     /* Drop out if we don't have any work to do or if it's a failed load. */
     if (   !pThis->fTempReadOnly
-        || RT_FAILURE(pHlp->pfnSSMHandleGetStatus(pSSM)))
+        || RT_FAILURE(SSMR3HandleGetStatus(pSSM)))
         return VINF_SUCCESS;
 
     int rc = drvvdSetWritable(pThis);
     if (RT_FAILURE(rc)) /** @todo does the bugger set any errors? */
-        return pHlp->pfnSSMSetLoadError(pSSM, rc, RT_SRC_POS,
-                                        N_("Failed to write lock the images"));
+        return SSMR3SetLoadError(pSSM, rc, RT_SRC_POS,
+                                 N_("Failed to write lock the images"));
     return VINF_SUCCESS;
 }
 
@@ -4283,7 +4225,7 @@ static void drvvdPowerOffOrDestructOrUnmount(PPDMDRVINS pDrvIns)
 
     if (RT_VALID_PTR(pThis->pBlkCache))
     {
-        PDMDrvHlpBlkCacheRelease(pThis->pDrvIns, pThis->pBlkCache);
+        PDMR3BlkCacheRelease(pThis->pBlkCache);
         pThis->pBlkCache = NULL;
     }
 
@@ -4333,7 +4275,7 @@ static DECLCALLBACK(void) drvvdResume(PPDMDRVINS pDrvIns)
 
     if (pThis->pBlkCache)
     {
-        int rc = PDMDrvHlpBlkCacheResume(pThis->pDrvIns, pThis->pBlkCache);
+        int rc = PDMR3BlkCacheResume(pThis->pBlkCache);
         AssertRC(rc);
     }
 
@@ -4440,7 +4382,7 @@ static DECLCALLBACK(void) drvvdSuspend(PPDMDRVINS pDrvIns)
 
     if (pThis->pBlkCache)
     {
-        int rc = PDMDrvHlpBlkCacheSuspend(pThis->pDrvIns, pThis->pBlkCache);
+        int rc = PDMR3BlkCacheSuspend(pThis->pBlkCache);
         AssertRC(rc);
     }
 
@@ -4468,7 +4410,7 @@ static DECLCALLBACK(void) drvvdReset(PPDMDRVINS pDrvIns)
 
     if (pThis->pBlkCache)
     {
-        int rc = PDMDrvHlpBlkCacheClear(pThis->pDrvIns, pThis->pBlkCache);
+        int rc = PDMR3BlkCacheClear(pThis->pBlkCache);
         AssertRC(rc);
     }
 
@@ -4509,7 +4451,7 @@ static DECLCALLBACK(void) drvvdDestruct(PPDMDRVINS pDrvIns)
     }
     if (pThis->pszBwGroup)
     {
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszBwGroup);
+        MMR3HeapFree(pThis->pszBwGroup);
         pThis->pszBwGroup = NULL;
     }
     if (pThis->hHbdMgr != NIL_HBDMGR)
@@ -4527,14 +4469,6 @@ static DECLCALLBACK(void) drvvdDestruct(PPDMDRVINS pDrvIns)
             RTSemFastMutexDestroy(pThis->aIoReqAllocBins[i].hMtxLstIoReqAlloc);
 
     drvvdStatsDeregister(pThis);
-
-    PVDCFGNODE pIt;
-    PVDCFGNODE pItNext;
-    RTListForEachSafe(&pThis->LstCfgNodes, pIt, pItNext, VDCFGNODE, NdLst)
-    {
-        RTListNodeRemove(&pIt->NdLst);
-        RTMemFreeZ(pIt, sizeof(*pIt));
-    }
 }
 
 /**
@@ -4544,12 +4478,10 @@ static DECLCALLBACK(void) drvvdDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     RT_NOREF(fFlags);
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PVBOXDISK       pThis = PDMINS_2_DATA(pDrvIns, PVBOXDISK);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
     LogFlowFunc(("\n"));
-
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
+    PVBOXDISK pThis = PDMINS_2_DATA(pDrvIns, PVBOXDISK);
+    int rc = VINF_SUCCESS;
     char *pszName = NULL;        /* The path of the disk image file. */
     char *pszFormat = NULL;      /* The format backed to use for this image. */
     char *pszCachePath = NULL;   /* The path to the cache image. */
@@ -4572,8 +4504,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     pThis->MergeLock                    = NIL_RTSEMRW;
     pThis->uMergeSource                 = VD_LAST_IMAGE;
     pThis->uMergeTarget                 = VD_LAST_IMAGE;
-    pThis->CfgCrypto.pCfgNode           = NULL;
-    pThis->CfgCrypto.pHlp               = pDrvIns->pHlpR3;
+    pThis->pCfgCrypto                   = NULL;
     pThis->pIfSecKey                    = NULL;
     pThis->hIoReqCache                  = NIL_RTMEMCACHE;
     pThis->hIoBufMgr                    = NIL_IOBUFMGR;
@@ -4637,15 +4568,13 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     pThis->IMediaEx.pfnIoReqSuspendedSave       = drvvdIoReqSuspendedSave;
     pThis->IMediaEx.pfnIoReqSuspendedLoad       = drvvdIoReqSuspendedLoad;
 
-    RTListInit(&pThis->LstCfgNodes);
-
     /* Initialize supported VD interfaces. */
     pThis->pVDIfsDisk = NULL;
 
     pThis->VDIfError.pfnError     = drvvdErrorCallback;
     pThis->VDIfError.pfnMessage   = NULL;
-    int rc = VDInterfaceAdd(&pThis->VDIfError.Core, "DrvVD_VDIError", VDINTERFACETYPE_ERROR,
-                            pDrvIns, sizeof(VDINTERFACEERROR), &pThis->pVDIfsDisk);
+    rc = VDInterfaceAdd(&pThis->VDIfError.Core, "DrvVD_VDIError", VDINTERFACETYPE_ERROR,
+                        pDrvIns, sizeof(VDINTERFACEERROR), &pThis->pVDIfsDisk);
     AssertRC(rc);
 
     /* List of images is empty now. */
@@ -4687,7 +4616,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     }
 
     /* Before we access any VD API load all given plugins. */
-    rc = drvvdLoadPlugins(pDrvIns, pCfg);
+    rc = drvvdLoadPlugins(pCfg);
     if (RT_FAILURE(rc))
         return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Loading VD plugins failed"));
 
@@ -4714,17 +4643,17 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
         {
             /* Toplevel configuration additionally contains the global image
              * open flags. Some might be converted to per-image flags later. */
-            fValid = pHlp->pfnCFGMAreValuesValid(pCurNode,
-                                                 "Format\0Path\0"
-                                                 "ReadOnly\0MaybeReadOnly\0TempReadOnly\0Shareable\0HonorZeroWrites\0"
-                                                 "HostIPStack\0UseNewIo\0BootAcceleration\0BootAccelerationBuffer\0"
-                                                 "SetupMerge\0MergeSource\0MergeTarget\0BwGroup\0Type\0BlockCache\0"
-                                                 "CachePath\0CacheFormat\0Discard\0InformAboutZeroBlocks\0"
-                                                 "SkipConsistencyChecks\0"
-                                                 "Locked\0BIOSVisible\0Cylinders\0Heads\0Sectors\0Mountable\0"
-                                                 "EmptyDrive\0IoBufMax\0NonRotationalMedium\0"
+            fValid = CFGMR3AreValuesValid(pCurNode,
+                                          "Format\0Path\0"
+                                          "ReadOnly\0MaybeReadOnly\0TempReadOnly\0Shareable\0HonorZeroWrites\0"
+                                          "HostIPStack\0UseNewIo\0BootAcceleration\0BootAccelerationBuffer\0"
+                                          "SetupMerge\0MergeSource\0MergeTarget\0BwGroup\0Type\0BlockCache\0"
+                                          "CachePath\0CacheFormat\0Discard\0InformAboutZeroBlocks\0"
+                                          "SkipConsistencyChecks\0"
+                                          "Locked\0BIOSVisible\0Cylinders\0Heads\0Sectors\0Mountable\0"
+                                          "EmptyDrive\0IoBufMax\0NonRotationalMedium\0"
 #if defined(VBOX_PERIODIC_FLUSH) || defined(VBOX_IGNORE_FLUSH)
-                                                 "FlushInterval\0IgnoreFlush\0IgnoreFlushAsync\0"
+                                          "FlushInterval\0IgnoreFlush\0IgnoreFlushAsync\0"
 #endif /* !(VBOX_PERIODIC_FLUSH || VBOX_IGNORE_FLUSH) */
                                            );
         }
@@ -4732,8 +4661,8 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
         {
             /* All other image configurations only contain image name and
              * the format information. */
-            fValid = pHlp->pfnCFGMAreValuesValid(pCurNode, "Format\0Path\0"
-                                                           "MergeSource\0MergeTarget\0");
+            fValid = CFGMR3AreValuesValid(pCurNode, "Format\0Path\0"
+                                                    "MergeSource\0MergeTarget\0");
         }
         if (!fValid)
         {
@@ -4744,7 +4673,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
 
         if (pCurNode == pCfg)
         {
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "HostIPStack", &fHostIP, true);
+            rc = CFGMR3QueryBoolDef(pCurNode, "HostIPStack", &fHostIP, true);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4752,7 +4681,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "HonorZeroWrites", &fHonorZeroWrites, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "HonorZeroWrites", &fHonorZeroWrites, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4760,7 +4689,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "ReadOnly", &fReadOnly, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "ReadOnly", &fReadOnly, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4768,7 +4697,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "MaybeReadOnly", &fMaybeReadOnly, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "MaybeReadOnly", &fMaybeReadOnly, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4776,7 +4705,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "TempReadOnly", &pThis->fTempReadOnly, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "TempReadOnly", &pThis->fTempReadOnly, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4790,7 +4719,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "Shareable", &pThis->fShareable, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "Shareable", &pThis->fShareable, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4798,14 +4727,14 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "UseNewIo", &fUseNewIo, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "UseNewIo", &fUseNewIo, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                                       N_("DrvVD: Configuration error: Querying \"UseNewIo\" as boolean failed"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "SetupMerge", &pThis->fMergePending, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "SetupMerge", &pThis->fMergePending, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4818,28 +4747,28 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                                       N_("DrvVD: Configuration error: Both \"ReadOnly\" and \"MergePending\" are set"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "BootAcceleration", &pThis->fBootAccelEnabled, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "BootAcceleration", &pThis->fBootAccelEnabled, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                                       N_("DrvVD: Configuration error: Querying \"BootAcceleration\" as boolean failed"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryU32Def(pCurNode, "BootAccelerationBuffer", (uint32_t *)&pThis->cbBootAccelBuffer, 16 * _1K);
+            rc = CFGMR3QueryU32Def(pCurNode, "BootAccelerationBuffer", (uint32_t *)&pThis->cbBootAccelBuffer, 16 * _1K);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                                       N_("DrvVD: Configuration error: Querying \"BootAccelerationBuffer\" as integer failed"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "BlockCache", &fUseBlockCache, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "BlockCache", &fUseBlockCache, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                                       N_("DrvVD: Configuration error: Querying \"BlockCache\" as boolean failed"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCurNode, "BwGroup", &pThis->pszBwGroup);
+            rc = CFGMR3QueryStringAlloc(pCurNode, "BwGroup", &pThis->pszBwGroup);
             if (RT_FAILURE(rc) && rc != VERR_CFGM_VALUE_NOT_FOUND)
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4848,7 +4777,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             }
             else
                 rc = VINF_SUCCESS;
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "Discard", &fDiscard, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "Discard", &fDiscard, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4861,14 +4790,14 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                                       N_("DrvVD: Configuration error: Both \"ReadOnly\" and \"Discard\" are set"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "InformAboutZeroBlocks", &fInformAboutZeroBlocks, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "InformAboutZeroBlocks", &fInformAboutZeroBlocks, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                                       N_("DrvVD: Configuration error: Querying \"InformAboutZeroBlocks\" as boolean failed"));
                 break;
             }
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "SkipConsistencyChecks", &fSkipConsistencyChecks, true);
+            rc = CFGMR3QueryBoolDef(pCurNode, "SkipConsistencyChecks", &fSkipConsistencyChecks, true);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4877,7 +4806,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             }
 
             char *psz = NULL;
-           rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Type", &psz);
+           rc = CFGMR3QueryStringAlloc(pCfg, "Type", &psz);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_BLOCK_NO_TYPE, N_("Failed to obtain the sub type"));
             pThis->enmType = drvvdGetMediaTypeFromString(psz);
@@ -4885,12 +4814,12 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             {
                 PDMDrvHlpVMSetError(pDrvIns, VERR_PDM_BLOCK_UNKNOWN_TYPE, RT_SRC_POS,
                                     N_("Unknown type \"%s\""), psz);
-                PDMDrvHlpMMHeapFree(pDrvIns, psz);
+                MMR3HeapFree(psz);
                 return VERR_PDM_BLOCK_UNKNOWN_TYPE;
             }
-            PDMDrvHlpMMHeapFree(pDrvIns, psz); psz = NULL;
+            MMR3HeapFree(psz); psz = NULL;
 
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCurNode, "CachePath", &pszCachePath);
+            rc = CFGMR3QueryStringAlloc(pCurNode, "CachePath", &pszCachePath);
             if (RT_FAILURE(rc) && rc != VERR_CFGM_VALUE_NOT_FOUND)
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4902,7 +4831,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
 
             if (pszCachePath)
             {
-                rc = pHlp->pfnCFGMQueryStringAlloc(pCurNode, "CacheFormat", &pszCacheFormat);
+                rc = CFGMR3QueryStringAlloc(pCurNode, "CacheFormat", &pszCacheFormat);
                 if (RT_FAILURE(rc))
                 {
                     rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4912,37 +4841,37 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             }
 
             /* Mountable */
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "Mountable", &pThis->fMountable, false);
+            rc = CFGMR3QueryBoolDef(pCfg, "Mountable", &pThis->fMountable, false);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Mountable\" from the config"));
 
             /* Locked */
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "Locked", &pThis->fLocked, false);
+            rc = CFGMR3QueryBoolDef(pCfg, "Locked", &pThis->fLocked, false);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Locked\" from the config"));
 
             /* BIOS visible */
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "BIOSVisible", &pThis->fBiosVisible, true);
+            rc = CFGMR3QueryBoolDef(pCfg, "BIOSVisible", &pThis->fBiosVisible, true);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"BIOSVisible\" from the config"));
 
             /* Cylinders */
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "Cylinders", &pThis->LCHSGeometry.cCylinders, 0);
+            rc = CFGMR3QueryU32Def(pCfg, "Cylinders", &pThis->LCHSGeometry.cCylinders, 0);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Cylinders\" from the config"));
 
             /* Heads */
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "Heads", &pThis->LCHSGeometry.cHeads, 0);
+            rc = CFGMR3QueryU32Def(pCfg, "Heads", &pThis->LCHSGeometry.cHeads, 0);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Heads\" from the config"));
 
             /* Sectors */
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "Sectors", &pThis->LCHSGeometry.cSectors, 0);
+            rc = CFGMR3QueryU32Def(pCfg, "Sectors", &pThis->LCHSGeometry.cSectors, 0);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Sectors\" from the config"));
 
             /* Uuid */
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Uuid", &psz);
+            rc = CFGMR3QueryStringAlloc(pCfg, "Uuid", &psz);
             if (rc == VERR_CFGM_VALUE_NOT_FOUND)
                 RTUuidClear(&pThis->Uuid);
             else if (RT_SUCCESS(rc))
@@ -4951,22 +4880,22 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 if (RT_FAILURE(rc))
                 {
                     PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS, N_("Uuid from string failed on \"%s\""), psz);
-                    PDMDrvHlpMMHeapFree(pDrvIns, psz);
+                    MMR3HeapFree(psz);
                     return rc;
                 }
-                PDMDrvHlpMMHeapFree(pDrvIns, psz); psz = NULL;
+                MMR3HeapFree(psz); psz = NULL;
             }
             else
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"Uuid\" from the config"));
 
 #ifdef VBOX_PERIODIC_FLUSH
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "FlushInterval", &pThis->cbFlushInterval, 0);
+            rc = CFGMR3QueryU32Def(pCfg, "FlushInterval", &pThis->cbFlushInterval, 0);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"FlushInterval\" from the config"));
 #endif /* VBOX_PERIODIC_FLUSH */
 
 #ifdef VBOX_IGNORE_FLUSH
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "IgnoreFlush", &pThis->fIgnoreFlush, true);
+            rc = CFGMR3QueryBoolDef(pCfg, "IgnoreFlush", &pThis->fIgnoreFlush, true);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"IgnoreFlush\" from the config"));
 
@@ -4975,7 +4904,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             else
                 LogRel(("DrvVD: Flushes will be passed to the disk\n"));
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "IgnoreFlushAsync", &pThis->fIgnoreFlushAsync, false);
+            rc = CFGMR3QueryBoolDef(pCfg, "IgnoreFlushAsync", &pThis->fIgnoreFlushAsync, false);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"IgnoreFlushAsync\" from the config"));
 
@@ -4985,7 +4914,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 LogRel(("DrvVD: Async flushes will be passed to the disk\n"));
 #endif /* VBOX_IGNORE_FLUSH */
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "EmptyDrive", &fEmptyDrive, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "EmptyDrive", &fEmptyDrive, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -4993,17 +4922,17 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "IoBufMax", &cbIoBufMax, 5 * _1M);
+            rc = CFGMR3QueryU32Def(pCfg, "IoBufMax", &cbIoBufMax, 5 * _1M);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"IoBufMax\" from the config"));
 
-            rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "NonRotationalMedium", &pThis->fNonRotational, false);
+            rc = CFGMR3QueryBoolDef(pCfg, "NonRotationalMedium", &pThis->fNonRotational, false);
             if (RT_FAILURE(rc))
                 return PDMDRV_SET_ERROR(pDrvIns, rc,
                                         N_("DrvVD configuration error: Querying \"NonRotationalMedium\" as boolean failed"));
         }
 
-        PCFGMNODE pParent = pHlp->pfnCFGMGetChild(pCurNode, "Parent");
+        PCFGMNODE pParent = CFGMR3GetChild(pCurNode, "Parent");
         if (!pParent)
             break;
         pCurNode = pParent;
@@ -5011,7 +4940,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     }
 
     if (pThis->pDrvMediaExPort)
-        rc = IOBUFMgrCreate(&pThis->hIoBufMgr, cbIoBufMax, pThis->CfgCrypto.pCfgNode ? IOBUFMGR_F_REQUIRE_NOT_PAGABLE : IOBUFMGR_F_DEFAULT);
+        rc = IOBUFMgrCreate(&pThis->hIoBufMgr, cbIoBufMax, pThis->pCfgCrypto ? IOBUFMGR_F_REQUIRE_NOT_PAGABLE : IOBUFMGR_F_DEFAULT);
 
     if (   !fEmptyDrive
         && RT_SUCCESS(rc))
@@ -5085,7 +5014,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             /*
              * Read the image configuration.
              */
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCurNode, "Path", &pszName);
+            rc = CFGMR3QueryStringAlloc(pCurNode, "Path", &pszName);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -5093,7 +5022,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 break;
             }
 
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCurNode, "Format", &pszFormat);
+            rc = CFGMR3QueryStringAlloc(pCurNode, "Format", &pszFormat);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -5102,7 +5031,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             }
 
             bool fMergeSource;
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "MergeSource", &fMergeSource, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "MergeSource", &fMergeSource, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -5122,7 +5051,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
             }
 
             bool fMergeTarget;
-            rc = pHlp->pfnCFGMQueryBoolDef(pCurNode, "MergeTarget", &fMergeTarget, false);
+            rc = CFGMR3QueryBoolDef(pCurNode, "MergeTarget", &fMergeTarget, false);
             if (RT_FAILURE(rc))
             {
                 rc = PDMDRV_SET_ERROR(pDrvIns, rc,
@@ -5141,26 +5070,13 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                 }
             }
 
-            PCFGMNODE pCfgVDConfig = pHlp->pfnCFGMGetChild(pCurNode, "VDConfig");
+            PCFGMNODE pCfgVDConfig = CFGMR3GetChild(pCurNode, "VDConfig");
             pImage->VDIfConfig.pfnAreKeysValid = drvvdCfgAreKeysValid;
             pImage->VDIfConfig.pfnQuerySize    = drvvdCfgQuerySize;
             pImage->VDIfConfig.pfnQuery        = drvvdCfgQuery;
             pImage->VDIfConfig.pfnQueryBytes   = NULL;
-
-            PVDCFGNODE pCfgNode = (PVDCFGNODE)RTMemAllocZ(sizeof(*pCfgNode));
-            if (RT_UNLIKELY(!pCfgNode))
-            {
-                rc = PDMDRV_SET_ERROR(pDrvIns, VERR_NO_MEMORY,
-                                      N_("DrvVD: Failed to allocate memory for config node"));
-                break;
-            }
-
-            pCfgNode->pHlp     = pDrvIns->pHlpR3;
-            pCfgNode->pCfgNode = pCfgVDConfig;
-            RTListAppend(&pThis->LstCfgNodes, &pCfgNode->NdLst);
-
             rc = VDInterfaceAdd(&pImage->VDIfConfig.Core, "DrvVD_Config", VDINTERFACETYPE_CONFIG,
-                                pCfgNode, sizeof(VDINTERFACECONFIG), &pImage->pVDIfsImage);
+                                pCfgVDConfig, sizeof(VDINTERFACECONFIG), &pImage->pVDIfsImage);
             AssertRC(rc);
 
             /* Check VDConfig for encryption config. */
@@ -5171,12 +5087,12 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
              * This needs to be properly fixed by specifying which part of the image should contain the
              * crypto stuff.
              */
-            if (!pThis->CfgCrypto.pCfgNode)
+            if (!pThis->pCfgCrypto)
             {
                 if (pCfgVDConfig)
-                    pThis->CfgCrypto.pCfgNode = pHlp->pfnCFGMGetChild(pCfgVDConfig, "CRYPT");
+                    pThis->pCfgCrypto = CFGMR3GetChild(pCfgVDConfig, "CRYPT");
 
-                if (pThis->CfgCrypto.pCfgNode)
+                if (pThis->pCfgCrypto)
                 {
                     /* Setup VDConfig interface for disk encryption support. */
                     pThis->VDIfCfg.pfnAreKeysValid  = drvvdCfgAreKeysValid;
@@ -5324,15 +5240,15 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
                break;
             }
 
-            PDMDrvHlpMMHeapFree(pDrvIns, pszName);
+            MMR3HeapFree(pszName);
             pszName = NULL;
-            PDMDrvHlpMMHeapFree(pDrvIns, pszFormat);
+            MMR3HeapFree(pszFormat);
             pszFormat = NULL;
 
             /* next */
             iLevel--;
             iImageIdx++;
-            pCurNode = pHlp->pfnCFGMGetParent(pCurNode);
+            pCurNode = CFGMR3GetParent(pCurNode);
         }
 
         LogRel(("VD: Opening the disk took %lld ns\n", RTTimeNanoTS() - tsStart));
@@ -5373,9 +5289,9 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
         }
 
         if (RT_VALID_PTR(pszCachePath))
-            PDMDrvHlpMMHeapFree(pDrvIns, pszCachePath);
+            MMR3HeapFree(pszCachePath);
         if (RT_VALID_PTR(pszCacheFormat))
-            PDMDrvHlpMMHeapFree(pDrvIns, pszCacheFormat);
+            MMR3HeapFree(pszCacheFormat);
 
         if (   RT_SUCCESS(rc)
             && pThis->fMergePending
@@ -5390,7 +5306,7 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
         if (   fUseBlockCache
             && !pThis->fShareable
             && !fDiscard
-            && !pThis->CfgCrypto.pCfgNode /* Disk encryption disables the block cache for security reasons */
+            && !pThis->pCfgCrypto /* Disk encryption disables the block cache for security reasons */
             && RT_SUCCESS(rc))
         {
             /*
@@ -5531,9 +5447,9 @@ static DECLCALLBACK(int) drvvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     if (RT_FAILURE(rc))
     {
         if (RT_VALID_PTR(pszName))
-            PDMDrvHlpMMHeapFree(pDrvIns, pszName);
+            MMR3HeapFree(pszName);
         if (RT_VALID_PTR(pszFormat))
-            PDMDrvHlpMMHeapFree(pDrvIns, pszFormat);
+            MMR3HeapFree(pszFormat);
         /* drvvdDestruct does the rest. */
     }
 

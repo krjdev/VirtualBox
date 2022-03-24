@@ -162,7 +162,7 @@ XhcClearDebugRegBit (
 }
 
 /**
-  Program and enable XHCI MMIO base address.
+  Program and eanble XHCI MMIO base address.
 
   @return XHCI MMIO base address.
 

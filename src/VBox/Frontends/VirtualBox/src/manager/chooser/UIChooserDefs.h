@@ -1,10 +1,10 @@
-/* $Id: UIChooserDefs.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIChooserDefs.h $ */
 /** @file
  * VBox Qt GUI - UIChooserDefs class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,63 +28,23 @@
 #include <iprt/cdefs.h>
 
 
-/** UIChooserNode types. */
-enum UIChooserNodeType
+/** UIChooserItem types. */
+enum UIChooserItemType
 {
-    UIChooserNodeType_Any     = QGraphicsItem::UserType,
-    UIChooserNodeType_Group,
-    UIChooserNodeType_Global,
-    UIChooserNodeType_Machine
-};
-
-
-/** UIChooserNodeGroup types. */
-enum UIChooserNodeGroupType
-{
-    UIChooserNodeGroupType_Invalid,
-    UIChooserNodeGroupType_Local,
-    UIChooserNodeGroupType_Provider,
-    UIChooserNodeGroupType_Profile
-};
-
-
-/** UIChooserNode extra-data prefix types. */
-enum UIChooserNodeDataPrefixType
-{
-    UIChooserNodeDataPrefixType_Global,
-    UIChooserNodeDataPrefixType_Machine,
-    UIChooserNodeDataPrefixType_Local,
-    UIChooserNodeDataPrefixType_Provider,
-    UIChooserNodeDataPrefixType_Profile
-};
-
-
-/** UIChooserNode extra-data option types. */
-enum UIChooserNodeDataOptionType
-{
-    UIChooserNodeDataOptionType_GlobalFavorite,
-    UIChooserNodeDataOptionType_GroupOpened
-};
-
-
-/** UIChooserNode extra-data value types. */
-enum UIChooserNodeDataValueType
-{
-    UIChooserNodeDataValueType_GlobalDefault
+    UIChooserItemType_Any     = QGraphicsItem::UserType,
+    UIChooserItemType_Group,
+    UIChooserItemType_Global,
+    UIChooserItemType_Machine
 };
 
 
 /** UIChooserItem search flags. */
 enum UIChooserItemSearchFlag
 {
-    UIChooserItemSearchFlag_Global        = RT_BIT(0),
-    UIChooserItemSearchFlag_Machine       = RT_BIT(1),
-    UIChooserItemSearchFlag_LocalGroup    = RT_BIT(2),
-    UIChooserItemSearchFlag_CloudProvider = RT_BIT(3),
-    UIChooserItemSearchFlag_CloudProfile  = RT_BIT(4),
-    UIChooserItemSearchFlag_ExactId       = RT_BIT(5),
-    UIChooserItemSearchFlag_ExactName     = RT_BIT(6),
-    UIChooserItemSearchFlag_FullName      = RT_BIT(7),
+    UIChooserItemSearchFlag_Machine   = RT_BIT(0),
+    UIChooserItemSearchFlag_Global    = RT_BIT(1),
+    UIChooserItemSearchFlag_Group     = RT_BIT(2),
+    UIChooserItemSearchFlag_ExactName = RT_BIT(3)
 };
 
 
@@ -95,7 +55,6 @@ enum UIChooserItemDragToken
     UIChooserItemDragToken_Up,
     UIChooserItemDragToken_Down
 };
-
 
 /** UIChooserItemMachine enumeration flags. */
 enum UIChooserItemMachineEnumerationFlag

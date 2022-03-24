@@ -1,10 +1,10 @@
-/* $Id: ntfsvfs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ntfsvfs.cpp $ */
 /** @file
  * IPRT - NTFS Virtual Filesystem, currently only for reading allocation bitmap.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -4521,7 +4521,7 @@ static int rtFsNtfsVol_QueryClusterStateSlow(PRTFSNTFSVOL pThis, uint64_t iClust
          * Load a cache line.
          */
         Assert(RT_IS_POWER_OF_TWO(pThis->cbBitmapAlloc));
-        uint64_t offLoad = offInBitmap & ~(uint64_t)(pThis->cbBitmapAlloc - 1);
+        uint64_t offLoad = offInBitmap & ~(pThis->cbBitmapAlloc - 1);
         uint32_t cbLoad  = (uint32_t)RT_MIN(cbWholeBitmap - offLoad, pThis->cbBitmapAlloc);
 
         memset(pThis->pvBitmap, 0xff, pThis->cbBitmapAlloc);

@@ -1,10 +1,10 @@
-/* $Id: memobj.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: memobj.h $ */
 /** @file
  * IPRT - Ring-0 Memory Objects.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,8 +55,6 @@ typedef enum RTR0MEMOBJTYPE
     /** RTR0MemObjAllocPage.
      * This memory is page aligned and fixed. */
     RTR0MEMOBJTYPE_PAGE,
-    /** RTR0MemObjAllocLarge. */
-    RTR0MEMOBJTYPE_LARGE_PAGE,
     /** RTR0MemObjAllocLow.
      * This memory is page aligned, fixed and is backed by physical memory below 4GB. */
     RTR0MEMOBJTYPE_LOW,
@@ -93,11 +91,7 @@ typedef enum RTR0MEMOBJTYPE
 /** @name RTR0MEMOBJINTERNAL::fFlags
  * @{ */
 /** Page level protection was changed. */
-#define RTR0MEMOBJ_FLAGS_PROT_CHANGED               RT_BIT_32(0)
-/** Zero initialized at allocation. */
-#define RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC              RT_BIT_32(1)
-/** Uninitialized at allocation. */
-#define RTR0MEMOBJ_FLAGS_UNINITIALIZED_AT_ALLOC     RT_BIT_32(2)
+#define RTR0MEMOBJ_FLAGS_PROT_CHANGED       RT_BIT_32(0)
 /** @} */
 
 
@@ -222,10 +216,6 @@ typedef struct RTR0MEMOBJINTERNAL
         } Mapping;
     } u;
 
-#if defined(DEBUG)
-    /** Allocation tag string. */
-    const char     *pszTag;
-#endif
 } RTR0MEMOBJINTERNAL;
 
 
@@ -311,9 +301,8 @@ DECLHIDDEN(int) rtR0MemObjNativeFree(PRTR0MEMOBJINTERNAL pMem);
  * @param   ppMem           Where to store the ring-0 memory object handle.
  * @param   cb              Number of bytes to allocate, page aligned.
  * @param   fExecutable     Flag indicating whether it should be permitted to executed code in the memory object.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeAllocPage(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeAllocPage(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable);
 
 /**
  * Worker for RTR0MemObjAllocLargeTag.
@@ -338,9 +327,8 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocLarge(PPRTR0MEMOBJINTERNAL ppMem, size_t cb
  * @param   ppMem           Where to store the ring-0 memory object handle.
  * @param   cb              Number of bytes to allocate, page aligned.
  * @param   fExecutable     Flag indicating whether it should be permitted to executed code in the memory object.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable);
 
 /**
  * Allocates page aligned virtual kernel memory with contiguous physical backing below 4GB.
@@ -351,9 +339,8 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, 
  * @param   ppMem           Where to store the ring-0 memory object handle.
  * @param   cb              Number of bytes to allocate, page aligned.
  * @param   fExecutable     Flag indicating whether it should be permitted to executed code in the memory object.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable);
 
 /**
  * Locks a range of user virtual memory.
@@ -365,10 +352,8 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
  * @param   fAccess         The desired access, a combination of RTMEM_PROT_READ
  *                          and RTMEM_PROT_WRITE.
  * @param   R0Process       The process to lock pages in.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3Ptr, size_t cb, uint32_t fAccess,
-                                         RTR0PROCESS R0Process, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3Ptr, size_t cb, uint32_t fAccess, RTR0PROCESS R0Process);
 
 /**
  * Locks a range of kernel virtual memory.
@@ -379,9 +364,8 @@ DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3P
  * @param   cb              Number of bytes to lock, page aligned.
  * @param   fAccess         The desired access, a combination of RTMEM_PROT_READ
  *                          and RTMEM_PROT_WRITE.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeLockKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeLockKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess);
 
 /**
  * Allocates contiguous page aligned physical memory without (necessarily) any
@@ -394,10 +378,8 @@ DECLHIDDEN(int) rtR0MemObjNativeLockKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pv,
  *                          NIL_RTHCPHYS if any address is acceptable.
  * @param   uAlignment      The alignment of the reserved memory.
  *                          Supported values are PAGE_SIZE, _2M, _4M and _1G.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, size_t uAlignment,
-                                          const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, size_t uAlignment);
 
 /**
  * Allocates non-contiguous page aligned physical memory without (necessarily) any kernel mapping.
@@ -409,9 +391,8 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
  * @param   cb              Number of bytes to allocate, page aligned.
  * @param   PhysHighest     The highest permitable address (inclusive).
  *                          NIL_RTHCPHYS if any address is acceptable.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeAllocPhysNC(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeAllocPhysNC(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest);
 
 /**
  * Creates a page aligned, contiguous, physical memory object.
@@ -421,10 +402,8 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocPhysNC(PPRTR0MEMOBJINTERNAL ppMem, size_t c
  * @param   Phys            The physical address to start at, page aligned.
  * @param   cb              The size of the object in bytes, page aligned.
  * @param   uCachePolicy    One of the RTMEM_CACHE_XXX modes.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS Phys, size_t cb, uint32_t uCachePolicy,
-                                          const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS Phys, size_t cb, uint32_t uCachePolicy);
 
 /**
  * Reserves kernel virtual address space.
@@ -435,10 +414,8 @@ DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS P
  * @param   pvFixed         Requested address. (void *)-1 means any address. This matches uAlignment if specified.
  * @param   cb              The number of bytes to reserve, page aligned.
  * @param   uAlignment      The alignment of the reserved memory; PAGE_SIZE, _2M or _4M.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeReserveKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pvFixed, size_t cb, size_t uAlignment,
-                                              const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeReserveKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pvFixed, size_t cb, size_t uAlignment);
 
 /**
  * Reserves user virtual address space in the current process.
@@ -449,10 +426,8 @@ DECLHIDDEN(int) rtR0MemObjNativeReserveKernel(PPRTR0MEMOBJINTERNAL ppMem, void *
  * @param   cb              The number of bytes to reserve, page aligned.
  * @param   uAlignment      The alignment of the reserved memory; PAGE_SIZE, _2M or _4M.
  * @param   R0Process       The process to reserve the memory in.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-DECLHIDDEN(int) rtR0MemObjNativeReserveUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3PtrFixed, size_t cb, size_t uAlignment,
-                                            RTR0PROCESS R0Process, const char *pszTag);
+DECLHIDDEN(int) rtR0MemObjNativeReserveUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3PtrFixed, size_t cb, size_t uAlignment, RTR0PROCESS R0Process);
 
 /**
  * Maps a memory object into user virtual address space in the current process.
@@ -471,10 +446,9 @@ DECLHIDDEN(int) rtR0MemObjNativeReserveUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR 
  * @param   cbSub           The size of the part of the object to be mapped. If
  *                          zero the entire object is mapped. The value must be
  *                          page aligned.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
 DECLHIDDEN(int) rtR0MemObjNativeMapKernel(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ pMemToMap, void *pvFixed, size_t uAlignment,
-                                          unsigned fProt, size_t offSub, size_t cbSub, const char *pszTag);
+                                          unsigned fProt, size_t offSub, size_t cbSub);
 
 /**
  * Maps a memory object into user virtual address space in the current process.
@@ -492,11 +466,9 @@ DECLHIDDEN(int) rtR0MemObjNativeMapKernel(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ
  * @param   cbSub           The size of the part of the object to be mapped. If
  *                          zero the entire object is mapped. The value must be
  *                          page aligned.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
 DECLHIDDEN(int) rtR0MemObjNativeMapUser(PPRTR0MEMOBJINTERNAL ppMem, PRTR0MEMOBJINTERNAL pMemToMap, RTR3PTR R3PtrFixed,
-                                        size_t uAlignment, unsigned fProt, RTR0PROCESS R0Process, size_t offSub, size_t cbSub,
-                                        const char *pszTag);
+                                        size_t uAlignment, unsigned fProt, RTR0PROCESS R0Process, size_t offSub, size_t cbSub);
 
 /**
  * Change the page level protection of one or more pages in a memory object.
@@ -524,7 +496,7 @@ DECLHIDDEN(int) rtR0MemObjNativeProtect(PRTR0MEMOBJINTERNAL pMem, size_t offSub,
  */
 DECLHIDDEN(RTHCPHYS) rtR0MemObjNativeGetPagePhysAddr(PRTR0MEMOBJINTERNAL pMem, size_t iPage);
 
-DECLHIDDEN(PRTR0MEMOBJINTERNAL) rtR0MemObjNew(size_t cbSelf, RTR0MEMOBJTYPE enmType, void *pv, size_t cb, const char *pszTag);
+DECLHIDDEN(PRTR0MEMOBJINTERNAL) rtR0MemObjNew(size_t cbSelf, RTR0MEMOBJTYPE enmType, void *pv, size_t cb);
 DECLHIDDEN(void) rtR0MemObjDelete(PRTR0MEMOBJINTERNAL pMem);
 DECLHIDDEN(int) rtR0MemObjFallbackAllocLarge(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, size_t cbLargePage, uint32_t fFlags,
                                              const char *pszTag);

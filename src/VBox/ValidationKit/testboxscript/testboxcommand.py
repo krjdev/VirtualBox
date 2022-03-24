@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: testboxcommand.py 94125 2022-03-08 14:15:09Z vboxsync $
+# $Id: testboxcommand.py $
 
 """
 TestBox Script - Command Processor.
@@ -7,7 +7,7 @@ TestBox Script - Command Processor.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94125 $"
+__version__ = "$Revision: 135976 $"
 
 # Standard python imports.
 import os;
@@ -128,9 +128,12 @@ class TestBoxCommand(object):
         self._oTestBoxScript.mountShares(); # Raises exception on failure.
 
         # Kick off the task and ACK the command.
-        with self._oCurTaskLock:
+        self._oCurTaskLock.acquire();
+        try:
             self._oCurTask = TestBoxExecTask(self._oTestBoxScript, idResult = idResult, sScriptZips = sScriptZips,
                                              sScriptCmdLine = sScriptCmdLine, cSecTimeout = cSecTimeout);
+        finally:
+            self._oCurTaskLock.release();
         oConnection.sendAckAndClose(constants.tbresp.CMD_EXEC);
         return True;
 
@@ -323,8 +326,9 @@ class TestBoxCommand(object):
         except:
             return (-1, '', False);
 
-        with self._oCurTaskLock:
-            self._oCurTask = oTask;
+        self._oCurTaskLock.acquire();
+        self._oCurTask = oTask;
+        self._oCurTaskLock.release();
 
         return (oTask.idTestBox, oTask.sTestBoxName, True);
 
@@ -346,7 +350,8 @@ class TestBoxCommand(object):
 
     def _getCurTask(self):
         """ Gets the current task in a paranoidly safe manny. """
-        with self._oCurTaskLock:
-            oCurTask = self._oCurTask;
+        self._oCurTaskLock.acquire();
+        oCurTask = self._oCurTask;
+        self._oCurTaskLock.release();
         return oCurTask;
 

@@ -1,10 +1,10 @@
-/* $Id: VMMR0.cpp 93716 2022-02-14 10:36:21Z vboxsync $ */
+/* $Id: VMMR0.cpp $ */
 /** @file
  * VMM - Host Context Ring 0.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 #define LOG_GROUP LOG_GROUP_VMM
 #include <VBox/vmm/vmm.h>
 #include <VBox/sup.h>
-#include <VBox/vmm/iem.h>
 #include <VBox/vmm/iom.h>
 #include <VBox/vmm/trpm.h>
 #include <VBox/vmm/cpum.h>
@@ -55,13 +54,8 @@
 #include <iprt/asm-amd64-x86.h>
 #include <iprt/assert.h>
 #include <iprt/crc.h>
-#include <iprt/initterm.h>
-#include <iprt/mem.h>
-#include <iprt/memobj.h>
 #include <iprt/mp.h>
 #include <iprt/once.h>
-#include <iprt/semaphore.h>
-#include <iprt/spinlock.h>
 #include <iprt/stdarg.h>
 #include <iprt/string.h>
 #include <iprt/thread.h>
@@ -80,6 +74,63 @@
 #endif
 
 
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+/** @def VMM_CHECK_SMAP_SETUP
+ * SMAP check setup. */
+/** @def VMM_CHECK_SMAP_CHECK
+ * Checks that the AC flag is set if SMAP is enabled. If AC is not set,
+ * it will be logged and @a a_BadExpr is executed. */
+/** @def VMM_CHECK_SMAP_CHECK2
+ * Checks that the AC flag is set if SMAP is enabled.  If AC is not set, it will
+ * be logged, written to the VMs assertion text buffer, and @a a_BadExpr is
+ * executed. */
+#if (defined(VBOX_STRICT) || 1) && !defined(VBOX_WITH_RAM_IN_KERNEL)
+# define VMM_CHECK_SMAP_SETUP() uint32_t const fKernelFeatures = SUPR0GetKernelFeatures()
+# define VMM_CHECK_SMAP_CHECK(a_BadExpr) \
+    do { \
+        if (fKernelFeatures & SUPKERNELFEATURES_SMAP) \
+        { \
+            RTCCUINTREG fEflCheck = ASMGetFlags(); \
+            if (RT_LIKELY(fEflCheck & X86_EFL_AC)) \
+            { /* likely */ } \
+            else \
+            { \
+                SUPR0Printf("%s, line %d: EFLAGS.AC is clear! (%#x)\n", __FUNCTION__, __LINE__, (uint32_t)fEflCheck); \
+                a_BadExpr; \
+            } \
+        } \
+    } while (0)
+# define VMM_CHECK_SMAP_CHECK2(a_pGVM, a_BadExpr) \
+    do { \
+        if (fKernelFeatures & SUPKERNELFEATURES_SMAP) \
+        { \
+            RTCCUINTREG fEflCheck = ASMGetFlags(); \
+            if (RT_LIKELY(fEflCheck & X86_EFL_AC)) \
+            { /* likely */ } \
+            else if (a_pGVM) \
+            { \
+                SUPR0BadContext((a_pGVM)->pSession, __FILE__, __LINE__, "EFLAGS.AC is zero!"); \
+                RTStrPrintf((a_pGVM)->vmm.s.szRing0AssertMsg1, sizeof((a_pGVM)->vmm.s.szRing0AssertMsg1), \
+                            "%s, line %d: EFLAGS.AC is clear! (%#x)\n", __FUNCTION__, __LINE__, (uint32_t)fEflCheck); \
+                a_BadExpr; \
+            } \
+            else \
+            { \
+                SUPR0Printf("%s, line %d: EFLAGS.AC is clear! (%#x)\n", __FUNCTION__, __LINE__, (uint32_t)fEflCheck); \
+                a_BadExpr; \
+            } \
+        } \
+    } while (0)
+#else
+# define VMM_CHECK_SMAP_SETUP()                         uint32_t const fKernelFeatures = 0
+# define VMM_CHECK_SMAP_CHECK(a_BadExpr)                NOREF(fKernelFeatures)
+# define VMM_CHECK_SMAP_CHECK2(a_pGVM, a_BadExpr)       NOREF(fKernelFeatures)
+#endif
+
+
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
@@ -89,11 +140,6 @@ extern uint64_t __udivdi3(uint64_t, uint64_t);
 extern uint64_t __umoddi3(uint64_t, uint64_t);
 #endif
 RT_C_DECLS_END
-static int  vmmR0UpdateLoggers(PGVM pGVM, VMCPUID idCpu, PVMMR0UPDATELOGGERSREQ pReq, size_t idxLogger);
-static int  vmmR0LogFlusher(PGVM pGVM);
-static int  vmmR0LogWaitFlushed(PGVM pGVM, VMCPUID idCpu, size_t idxLogger);
-static int  vmmR0InitLoggers(PGVM pGVM);
-static void vmmR0CleanupLoggers(PGVM pGVM);
 
 
 /*********************************************************************************************************************************
@@ -101,15 +147,15 @@ static void vmmR0CleanupLoggers(PGVM pGVM);
 *********************************************************************************************************************************/
 /** Drag in necessary library bits.
  * The runtime lives here (in VMMR0.r0) and VBoxDD*R0.r0 links against us. */
-struct CLANG11WEIRDNOTHROW { PFNRT pfn; } g_VMMR0Deps[] =
+PFNRT g_VMMR0Deps[] =
 {
-    { (PFNRT)RTCrc32 },
-    { (PFNRT)RTOnce },
+    (PFNRT)RTCrc32,
+    (PFNRT)RTOnce,
 #if defined(RT_ARCH_X86) && (defined(RT_OS_SOLARIS) || defined(RT_OS_FREEBSD))
-    { (PFNRT)__udivdi3 },
-    { (PFNRT)__umoddi3 },
+    (PFNRT)__udivdi3,
+    (PFNRT)__umoddi3,
 #endif
-    { NULL }
+    NULL
 };
 
 #ifdef RT_OS_SOLARIS
@@ -128,6 +174,9 @@ extern "C" { char _depends_on[] = "vboxdrv"; }
  */
 DECLEXPORT(int) ModuleInit(void *hMod)
 {
+    VMM_CHECK_SMAP_SETUP();
+    VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+
 #ifdef VBOX_WITH_DTRACE_R0
     /*
      * The first thing to do is register the static tracepoints.
@@ -155,65 +204,94 @@ DECLEXPORT(int) ModuleInit(void *hMod)
     int rc = vmmInitFormatTypes();
     if (RT_SUCCESS(rc))
     {
+        VMM_CHECK_SMAP_CHECK(RT_NOTHING);
         rc = GVMMR0Init();
         if (RT_SUCCESS(rc))
         {
+            VMM_CHECK_SMAP_CHECK(RT_NOTHING);
             rc = GMMR0Init();
             if (RT_SUCCESS(rc))
             {
+                VMM_CHECK_SMAP_CHECK(RT_NOTHING);
                 rc = HMR0Init();
                 if (RT_SUCCESS(rc))
                 {
+                    VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+
                     PDMR0Init(hMod);
+                    VMM_CHECK_SMAP_CHECK(RT_NOTHING);
 
                     rc = PGMRegisterStringFormatTypes();
                     if (RT_SUCCESS(rc))
                     {
-                        rc = IntNetR0Init();
+                        VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+#ifdef VBOX_WITH_2X_4GB_ADDR_SPACE
+                        rc = PGMR0DynMapInit();
+#endif
                         if (RT_SUCCESS(rc))
                         {
-#ifdef VBOX_WITH_PCI_PASSTHROUGH
-                            rc = PciRawR0Init();
-#endif
+                            VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+                            rc = IntNetR0Init();
                             if (RT_SUCCESS(rc))
                             {
-                                rc = CPUMR0ModuleInit();
+#ifdef VBOX_WITH_PCI_PASSTHROUGH
+                                VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+                                rc = PciRawR0Init();
+#endif
                                 if (RT_SUCCESS(rc))
                                 {
-#ifdef VBOX_WITH_TRIPLE_FAULT_HACK
-                                    rc = vmmR0TripleFaultHackInit();
+                                    VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+                                    rc = CPUMR0ModuleInit();
                                     if (RT_SUCCESS(rc))
-#endif
                                     {
-#ifdef VBOX_WITH_NEM_R0
-                                        rc = NEMR0Init();
+#ifdef VBOX_WITH_TRIPLE_FAULT_HACK
+                                        VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+                                        rc = vmmR0TripleFaultHackInit();
                                         if (RT_SUCCESS(rc))
 #endif
                                         {
-                                            LogFlow(("ModuleInit: returns success\n"));
-                                            return VINF_SUCCESS;
+#ifdef VBOX_WITH_NEM_R0
+                                            rc = NEMR0Init();
+                                            if (RT_SUCCESS(rc))
+#endif
+                                            {
+                                                VMM_CHECK_SMAP_CHECK(rc = VERR_VMM_SMAP_BUT_AC_CLEAR);
+                                                if (RT_SUCCESS(rc))
+                                                {
+                                                    LogFlow(("ModuleInit: returns success\n"));
+                                                    return VINF_SUCCESS;
+                                                }
+#ifdef VBOX_WITH_NEM_R0
+                                                NEMR0Term();
+#endif
+                                            }
                                         }
-                                    }
 
-                                    /*
-                                     * Bail out.
-                                     */
+                                        /*
+                                         * Bail out.
+                                         */
 #ifdef VBOX_WITH_TRIPLE_FAULT_HACK
-                                    vmmR0TripleFaultHackTerm();
+                                        vmmR0TripleFaultHackTerm();
+#endif
+                                    }
+                                    else
+                                        LogRel(("ModuleInit: CPUMR0ModuleInit -> %Rrc\n", rc));
+#ifdef VBOX_WITH_PCI_PASSTHROUGH
+                                    PciRawR0Term();
 #endif
                                 }
                                 else
-                                    LogRel(("ModuleInit: CPUMR0ModuleInit -> %Rrc\n", rc));
-#ifdef VBOX_WITH_PCI_PASSTHROUGH
-                                PciRawR0Term();
-#endif
+                                    LogRel(("ModuleInit: PciRawR0Init -> %Rrc\n", rc));
+                                IntNetR0Term();
                             }
                             else
-                                LogRel(("ModuleInit: PciRawR0Init -> %Rrc\n", rc));
-                            IntNetR0Term();
+                                LogRel(("ModuleInit: IntNetR0Init -> %Rrc\n", rc));
+#ifdef VBOX_WITH_2X_4GB_ADDR_SPACE
+                            PGMR0DynMapTerm();
+#endif
                         }
                         else
-                            LogRel(("ModuleInit: IntNetR0Init -> %Rrc\n", rc));
+                            LogRel(("ModuleInit: PGMR0DynMapInit -> %Rrc\n", rc));
                         PGMDeregisterStringFormatTypes();
                     }
                     else
@@ -264,6 +342,9 @@ DECLEXPORT(void) ModuleTerm(void *hMod)
     /*
      * PGM (Darwin), HM and PciRaw global cleanup.
      */
+#ifdef VBOX_WITH_2X_4GB_ADDR_SPACE
+    PGMR0DynMapTerm();
+#endif
 #ifdef VBOX_WITH_PCI_PASSTHROUGH
     PciRawR0Term();
 #endif
@@ -283,60 +364,8 @@ DECLEXPORT(void) ModuleTerm(void *hMod)
     GVMMR0Term();
 
     vmmTermFormatTypes();
-    RTTermRunCallbacks(RTTERMREASON_UNLOAD, 0);
 
     LogFlow(("ModuleTerm: returns\n"));
-}
-
-
-/**
- * Initializes VMM specific members when the GVM structure is created,
- * allocating loggers and stuff.
- *
- * The loggers are allocated here so that we can update their settings before
- * doing VMMR0_DO_VMMR0_INIT and have correct logging at that time.
- *
- * @returns VBox status code.
- * @param   pGVM        The global (ring-0) VM structure.
- */
-VMMR0_INT_DECL(int) VMMR0InitPerVMData(PGVM pGVM)
-{
-    AssertCompile(sizeof(pGVM->vmmr0.s) <= sizeof(pGVM->vmmr0.padding));
-
-    /*
-     * Initialize all members first.
-     */
-    pGVM->vmmr0.s.fCalledInitVm             = false;
-    pGVM->vmmr0.s.hMemObjLogger             = NIL_RTR0MEMOBJ;
-    pGVM->vmmr0.s.hMapObjLogger             = NIL_RTR0MEMOBJ;
-    pGVM->vmmr0.s.hMemObjReleaseLogger      = NIL_RTR0MEMOBJ;
-    pGVM->vmmr0.s.hMapObjReleaseLogger      = NIL_RTR0MEMOBJ;
-    pGVM->vmmr0.s.LogFlusher.hSpinlock      = NIL_RTSPINLOCK;
-    pGVM->vmmr0.s.LogFlusher.hThread        = NIL_RTNATIVETHREAD;
-    pGVM->vmmr0.s.LogFlusher.hEvent         = NIL_RTSEMEVENT;
-    pGVM->vmmr0.s.LogFlusher.idxRingHead    = 0;
-    pGVM->vmmr0.s.LogFlusher.idxRingTail    = 0;
-    pGVM->vmmr0.s.LogFlusher.fThreadWaiting = false;
-
-    for (VMCPUID idCpu = 0; idCpu < pGVM->cCpus; idCpu++)
-    {
-        PGVMCPU pGVCpu = &pGVM->aCpus[idCpu];
-        Assert(pGVCpu->idHostCpu == NIL_RTCPUID);
-        Assert(pGVCpu->iHostCpuSet == UINT32_MAX);
-        pGVCpu->vmmr0.s.pPreemptState               = NULL;
-        pGVCpu->vmmr0.s.hCtxHook                    = NIL_RTTHREADCTXHOOK;
-        pGVCpu->vmmr0.s.AssertJmpBuf.pMirrorBuf     = &pGVCpu->vmm.s.AssertJmpBuf;
-        pGVCpu->vmmr0.s.AssertJmpBuf.pvStackBuf     = &pGVCpu->vmm.s.abAssertStack[0];
-        pGVCpu->vmmr0.s.AssertJmpBuf.cbStackBuf     = sizeof(pGVCpu->vmm.s.abAssertStack);
-
-        for (size_t iLogger = 0; iLogger < RT_ELEMENTS(pGVCpu->vmmr0.s.u.aLoggers); iLogger++)
-            pGVCpu->vmmr0.s.u.aLoggers[iLogger].hEventFlushWait = NIL_RTSEMEVENT;
-    }
-
-    /*
-     * Create the loggers.
-     */
-    return vmmR0InitLoggers(pGVM);
 }
 
 
@@ -352,6 +381,9 @@ VMMR0_INT_DECL(int) VMMR0InitPerVMData(PGVM pGVM)
  */
 static int vmmR0InitVM(PGVM pGVM, uint32_t uSvnRev, uint32_t uBuildType)
 {
+    VMM_CHECK_SMAP_SETUP();
+    VMM_CHECK_SMAP_CHECK(return VERR_VMM_SMAP_BUT_AC_CLEAR);
+
     /*
      * Match the SVN revisions and build type.
      */
@@ -372,19 +404,14 @@ static int vmmR0InitVM(PGVM pGVM, uint32_t uSvnRev, uint32_t uBuildType)
     if (RT_FAILURE(rc))
         return rc;
 
-    /* Don't allow this to be called more than once. */
-    if (!pGVM->vmmr0.s.fCalledInitVm)
-        pGVM->vmmr0.s.fCalledInitVm = true;
-    else
-        return VERR_ALREADY_INITIALIZED;
-
 #ifdef LOG_ENABLED
-
     /*
      * Register the EMT R0 logger instance for VCPU 0.
      */
     PVMCPUCC pVCpu = VMCC_GET_CPU_0(pGVM);
-    if (pVCpu->vmmr0.s.u.s.Logger.pLogger)
+
+    PVMMR0LOGGER pR0Logger = pVCpu->vmm.s.pR0LoggerR0;
+    if (pR0Logger)
     {
 # if 0 /* testing of the logger. */
         LogCom(("vmmR0InitVM: before %p\n", RTLogDefaultInstance()));
@@ -416,13 +443,13 @@ static int vmmR0InitVM(PGVM pGVM, uint32_t uSvnRev, uint32_t uBuildType)
         RTLogPrintf("hello ring-0 logger (RTLogPrintf)\n");
         LogCom(("vmmR0InitVM: RTLogPrintf returned fine offScratch=%d\n", pR0Logger->Logger.offScratch));
 # endif
-# ifdef VBOX_WITH_R0_LOGGING
-        Log(("Switching to per-thread logging instance %p (key=%p)\n", pVCpu->vmmr0.s.u.s.Logger.pLogger, pGVM->pSession));
-        RTLogSetDefaultInstanceThread(pVCpu->vmmr0.s.u.s.Logger.pLogger, (uintptr_t)pGVM->pSession);
-        pVCpu->vmmr0.s.u.s.Logger.fRegistered = true;
-# endif
+        Log(("Switching to per-thread logging instance %p (key=%p)\n", &pR0Logger->Logger, pGVM->pSession));
+        RTLogSetDefaultInstanceThread(&pR0Logger->Logger, (uintptr_t)pGVM->pSession);
+        pR0Logger->fRegistered = true;
     }
 #endif /* LOG_ENABLED */
+SUPR0Printf("VMMR0InitVM: eflags=%x fKernelFeatures=%#x (SUPKERNELFEATURES_SMAP=%d)\n",
+            ASMGetFlags(), fKernelFeatures, RT_BOOL(fKernelFeatures & SUPKERNELFEATURES_SMAP));
 
     /*
      * Check if the host supports high resolution timers or not.
@@ -434,56 +461,61 @@ static int vmmR0InitVM(PGVM pGVM, uint32_t uSvnRev, uint32_t uBuildType)
     /*
      * Initialize the per VM data for GVMM and GMM.
      */
+    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
     rc = GVMMR0InitVM(pGVM);
     if (RT_SUCCESS(rc))
     {
         /*
-         * Init HM, CPUM and PGM.
+         * Init HM, CPUM and PGM (Darwin only).
          */
+        VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
         rc = HMR0InitVM(pGVM);
+        if (RT_SUCCESS(rc))
+            VMM_CHECK_SMAP_CHECK2(pGVM, rc = VERR_VMM_RING0_ASSERTION); /* CPUR0InitVM will otherwise panic the host */
         if (RT_SUCCESS(rc))
         {
             rc = CPUMR0InitVM(pGVM);
             if (RT_SUCCESS(rc))
             {
+                VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
                 rc = PGMR0InitVM(pGVM);
                 if (RT_SUCCESS(rc))
                 {
+                    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
                     rc = EMR0InitVM(pGVM);
                     if (RT_SUCCESS(rc))
                     {
-                        rc = IEMR0InitVM(pGVM);
+                        VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+#ifdef VBOX_WITH_PCI_PASSTHROUGH
+                        rc = PciRawR0InitVM(pGVM);
+#endif
                         if (RT_SUCCESS(rc))
                         {
-                            rc = IOMR0InitVM(pGVM);
+                            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+                            rc = GIMR0InitVM(pGVM);
                             if (RT_SUCCESS(rc))
                             {
-#ifdef VBOX_WITH_PCI_PASSTHROUGH
-                                rc = PciRawR0InitVM(pGVM);
-#endif
+                                VMM_CHECK_SMAP_CHECK2(pGVM, rc = VERR_VMM_RING0_ASSERTION);
                                 if (RT_SUCCESS(rc))
                                 {
-                                    rc = GIMR0InitVM(pGVM);
-                                    if (RT_SUCCESS(rc))
-                                    {
-                                        GVMMR0DoneInitVM(pGVM);
-                                        PGMR0DoneInitVM(pGVM);
+                                    GVMMR0DoneInitVM(pGVM);
 
-                                        /*
-                                         * Collect a bit of info for the VM release log.
-                                         */
-                                        pGVM->vmm.s.fIsPreemptPendingApiTrusty = RTThreadPreemptIsPendingTrusty();
-                                        pGVM->vmm.s.fIsPreemptPossible         = RTThreadPreemptIsPossible();;
-                                        return rc;
+                                    /*
+                                     * Collect a bit of info for the VM release log.
+                                     */
+                                    pGVM->vmm.s.fIsPreemptPendingApiTrusty = RTThreadPreemptIsPendingTrusty();
+                                    pGVM->vmm.s.fIsPreemptPossible         = RTThreadPreemptIsPossible();;
 
-                                        /* bail out*/
-                                        //GIMR0TermVM(pGVM);
-                                    }
-#ifdef VBOX_WITH_PCI_PASSTHROUGH
-                                    PciRawR0TermVM(pGVM);
-#endif
+                                    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+                                    return rc;
                                 }
+
+                                /* bail out*/
+                                GIMR0TermVM(pGVM);
                             }
+#ifdef VBOX_WITH_PCI_PASSTHROUGH
+                            PciRawR0TermVM(pGVM);
+#endif
                         }
                     }
                 }
@@ -510,16 +542,17 @@ static int vmmR0InitVMEmt(PGVM pGVM, VMCPUID idCpu)
     AssertReturn(idCpu < pGVM->cCpus, VERR_INVALID_CPU_ID);
     AssertReturn(pGVM->aCpus[idCpu].hEMT == RTThreadNativeSelf(), VERR_INVALID_CPU_ID);
 
-#if defined(LOG_ENABLED) && defined(VBOX_WITH_R0_LOGGING)
+#ifdef LOG_ENABLED
     /*
      * Registration of ring 0 loggers.
      */
-    PVMCPUCC pVCpu = &pGVM->aCpus[idCpu];
-    if (   pVCpu->vmmr0.s.u.s.Logger.pLogger
-        && !pVCpu->vmmr0.s.u.s.Logger.fRegistered)
+    PVMCPUCC       pVCpu     = &pGVM->aCpus[idCpu];
+    PVMMR0LOGGER pR0Logger = pVCpu->vmm.s.pR0LoggerR0;
+    if (   pR0Logger
+        && !pR0Logger->fRegistered)
     {
-        RTLogSetDefaultInstanceThread(pVCpu->vmmr0.s.u.s.Logger.pLogger, (uintptr_t)pGVM->pSession);
-        pVCpu->vmmr0.s.u.s.Logger.fRegistered = true;
+        RTLogSetDefaultInstanceThread(&pR0Logger->Logger, (uintptr_t)pGVM->pSession);
+        pR0Logger->fRegistered = true;
     }
 #endif
 
@@ -568,45 +601,17 @@ VMMR0_INT_DECL(int) VMMR0TermVM(PGVM pGVM, VMCPUID idCpu)
 
         /** @todo I wish to call PGMR0PhysFlushHandyPages(pGVM, &pGVM->aCpus[idCpu])
          *        here to make sure we don't leak any shared pages if we crash... */
+#ifdef VBOX_WITH_2X_4GB_ADDR_SPACE
+        PGMR0DynMapTermVM(pGVM);
+#endif
         HMR0TermVM(pGVM);
     }
 
     /*
-     * Deregister the logger for this EMT.
+     * Deregister the logger.
      */
     RTLogSetDefaultInstanceThread(NULL, (uintptr_t)pGVM->pSession);
-
-    /*
-     * Start log flusher thread termination.
-     */
-    ASMAtomicWriteBool(&pGVM->vmmr0.s.LogFlusher.fThreadShutdown, true);
-    if (pGVM->vmmr0.s.LogFlusher.hEvent != NIL_RTSEMEVENT)
-        RTSemEventSignal(pGVM->vmmr0.s.LogFlusher.hEvent);
-
     return VINF_SUCCESS;
-}
-
-
-/**
- * This is called at the end of gvmmR0CleanupVM().
- *
- * @param   pGVM        The global (ring-0) VM structure.
- */
-VMMR0_INT_DECL(void) VMMR0CleanupVM(PGVM pGVM)
-{
-    AssertCompile(NIL_RTTHREADCTXHOOK == (RTTHREADCTXHOOK)0); /* Depends on zero initialized memory working for NIL at the moment. */
-    for (VMCPUID idCpu = 0; idCpu < pGVM->cCpus; idCpu++)
-    {
-        PGVMCPU pGVCpu = &pGVM->aCpus[idCpu];
-
-        /** @todo Can we busy wait here for all thread-context hooks to be
-         *        deregistered before releasing (destroying) it? Only until we find a
-         *        solution for not deregistering hooks everytime we're leaving HMR0
-         *        context. */
-        VMMR0ThreadCtxHookDestroyForEmt(pGVCpu);
-    }
-
-    vmmR0CleanupLoggers(pGVM);
 }
 
 
@@ -753,7 +758,7 @@ static int vmmR0DoHalt(PGVM pGVM, PGVMCPU pGVCpu)
                            | VM_FF_PGM_NO_MEMORY              | VM_FF_DEBUG_SUSPEND;
     uint64_t const fCpuFFs = VMCPU_FF_TIMER                   | VMCPU_FF_PDM_CRITSECT         | VMCPU_FF_IEM
                            | VMCPU_FF_REQUEST                 | VMCPU_FF_DBGF                 | VMCPU_FF_HM_UPDATE_CR3
-                           | VMCPU_FF_PGM_SYNC_CR3            | VMCPU_FF_PGM_SYNC_CR3_NON_GLOBAL
+                           | VMCPU_FF_HM_UPDATE_PAE_PDPES     | VMCPU_FF_PGM_SYNC_CR3         | VMCPU_FF_PGM_SYNC_CR3_NON_GLOBAL
                            | VMCPU_FF_TO_R3                   | VMCPU_FF_IOM;
 
     /*
@@ -962,10 +967,6 @@ static int vmmR0DoHalt(PGVM pGVM, PGVMCPU pGVCpu)
  * This does common HM state updating and calls the HM-specific thread-context
  * callback.
  *
- * This is used together with RTThreadCtxHookCreate() on platforms which
- * supports it, and directly from VMMR0EmtPrepareForBlocking() and
- * VMMR0EmtResumeAfterBlocking() on platforms which don't.
- *
  * @param   enmEvent    The thread-context event.
  * @param   pvUser      Opaque pointer to the VMCPU.
  *
@@ -995,15 +996,13 @@ static DECLCALLBACK(void) vmmR0ThreadCtxCallback(RTTHREADCTXEVENT enmEvent, void
             /* We need to update the VCPU <-> host CPU mapping. */
             RTCPUID idHostCpu;
             uint32_t iHostCpuSet = RTMpCurSetIndexAndId(&idHostCpu);
-            pVCpu->iHostCpuSet = iHostCpuSet;
+            pVCpu->iHostCpuSet   = iHostCpuSet;
             ASMAtomicWriteU32(&pVCpu->idHostCpu, idHostCpu);
 
             /* In the very unlikely event that the GIP delta for the CPU we're
                rescheduled needs calculating, try force a return to ring-3.
                We unfortunately cannot do the measurements right here. */
-            if (RT_LIKELY(!SUPIsTscDeltaAvailableForCpuSetIndex(iHostCpuSet)))
-            { /* likely */ }
-            else
+            if (RT_UNLIKELY(SUPIsTscDeltaAvailableForCpuSetIndex(iHostCpuSet)))
                 VMCPU_FF_SET(pVCpu, VMCPU_FF_TO_R3);
 
             /* Invoke the HM-specific thread-context callback. */
@@ -1050,22 +1049,18 @@ static DECLCALLBACK(void) vmmR0ThreadCtxCallback(RTTHREADCTXEVENT enmEvent, void
 VMMR0_INT_DECL(int) VMMR0ThreadCtxHookCreateForEmt(PVMCPUCC pVCpu)
 {
     VMCPU_ASSERT_EMT(pVCpu);
-    Assert(pVCpu->vmmr0.s.hCtxHook == NIL_RTTHREADCTXHOOK);
+    Assert(pVCpu->vmm.s.hCtxHook == NIL_RTTHREADCTXHOOK);
 
 #if 1 /* To disable this stuff change to zero. */
-    int rc = RTThreadCtxHookCreate(&pVCpu->vmmr0.s.hCtxHook, 0, vmmR0ThreadCtxCallback, pVCpu);
+    int rc = RTThreadCtxHookCreate(&pVCpu->vmm.s.hCtxHook, 0, vmmR0ThreadCtxCallback, pVCpu);
     if (RT_SUCCESS(rc))
-    {
-        pVCpu->pGVM->vmm.s.fIsUsingContextHooks = true;
         return rc;
-    }
 #else
     RT_NOREF(vmmR0ThreadCtxCallback);
     int rc = VERR_NOT_SUPPORTED;
 #endif
 
-    pVCpu->vmmr0.s.hCtxHook = NIL_RTTHREADCTXHOOK;
-    pVCpu->pGVM->vmm.s.fIsUsingContextHooks = false;
+    pVCpu->vmm.s.hCtxHook = NIL_RTTHREADCTXHOOK;
     if (rc == VERR_NOT_SUPPORTED)
         return VINF_SUCCESS;
 
@@ -1082,9 +1077,9 @@ VMMR0_INT_DECL(int) VMMR0ThreadCtxHookCreateForEmt(PVMCPUCC pVCpu)
  */
 VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDestroyForEmt(PVMCPUCC pVCpu)
 {
-    int rc = RTThreadCtxHookDestroy(pVCpu->vmmr0.s.hCtxHook);
+    int rc = RTThreadCtxHookDestroy(pVCpu->vmm.s.hCtxHook);
     AssertRC(rc);
-    pVCpu->vmmr0.s.hCtxHook = NIL_RTTHREADCTXHOOK;
+    pVCpu->vmm.s.hCtxHook = NIL_RTTHREADCTXHOOK;
 }
 
 
@@ -1094,7 +1089,7 @@ VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDestroyForEmt(PVMCPUCC pVCpu)
  * @param   pVCpu       The cross context virtual CPU structure.
  * @thread  EMT(pVCpu)
  *
- * @remarks This also clears GVMCPU::idHostCpu, so the mapping is invalid after
+ * @remarks This also clears VMCPU::idHostCpu, so the mapping is invalid after
  *          this call.  This means you have to be careful with what you do!
  */
 VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDisable(PVMCPUCC pVCpu)
@@ -1106,22 +1101,23 @@ VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDisable(PVMCPUCC pVCpu)
      *      VMXR0CallRing3Callback/SVMR0CallRing3Callback &
      *      hmR0VmxLeaveSession/hmR0SvmLeaveSession disables context hooks during
      *      longjmp & normal return to ring-3, which opens a window where we may be
-     *      rescheduled without changing GVMCPUID::idHostCpu and cause confusion if
+     *      rescheduled without changing VMCPUID::idHostCpu and cause confusion if
      *      the CPU starts executing a different EMT.  Both functions first disables
      *      preemption and then calls HMR0LeaveCpu which invalids idHostCpu, leaving
      *      an opening for getting preempted.
      */
     /** @todo Make HM not need this API!  Then we could leave the hooks enabled
      *        all the time. */
+    /** @todo move this into the context hook disabling if(). */
+    ASMAtomicWriteU32(&pVCpu->idHostCpu, NIL_RTCPUID);
 
     /*
      * Disable the context hook, if we got one.
      */
-    if (pVCpu->vmmr0.s.hCtxHook != NIL_RTTHREADCTXHOOK)
+    if (pVCpu->vmm.s.hCtxHook != NIL_RTTHREADCTXHOOK)
     {
         Assert(!RTThreadPreemptIsEnabled(NIL_RTTHREAD));
-        ASMAtomicWriteU32(&pVCpu->idHostCpu, NIL_RTCPUID);
-        int rc = RTThreadCtxHookDisable(pVCpu->vmmr0.s.hCtxHook);
+        int rc = RTThreadCtxHookDisable(pVCpu->vmm.s.hCtxHook);
         AssertRC(rc);
     }
 }
@@ -1135,7 +1131,7 @@ VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDisable(PVMCPUCC pVCpu)
  */
 DECLINLINE(bool) vmmR0ThreadCtxHookIsEnabled(PVMCPUCC pVCpu)
 {
-    return RTThreadCtxHookIsEnabled(pVCpu->vmmr0.s.hCtxHook);
+    return RTThreadCtxHookIsEnabled(pVCpu->vmm.s.hCtxHook);
 }
 
 
@@ -1148,19 +1144,6 @@ DECLINLINE(bool) vmmR0ThreadCtxHookIsEnabled(PVMCPUCC pVCpu)
 VMMR0_INT_DECL(bool) VMMR0ThreadCtxHookIsEnabled(PVMCPUCC pVCpu)
 {
     return vmmR0ThreadCtxHookIsEnabled(pVCpu);
-}
-
-
-/**
- * Returns the ring-0 release logger instance.
- *
- * @returns Pointer to release logger, NULL if not configured.
- * @param   pVCpu       The cross context virtual CPU structure of the caller.
- * @thread  EMT(pVCpu)
- */
-VMMR0_INT_DECL(PRTLOGGER) VMMR0GetReleaseLogger(PVMCPUCC pVCpu)
-{
-    return pVCpu->vmmr0.s.u.s.RelLogger.pLogger;
 }
 
 
@@ -1306,8 +1289,47 @@ static void vmmR0RecordRC(PVMCC pVM, PVMCPUCC pVCpu, int rc)
         case VINF_EM_RAW_INTERRUPT_PENDING:
             STAM_COUNTER_INC(&pVM->vmm.s.StatRZRetInterruptPending);
             break;
+        case VINF_VMM_CALL_HOST:
+            switch (pVCpu->vmm.s.enmCallRing3Operation)
+            {
+                case VMMCALLRING3_PDM_CRIT_SECT_ENTER:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPDMCritSectEnter);
+                    break;
+                case VMMCALLRING3_PDM_LOCK:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPDMLock);
+                    break;
+                case VMMCALLRING3_PGM_POOL_GROW:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPGMPoolGrow);
+                    break;
+                case VMMCALLRING3_PGM_LOCK:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPGMLock);
+                    break;
+                case VMMCALLRING3_PGM_MAP_CHUNK:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPGMMapChunk);
+                    break;
+                case VMMCALLRING3_PGM_ALLOCATE_HANDY_PAGES:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallPGMAllocHandy);
+                    break;
+                case VMMCALLRING3_VMM_LOGGER_FLUSH:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallLogFlush);
+                    break;
+                case VMMCALLRING3_VM_SET_ERROR:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallVMSetError);
+                    break;
+                case VMMCALLRING3_VM_SET_RUNTIME_ERROR:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZCallVMSetRuntimeError);
+                    break;
+                case VMMCALLRING3_VM_R0_ASSERTION:
+                default:
+                    STAM_COUNTER_INC(&pVM->vmm.s.StatRZRetCallRing3);
+                    break;
+            }
+            break;
         case VINF_PATM_DUPLICATE_FUNCTION:
             STAM_COUNTER_INC(&pVM->vmm.s.StatRZRetPATMDuplicateFn);
+            break;
+        case VINF_PGM_CHANGE_MODE:
+            STAM_COUNTER_INC(&pVM->vmm.s.StatRZRetPGMChangeMode);
             break;
         case VINF_PGM_POOL_FLUSH_PENDING:
             STAM_COUNTER_INC(&pVM->vmm.s.StatRZRetPGMFlushPending);
@@ -1365,6 +1387,12 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
     }
 
     /*
+     * SMAP fun.
+     */
+    VMM_CHECK_SMAP_SETUP();
+    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+
+    /*
      * Perform requested operation.
      */
     switch (enmOperation)
@@ -1377,19 +1405,11 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
             for (;;) /* hlt loop */
             {
                 /*
-                 * Disable ring-3 calls & blocking till we've successfully entered HM.
-                 * Otherwise we sometimes end up blocking at the finall Log4 statement
-                 * in VMXR0Enter, while still in a somewhat inbetween state.
-                 */
-                VMMRZCallRing3Disable(pGVCpu);
-
-                /*
                  * Disable preemption.
                  */
                 Assert(!vmmR0ThreadCtxHookIsEnabled(pGVCpu));
                 RTTHREADPREEMPTSTATE PreemptState = RTTHREADPREEMPTSTATE_INITIALIZER;
                 RTThreadPreemptDisable(&PreemptState);
-                pGVCpu->vmmr0.s.pPreemptState = &PreemptState;
 
                 /*
                  * Get the host CPU identifiers, make sure they are valid and that
@@ -1408,6 +1428,7 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                      */
                     if (pGVM->vmm.s.fUsePeriodicPreemptionTimers)
                         GVMMR0SchedUpdatePeriodicPreemptionTimer(pGVM, pGVCpu->idHostCpu, TMCalcHostTimerFrequency(pGVM, pGVCpu));
+                    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
 
 #ifdef VMM_R0_TOUCH_FPU
                     /*
@@ -1424,10 +1445,10 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                         /*
                          * Enable the context switching hook.
                          */
-                        if (pGVCpu->vmmr0.s.hCtxHook != NIL_RTTHREADCTXHOOK)
+                        if (pGVCpu->vmm.s.hCtxHook != NIL_RTTHREADCTXHOOK)
                         {
-                            Assert(!RTThreadCtxHookIsEnabled(pGVCpu->vmmr0.s.hCtxHook));
-                            int rc2 = RTThreadCtxHookEnable(pGVCpu->vmmr0.s.hCtxHook); AssertRC(rc2);
+                            Assert(!RTThreadCtxHookIsEnabled(pGVCpu->vmm.s.hCtxHook));
+                            int rc2 = RTThreadCtxHookEnable(pGVCpu->vmm.s.hCtxHook); AssertRC(rc2);
                         }
 
                         /*
@@ -1445,15 +1466,15 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                             if (vmmR0ThreadCtxHookIsEnabled(pGVCpu))
                             {
                                 fPreemptRestored = true;
-                                pGVCpu->vmmr0.s.pPreemptState = NULL;
                                 RTThreadPreemptRestore(&PreemptState);
                             }
-                            VMMRZCallRing3Enable(pGVCpu);
 
                             /*
                              * Setup the longjmp machinery and execute guest code (calls HMR0RunGuestCode).
                              */
-                            rc = vmmR0CallRing3SetJmp(&pGVCpu->vmmr0.s.AssertJmpBuf, HMR0RunGuestCode, pGVM, pGVCpu);
+                            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+                            rc = vmmR0CallRing3SetJmp(&pGVCpu->vmm.s.CallRing3JmpBufR0, HMR0RunGuestCode, pGVM, pGVCpu);
+                            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
 
                             /*
                              * Assert sanity on the way out.  Using manual assertions code here as normal
@@ -1461,7 +1482,7 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                              */
                             if (RT_UNLIKELY(   VMCPU_GET_STATE(pGVCpu) != VMCPUSTATE_STARTED_HM
                                             && RT_SUCCESS_NP(rc)
-                                            && rc != VERR_VMM_RING0_ASSERTION ))
+                                            && rc != VINF_VMM_CALL_HOST ))
                             {
                                 pGVM->vmm.s.szRing0AssertMsg1[0] = '\0';
                                 RTStrPrintf(pGVM->vmm.s.szRing0AssertMsg2, sizeof(pGVM->vmm.s.szRing0AssertMsg2),
@@ -1479,7 +1500,6 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                             }
 #endif
 
-                            VMMRZCallRing3Disable(pGVCpu); /* Lazy bird: Simpler just disabling it again... */
                             VMCPU_SET_STATE(pGVCpu, VMCPUSTATE_STARTED);
                         }
                         STAM_COUNTER_INC(&pGVM->vmm.s.StatRunGC);
@@ -1498,26 +1518,26 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                          * Note! At the moment HM may also have disabled the hook
                          *       when we get here, but the IPRT API handles that.
                          */
-                        if (pGVCpu->vmmr0.s.hCtxHook != NIL_RTTHREADCTXHOOK)
-                            RTThreadCtxHookDisable(pGVCpu->vmmr0.s.hCtxHook);
+                        if (pGVCpu->vmm.s.hCtxHook != NIL_RTTHREADCTXHOOK)
+                        {
+                            ASMAtomicWriteU32(&pGVCpu->idHostCpu, NIL_RTCPUID);
+                            RTThreadCtxHookDisable(pGVCpu->vmm.s.hCtxHook);
+                        }
                     }
                     /*
                      * The system is about to go into suspend mode; go back to ring 3.
                      */
                     else
                     {
+                        rc = VINF_EM_RAW_INTERRUPT;
                         pGVCpu->iHostCpuSet = UINT32_MAX;
                         ASMAtomicWriteU32(&pGVCpu->idHostCpu, NIL_RTCPUID);
-                        rc = VINF_EM_RAW_INTERRUPT;
                     }
 
                     /** @todo When HM stops messing with the context hook state, we'll disable
                      *        preemption again before the RTThreadCtxHookDisable call. */
                     if (!fPreemptRestored)
-                    {
-                        pGVCpu->vmmr0.s.pPreemptState = NULL;
                         RTThreadPreemptRestore(&PreemptState);
-                    }
 
                     pGVCpu->vmm.s.iLastGZRc = rc;
 
@@ -1526,8 +1546,6 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
 #ifdef VBOX_WITH_STATISTICS
                     vmmR0RecordRC(pGVM, pGVCpu, rc);
 #endif
-                    VMMRZCallRing3Enable(pGVCpu);
-
                     /*
                      * If this is a halt.
                      */
@@ -1549,13 +1567,9 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                  */
                 else
                 {
-                    pGVCpu->vmmr0.s.pPreemptState = NULL;
                     pGVCpu->iHostCpuSet = UINT32_MAX;
                     ASMAtomicWriteU32(&pGVCpu->idHostCpu, NIL_RTCPUID);
                     RTThreadPreemptRestore(&PreemptState);
-
-                    VMMRZCallRing3Enable(pGVCpu);
-
                     if (iHostCpuSet < RTCPUSET_MAX_CPUS)
                     {
                         int rc = SUPR0TscDeltaMeasureBySetIndex(pGVM->pSession, iHostCpuSet, 0 /*fFlags*/,
@@ -1570,6 +1584,7 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
                         pGVCpu->vmm.s.iLastGZRc = VERR_INVALID_CPU_INDEX;
                 }
                 break;
+
             } /* halt loop. */
             break;
         }
@@ -1581,11 +1596,13 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
             /*
              * Setup the longjmp machinery and execute guest code (calls NEMR0RunGuestCode).
              */
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
 #  ifdef VBOXSTRICTRC_STRICT_ENABLED
-            int rc = vmmR0CallRing3SetJmp2(&pGVCpu->vmmr0.s.AssertJmpBuf, (PFNVMMR0SETJMP2)NEMR0RunGuestCode, pGVM, idCpu);
+            int rc = vmmR0CallRing3SetJmp2(&pGVCpu->vmm.s.CallRing3JmpBufR0, (PFNVMMR0SETJMP2)NEMR0RunGuestCode, pGVM, idCpu);
 #  else
-            int rc = vmmR0CallRing3SetJmp2(&pGVCpu->vmmr0.s.AssertJmpBuf, NEMR0RunGuestCode, pGVM, idCpu);
+            int rc = vmmR0CallRing3SetJmp2(&pGVCpu->vmm.s.CallRing3JmpBufR0, NEMR0RunGuestCode, pGVM, idCpu);
 #  endif
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             STAM_COUNTER_INC(&pGVM->vmm.s.StatRunGC);
 
             pGVCpu->vmm.s.iLastGZRc = rc;
@@ -1617,6 +1634,7 @@ VMMR0DECL(void) VMMR0EntryFast(PGVM pGVM, PVMCC pVMIgnored, VMCPUID idCpu, VMMR0
             pGVCpu->vmm.s.iLastGZRc = VERR_NOT_SUPPORTED;
             break;
     }
+    VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
 }
 
 
@@ -1667,7 +1685,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
      */
     if (pGVM != NULL)
     {
-        if (RT_LIKELY(((uintptr_t)pGVM & HOST_PAGE_OFFSET_MASK) == 0))
+        if (RT_LIKELY(((uintptr_t)pGVM & PAGE_OFFSET_MASK) == 0))
         { /* likely */ }
         else
         {
@@ -1704,6 +1722,12 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
     }
 
     /*
+     * SMAP fun.
+     */
+    VMM_CHECK_SMAP_SETUP();
+    VMM_CHECK_SMAP_CHECK(RT_NOTHING);
+
+    /*
      * Process the request.
      */
     int rc;
@@ -1717,6 +1741,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 rc = GVMMR0CreateVMReq((PGVMMCREATEVMREQ)pReqHdr, pSession);
             else
                 rc = VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK(RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_DESTROY_VM:
@@ -1724,6 +1749,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 rc = GVMMR0DestroyVM(pGVM);
             else
                 rc = VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK(RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_REGISTER_VMCPU:
@@ -1731,6 +1757,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 rc = GVMMR0RegisterVCpu(pGVM, idCpu);
             else
                 rc = VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_DEREGISTER_VMCPU:
@@ -1738,63 +1765,58 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 rc = GVMMR0DeregisterVCpu(pGVM, idCpu);
             else
                 rc = VERR_INVALID_PARAMETER;
-            break;
-
-        case VMMR0_DO_GVMM_REGISTER_WORKER_THREAD:
-            if (pGVM != NULL && pReqHdr && pReqHdr->cbReq == sizeof(GVMMREGISTERWORKERTHREADREQ))
-                rc = GVMMR0RegisterWorkerThread(pGVM, (GVMMWORKERTHREAD)(unsigned)u64Arg,
-                                                ((PGVMMREGISTERWORKERTHREADREQ)(pReqHdr))->hNativeThreadR3);
-            else
-                rc = VERR_INVALID_PARAMETER;
-            break;
-
-        case VMMR0_DO_GVMM_DEREGISTER_WORKER_THREAD:
-            if (pGVM != NULL)
-                rc = GVMMR0DeregisterWorkerThread(pGVM, (GVMMWORKERTHREAD)(unsigned)u64Arg);
-            else
-                rc = VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_SCHED_HALT:
             if (pReqHdr)
                 return VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             rc = GVMMR0SchedHaltReq(pGVM, idCpu, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_SCHED_WAKE_UP:
             if (pReqHdr || u64Arg)
                 return VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             rc = GVMMR0SchedWakeUp(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_SCHED_POKE:
             if (pReqHdr || u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GVMMR0SchedPoke(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_SCHED_WAKE_UP_AND_POKE_CPUS:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GVMMR0SchedWakeUpAndPokeCpusReq(pGVM, (PGVMMSCHEDWAKEUPANDPOKECPUSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_SCHED_POLL:
             if (pReqHdr || u64Arg > 1)
                 return VERR_INVALID_PARAMETER;
             rc = GVMMR0SchedPoll(pGVM, idCpu, !!u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_QUERY_STATISTICS:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GVMMR0QueryStatisticsReq(pGVM, (PGVMMQUERYSTATISTICSSREQ)pReqHdr, pSession);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GVMM_RESET_STATISTICS:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GVMMR0ResetStatisticsReq(pGVM, (PGVMMRESETSTATISTICSSREQ)pReqHdr, pSession);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1802,15 +1824,15 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
          */
         case VMMR0_DO_VMMR0_INIT:
             rc = vmmR0InitVM(pGVM, RT_LODWORD(u64Arg), RT_HIDWORD(u64Arg));
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
          * Does EMT specific ring-0 init.
          */
         case VMMR0_DO_VMMR0_INIT_EMT:
-            if (idCpu == NIL_VMCPUID)
-                return VERR_INVALID_CPU_ID;
             rc = vmmR0InitVMEmt(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1818,42 +1840,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
          */
         case VMMR0_DO_VMMR0_TERM:
             rc = VMMR0TermVM(pGVM, 0 /*idCpu*/);
-            break;
-
-        /*
-         * Update release or debug logger instances.
-         */
-        case VMMR0_DO_VMMR0_UPDATE_LOGGERS:
-            if (idCpu == NIL_VMCPUID)
-                return VERR_INVALID_CPU_ID;
-            if (u64Arg < VMMLOGGER_IDX_MAX  && pReqHdr != NULL)
-                rc = vmmR0UpdateLoggers(pGVM, idCpu /*idCpu*/, (PVMMR0UPDATELOGGERSREQ)pReqHdr, (size_t)u64Arg);
-            else
-                return VERR_INVALID_PARAMETER;
-            break;
-
-        /*
-         * Log flusher thread.
-         */
-        case VMMR0_DO_VMMR0_LOG_FLUSHER:
-            if (idCpu != NIL_VMCPUID)
-                return VERR_INVALID_CPU_ID;
-            if (pReqHdr == NULL && pGVM != NULL)
-                rc = vmmR0LogFlusher(pGVM);
-            else
-                return VERR_INVALID_PARAMETER;
-            break;
-
-        /*
-         * Wait for the flush to finish with all the buffers for the given logger.
-         */
-        case VMMR0_DO_VMMR0_LOG_WAIT_FLUSHED:
-            if (idCpu == NIL_VMCPUID)
-                return VERR_INVALID_CPU_ID;
-            if (u64Arg < VMMLOGGER_IDX_MAX  && pReqHdr == NULL)
-                rc = vmmR0LogWaitFlushed(pGVM, idCpu /*idCpu*/, (size_t)u64Arg);
-            else
-                return VERR_INVALID_PARAMETER;
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1861,6 +1848,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
          */
         case VMMR0_DO_HM_ENABLE:
             rc = HMR0EnableAllCpus(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1868,6 +1856,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
          */
         case VMMR0_DO_HM_SETUP_VM:
             rc = HMR0SetupVM(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1877,36 +1866,35 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (idCpu == NIL_VMCPUID)
                 return VERR_INVALID_CPU_ID;
             rc = PGMR0PhysAllocateHandyPages(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_PGM_FLUSH_HANDY_PAGES:
             if (idCpu == NIL_VMCPUID)
                 return VERR_INVALID_CPU_ID;
             rc = PGMR0PhysFlushHandyPages(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
-        case VMMR0_DO_PGM_ALLOCATE_LARGE_PAGE:
+        case VMMR0_DO_PGM_ALLOCATE_LARGE_HANDY_PAGE:
             if (idCpu == NIL_VMCPUID)
                 return VERR_INVALID_CPU_ID;
-            rc = PGMR0PhysAllocateLargePage(pGVM, idCpu, u64Arg);
+            rc = PGMR0PhysAllocateLargeHandyPage(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_PGM_PHYS_SETUP_IOMMU:
             if (idCpu != 0)
                 return VERR_INVALID_CPU_ID;
             rc = PGMR0PhysSetupIoMmu(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_PGM_POOL_GROW:
             if (idCpu == NIL_VMCPUID)
                 return VERR_INVALID_CPU_ID;
-            rc = PGMR0PoolGrow(pGVM, idCpu);
-            break;
-
-        case VMMR0_DO_PGM_PHYS_HANDLER_INIT:
-            if (idCpu != 0 || pReqHdr != NULL || u64Arg > UINT32_MAX)
-                return VERR_INVALID_PARAMETER;
-            rc = PGMR0PhysHandlerInitReqHandler(pGVM, (uint32_t)u64Arg);
+            rc = PGMR0PoolGrow(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -1916,36 +1904,42 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0InitialReservationReq(pGVM, idCpu, (PGMMINITIALRESERVATIONREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_UPDATE_RESERVATION:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0UpdateReservationReq(pGVM, idCpu, (PGMMUPDATERESERVATIONREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_ALLOCATE_PAGES:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0AllocatePagesReq(pGVM, idCpu, (PGMMALLOCATEPAGESREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_FREE_PAGES:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0FreePagesReq(pGVM, idCpu, (PGMMFREEPAGESREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_FREE_LARGE_PAGE:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0FreeLargePageReq(pGVM, idCpu, (PGMMFREELARGEPAGEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_QUERY_HYPERVISOR_MEM_STATS:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0QueryHypervisorMemoryStatsReq((PGMMMEMSTATSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_QUERY_MEM_STATS:
@@ -1954,18 +1948,28 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0QueryMemoryStatsReq(pGVM, idCpu, (PGMMMEMSTATSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_BALLOONED_PAGES:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0BalloonedPagesReq(pGVM, idCpu, (PGMMBALLOONEDPAGESREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_MAP_UNMAP_CHUNK:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0MapUnmapChunkReq(pGVM, (PGMMMAPUNMAPCHUNKREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
+            break;
+
+        case VMMR0_DO_GMM_SEED_CHUNK:
+            if (pReqHdr)
+                return VERR_INVALID_PARAMETER;
+            rc = GMMR0SeedChunk(pGVM, idCpu, (RTR3PTR)u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_REGISTER_SHARED_MODULE:
@@ -1974,6 +1978,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0RegisterSharedModuleReq(pGVM, idCpu, (PGMMREGISTERSHAREDMODULEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_UNREGISTER_SHARED_MODULE:
@@ -1982,6 +1987,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0UnregisterSharedModuleReq(pGVM, idCpu, (PGMMUNREGISTERSHAREDMODULEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_RESET_SHARED_MODULES:
@@ -1991,6 +1997,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 ||  pReqHdr)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0ResetSharedModules(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
 #ifdef VBOX_WITH_PAGE_SHARING
@@ -2002,6 +2009,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 ||  pReqHdr)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0CheckSharedModules(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 #endif
@@ -2011,6 +2019,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0FindDuplicatePageReq(pGVM, (PGMMFINDDUPLICATEPAGEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 #endif
 
@@ -2018,12 +2027,14 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0QueryStatisticsReq(pGVM, (PGMMQUERYSTATISTICSSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_GMM_RESET_STATISTICS:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = GMMR0ResetStatisticsReq(pGVM, (PGMMRESETSTATISTICSSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         /*
@@ -2050,6 +2061,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
                 //if (rc == VERR_CFGM_VALUE_NOT_FOUND)
                 //    rc = GMMR0QueryConfig(pReq->pSession, &pReq->szName[0], &pReq->u64Value);
             }
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2061,6 +2073,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (!pReqHdr || u64Arg || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = PDMR0DriverCallReqHandler(pGVM, (PPDMDRIVERCALLREQHANDLERREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2069,6 +2082,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (!pReqHdr || u64Arg || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = PDMR0DeviceCreateReqHandler(pGVM, (PPDMDEVICECREATEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2077,6 +2091,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (!pReqHdr || u64Arg)
                 return VERR_INVALID_PARAMETER;
             rc = PDMR0DeviceGenCallReqHandler(pGVM, (PPDMDEVICEGENCALLREQ)pReqHdr, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2086,14 +2101,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (!pReqHdr || u64Arg || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = PDMR0DeviceCompatSetCritSectReqHandler(pGVM, (PPDMDEVICECOMPATSETCRITSECTREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_PDM_QUEUE_CREATE:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = PDMR0QueueCreateReqHandler(pGVM, (PPDMQUEUECREATEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2106,6 +2114,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg || !pReq || !vmmR0IsValidSession(pGVM, pReq->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0OpenReq(pSession, pReq);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2113,6 +2122,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFCLOSEREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfCloseReq(pSession, (PINTNETIFCLOSEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
 
@@ -2120,42 +2130,49 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFGETBUFFERPTRSREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfGetBufferPtrsReq(pSession, (PINTNETIFGETBUFFERPTRSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_SET_PROMISCUOUS_MODE:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFSETPROMISCUOUSMODEREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfSetPromiscuousModeReq(pSession, (PINTNETIFSETPROMISCUOUSMODEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_SET_MAC_ADDRESS:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFSETMACADDRESSREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfSetMacAddressReq(pSession, (PINTNETIFSETMACADDRESSREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_SET_ACTIVE:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFSETACTIVEREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfSetActiveReq(pSession, (PINTNETIFSETACTIVEREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_SEND:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFSENDREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfSendReq(pSession, (PINTNETIFSENDREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_WAIT:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFWAITREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfWaitReq(pSession, (PINTNETIFWAITREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_INTNET_IF_ABORT_WAIT:
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PINTNETIFWAITREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = IntNetR0IfAbortWaitReq(pSession, (PINTNETIFABORTWAITREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
 #if 0 //def VBOX_WITH_PCI_PASSTHROUGH
@@ -2166,6 +2183,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg || !pReqHdr || !vmmR0IsValidSession(pGVM, ((PPCIRAWSENDREQ)pReqHdr)->pSession, pSession) || idCpu != NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = PciRawR0ProcessReq(pGVM, pSession, (PPCIRAWSENDREQ)pReqHdr);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 #endif
 
@@ -2178,54 +2196,63 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (u64Arg || pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0InitVM(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_INIT_VM_PART_2:
             if (u64Arg || pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0InitVMPart2(pGVM);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_MAP_PAGES:
             if (u64Arg || pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0MapPages(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_UNMAP_PAGES:
             if (u64Arg || pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0UnmapPages(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_EXPORT_STATE:
             if (u64Arg || pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0ExportState(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_IMPORT_STATE:
             if (pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0ImportState(pGVM, idCpu, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_QUERY_CPU_TICK:
             if (u64Arg || pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0QueryCpuTick(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_RESUME_CPU_TICK_ON_ALL:
             if (pReqHdr || idCpu == NIL_VMCPUID)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0ResumeCpuTickOnAll(pGVM, idCpu, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
         case VMMR0_DO_NEM_UPDATE_STATISTICS:
             if (u64Arg || pReqHdr)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0UpdateStatistics(pGVM, idCpu);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 
 #   if 1 && defined(DEBUG_bird)
@@ -2233,6 +2260,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (pReqHdr)
                 return VERR_INVALID_PARAMETER;
             rc = NEMR0DoExperiment(pGVM, idCpu, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
 #   endif
 # endif
@@ -2246,6 +2274,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = IOMR0IoPortGrowRegistrationTables(pGVM, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2254,6 +2283,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = IOMR0IoPortGrowStatisticsTable(pGVM, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2262,6 +2292,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = IOMR0MmioGrowRegistrationTables(pGVM, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2270,6 +2301,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             if (pReqHdr || idCpu != 0)
                 return VERR_INVALID_PARAMETER;
             rc = IOMR0MmioGrowStatisticsTable(pGVM, u64Arg);
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2280,83 +2312,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
             rc = IOMR0IoPortSyncStatisticsIndices(pGVM);
             if (RT_SUCCESS(rc))
                 rc = IOMR0MmioSyncStatisticsIndices(pGVM);
-            break;
-        }
-
-        /*
-         * DBGF requests.
-         */
-#ifdef VBOX_WITH_DBGF_TRACING
-        case VMMR0_DO_DBGF_TRACER_CREATE:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0TracerCreateReqHandler(pGVM, (PDBGFTRACERCREATEREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_DBGF_TRACER_CALL_REQ_HANDLER:
-        {
-            if (!pReqHdr || u64Arg)
-                return VERR_INVALID_PARAMETER;
-# if 0 /** @todo */
-            rc = DBGFR0TracerGenCallReqHandler(pGVM, (PDBGFTRACERGENCALLREQ)pReqHdr, idCpu);
-# else
-            rc = VERR_NOT_IMPLEMENTED;
-# endif
-            break;
-        }
-#endif
-
-        case VMMR0_DO_DBGF_BP_INIT:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0BpInitReqHandler(pGVM, (PDBGFBPINITREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_DBGF_BP_CHUNK_ALLOC:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0BpChunkAllocReqHandler(pGVM, (PDBGFBPCHUNKALLOCREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_DBGF_BP_L2_TBL_CHUNK_ALLOC:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0BpL2TblChunkAllocReqHandler(pGVM, (PDBGFBPL2TBLCHUNKALLOCREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_DBGF_BP_OWNER_INIT:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0BpOwnerInitReqHandler(pGVM, (PDBGFBPOWNERINITREQ)pReqHdr);
-            break;
-        }
-
-        case VMMR0_DO_DBGF_BP_PORTIO_INIT:
-        {
-            if (!pReqHdr || u64Arg || idCpu != 0)
-                return VERR_INVALID_PARAMETER;
-            rc = DBGFR0BpPortIoInitReqHandler(pGVM, (PDBGFBPINITREQ)pReqHdr);
-            break;
-        }
-
-
-        /*
-         * TM requests.
-         */
-        case VMMR0_DO_TM_GROW_TIMER_QUEUE:
-        {
-            if (pReqHdr || idCpu == NIL_VMCPUID)
-                return VERR_INVALID_PARAMETER;
-            rc = TMR0TimerQueueGrow(pGVM, RT_HI_U32(u64Arg), RT_LO_U32(u64Arg));
+            VMM_CHECK_SMAP_CHECK2(pGVM, RT_NOTHING);
             break;
         }
 
@@ -2385,7 +2341,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
     return rc;
 }
 
-
+#ifndef VMM_R0_SWITCH_STACK /* Not safe unless we disable preemption first. */
 /**
  * This is just a longjmp wrapper function for VMMR0EntryEx calls.
  *
@@ -2402,6 +2358,7 @@ static DECLCALLBACK(int) vmmR0EntryExWrapper(void *pvArgs)
                               pGVCpu->vmmr0.s.u64Arg,
                               pGVCpu->vmmr0.s.pSession);
 }
+#endif
 
 
 /**
@@ -2421,45 +2378,66 @@ static DECLCALLBACK(int) vmmR0EntryExWrapper(void *pvArgs)
 VMMR0DECL(int) VMMR0EntryEx(PGVM pGVM, PVMCC pVM, VMCPUID idCpu, VMMR0OPERATION enmOperation,
                             PSUPVMMR0REQHDR pReq, uint64_t u64Arg, PSUPDRVSESSION pSession)
 {
+#ifndef VMM_R0_SWITCH_STACK /* Not safe unless we disable preemption first. */
     /*
      * Requests that should only happen on the EMT thread will be
-     * wrapped in a setjmp so we can assert without causing too much trouble.
+     * wrapped in a setjmp so we can assert without causing trouble.
      */
     if (   pVM  != NULL
         && pGVM != NULL
-        && pVM  == pGVM /** @todo drop pVM or pGVM */
+        && pVM  == pGVM /** @todo drop pGVM */
         && idCpu < pGVM->cCpus
         && pGVM->pSession == pSession
-        && pGVM->pSelf    == pGVM
-        && enmOperation != VMMR0_DO_GVMM_DESTROY_VM
-        && enmOperation != VMMR0_DO_GVMM_REGISTER_VMCPU
-        && enmOperation != VMMR0_DO_GVMM_SCHED_WAKE_UP  /* idCpu is not caller but target. Sigh. */ /** @todo fix*/
-        && enmOperation != VMMR0_DO_GVMM_SCHED_POKE     /* idCpu is not caller but target. Sigh. */ /** @todo fix*/
-       )
+        && pGVM->pSelf    == pVM)
     {
-        PGVMCPU        pGVCpu        = &pGVM->aCpus[idCpu];
-        RTNATIVETHREAD hNativeThread = RTThreadNativeSelf();
-        if (RT_LIKELY(   pGVCpu->hEMT            == hNativeThread
-                      && pGVCpu->hNativeThreadR0 == hNativeThread))
+        switch (enmOperation)
         {
-            pGVCpu->vmmr0.s.pGVM         = pGVM;
-            pGVCpu->vmmr0.s.idCpu        = idCpu;
-            pGVCpu->vmmr0.s.enmOperation = enmOperation;
-            pGVCpu->vmmr0.s.pReq         = pReq;
-            pGVCpu->vmmr0.s.u64Arg       = u64Arg;
-            pGVCpu->vmmr0.s.pSession     = pSession;
-            return vmmR0CallRing3SetJmpEx(&pGVCpu->vmmr0.s.AssertJmpBuf, vmmR0EntryExWrapper, pGVCpu,
-                                          ((uintptr_t)u64Arg << 16) | (uintptr_t)enmOperation);
+            /* These might/will be called before VMMR3Init. */
+            case VMMR0_DO_GMM_INITIAL_RESERVATION:
+            case VMMR0_DO_GMM_UPDATE_RESERVATION:
+            case VMMR0_DO_GMM_ALLOCATE_PAGES:
+            case VMMR0_DO_GMM_FREE_PAGES:
+            case VMMR0_DO_GMM_BALLOONED_PAGES:
+            /* On the mac we might not have a valid jmp buf, so check these as well. */
+            case VMMR0_DO_VMMR0_INIT:
+            case VMMR0_DO_VMMR0_TERM:
+
+            case VMMR0_DO_PDM_DEVICE_CREATE:
+            case VMMR0_DO_PDM_DEVICE_GEN_CALL:
+            case VMMR0_DO_IOM_GROW_IO_PORTS:
+            case VMMR0_DO_IOM_GROW_IO_PORT_STATS:
+            {
+                PGVMCPU        pGVCpu        = &pGVM->aCpus[idCpu];
+                RTNATIVETHREAD hNativeThread = RTThreadNativeSelf();
+                if (RT_LIKELY(   pGVCpu->hEMT            == hNativeThread
+                              && pGVCpu->hNativeThreadR0 == hNativeThread))
+                {
+                    if (!pGVCpu->vmm.s.CallRing3JmpBufR0.pvSavedStack)
+                        break;
+
+                    pGVCpu->vmmr0.s.pGVM         = pGVM;
+                    pGVCpu->vmmr0.s.idCpu        = idCpu;
+                    pGVCpu->vmmr0.s.enmOperation = enmOperation;
+                    pGVCpu->vmmr0.s.pReq         = pReq;
+                    pGVCpu->vmmr0.s.u64Arg       = u64Arg;
+                    pGVCpu->vmmr0.s.pSession     = pSession;
+                    return vmmR0CallRing3SetJmpEx(&pGVCpu->vmm.s.CallRing3JmpBufR0, vmmR0EntryExWrapper, pGVCpu,
+                                                  ((uintptr_t)u64Arg << 16) | (uintptr_t)enmOperation);
+                }
+                return VERR_VM_THREAD_NOT_EMT;
+            }
+
+            default:
+            case VMMR0_DO_PGM_POOL_GROW:
+                break;
         }
-        return VERR_VM_THREAD_NOT_EMT;
     }
+#else
+    RT_NOREF(pVM);
+#endif
     return vmmR0EntryExWorker(pGVM, idCpu, enmOperation, pReq, u64Arg, pSession);
 }
 
-
-/*********************************************************************************************************************************
-*   EMT Blocking                                                                                                                 *
-*********************************************************************************************************************************/
 
 /**
  * Checks whether we've armed the ring-0 long jump machinery.
@@ -2472,805 +2450,141 @@ VMMR0DECL(int) VMMR0EntryEx(PGVM pGVM, PVMCC pVM, VMCPUID idCpu, VMMR0OPERATION 
 VMMR0_INT_DECL(bool) VMMR0IsLongJumpArmed(PVMCPUCC pVCpu)
 {
 #ifdef RT_ARCH_X86
-    return pVCpu->vmmr0.s.AssertJmpBuf.eip != 0;
+    return pVCpu->vmm.s.CallRing3JmpBufR0.eip
+        && !pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call;
 #else
-    return pVCpu->vmmr0.s.AssertJmpBuf.rip != 0;
+    return pVCpu->vmm.s.CallRing3JmpBufR0.rip
+        && !pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call;
 #endif
 }
 
 
 /**
- * Locking helper that deals with HM context and checks if the thread can block.
+ * Checks whether we've done a ring-3 long jump.
  *
- * @returns VINF_SUCCESS if we can block.  Returns @a rcBusy or
- *          VERR_VMM_CANNOT_BLOCK if not able to block.
- * @param   pVCpu       The cross context virtual CPU structure of the calling
- *                      thread.
- * @param   rcBusy      What to return in case of a blocking problem.  Will IPE
- *                      if VINF_SUCCESS and we cannot block.
- * @param   pszCaller   The caller (for logging problems).
- * @param   pvLock      The lock address (for logging problems).
- * @param   pCtx        Where to return context info for the resume call.
- * @thread  EMT(pVCpu)
+ * @returns @c true / @c false
+ * @param   pVCpu       The cross context virtual CPU structure.
+ * @thread  EMT
  */
-VMMR0_INT_DECL(int) VMMR0EmtPrepareToBlock(PVMCPUCC pVCpu, int rcBusy, const char *pszCaller, void *pvLock,
-                                           PVMMR0EMTBLOCKCTX pCtx)
+VMMR0_INT_DECL(bool) VMMR0IsInRing3LongJump(PVMCPUCC pVCpu)
 {
-    const char *pszMsg;
-
-    /*
-     * Check that we are allowed to block.
-     */
-    if (RT_LIKELY(VMMRZCallRing3IsEnabled(pVCpu)))
-    {
-        /*
-         * Are we in HM context and w/o a context hook?  If so work the context hook.
-         */
-        if (pVCpu->idHostCpu != NIL_RTCPUID)
-        {
-            Assert(pVCpu->iHostCpuSet != UINT32_MAX);
-
-            if (pVCpu->vmmr0.s.hCtxHook == NIL_RTTHREADCTXHOOK)
-            {
-                vmmR0ThreadCtxCallback(RTTHREADCTXEVENT_OUT, pVCpu);
-                if (pVCpu->vmmr0.s.pPreemptState)
-                    RTThreadPreemptRestore(pVCpu->vmmr0.s.pPreemptState);
-
-                pCtx->uMagic          = VMMR0EMTBLOCKCTX_MAGIC;
-                pCtx->fWasInHmContext = true;
-                return VINF_SUCCESS;
-            }
-        }
-
-        if (RT_LIKELY(!pVCpu->vmmr0.s.pPreemptState))
-        {
-            /*
-             * Not in HM context or we've got hooks, so just check that preemption
-             * is enabled.
-             */
-            if (RT_LIKELY(RTThreadPreemptIsEnabled(NIL_RTTHREAD)))
-            {
-                pCtx->uMagic          = VMMR0EMTBLOCKCTX_MAGIC;
-                pCtx->fWasInHmContext = false;
-                return VINF_SUCCESS;
-            }
-            pszMsg = "Preemption is disabled!";
-        }
-        else
-            pszMsg = "Preemption state w/o HM state!";
-    }
-    else
-        pszMsg = "Ring-3 calls are disabled!";
-
-    static uint32_t volatile s_cWarnings = 0;
-    if (++s_cWarnings < 50)
-        SUPR0Printf("VMMR0EmtPrepareToBlock: %s pvLock=%p pszCaller=%s rcBusy=%p\n", pszMsg, pvLock, pszCaller, rcBusy);
-    pCtx->uMagic          = VMMR0EMTBLOCKCTX_MAGIC_DEAD;
-    pCtx->fWasInHmContext = false;
-    return rcBusy != VINF_SUCCESS ? rcBusy : VERR_VMM_CANNOT_BLOCK;
+    return pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call;
 }
 
 
 /**
- * Counterpart to VMMR0EmtPrepareToBlock.
+ * Internal R0 logger worker: Flush logger.
  *
- * @param   pVCpu       The cross context virtual CPU structure of the calling
- *                      thread.
- * @param   pCtx        The context structure used with VMMR0EmtPrepareToBlock.
- * @thread  EMT(pVCpu)
+ * @param   pLogger     The logger instance to flush.
+ * @remark  This function must be exported!
  */
-VMMR0_INT_DECL(void) VMMR0EmtResumeAfterBlocking(PVMCPUCC pVCpu, PVMMR0EMTBLOCKCTX pCtx)
+VMMR0DECL(void) vmmR0LoggerFlush(PRTLOGGER pLogger)
 {
-    AssertReturnVoid(pCtx->uMagic == VMMR0EMTBLOCKCTX_MAGIC);
-    if (pCtx->fWasInHmContext)
-    {
-        if (pVCpu->vmmr0.s.pPreemptState)
-            RTThreadPreemptDisable(pVCpu->vmmr0.s.pPreemptState);
-
-        pCtx->fWasInHmContext = false;
-        vmmR0ThreadCtxCallback(RTTHREADCTXEVENT_IN, pVCpu);
-    }
-    pCtx->uMagic = VMMR0EMTBLOCKCTX_MAGIC_DEAD;
-}
-
-
-/**
- * Helper for waiting on an RTSEMEVENT, caller did VMMR0EmtPrepareToBlock.
- *
- * @returns
- * @retval  VERR_THREAD_IS_TERMINATING
- * @retval  VERR_TIMEOUT if we ended up waiting too long, either according to
- *          @a cMsTimeout or to maximum wait values.
- *
- * @param   pGVCpu      The ring-0 virtual CPU structure.
- * @param   fFlags      VMMR0EMTWAIT_F_XXX.
- * @param   hEvent      The event to wait on.
- * @param   cMsTimeout  The timeout or RT_INDEFINITE_WAIT.
- */
-VMMR0_INT_DECL(int) VMMR0EmtWaitEventInner(PGVMCPU pGVCpu, uint32_t fFlags, RTSEMEVENT hEvent, RTMSINTERVAL cMsTimeout)
-{
-    AssertReturn(pGVCpu->hEMT == RTThreadNativeSelf(), VERR_VM_THREAD_NOT_EMT);
-
+#ifdef LOG_ENABLED
     /*
-     * Note! Similar code is found in the PDM critical sections too.
-     */
-    uint64_t const nsStart           = RTTimeNanoTS();
-    uint64_t       cNsMaxTotal       = cMsTimeout == RT_INDEFINITE_WAIT
-                                     ? RT_NS_5MIN : RT_MIN(RT_NS_5MIN, RT_NS_1MS_64 * cMsTimeout);
-    uint32_t       cMsMaxOne         = RT_MS_5SEC;
-    bool           fNonInterruptible = false;
-    for (;;)
-    {
-        /* Wait. */
-        int rcWait = !fNonInterruptible
-                   ? RTSemEventWaitNoResume(hEvent, cMsMaxOne)
-                   : RTSemEventWait(hEvent, cMsMaxOne);
-        if (RT_SUCCESS(rcWait))
-            return rcWait;
-
-        if (rcWait == VERR_TIMEOUT || rcWait == VERR_INTERRUPTED)
-        {
-            uint64_t const cNsElapsed = RTTimeNanoTS() - nsStart;
-
-            /*
-             * Check the thread termination status.
-             */
-            int const rcTerm = RTThreadQueryTerminationStatus(NIL_RTTHREAD);
-            AssertMsg(rcTerm == VINF_SUCCESS || rcTerm == VERR_NOT_SUPPORTED || rcTerm == VINF_THREAD_IS_TERMINATING,
-                      ("rcTerm=%Rrc\n", rcTerm));
-            if (   rcTerm == VERR_NOT_SUPPORTED
-                && !fNonInterruptible
-                && cNsMaxTotal > RT_NS_1MIN)
-                cNsMaxTotal = RT_NS_1MIN;
-
-            /* We return immediately if it looks like the thread is terminating. */
-            if (rcTerm == VINF_THREAD_IS_TERMINATING)
-                return VERR_THREAD_IS_TERMINATING;
-
-            /* We may suppress VERR_INTERRUPTED if VMMR0EMTWAIT_F_TRY_SUPPRESS_INTERRUPTED was
-               specified, otherwise we'll just return it. */
-            if (rcWait == VERR_INTERRUPTED)
-            {
-                if (!(fFlags & VMMR0EMTWAIT_F_TRY_SUPPRESS_INTERRUPTED))
-                    return VERR_INTERRUPTED;
-                if (!fNonInterruptible)
-                {
-                    /* First time: Adjust down the wait parameters and make sure we get at least
-                                   one non-interruptible wait before timing out. */
-                    fNonInterruptible   = true;
-                    cMsMaxOne           = 32;
-                    uint64_t const cNsLeft = cNsMaxTotal - cNsElapsed;
-                    if (cNsLeft > RT_NS_10SEC)
-                        cNsMaxTotal = cNsElapsed + RT_NS_10SEC;
-                    continue;
-                }
-            }
-
-            /* Check for timeout. */
-            if (cNsElapsed > cNsMaxTotal)
-                return VERR_TIMEOUT;
-        }
-        else
-            return rcWait;
-    }
-    /* not reached */
-}
-
-
-/**
- * Helper for signalling an SUPSEMEVENT.
- *
- * This may temporarily leave the HM context if the host requires that for
- * signalling SUPSEMEVENT objects.
- *
- * @returns VBox status code (see VMMR0EmtPrepareToBlock)
- * @param   pGVM        The ring-0 VM structure.
- * @param   pGVCpu      The ring-0 virtual CPU structure.
- * @param   hEvent      The event to signal.
- */
-VMMR0_INT_DECL(int) VMMR0EmtSignalSupEvent(PGVM pGVM, PGVMCPU pGVCpu, SUPSEMEVENT hEvent)
-{
-    AssertReturn(pGVCpu->hEMT == RTThreadNativeSelf(), VERR_VM_THREAD_NOT_EMT);
-    if (RTSemEventIsSignalSafe())
-        return SUPSemEventSignal(pGVM->pSession, hEvent);
-
-    VMMR0EMTBLOCKCTX Ctx;
-    int rc = VMMR0EmtPrepareToBlock(pGVCpu, VINF_SUCCESS, __FUNCTION__, (void *)(uintptr_t)hEvent, &Ctx);
-    if (RT_SUCCESS(rc))
-    {
-        rc = SUPSemEventSignal(pGVM->pSession, hEvent);
-        VMMR0EmtResumeAfterBlocking(pGVCpu, &Ctx);
-    }
-    return rc;
-}
-
-
-/**
- * Helper for signalling an SUPSEMEVENT, variant supporting non-EMTs.
- *
- * This may temporarily leave the HM context if the host requires that for
- * signalling SUPSEMEVENT objects.
- *
- * @returns VBox status code (see VMMR0EmtPrepareToBlock)
- * @param   pGVM        The ring-0 VM structure.
- * @param   hEvent      The event to signal.
- */
-VMMR0_INT_DECL(int) VMMR0EmtSignalSupEventByGVM(PGVM pGVM, SUPSEMEVENT hEvent)
-{
-    if (!RTSemEventIsSignalSafe())
-    {
-        PGVMCPU pGVCpu = GVMMR0GetGVCpuByGVMandEMT(pGVM, NIL_RTNATIVETHREAD);
-        if (pGVCpu)
-        {
-            VMMR0EMTBLOCKCTX Ctx;
-            int rc = VMMR0EmtPrepareToBlock(pGVCpu, VINF_SUCCESS, __FUNCTION__, (void *)(uintptr_t)hEvent, &Ctx);
-            if (RT_SUCCESS(rc))
-            {
-                rc = SUPSemEventSignal(pGVM->pSession, hEvent);
-                VMMR0EmtResumeAfterBlocking(pGVCpu, &Ctx);
-            }
-            return rc;
-        }
-    }
-    return SUPSemEventSignal(pGVM->pSession, hEvent);
-}
-
-
-/*********************************************************************************************************************************
-*   Logging.                                                                                                                     *
-*********************************************************************************************************************************/
-
-/**
- * VMMR0_DO_VMMR0_UPDATE_LOGGERS: Updates the EMT loggers for the VM.
- *
- * @returns VBox status code.
- * @param   pGVM            The global (ring-0) VM structure.
- * @param   idCpu           The ID of the calling EMT.
- * @param   pReq            The request data.
- * @param   idxLogger       Which logger set to update.
- * @thread  EMT(idCpu)
- */
-static int vmmR0UpdateLoggers(PGVM pGVM, VMCPUID idCpu, PVMMR0UPDATELOGGERSREQ pReq, size_t idxLogger)
-{
-    /*
-     * Check sanity.  First we require EMT to be calling us.
-     */
-    AssertReturn(idCpu < pGVM->cCpus, VERR_INVALID_CPU_ID);
-    AssertReturn(pGVM->aCpus[idCpu].hEMT == RTThreadNativeSelf(), VERR_INVALID_CPU_ID);
-
-    AssertReturn(pReq->Hdr.cbReq >= RT_UOFFSETOF_DYN(VMMR0UPDATELOGGERSREQ, afGroups[0]), VERR_INVALID_PARAMETER);
-    AssertReturn(pReq->cGroups < _8K, VERR_INVALID_PARAMETER);
-    AssertReturn(pReq->Hdr.cbReq == RT_UOFFSETOF_DYN(VMMR0UPDATELOGGERSREQ, afGroups[pReq->cGroups]), VERR_INVALID_PARAMETER);
-
-    AssertReturn(idxLogger < VMMLOGGER_IDX_MAX, VERR_OUT_OF_RANGE);
-
-    /*
-     * Adjust flags.
-     */
-    /* Always buffered: */
-    pReq->fFlags |= RTLOGFLAGS_BUFFERED;
-    /* These doesn't make sense at present: */
-    pReq->fFlags &= ~(RTLOGFLAGS_FLUSH | RTLOGFLAGS_WRITE_THROUGH);
-    /* We've traditionally skipped the group restrictions. */
-    pReq->fFlags &= ~RTLOGFLAGS_RESTRICT_GROUPS;
-
-    /*
-     * Do the updating.
-     */
-    int rc = VINF_SUCCESS;
-    for (idCpu = 0; idCpu < pGVM->cCpus; idCpu++)
-    {
-        PGVMCPU   pGVCpu  = &pGVM->aCpus[idCpu];
-        PRTLOGGER pLogger = pGVCpu->vmmr0.s.u.aLoggers[idxLogger].pLogger;
-        if (pLogger)
-        {
-            RTLogSetR0ProgramStart(pLogger, pGVM->vmm.s.nsProgramStart);
-            rc = RTLogBulkUpdate(pLogger, pReq->fFlags, pReq->uGroupCrc32, pReq->cGroups, pReq->afGroups);
-        }
-    }
-
-    return rc;
-}
-
-
-/**
- * VMMR0_DO_VMMR0_LOG_FLUSHER: Get the next log flushing job.
- *
- * The job info is copied into VMM::LogFlusherItem.
- *
- * @returns VBox status code.
- * @retval  VERR_OBJECT_DESTROYED if we're shutting down.
- * @retval  VERR_NOT_OWNER if the calling thread is not the flusher thread.
- * @param   pGVM            The global (ring-0) VM structure.
- * @thread  The log flusher thread (first caller automatically becomes the log
- *          flusher).
- */
-static int vmmR0LogFlusher(PGVM pGVM)
-{
-    /*
-     * Check that this really is the flusher thread.
-     */
-    RTNATIVETHREAD const hNativeSelf = RTThreadNativeSelf();
-    AssertReturn(hNativeSelf != NIL_RTNATIVETHREAD, VERR_INTERNAL_ERROR_3);
-    if (RT_LIKELY(pGVM->vmmr0.s.LogFlusher.hThread == hNativeSelf))
-    { /* likely */ }
-    else
-    {
-        /* The first caller becomes the flusher thread. */
-        bool fOk;
-        ASMAtomicCmpXchgHandle(&pGVM->vmmr0.s.LogFlusher.hThread, hNativeSelf, NIL_RTNATIVETHREAD, fOk);
-        if (!fOk)
-            return VERR_NOT_OWNER;
-        pGVM->vmmr0.s.LogFlusher.fThreadRunning = true;
-    }
-
-    /*
-     * Acknowledge flush, waking up waiting EMT.
-     */
-    RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-
-    uint32_t idxTail = pGVM->vmmr0.s.LogFlusher.idxRingTail % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-    uint32_t idxHead = pGVM->vmmr0.s.LogFlusher.idxRingHead % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-    if (   idxTail != idxHead
-        && pGVM->vmmr0.s.LogFlusher.aRing[idxHead].s.fProcessing)
-    {
-        /* Pop the head off the ring buffer. */
-        uint32_t const idCpu     = pGVM->vmmr0.s.LogFlusher.aRing[idxHead].s.idCpu;
-        uint32_t const idxLogger = pGVM->vmmr0.s.LogFlusher.aRing[idxHead].s.idxLogger;
-        uint32_t const idxBuffer = pGVM->vmmr0.s.LogFlusher.aRing[idxHead].s.idxBuffer;
-
-        pGVM->vmmr0.s.LogFlusher.aRing[idxHead].u32 = UINT32_MAX >> 1; /* invalidate the entry */
-        pGVM->vmmr0.s.LogFlusher.idxRingHead = (idxHead + 1) % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-
-        /* Validate content. */
-        if (   idCpu     < pGVM->cCpus
-            && idxLogger < VMMLOGGER_IDX_MAX
-            && idxBuffer < VMMLOGGER_BUFFER_COUNT)
-        {
-            PGVMCPU             pGVCpu  = &pGVM->aCpus[idCpu];
-            PVMMR0PERVCPULOGGER pR0Log  = &pGVCpu->vmmr0.s.u.aLoggers[idxLogger];
-            PVMMR3CPULOGGER     pShared = &pGVCpu->vmm.s.u.aLoggers[idxLogger];
-
-            /*
-             * Accounting.
-             */
-            uint32_t cFlushing = pR0Log->cFlushing - 1;
-            if (RT_LIKELY(cFlushing < VMMLOGGER_BUFFER_COUNT))
-            { /*likely*/ }
-            else
-                cFlushing = 0;
-            pR0Log->cFlushing = cFlushing;
-            ASMAtomicWriteU32(&pShared->cFlushing, cFlushing);
-
-            /*
-             * Wake up the EMT if it's waiting.
-             */
-            if (!pR0Log->fEmtWaiting)
-                RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            else
-            {
-                pR0Log->fEmtWaiting = false;
-                RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-
-                int rc = RTSemEventSignal(pR0Log->hEventFlushWait);
-                if (RT_FAILURE(rc))
-                    LogRelMax(64, ("vmmR0LogFlusher: RTSemEventSignal failed ACKing entry #%u (%u/%u/%u): %Rrc!\n",
-                                   idxHead, idCpu, idxLogger, idxBuffer, rc));
-            }
-        }
-        else
-        {
-            RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            LogRelMax(64, ("vmmR0LogFlusher: Bad ACK entry #%u: %u/%u/%u!\n", idxHead, idCpu, idxLogger, idxBuffer));
-        }
-
-        RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    }
-
-    /*
-     * The wait loop.
-     */
-    int rc;
-    for (;;)
-    {
-        /*
-         * Work pending?
-         */
-        idxTail = pGVM->vmmr0.s.LogFlusher.idxRingTail % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-        idxHead = pGVM->vmmr0.s.LogFlusher.idxRingHead % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-        if (idxTail != idxHead)
-        {
-            pGVM->vmmr0.s.LogFlusher.aRing[idxHead].s.fProcessing = true;
-            pGVM->vmm.s.LogFlusherItem.u32 = pGVM->vmmr0.s.LogFlusher.aRing[idxHead].u32;
-
-            RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            return VINF_SUCCESS;
-        }
-
-        /*
-         * Nothing to do, so, check for termination and go to sleep.
-         */
-        if (!pGVM->vmmr0.s.LogFlusher.fThreadShutdown)
-        { /* likely */ }
-        else
-        {
-            rc = VERR_OBJECT_DESTROYED;
-            break;
-        }
-
-        pGVM->vmmr0.s.LogFlusher.fThreadWaiting = true;
-        RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-
-        rc = RTSemEventWaitNoResume(pGVM->vmmr0.s.LogFlusher.hEvent, RT_MS_5MIN);
-
-        RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-        pGVM->vmmr0.s.LogFlusher.fThreadWaiting = false;
-
-        if (RT_SUCCESS(rc) || rc == VERR_TIMEOUT)
-        { /* likely */ }
-        else if (rc == VERR_INTERRUPTED)
-        {
-            RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            return rc;
-        }
-        else if (rc == VERR_SEM_DESTROYED || rc == VERR_INVALID_HANDLE)
-            break;
-        else
-        {
-            LogRel(("vmmR0LogFlusher: RTSemEventWaitNoResume returned unexpected status %Rrc\n", rc));
-            break;
-        }
-    }
-
-    /*
-     * Terminating - prevent further calls and indicate to the EMTs that we're no longer around.
-     */
-    pGVM->vmmr0.s.LogFlusher.hThread        = ~pGVM->vmmr0.s.LogFlusher.hThread;  /* (should be reasonably safe) */
-    pGVM->vmmr0.s.LogFlusher.fThreadRunning = false;
-
-    RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    return rc;
-}
-
-
-/**
- * VMMR0_DO_VMMR0_LOG_WAIT_FLUSHED: Waits for the flusher thread to finish all
- * buffers for logger @a idxLogger.
- *
- * @returns VBox status code.
- * @param   pGVM            The global (ring-0) VM structure.
- * @param   idCpu           The ID of the calling EMT.
- * @param   idxLogger       Which logger to wait on.
- * @thread  EMT(idCpu)
- */
-static int vmmR0LogWaitFlushed(PGVM pGVM, VMCPUID idCpu, size_t idxLogger)
-{
-    /*
-     * Check sanity.  First we require EMT to be calling us.
-     */
-    AssertReturn(idCpu < pGVM->cCpus, VERR_INVALID_CPU_ID);
-    PGVMCPU pGVCpu = &pGVM->aCpus[idCpu];
-    AssertReturn(pGVCpu->hEMT == RTThreadNativeSelf(), VERR_INVALID_CPU_ID);
-    AssertReturn(idxLogger < VMMLOGGER_IDX_MAX, VERR_OUT_OF_RANGE);
-    PVMMR0PERVCPULOGGER const pR0Log = &pGVCpu->vmmr0.s.u.aLoggers[idxLogger];
-
-    /*
-     * Do the waiting.
-     */
-    int rc = VINF_SUCCESS;
-    RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    uint32_t cFlushing = pR0Log->cFlushing;
-    while (cFlushing > 0)
-    {
-        pR0Log->fEmtWaiting = true;
-        RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-
-        rc = RTSemEventWaitNoResume(pR0Log->hEventFlushWait, RT_MS_5MIN);
-
-        RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-        pR0Log->fEmtWaiting = false;
-        if (RT_SUCCESS(rc))
-        {
-            /* Read the new count, make sure it decreased before looping.  That
-               way we can guarentee that we will only wait more than 5 min * buffers. */
-            uint32_t const cPrevFlushing = cFlushing;
-            cFlushing = pR0Log->cFlushing;
-            if (cFlushing < cPrevFlushing)
-                continue;
-            rc = VERR_INTERNAL_ERROR_3;
-        }
-        break;
-    }
-    RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    return rc;
-}
-
-
-/**
- * Inner worker for vmmR0LoggerFlushCommon.
- */
-static bool   vmmR0LoggerFlushInner(PGVM pGVM, PGVMCPU pGVCpu, uint32_t idxLogger, size_t idxBuffer, uint32_t cbToFlush)
-{
-    PVMMR0PERVCPULOGGER const pR0Log    = &pGVCpu->vmmr0.s.u.aLoggers[idxLogger];
-    PVMMR3CPULOGGER const     pShared   = &pGVCpu->vmm.s.u.aLoggers[idxLogger];
-
-    /*
-     * Figure out what we need to do and whether we can.
-     */
-    enum { kJustSignal, kPrepAndSignal, kPrepSignalAndWait } enmAction;
-#if VMMLOGGER_BUFFER_COUNT >= 2
-    if (pR0Log->cFlushing < VMMLOGGER_BUFFER_COUNT - 1)
-    {
-        if (RTSemEventIsSignalSafe())
-            enmAction = kJustSignal;
-        else if (VMMRZCallRing3IsEnabled(pGVCpu))
-            enmAction = kPrepAndSignal;
-        else
-        {
-            /** @todo This is a bit simplistic.  We could introduce a FF to signal the
-             *        thread or similar. */
-            STAM_REL_COUNTER_INC(&pShared->StatCannotBlock);
-# if defined(RT_OS_LINUX)
-            SUP_DPRINTF(("vmmR0LoggerFlush: Signalling not safe and EMT blocking disabled! (%u bytes)\n", cbToFlush));
-# endif
-            pShared->cbDropped += cbToFlush;
-            return true;
-        }
-    }
-    else
-#endif
-    if (VMMRZCallRing3IsEnabled(pGVCpu))
-        enmAction = kPrepSignalAndWait;
-    else
-    {
-        STAM_REL_COUNTER_INC(&pShared->StatCannotBlock);
-# if defined(RT_OS_LINUX)
-        SUP_DPRINTF(("vmmR0LoggerFlush: EMT blocking disabled! (%u bytes)\n", cbToFlush));
-# endif
-        pShared->cbDropped += cbToFlush;
-        return true;
-    }
-
-    /*
-     * Prepare for blocking if necessary.
-     */
-    VMMR0EMTBLOCKCTX Ctx;
-    if (enmAction != kJustSignal)
-    {
-        int rc = VMMR0EmtPrepareToBlock(pGVCpu, VINF_SUCCESS, "vmmR0LoggerFlushInner", pR0Log->hEventFlushWait, &Ctx);
-        if (RT_SUCCESS(rc))
-        { /* likely */ }
-        else
-        {
-            STAM_REL_COUNTER_INC(&pShared->StatCannotBlock);
-            SUP_DPRINTF(("vmmR0LoggerFlush: VMMR0EmtPrepareToBlock failed! rc=%d\n", rc));
-            return false;
-        }
-    }
-
-    /*
-     * Queue the flush job.
-     */
-    bool fFlushedBuffer;
-    RTSpinlockAcquire(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    if (pGVM->vmmr0.s.LogFlusher.fThreadRunning)
-    {
-        uint32_t const idxHead    = pGVM->vmmr0.s.LogFlusher.idxRingHead % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-        uint32_t const idxTail    = pGVM->vmmr0.s.LogFlusher.idxRingTail % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-        uint32_t const idxNewTail = (idxTail + 1)                        % RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing);
-        if (idxNewTail != idxHead)
-        {
-            /* Queue it. */
-            pGVM->vmmr0.s.LogFlusher.aRing[idxTail].s.idCpu       = pGVCpu->idCpu;
-            pGVM->vmmr0.s.LogFlusher.aRing[idxTail].s.idxLogger   = idxLogger;
-            pGVM->vmmr0.s.LogFlusher.aRing[idxTail].s.idxBuffer   = (uint32_t)idxBuffer;
-            pGVM->vmmr0.s.LogFlusher.aRing[idxTail].s.fProcessing = 0;
-            pGVM->vmmr0.s.LogFlusher.idxRingTail = idxNewTail;
-
-            /* Update the number of buffers currently being flushed. */
-            uint32_t cFlushing = pR0Log->cFlushing;
-            cFlushing = RT_MIN(cFlushing + 1, VMMLOGGER_BUFFER_COUNT);
-            pShared->cFlushing = pR0Log->cFlushing = cFlushing;
-
-            /* We must wait if all buffers are currently being flushed. */
-            bool const fEmtWaiting = cFlushing >= VMMLOGGER_BUFFER_COUNT && enmAction != kJustSignal /* paranoia */;
-            pR0Log->fEmtWaiting = fEmtWaiting;
-
-            /* Stats. */
-            STAM_REL_COUNTER_INC(&pShared->StatFlushes);
-            STAM_REL_COUNTER_INC(&pGVM->vmm.s.StatLogFlusherFlushes);
-
-            /* Signal the worker thread. */
-            if (pGVM->vmmr0.s.LogFlusher.fThreadWaiting)
-            {
-                RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-                RTSemEventSignal(pGVM->vmmr0.s.LogFlusher.hEvent);
-            }
-            else
-            {
-                STAM_REL_COUNTER_INC(&pGVM->vmm.s.StatLogFlusherNoWakeUp);
-                RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            }
-
-            /*
-             * Wait for a buffer to finish flushing.
-             *
-             * Note! Lazy bird is ignoring the status code here.  The result is
-             *       that we might end up with an extra even signalling and the
-             *       next time we need to wait we won't and end up with some log
-             *       corruption.  However, it's too much hazzle right now for
-             *       a scenario which would most likely end the process rather
-             *       than causing log corruption.
-             */
-            if (fEmtWaiting)
-            {
-                STAM_REL_PROFILE_START(&pShared->StatWait, a);
-                VMMR0EmtWaitEventInner(pGVCpu, VMMR0EMTWAIT_F_TRY_SUPPRESS_INTERRUPTED,
-                                       pR0Log->hEventFlushWait, RT_INDEFINITE_WAIT);
-                STAM_REL_PROFILE_STOP(&pShared->StatWait, a);
-            }
-
-            /*
-             * We always switch buffer if we have more than one.
-             */
-#if VMMLOGGER_BUFFER_COUNT == 1
-            fFlushedBuffer = true;
-#else
-            AssertCompile(VMMLOGGER_BUFFER_COUNT >= 1);
-            pShared->idxBuf = (idxBuffer + 1) % VMMLOGGER_BUFFER_COUNT;
-            fFlushedBuffer = false;
-#endif
-        }
-        else
-        {
-            RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-            SUP_DPRINTF(("vmmR0LoggerFlush: ring buffer is full!\n"));
-            fFlushedBuffer = true;
-        }
-    }
-    else
-    {
-        RTSpinlockRelease(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-        SUP_DPRINTF(("vmmR0LoggerFlush: flusher not active - dropping %u bytes\n", cbToFlush));
-        fFlushedBuffer = true;
-    }
-
-    /*
-     * Restore the HM context.
-     */
-    if (enmAction != kJustSignal)
-        VMMR0EmtResumeAfterBlocking(pGVCpu, &Ctx);
-
-    return fFlushedBuffer;
-}
-
-
-/**
- * Common worker for vmmR0LogFlush and vmmR0LogRelFlush.
- */
-static bool vmmR0LoggerFlushCommon(PRTLOGGER pLogger, PRTLOGBUFFERDESC pBufDesc, uint32_t idxLogger)
-{
-    /*
-     * Convert the pLogger into a GVMCPU handle and 'call' back to Ring-3.
+     * Convert the pLogger into a VM handle and 'call' back to Ring-3.
      * (This is a bit paranoid code.)
      */
-    if (RT_VALID_PTR(pLogger))
+    PVMMR0LOGGER pR0Logger = (PVMMR0LOGGER)((uintptr_t)pLogger - RT_UOFFSETOF(VMMR0LOGGER, Logger));
+    if (    !VALID_PTR(pR0Logger)
+        ||  !VALID_PTR(pR0Logger + 1)
+        ||  pLogger->u32Magic != RTLOGGER_MAGIC)
     {
-        if (   pLogger->u32Magic == RTLOGGER_MAGIC
-            && (pLogger->u32UserValue1 & VMMR0_LOGGER_FLAGS_MAGIC_MASK) == VMMR0_LOGGER_FLAGS_MAGIC_VALUE
-            && pLogger->u64UserValue2 == pLogger->u64UserValue3)
-        {
-            PGVMCPU const pGVCpu = (PGVMCPU)(uintptr_t)pLogger->u64UserValue2;
-            if (   RT_VALID_PTR(pGVCpu)
-                && ((uintptr_t)pGVCpu & HOST_PAGE_OFFSET_MASK) == 0)
-            {
-                RTNATIVETHREAD const hNativeSelf = RTThreadNativeSelf();
-                PGVM const           pGVM        = pGVCpu->pGVM;
-                if (   hNativeSelf == pGVCpu->hEMT
-                    && RT_VALID_PTR(pGVM))
-                {
-                    PVMMR0PERVCPULOGGER const pR0Log    = &pGVCpu->vmmr0.s.u.aLoggers[idxLogger];
-                    size_t const              idxBuffer = pBufDesc - &pR0Log->aBufDescs[0];
-                    if (idxBuffer < VMMLOGGER_BUFFER_COUNT)
-                    {
-                        /*
-                         * Make sure we don't recurse forever here should something in the
-                         * following code trigger logging or an assertion.  Do the rest in
-                         * an inner work to avoid hitting the right margin too hard.
-                         */
-                        if (!pR0Log->fFlushing)
-                        {
-                            pR0Log->fFlushing = true;
-                            bool fFlushed = vmmR0LoggerFlushInner(pGVM, pGVCpu, idxLogger, idxBuffer, pBufDesc->offBuf);
-                            pR0Log->fFlushing = false;
-                            return fFlushed;
-                        }
-
-                        SUP_DPRINTF(("vmmR0LoggerFlush: Recursive flushing!\n"));
-                    }
-                    else
-                        SUP_DPRINTF(("vmmR0LoggerFlush: pLogger=%p pGVCpu=%p: idxBuffer=%#zx\n", pLogger, pGVCpu, idxBuffer));
-                }
-                else
-                    SUP_DPRINTF(("vmmR0LoggerFlush: pLogger=%p pGVCpu=%p hEMT=%p hNativeSelf=%p!\n",
-                                 pLogger, pGVCpu, pGVCpu->hEMT, hNativeSelf));
-            }
-            else
-                SUP_DPRINTF(("vmmR0LoggerFlush: pLogger=%p pGVCpu=%p!\n", pLogger, pGVCpu));
-        }
-        else
-            SUP_DPRINTF(("vmmR0LoggerFlush: pLogger=%p u32Magic=%#x u32UserValue1=%#x u64UserValue2=%#RX64 u64UserValue3=%#RX64!\n",
-                         pLogger, pLogger->u32Magic, pLogger->u32UserValue1, pLogger->u64UserValue2, pLogger->u64UserValue3));
+# ifdef DEBUG
+        SUPR0Printf("vmmR0LoggerFlush: pLogger=%p!\n", pLogger);
+# endif
+        return;
     }
+    if (pR0Logger->fFlushingDisabled)
+        return; /* quietly */
+
+    PVMCC pVM = pR0Logger->pVM;
+    if (   !VALID_PTR(pVM)
+        || pVM->pSelf != pVM)
+    {
+# ifdef DEBUG
+        SUPR0Printf("vmmR0LoggerFlush: pVM=%p! pSelf=%p! pLogger=%p\n", pVM, pVM->pSelf, pLogger);
+# endif
+        return;
+    }
+
+    PVMCPUCC pVCpu = VMMGetCpu(pVM);
+    if (pVCpu)
+    {
+        /*
+         * Check that the jump buffer is armed.
+         */
+# ifdef RT_ARCH_X86
+        if (    !pVCpu->vmm.s.CallRing3JmpBufR0.eip
+            ||  pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call)
+# else
+        if (    !pVCpu->vmm.s.CallRing3JmpBufR0.rip
+            ||  pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call)
+# endif
+        {
+# ifdef DEBUG
+            SUPR0Printf("vmmR0LoggerFlush: Jump buffer isn't armed!\n");
+# endif
+            return;
+        }
+        VMMRZCallRing3(pVM, pVCpu, VMMCALLRING3_VMM_LOGGER_FLUSH, 0);
+    }
+# ifdef DEBUG
     else
-        SUP_DPRINTF(("vmmR0LoggerFlush: pLogger=%p!\n", pLogger));
-    return true;
-}
-
-
-/**
- * @callback_method_impl{FNRTLOGFLUSH, Release logger buffer flush callback.}
- */
-static DECLCALLBACK(bool) vmmR0LogRelFlush(PRTLOGGER pLogger, PRTLOGBUFFERDESC pBufDesc)
-{
-    return vmmR0LoggerFlushCommon(pLogger, pBufDesc, VMMLOGGER_IDX_RELEASE);
-}
-
-
-/**
- * @callback_method_impl{FNRTLOGFLUSH, Logger (debug) buffer flush callback.}
- */
-static DECLCALLBACK(bool) vmmR0LogFlush(PRTLOGGER pLogger, PRTLOGBUFFERDESC pBufDesc)
-{
-#ifdef LOG_ENABLED
-    return vmmR0LoggerFlushCommon(pLogger, pBufDesc, VMMLOGGER_IDX_REGULAR);
+        SUPR0Printf("vmmR0LoggerFlush: invalid VCPU context!\n");
+# endif
 #else
-    RT_NOREF(pLogger, pBufDesc);
-    return true;
-#endif
+    NOREF(pLogger);
+#endif  /* LOG_ENABLED */
 }
 
-
-/*
- * Override RTLogDefaultInstanceEx so we can do logging from EMTs in ring-0.
- */
-DECLEXPORT(PRTLOGGER) RTLogDefaultInstanceEx(uint32_t fFlagsAndGroup)
-{
 #ifdef LOG_ENABLED
-    PGVMCPU pGVCpu = GVMMR0GetGVCpuByEMT(NIL_RTNATIVETHREAD);
-    if (pGVCpu)
-    {
-        PRTLOGGER pLogger = pGVCpu->vmmr0.s.u.s.Logger.pLogger;
-        if (RT_VALID_PTR(pLogger))
-        {
-            if (   pLogger->u64UserValue2 == (uintptr_t)pGVCpu
-                && pLogger->u64UserValue3 == (uintptr_t)pGVCpu)
-            {
-                if (!pGVCpu->vmmr0.s.u.s.Logger.fFlushing)
-                {
-                    if (!(pGVCpu->vmmr0.s.fLogFlushingDisabled))
-                        return RTLogCheckGroupFlags(pLogger, fFlagsAndGroup);
-                    return NULL;
-                }
 
-                /*
-                 * When we're flushing we _must_ return NULL here to suppress any
-                 * attempts at using the logger while in vmmR0LoggerFlushCommon.
-                 * The VMMR0EmtPrepareToBlock code may trigger logging in HM,
-                 * which will reset the buffer content before we even get to queue
-                 * the flush request.  (Only an issue when VBOX_WITH_R0_LOGGING
-                 * is enabled.)
-                 */
-                return NULL;
-            }
-        }
-    }
-#endif
-    return SUPR0DefaultLogInstanceEx(fFlagsAndGroup);
+/**
+ * Disables flushing of the ring-0 debug log.
+ *
+ * @param   pVCpu       The cross context virtual CPU structure.
+ */
+VMMR0_INT_DECL(void) VMMR0LogFlushDisable(PVMCPUCC pVCpu)
+{
+    if (pVCpu->vmm.s.pR0LoggerR0)
+        pVCpu->vmm.s.pR0LoggerR0->fFlushingDisabled = true;
+    if (pVCpu->vmm.s.pR0RelLoggerR0)
+        pVCpu->vmm.s.pR0RelLoggerR0->fFlushingDisabled = true;
 }
 
 
-/*
+/**
+ * Enables flushing of the ring-0 debug log.
+ *
+ * @param   pVCpu       The cross context virtual CPU structure.
+ */
+VMMR0_INT_DECL(void) VMMR0LogFlushEnable(PVMCPUCC pVCpu)
+{
+    if (pVCpu->vmm.s.pR0LoggerR0)
+        pVCpu->vmm.s.pR0LoggerR0->fFlushingDisabled = false;
+    if (pVCpu->vmm.s.pR0RelLoggerR0)
+        pVCpu->vmm.s.pR0RelLoggerR0->fFlushingDisabled = false;
+}
+
+
+/**
+ * Checks if log flushing is disabled or not.
+ *
+ * @param   pVCpu       The cross context virtual CPU structure.
+ */
+VMMR0_INT_DECL(bool) VMMR0IsLogFlushDisabled(PVMCPUCC pVCpu)
+{
+    if (pVCpu->vmm.s.pR0LoggerR0)
+        return pVCpu->vmm.s.pR0LoggerR0->fFlushingDisabled;
+    if (pVCpu->vmm.s.pR0RelLoggerR0)
+        return pVCpu->vmm.s.pR0RelLoggerR0->fFlushingDisabled;
+    return true;
+}
+
+#endif /* LOG_ENABLED */
+
+/**
  * Override RTLogRelGetDefaultInstanceEx so we can do LogRel to VBox.log from EMTs in ring-0.
  */
 DECLEXPORT(PRTLOGGER) RTLogRelGetDefaultInstanceEx(uint32_t fFlagsAndGroup)
@@ -3278,17 +2592,25 @@ DECLEXPORT(PRTLOGGER) RTLogRelGetDefaultInstanceEx(uint32_t fFlagsAndGroup)
     PGVMCPU pGVCpu = GVMMR0GetGVCpuByEMT(NIL_RTNATIVETHREAD);
     if (pGVCpu)
     {
-        PRTLOGGER pLogger = pGVCpu->vmmr0.s.u.s.RelLogger.pLogger;
-        if (RT_VALID_PTR(pLogger))
+        PVMCPUCC pVCpu = pGVCpu;
+        if (RT_VALID_PTR(pVCpu))
         {
-            if (   pLogger->u64UserValue2 == (uintptr_t)pGVCpu
-                && pLogger->u64UserValue3 == (uintptr_t)pGVCpu)
+            PVMMR0LOGGER pVmmLogger = pVCpu->vmm.s.pR0RelLoggerR0;
+            if (RT_VALID_PTR(pVmmLogger))
             {
-                if (!pGVCpu->vmmr0.s.u.s.RelLogger.fFlushing)
+                if (   pVmmLogger->fCreated
+                    && pVmmLogger->pVM == pGVCpu->pGVM)
                 {
-                    if (!(pGVCpu->vmmr0.s.fLogFlushingDisabled))
-                        return RTLogCheckGroupFlags(pLogger, fFlagsAndGroup);
-                    return NULL;
+                    if (pVmmLogger->Logger.fFlags & RTLOGFLAGS_DISABLED)
+                        return NULL;
+                    uint16_t const fFlags = RT_LO_U16(fFlagsAndGroup);
+                    uint16_t const iGroup = RT_HI_U16(fFlagsAndGroup);
+                    if (   iGroup != UINT16_MAX
+                        && (   (  pVmmLogger->Logger.afGroups[iGroup < pVmmLogger->Logger.cGroups ? iGroup : 0]
+                                & (fFlags | (uint32_t)RTLOGGRPFLAGS_ENABLED))
+                            != (fFlags | (uint32_t)RTLOGGRPFLAGS_ENABLED)))
+                        return NULL;
+                    return &pVmmLogger->Logger;
                 }
             }
         }
@@ -3298,267 +2620,6 @@ DECLEXPORT(PRTLOGGER) RTLogRelGetDefaultInstanceEx(uint32_t fFlagsAndGroup)
 
 
 /**
- * Helper for vmmR0InitLoggerSet
- */
-static int vmmR0InitLoggerOne(PGVMCPU pGVCpu, bool fRelease, PVMMR0PERVCPULOGGER pR0Log, PVMMR3CPULOGGER pShared,
-                              uint32_t cbBuf, char *pchBuf, RTR3PTR pchBufR3)
-{
-    /*
-     * Create and configure the logger.
-     */
-    for (size_t i = 0; i < VMMLOGGER_BUFFER_COUNT; i++)
-    {
-        pR0Log->aBufDescs[i].u32Magic    = RTLOGBUFFERDESC_MAGIC;
-        pR0Log->aBufDescs[i].uReserved   = 0;
-        pR0Log->aBufDescs[i].cbBuf       = cbBuf;
-        pR0Log->aBufDescs[i].offBuf      = 0;
-        pR0Log->aBufDescs[i].pchBuf      = pchBuf + i * cbBuf;
-        pR0Log->aBufDescs[i].pAux        = &pShared->aBufs[i].AuxDesc;
-
-        pShared->aBufs[i].AuxDesc.fFlushedIndicator   = false;
-        pShared->aBufs[i].AuxDesc.afPadding[0]        = 0;
-        pShared->aBufs[i].AuxDesc.afPadding[1]        = 0;
-        pShared->aBufs[i].AuxDesc.afPadding[2]        = 0;
-        pShared->aBufs[i].AuxDesc.offBuf              = 0;
-        pShared->aBufs[i].pchBufR3                    = pchBufR3 + i * cbBuf;
-    }
-    pShared->cbBuf = cbBuf;
-
-    static const char * const s_apszGroups[] = VBOX_LOGGROUP_NAMES;
-    int rc = RTLogCreateEx(&pR0Log->pLogger, fRelease ? "VBOX_RELEASE_LOG" : "VBOX_LOG", RTLOG_F_NO_LOCKING | RTLOGFLAGS_BUFFERED,
-                           "all", RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX,
-                           VMMLOGGER_BUFFER_COUNT, pR0Log->aBufDescs, RTLOGDEST_DUMMY,
-                           NULL /*pfnPhase*/, 0 /*cHistory*/, 0 /*cbHistoryFileMax*/, 0 /*cSecsHistoryTimeSlot*/,
-                           NULL /*pErrInfo*/, NULL /*pszFilenameFmt*/);
-    if (RT_SUCCESS(rc))
-    {
-        PRTLOGGER pLogger = pR0Log->pLogger;
-        pLogger->u32UserValue1 = VMMR0_LOGGER_FLAGS_MAGIC_VALUE;
-        pLogger->u64UserValue2 = (uintptr_t)pGVCpu;
-        pLogger->u64UserValue3 = (uintptr_t)pGVCpu;
-
-        rc = RTLogSetFlushCallback(pLogger, fRelease ? vmmR0LogRelFlush : vmmR0LogFlush);
-        if (RT_SUCCESS(rc))
-        {
-            RTLogSetR0ThreadNameF(pLogger, "EMT-%u-R0", pGVCpu->idCpu);
-
-            /*
-             * Create the event sem the EMT waits on while flushing is happening.
-             */
-            rc = RTSemEventCreate(&pR0Log->hEventFlushWait);
-            if (RT_SUCCESS(rc))
-                return VINF_SUCCESS;
-            pR0Log->hEventFlushWait = NIL_RTSEMEVENT;
-        }
-        RTLogDestroy(pLogger);
-    }
-    pR0Log->pLogger = NULL;
-    return rc;
-}
-
-
-/**
- * Worker for VMMR0CleanupVM and vmmR0InitLoggerSet that destroys one logger.
- */
-static void vmmR0TermLoggerOne(PVMMR0PERVCPULOGGER pR0Log, PVMMR3CPULOGGER pShared)
-{
-    RTLogDestroy(pR0Log->pLogger);
-    pR0Log->pLogger = NULL;
-
-    for (size_t i = 0; i < VMMLOGGER_BUFFER_COUNT; i++)
-        pShared->aBufs[i].pchBufR3 = NIL_RTR3PTR;
-
-    RTSemEventDestroy(pR0Log->hEventFlushWait);
-    pR0Log->hEventFlushWait = NIL_RTSEMEVENT;
-}
-
-
-/**
- * Initializes one type of loggers for each EMT.
- */
-static int vmmR0InitLoggerSet(PGVM pGVM, uint8_t idxLogger, uint32_t cbBuf, PRTR0MEMOBJ phMemObj, PRTR0MEMOBJ phMapObj)
-{
-    /* Allocate buffers first. */
-    int rc = RTR0MemObjAllocPage(phMemObj, cbBuf * pGVM->cCpus * VMMLOGGER_BUFFER_COUNT, false /*fExecutable*/);
-    if (RT_SUCCESS(rc))
-    {
-        rc = RTR0MemObjMapUser(phMapObj, *phMemObj, (RTR3PTR)-1, 0 /*uAlignment*/, RTMEM_PROT_READ, NIL_RTR0PROCESS);
-        if (RT_SUCCESS(rc))
-        {
-            char  * const pchBuf   = (char *)RTR0MemObjAddress(*phMemObj);
-            AssertPtrReturn(pchBuf, VERR_INTERNAL_ERROR_2);
-
-            RTR3PTR const pchBufR3 = RTR0MemObjAddressR3(*phMapObj);
-            AssertReturn(pchBufR3 != NIL_RTR3PTR, VERR_INTERNAL_ERROR_3);
-
-            /* Initialize the per-CPU loggers. */
-            for (uint32_t i = 0; i < pGVM->cCpus; i++)
-            {
-                PGVMCPU             pGVCpu  = &pGVM->aCpus[i];
-                PVMMR0PERVCPULOGGER pR0Log  = &pGVCpu->vmmr0.s.u.aLoggers[idxLogger];
-                PVMMR3CPULOGGER     pShared = &pGVCpu->vmm.s.u.aLoggers[idxLogger];
-                rc = vmmR0InitLoggerOne(pGVCpu, idxLogger == VMMLOGGER_IDX_RELEASE, pR0Log, pShared, cbBuf,
-                                        pchBuf   + i * cbBuf * VMMLOGGER_BUFFER_COUNT,
-                                        pchBufR3 + i * cbBuf * VMMLOGGER_BUFFER_COUNT);
-                if (RT_FAILURE(rc))
-                {
-                    vmmR0TermLoggerOne(pR0Log, pShared);
-                    while (i-- > 0)
-                    {
-                        pGVCpu = &pGVM->aCpus[i];
-                        vmmR0TermLoggerOne(&pGVCpu->vmmr0.s.u.aLoggers[idxLogger], &pGVCpu->vmm.s.u.aLoggers[idxLogger]);
-                    }
-                    break;
-                }
-            }
-            if (RT_SUCCESS(rc))
-                return VINF_SUCCESS;
-
-            /* Bail out. */
-            RTR0MemObjFree(*phMapObj, false /*fFreeMappings*/);
-            *phMapObj = NIL_RTR0MEMOBJ;
-        }
-        RTR0MemObjFree(*phMemObj, true /*fFreeMappings*/);
-        *phMemObj = NIL_RTR0MEMOBJ;
-    }
-    return rc;
-}
-
-
-/**
- * Worker for VMMR0InitPerVMData that initializes all the logging related stuff.
- *
- * @returns VBox status code.
- * @param   pGVM            The global (ring-0) VM structure.
- */
-static int vmmR0InitLoggers(PGVM pGVM)
-{
-    /*
-     * Invalidate the ring buffer (not really necessary).
-     */
-    for (size_t idx = 0; idx < RT_ELEMENTS(pGVM->vmmr0.s.LogFlusher.aRing); idx++)
-        pGVM->vmmr0.s.LogFlusher.aRing[idx].u32 = UINT32_MAX >> 1; /* (all bits except fProcessing set) */
-
-    /*
-     * Create the spinlock and flusher event semaphore.
-     */
-    int rc = RTSpinlockCreate(&pGVM->vmmr0.s.LogFlusher.hSpinlock, RTSPINLOCK_FLAGS_INTERRUPT_SAFE, "VM-Log-Flusher");
-    if (RT_SUCCESS(rc))
-    {
-        rc = RTSemEventCreate(&pGVM->vmmr0.s.LogFlusher.hEvent);
-        if (RT_SUCCESS(rc))
-        {
-            /*
-             * Create the ring-0 release loggers.
-             */
-            rc = vmmR0InitLoggerSet(pGVM, VMMLOGGER_IDX_RELEASE, _4K,
-                                    &pGVM->vmmr0.s.hMemObjReleaseLogger, &pGVM->vmmr0.s.hMapObjReleaseLogger);
-#ifdef LOG_ENABLED
-            if (RT_SUCCESS(rc))
-            {
-                /*
-                 * Create debug loggers.
-                 */
-                rc = vmmR0InitLoggerSet(pGVM, VMMLOGGER_IDX_REGULAR, _64K,
-                                        &pGVM->vmmr0.s.hMemObjLogger, &pGVM->vmmr0.s.hMapObjLogger);
-            }
-#endif
-        }
-    }
-    return rc;
-}
-
-
-/**
- * Worker for VMMR0InitPerVMData that initializes all the logging related stuff.
- *
- * @param   pGVM            The global (ring-0) VM structure.
- */
-static void vmmR0CleanupLoggers(PGVM pGVM)
-{
-    for (VMCPUID idCpu = 0; idCpu < pGVM->cCpus; idCpu++)
-    {
-        PGVMCPU pGVCpu = &pGVM->aCpus[idCpu];
-        for (size_t iLogger = 0; iLogger < RT_ELEMENTS(pGVCpu->vmmr0.s.u.aLoggers); iLogger++)
-            vmmR0TermLoggerOne(&pGVCpu->vmmr0.s.u.aLoggers[iLogger], &pGVCpu->vmm.s.u.aLoggers[iLogger]);
-    }
-
-    /*
-     * Free logger buffer memory.
-     */
-    RTR0MemObjFree(pGVM->vmmr0.s.hMapObjReleaseLogger, false /*fFreeMappings*/);
-    pGVM->vmmr0.s.hMapObjReleaseLogger = NIL_RTR0MEMOBJ;
-    RTR0MemObjFree(pGVM->vmmr0.s.hMemObjReleaseLogger, true /*fFreeMappings*/);
-    pGVM->vmmr0.s.hMemObjReleaseLogger = NIL_RTR0MEMOBJ;
-
-    RTR0MemObjFree(pGVM->vmmr0.s.hMapObjLogger, false /*fFreeMappings*/);
-    pGVM->vmmr0.s.hMapObjLogger = NIL_RTR0MEMOBJ;
-    RTR0MemObjFree(pGVM->vmmr0.s.hMemObjLogger, true /*fFreeMappings*/);
-    pGVM->vmmr0.s.hMemObjLogger = NIL_RTR0MEMOBJ;
-
-    /*
-     * Free log flusher related stuff.
-     */
-    RTSpinlockDestroy(pGVM->vmmr0.s.LogFlusher.hSpinlock);
-    pGVM->vmmr0.s.LogFlusher.hSpinlock = NIL_RTSPINLOCK;
-    RTSemEventDestroy(pGVM->vmmr0.s.LogFlusher.hEvent);
-    pGVM->vmmr0.s.LogFlusher.hEvent = NIL_RTSEMEVENT;
-}
-
-
-/*********************************************************************************************************************************
-*   Assertions                                                                                                                   *
-*********************************************************************************************************************************/
-
-/**
- * Installs a notification callback for ring-0 assertions.
- *
- * @param   pVCpu         The cross context virtual CPU structure.
- * @param   pfnCallback   Pointer to the callback.
- * @param   pvUser        The user argument.
- *
- * @return VBox status code.
- */
-VMMR0_INT_DECL(int) VMMR0AssertionSetNotification(PVMCPUCC pVCpu, PFNVMMR0ASSERTIONNOTIFICATION pfnCallback, RTR0PTR pvUser)
-{
-    AssertPtrReturn(pVCpu, VERR_INVALID_POINTER);
-    AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
-
-    if (!pVCpu->vmmr0.s.pfnAssertCallback)
-    {
-        pVCpu->vmmr0.s.pfnAssertCallback    = pfnCallback;
-        pVCpu->vmmr0.s.pvAssertCallbackUser = pvUser;
-        return VINF_SUCCESS;
-    }
-    return VERR_ALREADY_EXISTS;
-}
-
-
-/**
- * Removes the ring-0 callback.
- *
- * @param   pVCpu   The cross context virtual CPU structure.
- */
-VMMR0_INT_DECL(void) VMMR0AssertionRemoveNotification(PVMCPUCC pVCpu)
-{
-    pVCpu->vmmr0.s.pfnAssertCallback    = NULL;
-    pVCpu->vmmr0.s.pvAssertCallbackUser = NULL;
-}
-
-
-/**
- * Checks whether there is a ring-0 callback notification active.
- *
- * @param   pVCpu   The cross context virtual CPU structure.
- * @returns true if there the notification is active, false otherwise.
- */
-VMMR0_INT_DECL(bool) VMMR0AssertionIsNotificationSet(PVMCPUCC pVCpu)
-{
-    return pVCpu->vmmr0.s.pfnAssertCallback != NULL;
-}
-
-
-/*
  * Jump back to ring-3 if we're the EMT and the longjmp is armed.
  *
  * @returns true if the breakpoint should be hit, false if it should be ignored.
@@ -3575,41 +2636,38 @@ DECLEXPORT(bool) RTCALL RTAssertShouldPanic(void)
 
         if (pVCpu)
         {
-# ifdef RT_ARCH_X86
-            if (pVCpu->vmmr0.s.AssertJmpBuf.eip)
-# else
-            if (pVCpu->vmmr0.s.AssertJmpBuf.rip)
-# endif
+#ifdef RT_ARCH_X86
+            if (    pVCpu->vmm.s.CallRing3JmpBufR0.eip
+                &&  !pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call)
+#else
+            if (    pVCpu->vmm.s.CallRing3JmpBufR0.rip
+                &&  !pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call)
+#endif
             {
-                if (pVCpu->vmmr0.s.pfnAssertCallback)
-                    pVCpu->vmmr0.s.pfnAssertCallback(pVCpu, pVCpu->vmmr0.s.pvAssertCallbackUser);
-                int rc = vmmR0CallRing3LongJmp(&pVCpu->vmmr0.s.AssertJmpBuf, VERR_VMM_RING0_ASSERTION);
+                int rc = VMMRZCallRing3(pVM, pVCpu, VMMCALLRING3_VM_R0_ASSERTION, 0);
                 return RT_FAILURE_NP(rc);
             }
         }
     }
-# ifdef RT_OS_LINUX
+#ifdef RT_OS_LINUX
     return true;
-# else
+#else
     return false;
-# endif
+#endif
 #endif
 }
 
 
-/*
+/**
  * Override this so we can push it up to ring-3.
+ *
+ * @param   pszExpr     Expression. Can be NULL.
+ * @param   uLine       Location line number.
+ * @param   pszFile     Location file name.
+ * @param   pszFunction Location function name.
  */
 DECLEXPORT(void) RTCALL RTAssertMsg1Weak(const char *pszExpr, unsigned uLine, const char *pszFile, const char *pszFunction)
 {
-    /*
-     * To host kernel log/whatever.
-     */
-    SUPR0Printf("!!R0-Assertion Failed!!\n"
-                "Expression: %s\n"
-                "Location  : %s(%d) %s\n",
-                pszExpr, pszFile, uLine, pszFunction);
-
     /*
      * To the log.
      */
@@ -3653,8 +2711,11 @@ static DECLCALLBACK(size_t) rtLogOutput(void *pv, const char *pachChars, size_t 
 }
 
 
-/*
+/**
  * Override this so we can push it up to ring-3.
+ *
+ * @param   pszFormat   The format string.
+ * @param   va          Arguments.
  */
 DECLEXPORT(void) RTCALL RTAssertMsg2WeakV(const char *pszFormat, va_list va)
 {
@@ -3663,14 +2724,14 @@ DECLEXPORT(void) RTCALL RTAssertMsg2WeakV(const char *pszFormat, va_list va)
     /*
      * Push the message to the loggers.
      */
-    PRTLOGGER pLog = RTLogRelGetDefaultInstance();
+    PRTLOGGER pLog = RTLogGetDefaultInstance(); /* Don't initialize it here... */
     if (pLog)
     {
         va_copy(vaCopy, va);
         RTLogFormatV(rtLogOutput, pLog, pszFormat, vaCopy);
         va_end(vaCopy);
     }
-    pLog = RTLogGetDefaultInstance(); /* Don't initialize it here... */
+    pLog = RTLogRelGetDefaultInstance();
     if (pLog)
     {
         va_copy(vaCopy, va);

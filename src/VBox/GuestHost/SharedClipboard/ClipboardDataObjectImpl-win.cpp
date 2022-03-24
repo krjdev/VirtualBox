@@ -1,10 +1,10 @@
-/* $Id: ClipboardDataObjectImpl-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ClipboardDataObjectImpl-win.cpp $ */
 /** @file
  * ClipboardDataObjectImpl-win.cpp - Shared Clipboard IDataObject implementation.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -351,97 +351,103 @@ DECLCALLBACK(int) SharedClipboardWinDataObject::readThread(RTTHREAD ThreadSelf, 
 
     LogRel2(("Shared Clipboard: Calculating transfer ...\n"));
 
-    PSHCLROOTLIST pRootList;
-    int rc = ShClTransferRootsGet(pTransfer, &pRootList);
+    int rc = ShClTransferOpen(pTransfer);
     if (RT_SUCCESS(rc))
     {
-        LogFlowFunc(("cRoots=%RU32\n\n", pRootList->Hdr.cRoots));
-
-        for (uint32_t i = 0; i < pRootList->Hdr.cRoots; i++)
+        PSHCLROOTLIST pRootList;
+        rc = ShClTransferRootsGet(pTransfer, &pRootList);
+        if (RT_SUCCESS(rc))
         {
-            PSHCLLISTENTRY pRootEntry = &pRootList->paEntries[i];
-            AssertPtr(pRootEntry);
+            LogFlowFunc(("cRoots=%RU32\n\n", pRootList->Hdr.cRoots));
 
-            Assert(pRootEntry->cbInfo == sizeof(SHCLFSOBJINFO));
-            PSHCLFSOBJINFO pFsObjInfo = (PSHCLFSOBJINFO)pRootEntry->pvInfo;
-
-            LogFlowFunc(("pszRoot=%s, fMode=0x%x\n", pRootEntry->pszName, pFsObjInfo->Attr.fMode));
-
-            if (RTFS_IS_DIRECTORY(pFsObjInfo->Attr.fMode))
+            for (uint32_t i = 0; i < pRootList->Hdr.cRoots; i++)
             {
-                FSOBJENTRY objEntry = { pRootEntry->pszName, *pFsObjInfo };
+                PSHCLLISTENTRY pRootEntry = &pRootList->paEntries[i];
+                AssertPtr(pRootEntry);
 
-                pThis->m_lstEntries.push_back(objEntry); /** @todo Can this throw? */
+                Assert(pRootEntry->cbInfo == sizeof(SHCLFSOBJINFO));
+                PSHCLFSOBJINFO pFsObjInfo = (PSHCLFSOBJINFO)pRootEntry->pvInfo;
 
-                rc = pThis->readDir(pTransfer, pRootEntry->pszName);
+                LogFlowFunc(("pszRoot=%s, fMode=0x%x\n", pRootEntry->pszName, pFsObjInfo->Attr.fMode));
+
+                if (RTFS_IS_DIRECTORY(pFsObjInfo->Attr.fMode))
+                {
+                    FSOBJENTRY objEntry = { pRootEntry->pszName, *pFsObjInfo };
+
+                    pThis->m_lstEntries.push_back(objEntry); /** @todo Can this throw? */
+
+                    rc = pThis->readDir(pTransfer, pRootEntry->pszName);
+                }
+                else if (RTFS_IS_FILE(pFsObjInfo->Attr.fMode))
+                {
+                    FSOBJENTRY objEntry = { pRootEntry->pszName, *pFsObjInfo };
+
+                    pThis->m_lstEntries.push_back(objEntry); /** @todo Can this throw? */
+                }
+                else
+                    rc = VERR_NOT_SUPPORTED;
+
+                if (ASMAtomicReadBool(&pTransfer->Thread.fStop))
+                {
+                    LogRel2(("Shared Clipboard: Stopping transfer calculation ...\n"));
+                    break;
+                }
+
+                if (RT_FAILURE(rc))
+                    break;
             }
-            else if (RTFS_IS_FILE(pFsObjInfo->Attr.fMode))
+
+            ShClTransferRootListFree(pRootList);
+            pRootList = NULL;
+
+            if (   RT_SUCCESS(rc)
+                && !ASMAtomicReadBool(&pTransfer->Thread.fStop))
             {
-                FSOBJENTRY objEntry = { pRootEntry->pszName, *pFsObjInfo };
+                LogRel2(("Shared Clipboard: Transfer calculation complete (%zu root entries)\n", pThis->m_lstEntries.size()));
 
-                pThis->m_lstEntries.push_back(objEntry); /** @todo Can this throw? */
-            }
-            else
-                rc = VERR_NOT_SUPPORTED;
-
-            if (ASMAtomicReadBool(&pTransfer->Thread.fStop))
-            {
-                LogRel2(("Shared Clipboard: Stopping transfer calculation ...\n"));
-                break;
-            }
-
-            if (RT_FAILURE(rc))
-                break;
-        }
-
-        ShClTransferRootListFree(pRootList);
-        pRootList = NULL;
-
-        if (   RT_SUCCESS(rc)
-            && !ASMAtomicReadBool(&pTransfer->Thread.fStop))
-        {
-            LogRel2(("Shared Clipboard: Transfer calculation complete (%zu root entries)\n", pThis->m_lstEntries.size()));
-
-            /*
-             * Signal the "list complete" event so that this data object can return (valid) data via ::GetData().
-             * This in turn then will create IStream instances (by the OS) for each file system object to handle.
-             */
-            int rc2 = RTSemEventSignal(pThis->m_EventListComplete);
-            AssertRC(rc2);
-
-            if (pThis->m_lstEntries.size())
-            {
-                LogRel2(("Shared Clipboard: Waiting for transfer to complete ...\n"));
-
-                LogFlowFunc(("Waiting for transfer to complete ...\n"));
-
-                /* Transferring stuff can take a while, so don't use any timeout here. */
-                rc2 = RTSemEventWait(pThis->m_EventTransferComplete, RT_INDEFINITE_WAIT);
+                /*
+                 * Signal the "list complete" event so that this data object can return (valid) data via ::GetData().
+                 * This in turn then will create IStream instances (by the OS) for each file system object to handle.
+                 */
+                int rc2 = RTSemEventSignal(pThis->m_EventListComplete);
                 AssertRC(rc2);
 
-                switch (pThis->m_enmStatus)
+                if (pThis->m_lstEntries.size())
                 {
-                    case Completed:
-                        LogRel2(("Shared Clipboard: Transfer complete\n"));
-                        break;
+                    LogRel2(("Shared Clipboard: Waiting for transfer to complete ...\n"));
 
-                    case Canceled:
-                        LogRel2(("Shared Clipboard: Transfer canceled\n"));
-                        break;
+                    LogFlowFunc(("Waiting for transfer to complete ...\n"));
 
-                    case Error:
-                        LogRel2(("Shared Clipboard: Transfer error occurred\n"));
-                        break;
+                    /* Transferring stuff can take a while, so don't use any timeout here. */
+                    rc2 = RTSemEventWait(pThis->m_EventTransferComplete, RT_INDEFINITE_WAIT);
+                    AssertRC(rc2);
 
-                    default:
-                        break;
+                    switch (pThis->m_enmStatus)
+                    {
+                        case Completed:
+                            LogRel2(("Shared Clipboard: Transfer complete\n"));
+                            break;
+
+                        case Canceled:
+                            LogRel2(("Shared Clipboard: Transfer canceled\n"));
+                            break;
+
+                        case Error:
+                            LogRel2(("Shared Clipboard: Transfer error occurred\n"));
+                            break;
+
+                        default:
+                            break;
+                    }
                 }
+                else
+                   LogRel(("Shared Clipboard: No transfer root entries found -- should not happen, please file a bug report\n"));
             }
-            else
-               LogRel(("Shared Clipboard: No transfer root entries found -- should not happen, please file a bug report\n"));
+            else if (RT_FAILURE(rc))
+                LogRel(("Shared Clipboard: Transfer failed with %Rrc\n", rc));
         }
-        else if (RT_FAILURE(rc))
-            LogRel(("Shared Clipboard: Transfer failed with %Rrc\n", rc));
+
+        ShClTransferClose(pTransfer);
     }
 
     LogFlowFuncLeaveRC(rc);
@@ -966,3 +972,4 @@ void SharedClipboardWinDataObject::registerFormat(LPFORMATETC pFormatEtc, CLIPFO
 
     logFormat(pFormatEtc->cfFormat);
 }
+

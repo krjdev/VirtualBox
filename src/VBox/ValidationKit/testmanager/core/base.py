@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: base.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: base.py $
 # pylint: disable=too-many-lines
 
 """
@@ -8,7 +8,7 @@ Test Manager Core - Base Class(es).
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,13 +27,11 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
 import copy;
-import datetime;
-import json;
 import re;
 import socket;
 import sys;
@@ -405,12 +403,6 @@ class ModelDataBase(ModelBase): # pylint: disable=too-few-public-methods
         return self._validateAndConvertWorker(getattr(self, 'kasAllowNullAttributes', list()), oDb,
                                               enmValidateFor = enmValidateFor);
 
-    def validateAndConvertEx(self, asAllowNullAttributes, oDb, enmValidateFor = ksValidateFor_Other):
-        """
-        Same as validateAndConvert but with custom allow-null list.
-        """
-        return self._validateAndConvertWorker(asAllowNullAttributes, oDb, enmValidateFor = enmValidateFor);
-
     def convertParamToAttribute(self, sAttr, sParam, oValue, oDisp, fStrict):
         """
         Calculate the attribute value when initialized from a parameter.
@@ -607,67 +599,56 @@ class ModelDataBase(ModelBase): # pylint: disable=too-few-public-methods
             return (lValue, 'Value too high (max %d)' % (lMax,));
         return (lValue, None);
 
-    kdTimestampRegex = {
-        len('2012-10-08 01:54:06'):           r'(\d{4})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d)$',
-        len('2012-10-08 01:54:06.00'):        r'(\d{4})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d).\d{2}$',
-        len('2012-10-08 01:54:06.000'):       r'(\d{4})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d).\d{3}$',
-        len('999999-12-31 00:00:00.00'):      r'(\d{6})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d).\d{2}$',
-        len('9999-12-31 23:59:59.999999'):    r'(\d{4})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d).\d{6}$',
-        len('9999-12-31T23:59:59.999999999'): r'(\d{4})-([01]\d)-([0123]\d)[ Tt]([012]\d):[0-5]\d:([0-6]\d).\d{9}$',
-    };
-
     @staticmethod
-    def validateTs(sValue, aoNilValues = tuple([None, '']), fAllowNull = True, fRelative = False):
+    def validateTs(sValue, aoNilValues = tuple([None, '']), fAllowNull = True):
         """ Validates a timestamp field. """
         if sValue in aoNilValues:
             return (sValue, None if fAllowNull else 'Mandatory.');
         if not utils.isString(sValue):
             return (sValue, None);
 
-        # Validate and strip off the timezone stuff.
-        if sValue[-1] in 'Zz':
-            sStripped = sValue[:-1];
-            sValue = sStripped + 'Z';
-        elif len(sValue) >= 19 + 3:
-            oRes = re.match(r'^.*[+-](\d\d):(\d\d)$', sValue);
-            if oRes is not None:
-                if int(oRes.group(1)) > 12 or int(oRes.group(2)) >= 60:
-                    return (sValue, 'Invalid timezone offset.');
-                sStripped = sValue[:-6];
-            else:
-                sStripped = sValue;
-        else:
-            sStripped = sValue;
-
-        # Used the stripped value length to find regular expression for validating and parsing the timestamp.
         sError = None;
-        sRegExp = ModelDataBase.kdTimestampRegex.get(len(sStripped), None);
-        if sRegExp:
-            oRes = re.match(sRegExp, sStripped);
-            if oRes is not None:
-                iYear  = int(oRes.group(1));
-                if iYear % 4 == 0 and (iYear % 100 != 0  or iYear % 400 == 0):
-                    acDaysOfMonth = [31, 29, 31,  30, 31, 30,  31, 31, 30,  31, 30, 31];
-                else:
-                    acDaysOfMonth = [31, 28, 31,  30, 31, 30,  31, 31, 30,  31, 30, 31];
-                iMonth = int(oRes.group(2));
-                iDay   = int(oRes.group(3));
-                iHour  = int(oRes.group(4));
-                iSec   = int(oRes.group(5));
-                if iMonth > 12 or (iMonth <= 0 and not fRelative):
-                    sError = 'Invalid timestamp month.';
-                elif iDay > acDaysOfMonth[iMonth - 1]:
-                    sError = 'Invalid timestamp day-of-month (%02d has %d days).' % (iMonth, acDaysOfMonth[iMonth - 1]);
-                elif iHour > 23:
-                    sError = 'Invalid timestamp hour.'
-                elif iSec >= 61:
-                    sError = 'Invalid timestamp second.'
-                elif iSec >= 60:
-                    sError = 'Invalid timestamp: no leap seconds, please.'
-            else:
-                sError = 'Invalid timestamp (validation regexp: %s).' % (sRegExp,);
+        if len(sValue) == len('2012-10-08 01:54:06.364207+02:00'):
+            oRes = re.match(r'(\d{4})-([01]\d)-([0123])\d ([012]\d):[0-5]\d:([0-6]\d).\d{6}[+-](\d\d):(\d\d)', sValue);
+            if    oRes is not None \
+              and (   int(oRes.group(6)) >  12 \
+                   or int(oRes.group(7)) >= 60):
+                sError = 'Invalid timezone offset.';
+        elif len(sValue) == len('2012-10-08 01:54:06.00'):
+            oRes = re.match(r'(\d{4})-([01]\d)-([0123])\d ([012]\d):[0-5]\d:([0-6]\d).\d{2}', sValue);
+        elif len(sValue) == len('9999-12-31 23:59:59.999999'):
+            oRes = re.match(r'(\d{4})-([01]\d)-([0123])\d ([012]\d):[0-5]\d:([0-6]\d).\d{6}', sValue);
+        elif len(sValue) == len('999999-12-31 00:00:00.00'):
+            oRes = re.match(r'(\d{6})-([01]\d)-([0123])\d ([012]\d):[0-5]\d:([0-6]\d).\d{2}', sValue);
+        elif len(sValue) == len('9999-12-31T23:59:59.999999Z'):
+            oRes = re.match(r'(\d{4})-([01]\d)-([0123])\d[Tt]([012]\d):[0-5]\d:([0-6]\d).\d{6}[Zz]', sValue);
+        elif len(sValue) == len('9999-12-31T23:59:59.999999999Z'):
+            oRes = re.match(r'(\d{4})-([01]\d)-([0123])\d[Tt]([012]\d):[0-5]\d:([0-6]\d).\d{9}[Zz]', sValue);
         else:
-            sError = 'Invalid timestamp length.';
+            return (sValue, 'Invalid timestamp length.');
+
+        if oRes is None:
+            sError = 'Invalid timestamp (format: 2012-10-08 01:54:06.364207+02:00).';
+        else:
+            iYear  = int(oRes.group(1));
+            if iYear % 4 == 0 and (iYear % 100 != 0  or iYear % 400 == 0):
+                acDaysOfMonth = [31, 29, 31,  30, 31, 30,  31, 31, 30,  31, 30, 31];
+            else:
+                acDaysOfMonth = [31, 28, 31,  30, 31, 30,  31, 31, 30,  31, 30, 31];
+            iMonth = int(oRes.group(2));
+            iDay   = int(oRes.group(3));
+            iHour  = int(oRes.group(4));
+            iSec   = int(oRes.group(5));
+            if iMonth > 12:
+                sError = 'Invalid timestamp month.';
+            elif iDay > acDaysOfMonth[iMonth - 1]:
+                sError = 'Invalid timestamp day-of-month (%02d has %d days).' % (iMonth, acDaysOfMonth[iMonth - 1]);
+            elif iHour > 23:
+                sError = 'Invalid timestamp hour.'
+            elif iSec >= 61:
+                sError = 'Invalid timestamp second.'
+            elif iSec >= 60:
+                sError = 'Invalid timestamp: no leap seconds, please.'
         return (sValue, sError);
 
     @staticmethod
@@ -1062,83 +1043,6 @@ class ModelDataBase(ModelBase): # pylint: disable=too-few-public-methods
         """
         return oDb.formatBindArgs(sQuery, aBindArgs) \
              + ModelDataBase.formatSimpleNowAndPeriod(oDb, tsNow, sPeriodBack, sTablePrefix, sExpCol, sEffCol);
-
-
-    #
-    # JSON
-    #
-
-    @staticmethod
-    def stringToJson(sString):
-        """ Converts a string to a JSON value string. """
-        if not utils.isString(sString):
-            sString = utils.toUnicode(sString);
-            if not utils.isString(sString):
-                sString = str(sString);
-        return json.dumps(sString);
-
-    @staticmethod
-    def dictToJson(dDict, dOptions = None):
-        """ Converts a dictionary to a JSON string. """
-        sJson = u'{ ';
-        for i, oKey in enumerate(dDict):
-            if i > 0:
-                sJson += ', ';
-            sJson += '%s: %s' % (ModelDataBase.stringToJson(oKey),
-                                 ModelDataBase.genericToJson(dDict[oKey], dOptions));
-        return sJson + ' }';
-
-    @staticmethod
-    def listToJson(aoList, dOptions = None):
-        """ Converts list of something to a JSON string. """
-        sJson = u'[ ';
-        for i, oValue in enumerate(aoList):
-            if i > 0:
-                sJson += u', ';
-            sJson += ModelDataBase.genericToJson(oValue, dOptions);
-        return sJson + u' ]';
-
-    @staticmethod
-    def datetimeToJson(oDateTime):
-        """ Converts a datetime instance to a JSON string. """
-        return '"%s"' % (oDateTime,);
-
-
-    @staticmethod
-    def genericToJson(oValue, dOptions = None):
-        """ Converts a generic object to a JSON string. """
-        if isinstance(oValue, ModelDataBase):
-            return oValue.toJson();
-        if isinstance(oValue, dict):
-            return ModelDataBase.dictToJson(oValue, dOptions);
-        if isinstance(oValue, (list, tuple, set, frozenset)):
-            return ModelDataBase.listToJson(oValue, dOptions);
-        if isinstance(oValue, datetime.datetime):
-            return ModelDataBase.datetimeToJson(oValue)
-        return json.dumps(oValue);
-
-    def attribValueToJson(self, sAttr, oValue, dOptions = None):
-        """
-        Converts the attribute value to JSON.
-        Returns JSON (string).
-        """
-        _ = sAttr;
-        return self.genericToJson(oValue, dOptions);
-
-    def toJson(self, dOptions = None):
-        """
-        Converts the object to JSON.
-        Returns JSON (string).
-        """
-        sJson = u'{ ';
-        for iAttr, sAttr in enumerate(self.getDataAttributes()):
-            oValue = getattr(self, sAttr);
-            if iAttr > 0:
-                sJson += ', ';
-            sJson += u'"%s": ' % (sAttr,);
-            sJson += self.attribValueToJson(sAttr, oValue, dOptions);
-        return sJson + u' }';
-
 
     #
     # Sub-classes.

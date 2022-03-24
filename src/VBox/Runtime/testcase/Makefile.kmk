@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93419 2022-01-24 18:13:22Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the IPRT testcases.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -62,7 +62,7 @@ PROGRAMS += \
 	tstDir-3 \
 	tstRTDvm \
 	tstRTEnv \
-	tstRTErr-1 \
+	tstRTErrUnique \
 	tstFile \
 	tstRTFileAio \
 	tstRTFileAppend-1 \
@@ -73,7 +73,6 @@ PROGRAMS += \
 	tstFork \
 	tstRTFsQueries \
 	tstRTFilesystem \
-	tstRTExprEval\
 	tstRTGetOpt \
 	tstRTGetOptArgv \
 	tstHandleTable \
@@ -112,7 +111,6 @@ PROGRAMS += \
 	tstPrfRT \
 	tstRand \
 	tstRTReqPool \
-	tstRTSemEvent \
 	tstRTSemEventMulti \
 	tstSemMutex \
 	tstSemPingPong \
@@ -123,8 +121,7 @@ PROGRAMS += \
 	tstRTStrCache \
 	tstRTStrCatCopy \
 	tstRTStrFormat \
-	tstRTStrSplit \
-	tstRTStrSimplePattern \
+	tstStrSimplePattern \
 	tstStrToNum \
 	tstRTStrVersion \
 	tstRTSymlink \
@@ -184,7 +181,7 @@ ifdef VBOX_WITH_LIBCURL
  	tstRTCRest-1 \
  	tstRTS3
 endif
-ifdef VBOX_WITH_R0_MODULES
+if1of ($(KBUILD_TARGET_ARCH), amd64 x86)
  PROGRAMS += \
  	tstLdr-2 \
  	tstLdr-3 \
@@ -254,7 +251,6 @@ tstRTBase64_SOURCES = tstRTBase64.cpp
 tstRTBigNum_TEMPLATE = VBOXR3TSTEXE
 tstRTBigNum_SOURCES = tstRTBigNum.cpp
 tstRTBigNum_SDKS = VBOX_OPENSSL2
-tstRTBigNum_CXXFLAGS.win = -bigobj
 
 tstRTBitOperations_TEMPLATE = VBOXR3TSTEXE
 tstRTBitOperations_SOURCES = tstRTBitOperations.cpp
@@ -354,8 +350,9 @@ tstRTDvm_SOURCES = tstRTDvm.cpp
 tstRTEnv_TEMPLATE = VBOXR3TSTEXE
 tstRTEnv_SOURCES = tstRTEnv.cpp
 
-tstRTErr-1_TEMPLATE = VBOXR3TSTEXE
-tstRTErr-1_SOURCES = tstRTErr-1.cpp
+tstRTErrUnique_SOURCES = tstRTErrUnique.cpp
+tstRTErrUnique_INCS = $(IPRT_OUT_DIR)/
+tstRTErrUnique.cpp_DEPS = $(IPRT_OUT_DIR)/errmsgdata.h # generate by ../Makefile.kmk
 
 tstFile_TEMPLATE = VBOXR3TSTEXE
 tstFile_SOURCES = tstFile.cpp
@@ -389,9 +386,6 @@ tstRTFsQueries_SOURCES = tstRTFsQueries.cpp
 
 tstRTFilesystem_TEMPLATE = VBOXR3TSTEXE
 tstRTFilesystem_SOURCES = tstRTFilesystem.cpp
-
-tstRTExprEval_TEMPLATE = VBOXR3TSTEXE
-tstRTExprEval_SOURCES = tstRTExprEval.cpp
 
 tstRTGetOpt_TEMPLATE = VBOXR3TSTEXE
 tstRTGetOpt_SOURCES = tstRTGetOpt.cpp
@@ -569,9 +563,6 @@ tstOnce_SOURCES = tstOnce.cpp
 tstRTPath_TEMPLATE = VBOXR3TSTEXE
 tstRTPath_SOURCES = tstRTPath.cpp
 
-tstRTPathFindCommon_TEMPLATE = VBOXR3TSTEXE
-tstRTPathFindCommon_SOURCES = tstRTPathFindCommon.cpp
-
 tstRTPathGlob_TEMPLATE = VBOXR3TSTEXE
 tstRTPathGlob_SOURCES = tstRTPathGlob.cpp
 
@@ -619,9 +610,6 @@ tstRTS3_SOURCES = tstRTS3.cpp
 tstSemMutex_TEMPLATE = VBOXR3TSTEXE
 tstSemMutex_SOURCES = tstSemMutex.cpp
 
-tstRTSemEvent_TEMPLATE = VBOXR3TSTEXE
-tstRTSemEvent_SOURCES = tstRTSemEvent.cpp
-
 tstRTSemEventMulti_TEMPLATE = VBOXR3TSTEXE
 tstRTSemEventMulti_SOURCES = tstRTSemEventMulti.cpp
 
@@ -649,11 +637,8 @@ tstRTStrCatCopy_SOURCES = tstRTStrCatCopy.cpp
 tstRTStrFormat_TEMPLATE = VBOXR3TSTEXE
 tstRTStrFormat_SOURCES = tstRTStrFormat.cpp
 
-tstRTStrSplit_TEMPLATE = VBOXR3TSTEXE
-tstRTStrSplit_SOURCES = tstRTStrSplit.cpp
-
-tstRTStrSimplePattern_TEMPLATE = VBOXR3TSTEXE
-tstRTStrSimplePattern_SOURCES = tstRTStrSimplePattern.cpp
+tstStrSimplePattern_TEMPLATE = VBOXR3TSTEXE
+tstStrSimplePattern_SOURCES = tstStrSimplePattern.cpp
 
 tstStrToNum_TEMPLATE = VBOXR3TSTEXE
 tstStrToNum_SOURCES = tstStrToNum.cpp
@@ -782,11 +767,7 @@ tstRTR0DbgKrnlInfo_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0DbgKrnlInfoDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0DbgKrnlInfoDriverHardened_NAME = tstRTR0DbgKrnlInfoDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0DbgKrnlInfoDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0DbgKrnlInfoDriver"
- else
-  tstRTR0DbgKrnlInfoDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0DbgKrnlInfoDriver\"
- endif
+ tstRTR0DbgKrnlInfoDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0DbgKrnlInfoDriver\"
  tstRTR0DbgKrnlInfoDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0DbgKrnlInfoDriver_TEMPLATE = VBoxR3HardenedTstDll
 else
@@ -807,11 +788,7 @@ tstRTR0MemUserKernel_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0MemUserKernelDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0MemUserKernelDriverHardened_NAME = tstRTR0MemUserKernelDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0MemUserKernelDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0MemUserKernelDriver"
- else
-  tstRTR0MemUserKernelDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0MemUserKernelDriver\"
- endif
+ tstRTR0MemUserKernelDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0MemUserKernelDriver\"
  tstRTR0MemUserKernelDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0MemUserKernelDriver_TEMPLATE = VBoxR3HardenedTstDll
 else
@@ -831,11 +808,7 @@ tstRTR0SemMutex_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0SemMutexDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0SemMutexDriverHardened_NAME = tstRTR0SemMutexDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0SemMutexDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0SemMutexDriver"
- else
-  tstRTR0SemMutexDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0SemMutexDriver\"
- endif
+ tstRTR0SemMutexDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0SemMutexDriver\"
  tstRTR0SemMutexDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0SemMutexDriver_TEMPLATE = VBoxR3HardenedTstDll
 else
@@ -855,11 +828,7 @@ tstRTR0Thread_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0ThreadDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0ThreadDriverHardened_NAME = tstRTR0ThreadDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0ThreadDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0ThreadDriver"
- else
-  tstRTR0ThreadDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0ThreadDriver\"
- endif
+ tstRTR0ThreadDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0ThreadDriver\"
  tstRTR0ThreadDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0ThreadDriver_TEMPLATE = VBoxR3HardenedTstDll
 else
@@ -879,11 +848,7 @@ tstRTR0Timer_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0TimerDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0TimerDriverHardened_NAME = tstRTR0TimerDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0TimerDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0TimerDriver"
- else
-  tstRTR0TimerDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0TimerDriver\"
- endif
+ tstRTR0TimerDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0TimerDriver\"
  tstRTR0TimerDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0TimerDriver_TEMPLATE = VBoxR3HardenedTstDll
 else
@@ -903,11 +868,7 @@ tstRTR0ThreadPreemption_LIBS = \
 if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
  tstRTR0ThreadPreemptionDriverHardened_TEMPLATE = VBoxR3HardenedTstExe
  tstRTR0ThreadPreemptionDriverHardened_NAME = tstRTR0ThreadPreemptionDriver
- ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-  tstRTR0ThreadPreemptionDriverHardened_DEFS = PROGRAM_NAME_STR="tstRTR0ThreadPreemptionDriver"
- else
-  tstRTR0ThreadPreemptionDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0ThreadPreemptionDriver\"
- endif
+ tstRTR0ThreadPreemptionDriverHardened_DEFS = PROGRAM_NAME_STR=\"tstRTR0ThreadPreemptionDriver\"
  tstRTR0ThreadPreemptionDriverHardened_SOURCES = ../../HostDrivers/Support/SUPR3HardenedMainTemplateTestcase.cpp
  tstRTR0ThreadPreemptionDriver_TEMPLATE = VBoxR3HardenedTstDll
 else

@@ -1,10 +1,10 @@
-/* $Id: slirp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: slirp.h $ */
 /** @file
  * NAT - slirp (declarations/defines).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -406,9 +406,7 @@ int sscanf(const char *s, const char *format, ...);
 
 # define ip_next(ip) (void *)((uint8_t *)(ip) + ((ip)->ip_hl << 2))
 # define udp_next(udp) (void *)((uint8_t *)&((struct udphdr *)(udp))[1])
-# undef  bcopy
 # define bcopy(src, dst, len) memcpy((dst), (src), (len))
-# undef  bcmp
 # define bcmp(a1, a2, len) memcmp((a1), (a2), (len))
 # define NO_FW_PUNCH
 /* Two wrongs don't make a right, but this at least averts harm. */

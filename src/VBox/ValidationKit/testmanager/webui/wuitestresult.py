@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuitestresult.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: wuitestresult.py $
 
 """
 Test Manager WUI - Test Results.
@@ -7,7 +7,7 @@ Test Manager WUI - Test Results.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 # Python imports.
 import datetime;
@@ -538,7 +538,7 @@ class WuiTestResult(WuiContentBase):
         cSecCfgTimeout = oTestCaseEx.cSecTimeout if oTestVarEx.cSecTimeout is None else oTestVarEx.cSecTimeout;
         cSecEffTimeout = cSecCfgTimeout * oTestBox.pctScaleTimeout / 100;
         aoResultRows.append([ 'Timeout:',
-                              '%s (%s sec)' % (utils.formatIntervalSeconds2(cSecEffTimeout), cSecEffTimeout,) ]);
+                              '%s (%s sec)' % (utils.formatIntervalSeconds(cSecEffTimeout), cSecEffTimeout,) ]);
         if cSecEffTimeout != cSecCfgTimeout:
             aoResultRows.append([ 'Cfg Timeout:',
                                   '%s (%s sec)' % (utils.formatIntervalSeconds(cSecCfgTimeout), cSecCfgTimeout,) ]);
@@ -885,13 +885,7 @@ class WuiGroupedResultList(WuiListContentBase):
         if oEntry.sOsVersion is not None:
             sTestBoxTitle += 'OS version:\t%s\n' % ( oEntry.sOsVersion, );
         asFeatures = [];
-        if oEntry.fCpuHwVirt       is True:
-            if oEntry.sCpuVendor is None:
-                asFeatures.append(u'HW\u2011Virt');
-            elif oEntry.sCpuVendor in ['AuthenticAMD',]:
-                asFeatures.append(u'HW\u2011Virt(AMD\u2011V)');
-            else:
-                asFeatures.append(u'HW\u2011Virt(VT\u2011x)');
+        if oEntry.fCpuHwVirt       is True: asFeatures.append(u'HW\u2011Virt');
         if oEntry.fCpuNestedPaging is True: asFeatures.append(u'Nested\u2011Paging');
         if oEntry.fCpu64BitGuest   is True: asFeatures.append(u'64\u2011bit\u2011Guest');
         #if oEntry.fChipsetIoMmu    is True: asFeatures.append(u'I/O\u2011MMU');

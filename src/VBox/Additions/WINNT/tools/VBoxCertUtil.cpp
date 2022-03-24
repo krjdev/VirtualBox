@@ -1,10 +1,10 @@
-/* $Id: VBoxCertUtil.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxCertUtil.cpp $ */
 /** @file
  * VBoxCertUtil - VBox Certificate Utility - Windows Only.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -101,9 +101,12 @@ static const char *errorToString(DWORD dwErr)
         MY_CASE(CRYPT_E_OSS_ERROR);
         default:
         {
-            static char s_szErr[80];
-            if (RTErrWinQueryDefine(dwErr, s_szErr, sizeof(s_szErr), true /*fFailIfUnknown*/) == VERR_NOT_FOUND)
-                RTStrPrintf(s_szErr, sizeof(s_szErr), "%#x (%d)", dwErr, dwErr);
+            PCRTCOMERRMSG pWinComMsg = RTErrCOMGet(dwErr);
+            if (pWinComMsg)
+                return pWinComMsg->pszDefine;
+
+            static char s_szErr[32];
+            RTStrPrintf(s_szErr, sizeof(s_szErr), "%#x (%d)", dwErr, dwErr);
             return s_szErr;
         }
     }
@@ -403,7 +406,7 @@ static bool addCertToStore(DWORD dwDst, const char *pszStoreNm, const char *pszC
  * Worker for cmdDisplayAll.
  */
 static BOOL WINAPI displaySystemStoreCallback(const void *pvSystemStore, DWORD dwFlags, PCERT_SYSTEM_STORE_INFO pStoreInfo,
-                                              void *pvReserved, void *pvArg) RT_NOTHROW_DEF
+                                              void *pvReserved, void *pvArg)
 {
     RT_NOREF(pvArg);
     if (g_cVerbosityLevel > 1)
@@ -481,8 +484,7 @@ static BOOL WINAPI displaySystemStoreCallback(const void *pvSystemStore, DWORD d
 /**
  * Worker for cmdDisplayAll.
  */
-static BOOL WINAPI
-displaySystemStoreLocation(LPCWSTR pwszStoreLocation, DWORD dwFlags, void *pvReserved, void *pvArg) RT_NOTHROW_DEF
+static BOOL WINAPI displaySystemStoreLocation(LPCWSTR pwszStoreLocation, DWORD dwFlags, void *pvReserved, void *pvArg)
 {
     NOREF(pvReserved); NOREF(pvArg);
     RTPrintf("System store location: %#010x '%ls'\n", dwFlags, pwszStoreLocation);

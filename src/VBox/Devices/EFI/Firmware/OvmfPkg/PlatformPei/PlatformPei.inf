@@ -30,14 +30,12 @@
   FeatureControl.c
   Fv.c
   MemDetect.c
-  MemTypeInfo.c
   Platform.c
   Platform.h
   Xen.c
   Xen.h
 
 [Packages]
-  EmbeddedPkg/EmbeddedPkg.dec
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   SecurityPkg/SecurityPkg.dec
@@ -62,7 +60,6 @@
   PeimEntryPoint
   QemuFwCfgLib
   QemuFwCfgS3Lib
-  QemuFwCfgSimpleParserLib
   MtrrLib
   MemEncryptSevLib
   PcdLib
@@ -76,10 +73,6 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableBase
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableSize
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBase
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageSize
   gUefiOvmfPkgTokenSpaceGuid.PcdGuidedExtractHandlerTableSize
@@ -92,7 +85,6 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Size
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDecompressionScratchEnd
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35TsegMbytes
-  gUefiOvmfPkgTokenSpaceGuid.PcdQ35SmramAtDefaultSmbase
   gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize
@@ -102,37 +94,24 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdDxeIplSwitchToLongMode
   gEfiMdeModulePkgTokenSpaceGuid.PcdUse1GPageTable
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetNxForStack
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPropertiesTableEnable
   gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiS3Enable
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask
-  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase
-  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize
   gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy
   gUefiCpuPkgTokenSpaceGuid.PcdCpuLocalApicBaseAddress
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber
-  gUefiCpuPkgTokenSpaceGuid.PcdCpuBootLogicalProcessorNumber
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuApInitTimeOutInMicroSeconds
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApStackSize
-  gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled
 
 #[FixedPcd]
 #  gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress
-  gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiACPIMemoryNVS
-  gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiACPIReclaimMemory
-  gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiReservedMemoryType
-  gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiRuntimeServicesCode
-  gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiRuntimeServicesData
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBackupBase
-  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBackupSize
-  gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase
-  gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaSize
 
 [FeaturePcd]
-  gUefiOvmfPkgTokenSpaceGuid.PcdCsmEnable
   gUefiOvmfPkgTokenSpaceGuid.PcdSmmSmramRequire
 
 [Ppis]
   gEfiPeiMasterBootModePpiGuid
   gEfiPeiMpServicesPpiGuid
-  gEfiPeiReadOnlyVariable2PpiGuid
 
 [Depex]
   TRUE

@@ -1,10 +1,10 @@
-/* $Id: UIKeyboardHandler.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIKeyboardHandler.h $ */
 /** @file
  * VBox Qt GUI - UIKeyboardHandler class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -116,8 +116,13 @@ protected slots:
     /* Machine state-change handler: */
     virtual void sltMachineStateChanged();
 
+#if QT_VERSION == 0
+    /** Stupid moc does not warn if it cannot find headers! */
+    void QT_VERSION_NOT_DEFINED
+#else
     /** Finalises keyboard capture. */
     void sltFinaliseCaptureKeyboard();
+#endif
 
 protected:
 
@@ -151,7 +156,7 @@ protected:
     bool macKeyboardEvent(const void *pvCocoaEvent, EventRef inEvent);
 #elif defined(VBOX_WS_WIN)
     /** Win: Performs initial pre-processing of all the native keyboard events. */
-    static LRESULT CALLBACK winKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) RT_NOTHROW_PROTO;
+    static LRESULT CALLBACK winKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
     /** Win: Performs initial pre-processing of all the native keyboard events. */
     bool winKeyboardEvent(UINT msg, const KBDLLHOOKSTRUCT &event);
 #endif /* VBOX_WS_WIN */

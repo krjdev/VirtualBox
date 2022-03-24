@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,7 +59,7 @@ RT_C_DECLS_BEGIN
  *                      will close this socket.
  * @param   pvUser      User argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTTCPSERVE,(RTSOCKET hSocket, void *pvUser));
+typedef DECLCALLBACK(int) FNRTTCPSERVE(RTSOCKET hSocket, void *pvUser);
 /** Pointer to a RTTCPSERVE(). */
 typedef FNRTTCPSERVE *PFNRTTCPSERVE;
 

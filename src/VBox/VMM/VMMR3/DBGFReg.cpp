@@ -1,10 +1,10 @@
-/* $Id: DBGFReg.cpp 94261 2022-03-16 01:34:29Z vboxsync $ */
+/* $Id: DBGFReg.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Register Methods.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -571,7 +571,7 @@ DECLINLINE(void) dbgfR3RegValR80SetU64(PDBGFREGVAL pValue, uint64_t u64)
     /** @todo fixme  */
     pValue->r80.s.fSign       = 0;
     pValue->r80.s.uExponent   = 16383;
-    pValue->r80.s.uMantissa   = u64;
+    pValue->r80.s.u64Mantissa = u64;
 }
 
 
@@ -586,7 +586,7 @@ DECLINLINE(void) dbgfR3RegValR80SetU128(PDBGFREGVAL pValue, RTUINT128U u128)
     /** @todo fixme  */
     pValue->r80.s.fSign       = 0;
     pValue->r80.s.uExponent   = 16383;
-    pValue->r80.s.uMantissa   = u128.s.Lo;
+    pValue->r80.s.u64Mantissa = u128.s.Lo;
 }
 
 
@@ -599,7 +599,7 @@ DECLINLINE(void) dbgfR3RegValR80SetU128(PDBGFREGVAL pValue, RTUINT128U u128)
 DECLINLINE(uint64_t) dbgfR3RegValR80GetU64(PCDBGFREGVAL pValue)
 {
     /** @todo stupid, stupid MSC. */
-    return pValue->r80.s.uMantissa;
+    return pValue->r80.s.u64Mantissa;
 }
 
 
@@ -617,7 +617,7 @@ DECLINLINE(RTUINT128U) dbgfR3RegValR80GetU128(PCDBGFREGVAL pValue)
     uRet.s.Lo = (uint64_t)InVal.lrd;
     uRet.s.Hi = (uint64_t)InVal.lrd / _4G / _4G;
 #else
-    uRet.s.Lo = pValue->r80.s.uMantissa;
+    uRet.s.Lo = pValue->r80.s.u64Mantissa;
     uRet.s.Hi = 0;
 #endif
     return uRet;
@@ -2241,52 +2241,6 @@ VMMR3DECL(int) DBGFR3RegNmSet(PUVM pUVM, VMCPUID idDefCpu, const char *pszReg, P
 
 
 /**
- * Set a given set of registers.
- *
- * @returns VBox status code.
- * @retval  VINF_SUCCESS
- * @retval  VERR_INVALID_VM_HANDLE
- * @retval  VERR_INVALID_CPU_ID
- * @retval  VERR_DBGF_REGISTER_NOT_FOUND
- * @retval  VERR_DBGF_UNSUPPORTED_CAST
- * @retval  VINF_DBGF_TRUNCATED_REGISTER
- * @retval  VINF_DBGF_ZERO_EXTENDED_REGISTER
- *
- * @param   pUVM                The user mode VM handle.
- * @param   idDefCpu            The virtual CPU ID for the default CPU register
- *                              set.  Can be OR'ed with DBGFREG_HYPER_VMCPUID.
- * @param   paRegs              The array of registers to set.
- * @param   cRegs               Number of registers in the array.
- *
- * @todo This is a _very_ lazy implementation by a lazy developer, some semantics
-  *      need to be figured out before the real implementation especially how and
-  *      when errors and informational status codes like VINF_DBGF_TRUNCATED_REGISTER
-  *      should be returned (think of an error right in the middle of the batch, should we
-  *      save the state and roll back?).
- */
-VMMR3DECL(int) DBGFR3RegNmSetBatch(PUVM pUVM, VMCPUID idDefCpu, PCDBGFREGENTRYNM paRegs, size_t cRegs)
-{
-    /*
-     * Validate input.
-     */
-    UVM_ASSERT_VALID_EXT_RETURN(pUVM, VERR_INVALID_VM_HANDLE);
-    VM_ASSERT_VALID_EXT_RETURN(pUVM->pVM, VERR_INVALID_VM_HANDLE);
-    AssertReturn((idDefCpu & ~DBGFREG_HYPER_VMCPUID) < pUVM->cCpus || idDefCpu == VMCPUID_ANY, VERR_INVALID_CPU_ID);
-    AssertPtrReturn(paRegs, VERR_INVALID_PARAMETER);
-    AssertReturn(cRegs > 0, VERR_INVALID_PARAMETER);
-
-    for (uint32_t i = 0; i < cRegs; i++)
-    {
-        int rc = DBGFR3RegNmSet(pUVM, idDefCpu, paRegs[i].pszName, &paRegs[i].Val, paRegs[i].enmType);
-        if (RT_FAILURE(rc))
-            return rc;
-    }
-
-    return VINF_SUCCESS;
-}
-
-
-/**
  * Internal worker for DBGFR3RegFormatValue, cbBuf is sufficent.
  *
  * @copydoc DBGFR3RegFormatValueEx
@@ -2437,10 +2391,10 @@ dbgfR3RegPrintfCbFormatField(PDBGFR3REGPRINTFARGS pThis, PFNRTSTROUTPUT pfnOutpu
     int rc = dbgfR3RegNmQueryWorkerOnCpu(pThis->pUVM, pLookupRec, DBGFREGVALTYPE_END, &Value, &enmType);
     if (RT_FAILURE(rc))
     {
-        ssize_t cchDefine = RTErrQueryDefine(rc, szTmp, sizeof(szTmp), true /*fFailIfUnknown*/);
-        if (cchDefine <= 0)
-            cchDefine = RTStrPrintf(szTmp, sizeof(szTmp), "rc=%d", rc);
-        return pfnOutput(pvArgOutput, szTmp, cchDefine);
+        PCRTSTATUSMSG pErr = RTErrGet(rc);
+        if (pErr)
+            return pfnOutput(pvArgOutput, pErr->pszDefine, strlen(pErr->pszDefine));
+        return pfnOutput(pvArgOutput, szTmp, RTStrPrintf(szTmp, sizeof(szTmp), "rc=%d", rc));
     }
 
     char *psz = szTmp;
@@ -2530,10 +2484,10 @@ dbgfR3RegPrintfCbFormatNormal(PDBGFR3REGPRINTFARGS pThis, PFNRTSTROUTPUT pfnOutp
     int rc = dbgfR3RegNmQueryWorkerOnCpu(pThis->pUVM, pLookupRec, DBGFREGVALTYPE_END, &Value, &enmType);
     if (RT_FAILURE(rc))
     {
-        ssize_t cchDefine = RTErrQueryDefine(rc, szTmp, sizeof(szTmp), true /*fFailIfUnknown*/);
-        if (cchDefine <= 0)
-            cchDefine = RTStrPrintf(szTmp, sizeof(szTmp), "rc=%d", rc);
-        return pfnOutput(pvArgOutput, szTmp, cchDefine);
+        PCRTSTATUSMSG pErr = RTErrGet(rc);
+        if (pErr)
+            return pfnOutput(pvArgOutput, pErr->pszDefine, strlen(pErr->pszDefine));
+        return pfnOutput(pvArgOutput, szTmp, RTStrPrintf(szTmp, sizeof(szTmp), "rc=%d", rc));
     }
 
     /*

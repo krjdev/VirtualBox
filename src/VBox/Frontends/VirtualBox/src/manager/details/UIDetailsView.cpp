@@ -1,10 +1,10 @@
-/* $Id: UIDetailsView.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIDetailsView.cpp $ */
 /** @file
  * VBox Qt GUI - UIDetailsView class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,7 +51,7 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE
+    virtual int childCount() const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
@@ -68,7 +68,7 @@ public:
     }
 
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE
+    virtual QAccessibleInterface *child(int iIndex) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
@@ -87,7 +87,7 @@ public:
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), QString());
@@ -153,12 +153,6 @@ void UIDetailsView::prepare()
 {
     /* Install Details-view accessibility interface factory: */
     QAccessible::installFactory(UIAccessibilityInterfaceForUIDetailsView::pFactory);
-
-    /* Prepare palette: */
-    QPalette pal = QApplication::palette();
-    pal.setColor(QPalette::Active, QPalette::Base, pal.color(QPalette::Active, QPalette::Window));
-    pal.setColor(QPalette::Inactive, QPalette::Base, pal.color(QPalette::Inactive, QPalette::Window));
-    setPalette(pal);
 
     /* Setup frame: */
     setFrameShape(QFrame::NoFrame);

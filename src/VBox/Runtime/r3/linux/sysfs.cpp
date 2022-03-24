@@ -1,10 +1,10 @@
-/* $Id: sysfs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: sysfs.cpp $ */
 /** @file
  * IPRT - Linux sysfs access.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -124,22 +124,6 @@ DECLINLINE(int) rtLinuxConstructPath(char *pszBuf, size_t cchBuf,
 DECLINLINE(int) rtLinuxSysFsConstructPath(char *pszBuf, size_t cchBuf, const char *pszFormat, va_list va)
 {
     return rtLinuxConstructPathV(pszBuf, cchBuf, "/sys/", pszFormat, va);
-}
-
-
-RTDECL(int) RTLinuxConstructPathV(char *pszPath, size_t cbPath, const char *pszFormat, va_list va)
-{
-    return rtLinuxSysFsConstructPath(pszPath, cbPath, pszFormat, va);
-}
-
-
-RTDECL(int) RTLinuxConstructPath(char *pszPath, size_t cbPath, const char *pszFormat, ...)
-{
-    va_list va;
-    va_start(va, pszFormat);
-    int rc = rtLinuxSysFsConstructPath(pszPath, cbPath, pszFormat, va);
-    va_end(va);
-    return rc;
 }
 
 

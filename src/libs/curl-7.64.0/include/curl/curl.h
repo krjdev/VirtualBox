@@ -63,13 +63,8 @@
       defined(__LWIP_OPT_H__) || defined(LWIP_HDR_OPT_H))
 /* The check above prevents the winsock2 inclusion if winsock.h already was
    included, since they can't co-exist without problems */
-#  ifdef VBOX
-#   include <iprt/win/winsock2.h>
-#   include <iprt/win/ws2tcpip.h>
-#  else
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#  endif
 #endif
 #endif
 

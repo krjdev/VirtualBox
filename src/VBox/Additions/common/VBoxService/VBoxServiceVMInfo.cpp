@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceVMInfo.cpp 93300 2022-01-18 11:24:12Z vboxsync $ */
+/* $Id: VBoxServiceVMInfo.cpp $ */
 /** @file
  * VBoxService - Virtual Machine Information for the Host.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -995,7 +995,7 @@ static int vgsvcVMInfoWriteNetwork(void)
         return RTErrConvertFromWin32(wsaErr);
     }
 
-    INTERFACE_INFO  aInterfaces[20] = {{0}};
+    INTERFACE_INFO  aInterfaces[20] = {0};
     DWORD           cbReturned      = 0;
 # ifdef RT_ARCH_X86
     /* Workaround for uninitialized variable used in memcpy in GetTcpipInterfaceList

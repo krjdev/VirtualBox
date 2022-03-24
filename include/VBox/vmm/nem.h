@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -99,7 +99,7 @@ VMMR3_INT_DECL(int)  NEMR3NotifyPhysMmioExMapEarly(PVM pVM, RTGCPHYS GCPhys, RTG
 VMMR3_INT_DECL(int)  NEMR3NotifyPhysMmioExMapLate(PVM pVM, RTGCPHYS GCPhys, RTGCPHYS cb, uint32_t fFlags,
                                                   void *pvRam, void *pvMmio2, uint32_t *puNemRange);
 VMMR3_INT_DECL(int)  NEMR3NotifyPhysMmioExUnmap(PVM pVM, RTGCPHYS GCPhys, RTGCPHYS cb, uint32_t fFlags,
-                                                void *pvRam, void *pvMmio2, uint8_t *pu2State, uint32_t *puNemRange);
+                                                void *pvRam, void *pvMmio2, uint8_t *pu2State);
 /** @name Flags for NEMR3NotifyPhysMmioExMap and NEMR3NotifyPhysMmioExUnmap.
  * @{ */
 /** Set if the range is replacing RAM rather that unused space. */
@@ -126,10 +126,9 @@ VMMR3_INT_DECL(int)  NEMR3NotifyPhysMmioExUnmap(PVM pVM, RTGCPHYS GCPhys, RTGCPH
  *                          NULL.
  * @param   fFlags          NEM_NOTIFY_PHYS_ROM_F_XXX.
  * @param   pu2State        New page state or UINT8_MAX to leave as-is.
- * @param   puNemRange      Access to the relevant PGMRAMRANGE::uNemRange field.
  */
 VMMR3_INT_DECL(int)  NEMR3NotifyPhysRomRegisterEarly(PVM pVM, RTGCPHYS GCPhys, RTGCPHYS cb, void *pvPages,
-                                                     uint32_t fFlags, uint8_t *pu2State, uint32_t *puNemRange);
+                                                     uint32_t fFlags, uint8_t *pu2State);
 
 /**
  * Called after the ROM range has been fully completed.
@@ -145,10 +144,9 @@ VMMR3_INT_DECL(int)  NEMR3NotifyPhysRomRegisterEarly(PVM pVM, RTGCPHYS GCPhys, R
  * @param   fFlags          NEM_NOTIFY_PHYS_ROM_F_XXX.
  * @param   pu2State        Where to return the new NEM page state, UINT8_MAX
  *                          for unchanged.
- * @param   puNemRange      Access to the relevant PGMRAMRANGE::uNemRange field.
  */
 VMMR3_INT_DECL(int)  NEMR3NotifyPhysRomRegisterLate(PVM pVM, RTGCPHYS GCPhys, RTGCPHYS cb, void *pvPages,
-                                                    uint32_t fFlags, uint8_t *pu2State, uint32_t *puNemRange);
+                                                    uint32_t fFlags, uint8_t *pu2State);
 
 /** @name Flags for NEMR3NotifyPhysRomRegisterEarly and NEMR3NotifyPhysRomRegisterLate.
  * @{ */
@@ -159,8 +157,6 @@ VMMR3_INT_DECL(int)  NEMR3NotifyPhysRomRegisterLate(PVM pVM, RTGCPHYS GCPhys, RT
 /** @} */
 
 VMMR3_INT_DECL(void) NEMR3NotifySetA20(PVMCPU pVCpu, bool fEnabled);
-VMMR3_INT_DECL(void) NEMR3NotifyDebugEventChanged(PVM pVM);
-VMMR3_INT_DECL(void) NEMR3NotifyDebugEventChangedPerCpu(PVM pVM, PVMCPU pVCpu);
 /** @} */
 
 
@@ -190,18 +186,7 @@ VMMR0_INT_DECL(int)  NEMR0WinGetPartitionId(PGVM pGVM, uintptr_t uHandle);
  * @{
  */
 VMM_INT_DECL(bool) NEMHCIsLongModeAllowed(PVMCC pVM);
-VMM_INT_DECL(uint32_t) NEMHCGetFeatures(PVMCC pVM);
 VMM_INT_DECL(int)  NEMImportStateOnDemand(PVMCPUCC pVCpu, uint64_t fWhat);
-
-/** @name NEM_FEAT_F_XXX - Features supported by the NEM backend
- * @{ */
-/** NEM backend uses nested paging for the guest. */
-#define NEM_FEAT_F_NESTED_PAGING    RT_BIT(0)
-/** NEM backend uses full (unrestricted) guest execution. */
-#define NEM_FEAT_F_FULL_GST_EXEC    RT_BIT(1)
-/** NEM backend offers an xsave/xrstor interface. */
-#define NEM_FEAT_F_XSAVE_XRSTOR     RT_BIT(2)
-/** @} */
 
 VMM_INT_DECL(void) NEMHCNotifyHandlerPhysicalRegister(PVMCC pVM, PGMPHYSHANDLERKIND enmKind, RTGCPHYS GCPhys, RTGCPHYS cb);
 VMM_INT_DECL(void) NEMHCNotifyHandlerPhysicalDeregister(PVMCC pVM, PGMPHYSHANDLERKIND enmKind, RTGCPHYS GCPhys, RTGCPHYS cb,

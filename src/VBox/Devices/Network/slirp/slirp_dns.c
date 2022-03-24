@@ -1,10 +1,10 @@
-/* $Id: slirp_dns.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: slirp_dns.c $ */
 /** @file
  * NAT - dns initialization.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -197,18 +197,11 @@ static int get_dns_addr_domain(PNATState pData)
              * XXX: Note shouldn't patch the address in case of using DNS proxy,
              * because DNS proxy we do revert it back actually.
              */
-            if (   address->IPv4.u == RT_N2H_U32_C(INADDR_LOOPBACK)
-                && pData->fLocalhostReachable)
+            if (address->IPv4.u == RT_N2H_U32_C(INADDR_LOOPBACK))
                 address->IPv4.u = RT_H2N_U32(RT_N2H_U32(pData->special_addr.s_addr) | CTL_ALIAS);
             else if (pData->fUseDnsProxy == 0) {
-                /*
-                 * Either the resolver lives somewhere else on the 127/8 network or the loopback interface
-                 * is blocked for access from the guest, either way switch to the DNS proxy.
-                 */
-                if (pData->fLocalhostReachable)
-                    LogRel(("NAT: DNS server %RTnaipv4 registration detected, switching to the DNS proxy\n", address->IPv4));
-                else
-                    LogRel(("NAT: Switching to DNS proxying due to access to the loopback interface being blocked\n"));
+                /* We detects that using some address in 127/8 network */
+                LogRel(("NAT: DNS server %RTnaipv4 registration detected, switching to the DNS proxy\n", address->IPv4));
                 pData->fUseDnsProxy = 1;
             }
         }

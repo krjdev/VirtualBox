@@ -1,10 +1,10 @@
-/* $Id: AutoLock.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: AutoLock.cpp $ */
 /** @file
  * Automatic locks, implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -86,8 +86,7 @@ void InitAutoLockSystem()
         { LOCKCLASS_LISTOFOTHEROBJECTS, "9-LISTOFOTHEROBJECTS" },
         { LOCKCLASS_OTHEROBJECT,        "10-OTHEROBJECT" },
         { LOCKCLASS_PROGRESSLIST,       "11-PROGRESSLIST" },
-        { LOCKCLASS_OBJECTSTATE,        "12-OBJECTSTATE" },
-        { LOCKCLASS_TRANSLATOR,         "13-TRANSLATOR" }
+        { LOCKCLASS_OBJECTSTATE,        "12-OBJECTSTATE" }
     };
 
     RTLOCKVALCLASS hClass;

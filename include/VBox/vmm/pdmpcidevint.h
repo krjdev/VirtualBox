@@ -1,10 +1,10 @@
-/* $Id: pdmpcidevint.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pdmpcidevint.h $ */
 /** @file
  * DevPCI - PDM PCI Internal header - Only for hiding bits of PDMPCIDEV.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,14 +82,12 @@ typedef PCIIOREGION const *PCPCIIOREGION;
  * @param   cb              The register size. [1,2,4]
  * @param   pu32Value       Where to return the register value.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNPCIBRIDGECONFIGREAD,(PPDMDEVINSR3 pDevIns, uint8_t iBus, uint8_t iDevice,
-                                                              uint32_t u32Address, unsigned cb, uint32_t *pu32Value));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNPCIBRIDGECONFIGREAD(PPDMDEVINSR3 pDevIns, uint8_t iBus, uint8_t iDevice,
+                                                         uint32_t u32Address, unsigned cb, uint32_t *pu32Value);
 /** Pointer to a FNPCICONFIGREAD() function. */
 typedef FNPCIBRIDGECONFIGREAD *PFNPCIBRIDGECONFIGREAD;
-#if !RT_CLANG_PREREQ(11, 0) /* Clang 11 (at least) has trouble with nothrow and pointers to function pointers. */
 /** Pointer to a PFNPCICONFIGREAD. */
 typedef PFNPCIBRIDGECONFIGREAD *PPFNPCIBRIDGECONFIGREAD;
-#endif
 
 /**
  * Callback function for writing to the PCI configuration space.
@@ -103,14 +101,12 @@ typedef PFNPCIBRIDGECONFIGREAD *PPFNPCIBRIDGECONFIGREAD;
  * @param   u32Value        The value that's being written. The number of bits actually used from
  *                          this value is determined by the cb parameter.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNPCIBRIDGECONFIGWRITE,(PPDMDEVINSR3 pDevIns, uint8_t iBus, uint8_t iDevice,
-                                                               uint32_t u32Address, unsigned cb, uint32_t u32Value));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNPCIBRIDGECONFIGWRITE(PPDMDEVINSR3 pDevIns, uint8_t iBus, uint8_t iDevice,
+                                                          uint32_t u32Address, unsigned cb, uint32_t u32Value);
 /** Pointer to a FNPCICONFIGWRITE() function. */
 typedef FNPCIBRIDGECONFIGWRITE *PFNPCIBRIDGECONFIGWRITE;
-#if !RT_CLANG_PREREQ(11, 0) /* Clang 11 (at least) has trouble with nothrow and pointers to function pointers. */
 /** Pointer to a PFNPCICONFIGWRITE. */
 typedef PFNPCIBRIDGECONFIGWRITE *PPFNPCIBRIDGECONFIGWRITE;
-#endif
 
 /* Forward declaration */
 struct DEVPCIBUS;

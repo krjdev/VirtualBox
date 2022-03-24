@@ -6,7 +6,7 @@
 
 **/
 
-#include <PiMm.h>
+#include <PiSmm.h>
 #include <Library/SmiHandlerProfileLib.h>
 
 /**

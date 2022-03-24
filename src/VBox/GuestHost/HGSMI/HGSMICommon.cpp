@@ -1,10 +1,10 @@
-/* $Id: HGSMICommon.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HGSMICommon.cpp $ */
 /** @file
  * VBox Host Guest Shared Memory Interface (HGSMI) - Functions common to both host and guest.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation

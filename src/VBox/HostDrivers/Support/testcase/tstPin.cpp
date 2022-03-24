@@ -1,10 +1,10 @@
-/* $Id: tstPin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstPin.cpp $ */
 /** @file
  * SUP Testcase - Memory locking interface (ring 3).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     int         rcRet = 0;
     RTHCPHYS    HCPhys;
 
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
     rc = SUPR3Init(NULL);
     RTPrintf("SUPR3Init -> rc=%d\n", rc);
     rcRet += rc != 0;
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
          * Simple test.
          */
         void *pv;
-        rc = SUPR3PageAlloc(1, 0, &pv);
+        rc = SUPR3PageAlloc(1, &pv);
         AssertRC(rc);
         RTPrintf("pv=%p\n", pv);
         SUPPAGE aPages[1];
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         for (unsigned i = 0; i < sizeof(aPinnings) / sizeof(aPinnings[0]); i++)
         {
             aPinnings[i].pv = NULL;
-            SUPR3PageAlloc(0x10000 >> PAGE_SHIFT, 0, &aPinnings[i].pv);
+            SUPR3PageAlloc(0x10000 >> PAGE_SHIFT, &aPinnings[i].pv);
             aPinnings[i].pvAligned = RT_ALIGN_P(aPinnings[i].pv, PAGE_SIZE);
             rc = supR3PageLock(aPinnings[i].pvAligned, 0xf000 >> PAGE_SHIFT, &aPinnings[i].aPages[0]);
             if (!rc)
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
         #define BIG_SIZE    72*1024*1024
         #define BIG_SIZEPP  (BIG_SIZE + PAGE_SIZE)
         pv = NULL;
-        SUPR3PageAlloc(BIG_SIZEPP >> PAGE_SHIFT, 0, &pv);
+        SUPR3PageAlloc(BIG_SIZEPP >> PAGE_SHIFT, &pv);
         if (pv)
         {
             static SUPPAGE s_aPages[BIG_SIZE >> PAGE_SHIFT];

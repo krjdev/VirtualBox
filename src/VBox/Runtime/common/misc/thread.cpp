@@ -1,10 +1,10 @@
-/* $Id: thread.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: thread.cpp $ */
 /** @file
  * IPRT - Threads, common routines.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -86,7 +86,7 @@ static PAVLPVNODECORE           g_ThreadTree;
 /** The number of threads in the tree (for ring-0 termination kludge). */
 static uint32_t volatile        g_cThreadInTree;
 /** Counters for each thread type. */
-DECL_HIDDEN_DATA(uint32_t volatile) g_acRTThreadTypeStats[RTTHREADTYPE_END];
+DECLHIDDEN(uint32_t volatile)   g_acRTThreadTypeStats[RTTHREADTYPE_END];
 
 
 /*********************************************************************************************************************************
@@ -303,9 +303,9 @@ RTDECL(int) RTThreadAdopt(RTTHREADTYPE enmType, unsigned fFlags, const char *psz
     int      rc;
     RTTHREAD Thread;
 
-    AssertReturn(!(fFlags & RTTHREADFLAGS_WAITABLE), VERR_INVALID_FLAGS);
-    AssertPtrNullReturn(pszName, VERR_INVALID_POINTER);
-    AssertPtrNullReturn(pThread, VERR_INVALID_POINTER);
+    AssertReturn(!(fFlags & RTTHREADFLAGS_WAITABLE), VERR_INVALID_PARAMETER);
+    AssertReturn(!pszName || VALID_PTR(pszName), VERR_INVALID_POINTER);
+    AssertReturn(!pThread || VALID_PTR(pThread), VERR_INVALID_POINTER);
 
     rc = VINF_SUCCESS;
     Thread = RTThreadSelf();
@@ -551,8 +551,8 @@ DECLHIDDEN(PRTTHREADINT) rtThreadGetByNative(RTNATIVETHREAD NativeThread)
  */
 DECLHIDDEN(PRTTHREADINT) rtThreadGet(RTTHREAD Thread)
 {
-    if (   Thread != NIL_RTTHREAD
-        && RT_VALID_PTR(Thread))
+    if (    Thread != NIL_RTTHREAD
+        &&  VALID_PTR(Thread))
     {
         PRTTHREADINT pThread = (PRTTHREADINT)Thread;
         if (    pThread->u32Magic == RTTHREADINT_MAGIC
@@ -700,7 +700,7 @@ DECLHIDDEN(void) rtThreadTerminate(PRTTHREADINT pThread, int rc)
  * @param   NativeThread    The native thread id.
  * @param   pszThreadName   The name of the thread (purely a dummy for backtrace).
  */
-DECL_HIDDEN_CALLBACK(int) rtThreadMain(PRTTHREADINT pThread, RTNATIVETHREAD NativeThread, const char *pszThreadName)
+DECLCALLBACK(DECLHIDDEN(int)) rtThreadMain(PRTTHREADINT pThread, RTNATIVETHREAD NativeThread, const char *pszThreadName)
 {
     int rc;
     NOREF(pszThreadName);
@@ -769,12 +769,26 @@ RTDECL(int) RTThreadCreate(PRTTHREAD pThread, PFNRTTHREAD pfnThread, void *pvUse
     /*
      * Validate input.
      */
-    AssertPtrNullReturn(pThread, VERR_INVALID_POINTER);
-    AssertPtrReturn(pfnThread, VERR_INVALID_POINTER);
-    AssertMsgReturn(pszName && *pszName != '\0' && strlen(pszName) < RTTHREAD_NAME_LEN,
-                    ("pszName=%s (max len is %d because of logging)\n", pszName, RTTHREAD_NAME_LEN - 1),
-                    VERR_INVALID_PARAMETER);
-    AssertMsgReturn(!(fFlags & ~RTTHREADFLAGS_MASK), ("fFlags=%#x\n", fFlags), VERR_INVALID_FLAGS);
+    if (!VALID_PTR(pThread) && pThread)
+    {
+        Assert(VALID_PTR(pThread));
+        return VERR_INVALID_PARAMETER;
+    }
+    if (!VALID_PTR(pfnThread))
+    {
+        Assert(VALID_PTR(pfnThread));
+        return VERR_INVALID_PARAMETER;
+    }
+    if (!pszName || !*pszName || strlen(pszName) >= RTTHREAD_NAME_LEN)
+    {
+        AssertMsgFailed(("pszName=%s (max len is %d because of logging)\n", pszName, RTTHREAD_NAME_LEN - 1));
+        return VERR_INVALID_PARAMETER;
+    }
+    if (fFlags & ~RTTHREADFLAGS_MASK)
+    {
+        AssertMsgFailed(("fFlags=%#x\n", fFlags));
+        return VERR_INVALID_PARAMETER;
+    }
 
     /*
      * Allocate thread argument.
@@ -997,15 +1011,12 @@ RT_EXPORT_SYMBOL(RTThreadSetName);
  */
 RTDECL(bool) RTThreadIsMain(RTTHREAD hThread)
 {
-    if (hThread != NIL_RTTHREAD)
+    PRTTHREADINT pThread = rtThreadGet(hThread);
+    if (pThread)
     {
-        PRTTHREADINT pThread = rtThreadGet(hThread);
-        if (pThread)
-        {
-            bool fRc = !!(pThread->fIntFlags & RTTHREADINT_FLAGS_MAIN);
-            rtThreadRelease(pThread);
-            return fRc;
-        }
+        bool fRc = !!(pThread->fIntFlags & RTTHREADINT_FLAGS_MAIN);
+        rtThreadRelease(pThread);
+        return fRc;
     }
     return false;
 }

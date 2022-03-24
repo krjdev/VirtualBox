@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,19 +60,6 @@ typedef const RTBLDPROGSTRTAB *PCRTBLDPROGSTRTAB;
 
 
 /**
- * Tries to ensure the buffer is terminated when failing.
- */
-DECLINLINE(ssize_t) RTBldProgStrTabQueryStringFail(int rc, char *pszDstStart, char *pszDst, size_t cbDst)
-{
-    if (cbDst)
-        *pszDst = '\0';
-    else if (pszDstStart != pszDst)
-        pszDst[-1] = '\0';
-    return rc;
-}
-
-
-/**
  * Retrieves the decompressed string.
  *
  * @returns The string size on success, IPRT status code on failure.
@@ -97,14 +84,13 @@ DECLINLINE(ssize_t) RTBldProgStrTabQueryString(PCRTBLDPROGSTRTAB pStrTab, uint32
         const char  *pchSrc = &pStrTab->pchStrTab[offString];
         while (cchString-- > 0)
         {
-            unsigned char uch = *(unsigned char *)pchSrc++;
+            unsigned char uch = *pchSrc++;
             if (!(uch & 0x80))
             {
                 /*
                  * Plain text.
                  */
-                AssertReturn(cbDst > 1, RTBldProgStrTabQueryStringFail(VERR_BUFFER_OVERFLOW, pchDstStart, pszDst, cbDst));
-                cbDst    -= 1;
+                AssertReturn(cbDst > 1, VERR_BUFFER_OVERFLOW);
                 *pszDst++ = (char)uch;
                 Assert(uch != 0);
             }
@@ -115,10 +101,9 @@ DECLINLINE(ssize_t) RTBldProgStrTabQueryString(PCRTBLDPROGSTRTAB pStrTab, uint32
                  */
                 PCRTBLDPROGSTRREF   pWord   = &pStrTab->paCompDict[uch & 0x7f];
                 size_t const        cchWord = pWord->cch;
-                AssertReturn((size_t)pWord->off + cchWord <= pStrTab->cchStrTab,
-                             RTBldProgStrTabQueryStringFail(VERR_INVALID_PARAMETER, pchDstStart, pszDst, cbDst));
-                AssertReturn(cbDst > cchWord,
-                             RTBldProgStrTabQueryStringFail(VERR_BUFFER_OVERFLOW, pchDstStart, pszDst, cbDst));
+                AssertReturn((size_t)pWord->off + cchWord <= pStrTab->cchStrTab, VERR_INVALID_PARAMETER);
+                AssertReturn(cbDst > cchWord, VERR_BUFFER_OVERFLOW);
+
                 memcpy(pszDst, &pStrTab->pchStrTab[pWord->off], cchWord);
                 pszDst += cchWord;
                 cbDst  -= cchWord;
@@ -134,15 +119,14 @@ DECLINLINE(ssize_t) RTBldProgStrTabQueryString(PCRTBLDPROGSTRTAB pStrTab, uint32
                 AssertStmt(RT_SUCCESS(rc), (uc = '?', pchSrc++, cchString--));
 
                 cchCp = RTStrCpSize(uc);
-                AssertReturn(cbDst > cchCp,
-                             RTBldProgStrTabQueryStringFail(VERR_BUFFER_OVERFLOW, pchDstStart, pszDst, cbDst));
+                AssertReturn(cbDst > cchCp, VERR_BUFFER_OVERFLOW);
 
                 RTStrPutCp(pszDst, uc);
                 pszDst += cchCp;
                 cbDst  -= cchCp;
             }
         }
-        AssertReturn(cbDst > 0, RTBldProgStrTabQueryStringFail(VERR_BUFFER_OVERFLOW, pchDstStart, pszDst, cbDst));
+        AssertReturn(cbDst > 0, VERR_BUFFER_OVERFLOW);
         *pszDst = '\0';
         return pszDst - pchDstStart;
     }
@@ -150,88 +134,10 @@ DECLINLINE(ssize_t) RTBldProgStrTabQueryString(PCRTBLDPROGSTRTAB pStrTab, uint32
     /*
      * Not compressed.
      */
-    if (cbDst > cchString)
-    {
-        memcpy(pszDst, &pStrTab->pchStrTab[offString], cchString);
-        pszDst[cchString] = '\0';
-        return (ssize_t)cchString;
-    }
-    if (cbDst > 0)
-    {
-        memcpy(pszDst, &pStrTab->pchStrTab[offString], cbDst - 1);
-        pszDst[cbDst - 1] = '\0';
-    }
-    return VERR_BUFFER_OVERFLOW;
-}
-
-
-/**
- * Outputs the decompressed string.
- *
- * @returns The sum of the pfnOutput return values.
- * @param   pStrTab         The string table.
- * @param   offString       The offset of the string.
- * @param   cchString       The length of the string.
- * @param   pfnOutput       The output function.
- * @param   pvArgOutput     The argument to pass to the output function.
- *
- */
-DECLINLINE(size_t) RTBldProgStrTabQueryOutput(PCRTBLDPROGSTRTAB pStrTab, uint32_t offString, size_t cchString,
-                                              PFNRTSTROUTPUT pfnOutput, void *pvArgOutput)
-{
-    AssertReturn(offString < pStrTab->cchStrTab, 0);
-    AssertReturn(offString + cchString <= pStrTab->cchStrTab, 0);
-
-    if (pStrTab->cCompDict)
-    {
-        /*
-         * Could be compressed, decompress it.
-         */
-        size_t      cchRet = 0;
-        const char *pchSrc = &pStrTab->pchStrTab[offString];
-        while (cchString-- > 0)
-        {
-            unsigned char uch = *(unsigned char *)pchSrc++;
-            if (!(uch & 0x80))
-            {
-                /*
-                 * Plain text.
-                 */
-                Assert(uch != 0);
-                cchRet += pfnOutput(pvArgOutput, (const char *)&uch, 1);
-            }
-            else if (uch != 0xff)
-            {
-                /*
-                 * Dictionary reference. (No UTF-8 unescaping necessary here.)
-                 */
-                PCRTBLDPROGSTRREF   pWord   = &pStrTab->paCompDict[uch & 0x7f];
-                size_t const        cchWord = pWord->cch;
-                AssertReturn((size_t)pWord->off + cchWord <= pStrTab->cchStrTab, cchRet);
-
-                cchRet += pfnOutput(pvArgOutput, &pStrTab->pchStrTab[pWord->off], cchWord);
-            }
-            else
-            {
-                /*
-                 * UTF-8 encoded unicode codepoint.
-                 */
-                const char * const pchUtf8Seq = pchSrc;
-                RTUNICP uc = ' ';
-                int rc = RTStrGetCpNEx(&pchSrc, &cchString, &uc);
-                if (RT_SUCCESS(rc))
-                    cchRet += pfnOutput(pvArgOutput, pchUtf8Seq, (size_t)(pchSrc - pchUtf8Seq));
-                else
-                    cchRet += pfnOutput(pvArgOutput, "?", 1);
-            }
-        }
-        return cchRet;
-    }
-
-    /*
-     * Not compressed.
-     */
-    return pfnOutput(pvArgOutput, &pStrTab->pchStrTab[offString], cchString);
+    AssertReturn(cbDst > cchString, VERR_BUFFER_OVERFLOW);
+    memcpy(pszDst, &pStrTab->pchStrTab[offString], cchString);
+    pszDst[cchString] = '\0';
+    return (ssize_t)cchString;
 }
 
 

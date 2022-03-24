@@ -1,10 +1,10 @@
-/* $Id: QIStyledItemDelegate.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIStyledItemDelegate.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIStyledItemDelegate class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -56,7 +56,7 @@ protected:
       * The @a pParent widget and style @a option are used to control how the editor widget appears. */
     virtual QWidget *createEditor(QWidget *pParent,
                                   const QStyleOptionViewItem &option,
-                                  const QModelIndex &index) const RT_OVERRIDE;
+                                  const QModelIndex &index) const /* override */;
 
 private:
 

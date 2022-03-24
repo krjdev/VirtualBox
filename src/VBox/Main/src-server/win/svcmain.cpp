@@ -1,10 +1,10 @@
-/* $Id: svcmain.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: svcmain.cpp $ */
 /** @file
  * SVCMAIN - COM out-of-proc server main entry
  */
 
 /*
- * Copyright (C) 2004-2022 Oracle Corporation
+ * Copyright (C) 2004-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -96,7 +96,7 @@ volatile uint32_t dwTimeOut = dwNormalTimeout; /* time for EXE to be idle before
 
 
 /** Passed to CreateThread to monitor the shutdown event. */
-static DWORD WINAPI MonitorProc(void *pv) RT_NOTHROW_DEF
+static DWORD WINAPI MonitorProc(void *pv)
 {
     CExeModule *p = (CExeModule *)pv;
     p->MonitorShutdown();
@@ -157,7 +157,7 @@ void CExeModule::MonitorShutdown()
             if (pReleaseLogger)
             {
                 char szDest[1024];
-                int rc = RTLogQueryDestinations(pReleaseLogger, szDest, sizeof(szDest));
+                int rc = RTLogGetDestinations(pReleaseLogger, szDest, sizeof(szDest));
                 if (RT_SUCCESS(rc))
                 {
                     rc = RTStrCat(szDest, sizeof(szDest), " nohistory");
@@ -184,8 +184,8 @@ bool CExeModule::StartMonitor()
     hEventShutdown = CreateEvent(NULL, false, false, NULL);
     if (hEventShutdown == NULL)
         return false;
-    DWORD idThreadIgnored;
-    HANDLE h = CreateThread(NULL, 0, MonitorProc, this, 0, &idThreadIgnored);
+    DWORD dwThreadID;
+    HANDLE h = CreateThread(NULL, 0, MonitorProc, this, 0, &dwThreadID);
     return (h != NULL);
 }
 
@@ -239,8 +239,8 @@ public:
     HRESULT i_getVirtualBox(IUnknown **ppResult);
 
 private:
-    HRESULT i_registerWithSds(IUnknown **ppOtherVirtualBox);
-    void    i_deregisterWithSds(void);
+    HRESULT VirtualBoxClassFactory::i_registerWithSds(IUnknown **ppOtherVirtualBox);
+    void    VirtualBoxClassFactory::i_deregisterWithSds(void);
 
     friend VBoxSVCRegistration;
 };
@@ -593,13 +593,12 @@ STDMETHODIMP VirtualBoxClassFactory::CreateInstance(LPUNKNOWN pUnkOuter, REFIID 
 */
 static BOOL ShutdownBlockReasonCreateAPI(HWND hWnd, LPCWSTR pwszReason)
 {
-    typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNSHUTDOWNBLOCKREASONCREATE,(HWND hWnd, LPCWSTR pwszReason));
-
-    PFNSHUTDOWNBLOCKREASONCREATE pfn
-        = (PFNSHUTDOWNBLOCKREASONCREATE)GetProcAddress(GetModuleHandle(L"User32.dll"), "ShutdownBlockReasonCreate");
-    AssertPtr(pfn);
-
     BOOL fResult = FALSE;
+    typedef BOOL(WINAPI *PFNSHUTDOWNBLOCKREASONCREATE)(HWND hWnd, LPCWSTR pwszReason);
+
+    PFNSHUTDOWNBLOCKREASONCREATE pfn = (PFNSHUTDOWNBLOCKREASONCREATE)GetProcAddress(
+            GetModuleHandle(L"User32.dll"), "ShutdownBlockReasonCreate");
+    AssertPtr(pfn);
     if (pfn)
         fResult = pfn(hWnd, pwszReason);
     return fResult;
@@ -611,12 +610,12 @@ static BOOL ShutdownBlockReasonCreateAPI(HWND hWnd, LPCWSTR pwszReason)
 */
 static BOOL ShutdownBlockReasonDestroyAPI(HWND hWnd)
 {
-    typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNSHUTDOWNBLOCKREASONDESTROY,(HWND hWnd));
-    PFNSHUTDOWNBLOCKREASONDESTROY pfn
-        = (PFNSHUTDOWNBLOCKREASONDESTROY)GetProcAddress(GetModuleHandle(L"User32.dll"), "ShutdownBlockReasonDestroy");
-    AssertPtr(pfn);
-
     BOOL fResult = FALSE;
+    typedef BOOL(WINAPI *PFNSHUTDOWNBLOCKREASONDESTROY)(HWND hWnd);
+
+    PFNSHUTDOWNBLOCKREASONDESTROY pfn = (PFNSHUTDOWNBLOCKREASONDESTROY)GetProcAddress(
+        GetModuleHandle(L"User32.dll"), "ShutdownBlockReasonDestroy");
+    AssertPtr(pfn);
     if (pfn)
         fResult = pfn(hWnd);
     return fResult;
@@ -624,43 +623,24 @@ static BOOL ShutdownBlockReasonDestroyAPI(HWND hWnd)
 
 static LRESULT CALLBACK WinMainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    LRESULT lResult = 0;
-
+    LRESULT rc = 0;
     switch (msg)
     {
         case WM_QUERYENDSESSION:
         {
-            LogRel(("WM_QUERYENDSESSION:%s%s%s%s (0x%08lx)\n",
-                    lParam == 0                  ? " shutdown" : "",
-                    lParam & ENDSESSION_CRITICAL ? " critical" : "",
-                    lParam & ENDSESSION_LOGOFF   ? " logoff"   : "",
-                    lParam & ENDSESSION_CLOSEAPP ? " close"    : "",
-                    (unsigned long)lParam));
             if (g_pModule)
             {
                 bool fActiveConnection = g_pModule->HasActiveConnection();
                 if (fActiveConnection)
                 {
-                    lResult = FALSE;
-                    LogRel(("VBoxSvc has active connections:"
-                            " bActivity = %RTbool, lock count = %d\n",
-                            g_pModule->bActivity, g_pModule->GetLockCount()));
-
                     /* place the VBoxSVC into system shutdown list */
                     ShutdownBlockReasonCreateAPI(hwnd, L"Has active connections.");
                     /* decrease a latency of MonitorShutdown loop */
                     ASMAtomicXchgU32(&dwTimeOut, 100);
-                    Log(("VBoxSVCWinMain: WM_QUERYENDSESSION: VBoxSvc has active connections."
-                         " bActivity = %d. Lock count = %d\n",
+                    Log(("VBoxSVCWinMain: WM_QUERYENDSESSION: VBoxSvc has active connections. bActivity = %d. Loc count = %d\n",
                          g_pModule->bActivity, g_pModule->GetLockCount()));
                 }
-                else
-                {
-                    LogRel(("No active connections:"
-                            " bActivity = %RTbool, lock count = %d\n",
-                            g_pModule->bActivity, g_pModule->GetLockCount()));
-                    lResult = TRUE;
-                }
+                rc = !fActiveConnection;
             }
             else
                 AssertMsgFailed(("VBoxSVCWinMain: WM_QUERYENDSESSION: Error: g_pModule is NULL"));
@@ -668,39 +648,26 @@ static LRESULT CALLBACK WinMainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         }
         case WM_ENDSESSION:
         {
-            LogRel(("WM_ENDSESSION:%s%s%s%s%s (%s/0x%08lx)\n",
-                    lParam == 0                  ? " shutdown"  : "",
-                    lParam & ENDSESSION_CRITICAL ? " critical"  : "",
-                    lParam & ENDSESSION_LOGOFF   ? " logoff"    : "",
-                    lParam & ENDSESSION_CLOSEAPP ? " close"     : "",
-                    wParam == FALSE              ? " cancelled" : "",
-                    wParam ? "TRUE" : "FALSE",
-                    (unsigned long)lParam));
-
             /* Restore timeout of Monitor Shutdown if user canceled system shutdown */
             if (wParam == FALSE)
             {
-                Log(("VBoxSVCWinMain: user canceled system shutdown.\n"));
                 ASMAtomicXchgU32(&dwTimeOut, dwNormalTimeout);
-                ShutdownBlockReasonDestroyAPI(hwnd);
+                Log(("VBoxSVCWinMain: user canceled system shutdown.\n"));
             }
             break;
         }
-
         case WM_DESTROY:
         {
             ShutdownBlockReasonDestroyAPI(hwnd);
             PostQuitMessage(0);
             break;
         }
-
         default:
         {
-            lResult = DefWindowProc(hwnd, msg, wParam, lParam);
-            break;
+            rc = DefWindowProc(hwnd, msg, wParam, lParam);
         }
     }
-    return lResult;
+    return rc;
 }
 
 static int CreateMainWindow()
@@ -725,21 +692,29 @@ static int CreateMainWindow()
     ATOM atomWindowClass = RegisterClass(&wc);
     if (atomWindowClass == 0)
     {
-        LogRel(("Failed to register window class for session monitoring\n"));
+        Log(("Failed to register main window class\n"));
         rc = VERR_NOT_SUPPORTED;
     }
     else
     {
         /* Create the window. */
-        g_hMainWindow = CreateWindowEx(0, MAIN_WND_CLASS, MAIN_WND_CLASS, 0,
+        g_hMainWindow = CreateWindowEx(WS_EX_TOOLWINDOW |  WS_EX_TOPMOST,
+                                       MAIN_WND_CLASS, MAIN_WND_CLASS,
+                                       WS_POPUPWINDOW,
                                        0, 0, 1, 1, NULL, NULL, g_hInstance, NULL);
         if (g_hMainWindow == NULL)
         {
-            LogRel(("Failed to create window for session monitoring\n"));
+            Log(("Failed to create main window\n"));
             rc = VERR_NOT_SUPPORTED;
         }
+        else
+        {
+            SetWindowPos(g_hMainWindow, HWND_TOPMOST, -200, -200, 0, 0,
+                         SWP_NOACTIVATE | SWP_HIDEWINDOW | SWP_NOCOPYBITS | SWP_NOREDRAW | SWP_NOSIZE);
+
+        }
     }
-    return rc;
+    return 0;
 }
 
 
@@ -758,62 +733,6 @@ static void DestroyMainWindow()
         }
     }
 }
-
-
-static const char * const ctrl_event_names[] = {
-    "CTRL_C_EVENT",
-    "CTRL_BREAK_EVENT",
-    "CTRL_CLOSE_EVENT",
-    /* reserved, not used */
-    "<console control event 3>",
-    "<console control event 4>",
-    /* not sent to processes that load gdi32.dll or user32.dll */
-    "CTRL_LOGOFF_EVENT",
-    "CTRL_SHUTDOWN_EVENT",
-};
-
-/** @todo r=uwe placeholder */
-BOOL WINAPI
-ConsoleCtrlHandler(DWORD dwCtrlType) RT_NOTHROW_DEF
-{
-    const char *signame;
-    char namebuf[48];
-    // int rc;
-
-    if (dwCtrlType < RT_ELEMENTS(ctrl_event_names))
-        signame = ctrl_event_names[dwCtrlType];
-    else
-    {
-        /* should not happen, but be prepared */
-        RTStrPrintf(namebuf, sizeof(namebuf),
-                    "<console control event %lu>", (unsigned long)dwCtrlType);
-        signame = namebuf;
-    }
-    LogRel(("Got %s\n", signame));
-
-    if (RT_UNLIKELY(g_pModule == NULL))
-    {
-        LogRel(("%s: g_pModule == NULL\n", __FUNCTION__));
-        return TRUE;
-    }
-
-    /* decrease latency of the MonitorShutdown loop */
-    ASMAtomicXchgU32(&dwTimeOut, 100);
-
-    bool fHasClients = g_pModule->HasActiveConnection();
-    if (!fHasClients)
-    {
-        LogRel(("No clients, closing the shop.\n"));
-        return TRUE;
-    }
-
-    LogRel(("VBoxSvc has clients: bActivity = %RTbool, lock count = %d\n",
-            g_pModule->bActivity, g_pModule->GetLockCount()));
-
-    /** @todo r=uwe wait for clients to disconnect */
-    return TRUE;
-}
-
 
 
 /** Special export that make VBoxProxyStub not register this process as one that
@@ -1074,7 +993,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     }
     else
     {
-
         g_pModule->StartMonitor();
 #if _WIN32_WINNT >= 0x0400
         hRes = g_pModule->RegisterClassObjects(CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE | REGCLS_SUSPENDED);
@@ -1085,16 +1003,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 #endif
         _ASSERTE(SUCCEEDED(hRes));
 
-        /*
-         * Register windows console signal handler to react to Ctrl-C,
-         * Ctrl-Break, Close; but more importantly - to get notified
-         * about shutdown when we are running in the context of the
-         * autostart service - we won't get WM_ENDSESSION in that
-         * case.
-         */
-        ::SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
-
-
         if (RT_SUCCESS(CreateMainWindow()))
             Log(("SVCMain: Main window succesfully created\n"));
         else
@@ -1103,8 +1011,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         MSG msg;
         while (GetMessage(&msg, 0, 0, 0) > 0)
         {
-            TranslateMessage(&msg);
             DispatchMessage(&msg);
+            TranslateMessage(&msg);
         }
 
         DestroyMainWindow();

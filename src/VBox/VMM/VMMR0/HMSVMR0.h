@@ -1,10 +1,10 @@
-/* $Id: HMSVMR0.h 93963 2022-02-28 08:39:08Z vboxsync $ */
+/* $Id: HMSVMR0.h $ */
 /** @file
  * HM SVM (AMD-V) - Internal header file.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ VMMR0DECL(int)          SVMR0GlobalInit(void);
 VMMR0DECL(void)         SVMR0GlobalTerm(void);
 VMMR0DECL(int)          SVMR0Enter(PVMCPUCC pVCpu);
 VMMR0DECL(void)         SVMR0ThreadCtxCallback(RTTHREADCTXEVENT enmEvent, PVMCPUCC pVCpu, bool fGlobalInit);
-VMMR0DECL(int)          SVMR0AssertionCallback(PVMCPUCC pVCpu);
+VMMR0DECL(int)          SVMR0CallRing3Callback(PVMCPUCC pVCpu, VMMCALLRING3 enmOperation);
 VMMR0DECL(int)          SVMR0EnableCpu(PHMPHYSCPU pHostCpu, PVMCC pVM, void *pvPageCpu, RTHCPHYS HCPhysCpuPage,
                                        bool fEnabledBySystem, PCSUPHWVIRTMSRS pHwvirtMsrs);
 VMMR0DECL(int)          SVMR0DisableCpu(PHMPHYSCPU pHostCpu, void *pvPageCpu, RTHCPHYS pPageCpuPhys);
@@ -51,15 +51,26 @@ VMMR0DECL(VBOXSTRICTRC) SVMR0RunGuestCode(PVMCPUCC pVCpu);
 VMMR0DECL(int)          SVMR0ExportHostState(PVMCPUCC pVCpu);
 VMMR0DECL(int)          SVMR0ImportStateOnDemand(PVMCPUCC pVCpu, uint64_t fWhat);
 VMMR0DECL(int)          SVMR0InvalidatePage(PVMCPUCC pVCpu, RTGCPTR GCVirt);
-VMMR0DECL(int)          SVMR0GetExitAuxInfo(PVMCPUCC pVCpu, PSVMEXITAUX pSvmExitAux);
+
+/**
+ * Prepares for and executes VMRUN (64-bit register context).
+ *
+ * @returns VBox status code.
+ * @param   pVMCBHostPhys   Physical address of host VMCB.
+ * @param   pVMCBPhys       Physical address of the VMCB.
+ * @param   pCtx            Pointer to the guest CPU context.
+ * @param   pVM             The cross context VM structure. (Not used.)
+ * @param   pVCpu           The cross context virtual CPU structure. (Not used.)
+ */
+DECLASM(int) SVMR0VMRun(RTHCPHYS pVMCBHostPhys, RTHCPHYS pVMCBPhys, PCPUMCTX pCtx, PVMCC pVM, PVMCPUCC pVCpu);
 
 /**
  * Executes INVLPGA.
  *
- * @param   GCVirt          Virtual page to invalidate.
+ * @param   pPageGC         Virtual page to invalidate.
  * @param   u32ASID         Tagged TLB id.
  */
-DECLASM(void) SVMR0InvlpgA(RTGCPTR GCVirt, uint32_t u32ASID);
+DECLASM(void) SVMR0InvlpgA(RTGCPTR pPageGC, uint32_t u32ASID);
 
 #endif /* IN_RING0 */
 

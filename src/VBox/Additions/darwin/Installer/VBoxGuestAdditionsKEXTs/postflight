@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: postflight 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: postflight $
 ## @file
 # Post flight installer script for the VirtualBox OS X kernel extensions.
 #
 
 #
-# Copyright (C) 2007-2022 Oracle Corporation
+# Copyright (C) 2007-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -46,15 +46,7 @@ load_service()
 }
 
 unload_service "org.virtualbox.additions.vboxservice" "/Library/LaunchDaemons" "root"
-
-# Remove the old service for all users
-for user in $(dscl . -list /Users | grep -v -e'^_' -e'root'); do
-    system_user="YES"
-    test -n "$(dscl . -read /Users/$user NFSHomeDirectory | grep '/Users')" && system_user="NO"
-    if [ "$system_user" = "NO" ]; then
-        unload_service "org.virtualbox.additions.vboxclient" "/Library/LaunchAgents" "$user"
-    fi
-done
+unload_service "org.virtualbox.additions.vboxclient" "/Library/LaunchAgents" "${USER}"
 
 items="VBoxGuest"
 for item in $items; do
@@ -68,25 +60,12 @@ for item in $items; do
     fi
 done
 
-MACOS_VERS=$(sw_vers -productVersion)
-
 echo "Updating kernel cache (should trigger loading of new modules)."
-# /System/Library/Extensions is readonly in Catalina and later,
-# so touch returns always false on these systems
-if [[ ${MACOS_VERS} != 11.* ]] && [[ ${MACOS_VERS} != 10.15.* ]]; then
-    touch "/System/Library/Extensions/"
-fi
+touch "/System/Library/Extensions/"
 kextcache -update-volume / || true
 
 load_service "org.virtualbox.additions.vboxservice" "/Library/LaunchDaemons" "root"
-# Add VBoxClient for all currently defined users
-for user in $(dscl . -list /Users | grep -v -e'^_' -e'root'); do
-    system_user="YES"
-    test -n "$(dscl . -read /Users/$user NFSHomeDirectory | grep '/Users')" && system_user="NO"
-    if [ "$system_user" = "NO" ]; then
-        load_service "org.virtualbox.additions.vboxclient" "/Library/LaunchAgents" "$user"
-    fi
-done
+load_service "org.virtualbox.additions.vboxclient" "/Library/LaunchAgents" "${USER}"
 
 echo "Warning: If VBoxService adjusts the time backwards (because of --biossystemtimeoffset), the installer may hang."
 echo "Done."

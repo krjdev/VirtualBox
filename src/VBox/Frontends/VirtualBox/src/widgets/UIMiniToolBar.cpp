@@ -1,10 +1,10 @@
-/* $Id: UIMiniToolBar.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMiniToolBar.cpp $ */
 /** @file
  * VBox Qt GUI - UIMiniToolBar class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -44,9 +44,9 @@
 #endif
 
 
-/** QIToolBar reimplementation
+/** UIToolBar reimplementation
   * providing UIMiniToolBar with mini-toolbar. */
-class UIMiniToolBarPrivate : public QIToolBar
+class UIMiniToolBarPrivate : public UIToolBar
 {
     Q_OBJECT;
 
@@ -265,7 +265,7 @@ void UIMiniToolBarPrivate::paintEvent(QPaintEvent*)
         painter.setClipPath(m_shape);
     }
     QRect backgroundRect = rect();
-    QColor backgroundColor = QApplication::palette().color(QPalette::Window);
+    QColor backgroundColor = palette().color(QPalette::Window);
     QLinearGradient headerGradient(backgroundRect.bottomLeft(), backgroundRect.topLeft());
     headerGradient.setColorAt(0, backgroundColor.darker(120));
     headerGradient.setColorAt(1, backgroundColor.darker(90));
@@ -560,7 +560,6 @@ void UIMiniToolBar::sltAutoHideToggled()
 {
     /* Propagate from child: */
     setAutoHide(m_pToolbar->autoHide(), false);
-    emit sigAutoHideToggled(m_pToolbar->autoHide());
 }
 
 void UIMiniToolBar::sltHoverEnter()
@@ -817,12 +816,12 @@ void UIMiniToolBar::sltAdjust()
         case GeometryType_Full:
         {
             /* Determine whether we should use the native full-screen mode: */
-            const bool fUseNativeFullScreen =    NativeWindowSubsystem::X11SupportsFullScreenMonitorsProtocol()
-                                              && !gEDataManager->legacyFullscreenModeRequested();
+            const bool fUseNativeFullScreen = UICommon::supportsFullScreenMonitorsProtocolX11() &&
+                                              !gEDataManager->legacyFullscreenModeRequested();
             if (fUseNativeFullScreen)
             {
                 /* Tell recent window managers which host-screen this window should be mapped to: */
-                NativeWindowSubsystem::X11SetFullScreenMonitor(this, iHostScreen);
+                UICommon::setFullScreenMonitorX11(this, iHostScreen);
             }
 
             /* Set appropriate window size: */
@@ -910,7 +909,7 @@ void UIMiniToolBar::prepare()
         m_pToolbar->setAlignment(m_alignment);
         /* Configure own background: */
         QPalette pal = m_pToolbar->palette();
-        pal.setColor(QPalette::Window, QApplication::palette().color(QPalette::Window));
+        pal.setColor(QPalette::Window, palette().color(QPalette::Window));
         m_pToolbar->setPalette(pal);
         /* Configure child connections: */
         connect(m_pToolbar, &UIMiniToolBarPrivate::sigResized, this, &UIMiniToolBar::sltHandleToolbarResize);
@@ -950,8 +949,8 @@ void UIMiniToolBar::prepare()
 
 #ifdef VBOX_WS_X11
     /* Hide mini-toolbar from taskbar and pager: */
-    NativeWindowSubsystem::X11SetSkipTaskBarFlag(this);
-    NativeWindowSubsystem::X11SetSkipPagerFlag(this);
+    uiCommon().setSkipTaskBarFlag(this);
+    uiCommon().setSkipPagerFlag(this);
 #endif
 }
 

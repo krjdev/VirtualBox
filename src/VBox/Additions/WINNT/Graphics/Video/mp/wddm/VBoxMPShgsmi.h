@@ -1,10 +1,10 @@
-/* $Id: VBoxMPShgsmi.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPShgsmi.h $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,12 +32,12 @@ typedef struct VBOXSHGSMI
     HGSMIHEAP Heap;
 } VBOXSHGSMI, *PVBOXSHGSMI;
 
-typedef DECLCALLBACKTYPE(void, FNVBOXSHGSMICMDCOMPLETION,(PVBOXSHGSMI pHeap, void RT_UNTRUSTED_VOLATILE_HOST *pvCmd, void *pvContext));
+typedef DECLCALLBACK(void) FNVBOXSHGSMICMDCOMPLETION(PVBOXSHGSMI pHeap, void RT_UNTRUSTED_VOLATILE_HOST *pvCmd, void *pvContext);
 typedef FNVBOXSHGSMICMDCOMPLETION *PFNVBOXSHGSMICMDCOMPLETION;
 
-typedef DECLCALLBACKTYPE(PFNVBOXSHGSMICMDCOMPLETION, FNVBOXSHGSMICMDCOMPLETION_IRQ,(PVBOXSHGSMI pHeap,
-                                                                                    void RT_UNTRUSTED_VOLATILE_HOST *pvCmd,
-                                                                                    void *pvContext, void **ppvCompletion));
+typedef DECLCALLBACK(PFNVBOXSHGSMICMDCOMPLETION) FNVBOXSHGSMICMDCOMPLETION_IRQ(PVBOXSHGSMI pHeap,
+                                                                               void RT_UNTRUSTED_VOLATILE_HOST *pvCmd,
+                                                                               void *pvContext, void **ppvCompletion);
 typedef FNVBOXSHGSMICMDCOMPLETION_IRQ *PFNVBOXSHGSMICMDCOMPLETION_IRQ;
 
 

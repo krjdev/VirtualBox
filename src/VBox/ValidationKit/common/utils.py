@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: utils.py 94244 2022-03-15 11:59:37Z vboxsync $
+# $Id: utils.py $
 # pylint: disable=too-many-lines
 
 """
@@ -10,7 +10,7 @@ from __future__ import print_function;
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -29,12 +29,11 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94244 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.
 import datetime;
-import errno;
 import os;
 import platform;
 import re;
@@ -213,11 +212,11 @@ def getHostOsVersion():
         sDist = '';
         try:
             # try /etc/lsb-release first to distinguish between Debian and Ubuntu
-            with open('/etc/lsb-release') as oFile:
-                for sLine in oFile:
-                    oMatch = re.search(r'(?:DISTRIB_DESCRIPTION\s*=)\s*"*(.*)"', sLine);
-                    if oMatch is not None:
-                        sDist = oMatch.group(1).strip();
+            oFile = open('/etc/lsb-release');
+            for sLine in oFile:
+                oMatch = re.search(r'(?:DISTRIB_DESCRIPTION\s*=)\s*"*(.*)"', sLine);
+                if oMatch is not None:
+                    sDist = oMatch.group(1).strip();
         except:
             pass;
         if sDist:
@@ -234,8 +233,9 @@ def getHostOsVersion():
             for sFile, sPrefix in asFiles:
                 if os.path.isfile(sFile):
                     try:
-                        with open(sFile) as oFile:
-                            sLine = oFile.readline();
+                        oFile = open(sFile);
+                        sLine = oFile.readline();
+                        oFile.close();
                     except:
                         continue;
                     sLine = sLine.strip()
@@ -247,8 +247,9 @@ def getHostOsVersion():
         sVersion = platform.version();
         if os.path.isfile('/etc/release'):
             try:
-                with open('/etc/release') as oFile:
-                    sLast = oFile.readlines()[-1];
+                oFile = open('/etc/release');
+                sLast = oFile.readlines()[-1];
+                oFile.close();
                 sLast = sLast.strip();
                 if sLast:
                     sVersion += ' (' + sLast + ')';
@@ -267,12 +268,7 @@ def getHostOsVersion():
                      "11": "El Capitan",
                      "12": "Sierra",
                      "13": "High Sierra",
-                     "14": "Mojave",
-                     "15": "Catalina",
-                     "16": "Unknown 16",
-                     "17": "Unknown 17",
-                     "18": "Unknown 18",
-                     "19": "Unknown 19", }
+                     "14": "Unknown 14", }
         sVersion += ' / OS X ' + sOsxVersion + ' (' + codenames[sOsxVersion.split('.')[1]] + ')'
 
     elif sOs == 'win':
@@ -361,7 +357,7 @@ def openNoInherit(sFile, sMode = 'r'):
     # Python 3.4 and later automatically creates non-inherit handles. See PEP-0446.
     uPythonVer = (sys.version_info[0] << 16) | (sys.version_info[1] & 0xffff);
     if uPythonVer >= ((3 << 16) | 4):
-        oFile = open(sFile, sMode);                             # pylint: disable=consider-using-with
+        oFile = open(sFile, sMode);
     else:
         try:
             from fcntl import FD_CLOEXEC, F_GETFD, F_SETFD, fcntl; # pylint: disable=import-error
@@ -371,14 +367,13 @@ def openNoInherit(sFile, sMode = 'r'):
                 if uPythonVer < (3 << 16):
                     offComma = sMode.find(',');
                     if offComma < 0:
-                        return open(sFile, sMode + 'N');        # pylint: disable=consider-using-with
-                    return open(sFile,                          # pylint: disable=consider-using-with,bad-open-mode
-                                sMode[:offComma] + 'N' + sMode[offComma:]);
+                        return open(sFile, sMode + 'N');
+                    return open(sFile, sMode[:offComma] + 'N' + sMode[offComma:]); # pylint: disable=bad-open-mode
 
             # Just in case.
-            return open(sFile, sMode);                          # pylint: disable=consider-using-with
+            return open(sFile, sMode);
 
-        oFile = open(sFile, sMode);                             # pylint: disable=consider-using-with
+        oFile = open(sFile, sMode);
         #try:
         fcntl(oFile, F_SETFD, fcntl(oFile, F_GETFD) | FD_CLOEXEC);
         #except:
@@ -432,19 +427,19 @@ def openNoDenyDeleteNoInherit(sFile, sMode = 'r'):
         if 'a' in sMode:
             fOpen |= os.O_APPEND;
         if 'b' in sMode or 't' in sMode:
-            fOpen |= os.O_TEXT;                                         # pylint: disable=no-member
+            fOpen |= os.O_TEXT;                                                                 # pylint: disable=no-member
         fdFile = msvcrt.open_osfhandle(hDetachedFile, fOpen);
 
         # Tell python to use this handle.
         oFile = os.fdopen(fdFile, sMode);
     else:
-        oFile = open(sFile, sMode);                                     # pylint: disable=consider-using-with
+        oFile = open(sFile, sMode);
 
         # Python 3.4 and later automatically creates non-inherit handles. See PEP-0446.
         uPythonVer = (sys.version_info[0] << 16) | (sys.version_info[1] & 0xffff);
         if uPythonVer < ((3 << 16) | 4):
             try:
-                from fcntl import FD_CLOEXEC, F_GETFD, F_SETFD, fcntl;  # pylint: disable=import-error
+                from fcntl import FD_CLOEXEC, F_GETFD, F_SETFD, fcntl; # pylint: disable=import-error
             except:
                 pass;
             else:
@@ -467,8 +462,9 @@ def readFile(sFile, sMode = 'rb'):
     """
     Reads the entire file.
     """
-    with open(sFile, sMode) as oFile:
-        sRet = oFile.read();
+    oFile = open(sFile, sMode);
+    sRet = oFile.read();
+    oFile.close();
     return sRet;
 
 def noxcptReadFile(sFile, sXcptRet, sMode = 'rb', sEncoding = 'utf-8'):
@@ -672,16 +668,7 @@ def processPopenSafe(*aPositionalArgs, **dKeywordArgs):
     if getHostOs() == 'win':
         if dKeywordArgs.get('creationflags', 0) == 0:
             dKeywordArgs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP;
-    return subprocess.Popen(*aPositionalArgs, **dKeywordArgs);  # pylint: disable=consider-using-with
-
-def processStart(*aPositionalArgs, **dKeywordArgs):
-    """
-    Wrapper around subprocess.Popen to deal with its absence in older
-    python versions.
-    Returns process object on success which can be worked on.
-    """
-    _processFixPythonInterpreter(aPositionalArgs, dKeywordArgs);
-    return processPopenSafe(*aPositionalArgs, **dKeywordArgs);
+    return subprocess.Popen(*aPositionalArgs, **dKeywordArgs);
 
 def processCall(*aPositionalArgs, **dKeywordArgs):
     """
@@ -691,7 +678,8 @@ def processCall(*aPositionalArgs, **dKeywordArgs):
     """
     assert dKeywordArgs.get('stdout') is None;
     assert dKeywordArgs.get('stderr') is None;
-    oProcess = processStart(*aPositionalArgs, **dKeywordArgs);
+    _processFixPythonInterpreter(aPositionalArgs, dKeywordArgs);
+    oProcess = processPopenSafe(*aPositionalArgs, **dKeywordArgs);
     return oProcess.wait();
 
 def processOutputChecked(*aPositionalArgs, **dKeywordArgs):
@@ -728,35 +716,6 @@ def processOutputChecked(*aPositionalArgs, **dKeywordArgs):
         sOutput = sOutput.decode(sEncoding, 'ignore' if fIgnoreEncoding else 'strict');
     return sOutput;
 
-def processOutputUnchecked(*aPositionalArgs, **dKeywordArgs):
-    """
-    Similar to processOutputChecked, but returns status code and both stdout
-    and stderr results.
-
-    Extra keywords for specifying now output is to be decoded:
-        sEncoding='utf-8
-        fIgnoreEncoding=True/False
-    """
-    sEncoding = dKeywordArgs.get('sEncoding');
-    if sEncoding is not None:   del dKeywordArgs['sEncoding'];
-    else:                       sEncoding = 'utf-8';
-
-    fIgnoreEncoding = dKeywordArgs.get('fIgnoreEncoding');
-    if fIgnoreEncoding is not None:   del dKeywordArgs['fIgnoreEncoding'];
-    else:                             fIgnoreEncoding = True;
-
-    _processFixPythonInterpreter(aPositionalArgs, dKeywordArgs);
-    oProcess = processPopenSafe(stdout = subprocess.PIPE, stderr = subprocess.PIPE, *aPositionalArgs, **dKeywordArgs);
-
-    sOutput, sError = oProcess.communicate();
-    iExitCode       = oProcess.poll();
-
-    if hasattr(sOutput, 'decode'):
-        sOutput = sOutput.decode(sEncoding, 'ignore' if fIgnoreEncoding else 'strict');
-    if hasattr(sError, 'decode'):
-        sError = sError.decode(sEncoding, 'ignore' if fIgnoreEncoding else 'strict');
-    return (iExitCode, sOutput, sError);
-
 g_fOldSudo = None;
 def _sudoFixArguments(aPositionalArgs, dKeywordArgs, fInitialEnv = True):
     """
@@ -783,7 +742,7 @@ def _sudoFixArguments(aPositionalArgs, dKeywordArgs, fInitialEnv = True):
                 sVersion = str(processOutputChecked(['sudo', '-V']));
             except:
                 sVersion = '1.7.0';
-            sVersion = sVersion.strip().split('\n', 1)[0];
+            sVersion = sVersion.strip().split('\n')[0];
             sVersion = sVersion.replace('Sudo version', '').strip();
             g_fOldSudo = len(sVersion) >= 4 \
                      and sVersion[0] == '1' \
@@ -804,15 +763,6 @@ def _sudoFixArguments(aPositionalArgs, dKeywordArgs, fInitialEnv = True):
             aPositionalArgs = (asArgs,) + aPositionalArgs[1:];
     return None;
 
-
-def sudoProcessStart(*aPositionalArgs, **dKeywordArgs):
-    """
-    sudo (or similar) + subprocess.Popen,
-    returning the process object on success.
-    """
-    _processFixPythonInterpreter(aPositionalArgs, dKeywordArgs);
-    _sudoFixArguments(aPositionalArgs, dKeywordArgs);
-    return processStart(*aPositionalArgs, **dKeywordArgs);
 
 def sudoProcessCall(*aPositionalArgs, **dKeywordArgs):
     """
@@ -846,34 +796,6 @@ def sudoProcessPopen(*aPositionalArgs, **dKeywordArgs):
     _sudoFixArguments(aPositionalArgs, dKeywordArgs);
     return processPopenSafe(*aPositionalArgs, **dKeywordArgs);
 
-
-def whichProgram(sName, sPath = None):
-    """
-    Works similar to the 'which' utility on unix.
-
-    Returns path to the given program if found.
-    Returns None if not found.
-    """
-    sHost = getHostOs();
-    sSep  = ';' if sHost in [ 'win', 'os2' ] else ':';
-
-    if sPath is None:
-        if sHost == 'win':
-            sPath = os.environ.get('Path', None);
-        else:
-            sPath = os.environ.get('PATH', None);
-        if sPath is None:
-            return None;
-
-    for sDir in sPath.split(sSep):
-        if sDir.strip() != '':
-            sTest = os.path.abspath(os.path.join(sDir, sName));
-        else:
-            sTest = os.path.abspath(sName);
-        if os.path.exists(sTest):
-            return sTest;
-
-    return None;
 
 #
 # Generic process stuff.
@@ -984,8 +906,7 @@ def processExists(uPid):
 
     Returns True if it positively exists, False otherwise.
     """
-    sHostOs = getHostOs();
-    if sHostOs == 'win':
+    if sys.platform == 'win32':
         fRc = False;
         # We try open the process for waiting since this is generally only forbidden in a very few cases.
         try:
@@ -1000,15 +921,11 @@ def processExists(uPid):
             hProcess.Close();
             fRc = True;
     else:
-        fRc = False;
         try:
             os.kill(uPid, 0);
             fRc = True;
-        except OSError as oXcpt:
-            if oXcpt.errno == errno.EPERM:
-                fRc = True;
-        except:
-            pass;
+        except: ## @todo check error code.
+            fRc = False;
     return fRc;
 
 def processCheckPidAndName(uPid, sName):
@@ -1053,7 +970,7 @@ def processCheckPidAndName(uPid, sName):
 
         if asPsCmd is not None:
             try:
-                oPs = subprocess.Popen(asPsCmd, stdout=subprocess.PIPE);    # pylint: disable=consider-using-with
+                oPs = subprocess.Popen(asPsCmd, stdout=subprocess.PIPE);
                 sCurName = oPs.communicate()[0];
                 iExitCode = oPs.wait();
             except:
@@ -1161,9 +1078,6 @@ class ProcessInfo(object):
         if sOs == 'linux':
             sProc = '/proc/%s/' % (self.iPid,);
             if self.sImage   is None: self.sImage = noxcptReadLink(sProc + 'exe', None);
-            if self.sImage   is None:
-                self.sImage = noxcptReadFile(sProc + 'comm', None);
-                if self.sImage: self.sImage = self.sImage.strip();
             if self.sCwd     is None: self.sCwd   = noxcptReadLink(sProc + 'cwd', None);
             if self.asArgs   is None: self.asArgs = noxcptReadFile(sProc + 'cmdline', '').split('\x00');
         #elif sOs == 'solaris': - doesn't work for root processes, suid proces, and other stuff.
@@ -1355,8 +1269,9 @@ def processCollectCrashInfo(uPid, fnLog, fnCrashFile):
                 # The pid can be found at the end of the first line.
                 sFull = os.path.join(sDir, sEntry);
                 try:
-                    with open(sFull, 'r') as oFile:
-                        sFirstLine = oFile.readline();
+                    oFile = open(sFull, 'r');
+                    sFirstLine = oFile.readline();
+                    oFile.close();
                 except:
                     continue;
                 if len(sFirstLine) <= 4 or sFirstLine[-2] != ']':
@@ -1532,32 +1447,9 @@ def getTimePrefixAndIsoTimestamp():
         sTsPrf = sTsIso = 'getTimePrefix-exception';
     return (sTsPrf, sTsIso);
 
-class UtcTzInfo(datetime.tzinfo):
-    """UTC TZ Info Class"""
-    def utcoffset(self, _):
-        return datetime.timedelta(0);
-    def tzname(self, _):
-        return "UTC";
-    def dst(self, _):
-        return datetime.timedelta(0);
-
-class GenTzInfo(datetime.tzinfo):
-    """Generic TZ Info Class"""
-    def __init__(self, offInMin):
-        datetime.tzinfo.__init__(self);
-        self.offInMin = offInMin;
-    def utcoffset(self, _):
-        return datetime.timedelta(minutes = self.offInMin);
-    def tzname(self, _):
-        if self.offInMin >= 0:
-            return "+%02d%02d" % (self.offInMin // 60, self.offInMin % 60);
-        return "-%02d%02d" % (-self.offInMin // 60, -self.offInMin % 60);
-    def dst(self, _):
-        return datetime.timedelta(0);
-
 def formatIsoTimestamp(oNow):
     """Formats the datetime object as an ISO timestamp."""
-    assert oNow.tzinfo is None or isinstance(oNow.tzinfo, UtcTzInfo);
+    assert oNow.tzinfo is None;
     sTs = '%s.%09uZ' % (oNow.strftime('%Y-%m-%dT%H:%M:%S'), oNow.microsecond * 1000);
     return sTs;
 
@@ -1565,104 +1457,6 @@ def getIsoTimestamp():
     """Returns the current UTC timestamp as a string."""
     return formatIsoTimestamp(datetime.datetime.utcnow());
 
-def formatShortIsoTimestamp(oNow):
-    """Formats the datetime object as an ISO timestamp, but w/o microseconds."""
-    assert oNow.tzinfo is None or isinstance(oNow.tzinfo, UtcTzInfo);
-    return oNow.strftime('%Y-%m-%dT%H:%M:%SZ');
-
-def getShortIsoTimestamp():
-    """Returns the current UTC timestamp as a string, but w/o microseconds."""
-    return formatShortIsoTimestamp(datetime.datetime.utcnow());
-
-def convertDateTimeToZulu(oDateTime):
-    """ Converts oDateTime to zulu time if it has timezone info. """
-    if oDateTime.tzinfo is not None:
-        oDateTime = oDateTime.astimezone(UtcTzInfo());
-    else:
-        oDateTime = oDateTime.replace(tzinfo = UtcTzInfo());
-    return oDateTime;
-
-def parseIsoTimestamp(sTs):
-    """
-    Parses a typical ISO timestamp, returing a datetime object, reasonably
-    forgiving, but will throw weird indexing/conversion errors if the input
-    is malformed.
-    """
-    # YYYY-MM-DD
-    iYear  = int(sTs[0:4]);
-    assert(sTs[4] == '-');
-    iMonth = int(sTs[5:7]);
-    assert(sTs[7] == '-');
-    iDay   = int(sTs[8:10]);
-
-    # Skip separator
-    sTime = sTs[10:];
-    while sTime[0] in 'Tt \t\n\r':
-        sTime = sTime[1:];
-
-    # HH:MM[:SS]
-    iHour = int(sTime[0:2]);
-    assert(sTime[2] == ':');
-    iMin  = int(sTime[3:5]);
-    if sTime[5] == ':':
-        iSec = int(sTime[6:8]);
-
-        # Fraction?
-        offTime = 8;
-        iMicroseconds = 0;
-        if offTime < len(sTime) and sTime[offTime] in '.,':
-            offTime += 1;
-            cchFraction = 0;
-            while offTime + cchFraction < len(sTime) and sTime[offTime + cchFraction] in '0123456789':
-                cchFraction += 1;
-            if cchFraction > 0:
-                iMicroseconds = int(sTime[offTime : (offTime + cchFraction)]);
-                offTime += cchFraction;
-                while cchFraction < 6:
-                    iMicroseconds *= 10;
-                    cchFraction += 1;
-                while cchFraction > 6:
-                    iMicroseconds = iMicroseconds // 10;
-                    cchFraction -= 1;
-
-    else:
-        iSec          = 0;
-        iMicroseconds = 0;
-        offTime       = 5;
-
-    # Naive?
-    if offTime >= len(sTime):
-        return datetime.datetime(iYear, iMonth, iDay, iHour, iMin, iSec, iMicroseconds);
-
-    # Zulu?
-    if offTime >= len(sTime) or sTime[offTime] in 'Zz':
-        return datetime.datetime(iYear, iMonth, iDay, iHour, iMin, iSec, iMicroseconds, tzinfo = UtcTzInfo());
-
-    # Some kind of offset afterwards, and strptime is useless. sigh.
-    if sTime[offTime] in '+-':
-        chSign = sTime[offTime];
-        offTime += 1;
-        cMinTz = int(sTime[offTime : (offTime + 2)]) * 60;
-        offTime += 2;
-        if offTime  < len(sTime) and sTime[offTime] in ':':
-            offTime += 1;
-        if offTime + 2 <= len(sTime):
-            cMinTz += int(sTime[offTime : (offTime + 2)]);
-            offTime += 2;
-        assert offTime == len(sTime);
-        if chSign == '-':
-            cMinTz = -cMinTz;
-        return datetime.datetime(iYear, iMonth, iDay, iHour, iMin, iSec, iMicroseconds, tzinfo = GenTzInfo(cMinTz));
-    assert False, sTs;
-    return datetime.datetime(iYear, iMonth, iDay, iHour, iMin, iSec, iMicroseconds);
-
-def normalizeIsoTimestampToZulu(sTs):
-    """
-    Takes a iso timestamp string and normalizes it (basically parseIsoTimestamp
-    + convertDateTimeToZulu + formatIsoTimestamp).
-    Returns ISO tiemstamp string.
-    """
-    return formatIsoTimestamp(convertDateTimeToZulu(parseIsoTimestamp(sTs)));
 
 def getLocalHourOfWeek():
     """ Local hour of week (0 based). """
@@ -2140,7 +1934,7 @@ def unpackZipFile(sArchive, sDstDir, fnLog, fnError = None, fnFilter = None):
     fnLog('Unzipping "%s" to "%s"...' % (sArchive, sDstDir));
 
     # Open it.
-    try: oZipFile = zipfile.ZipFile(sArchive, 'r');             # pylint: disable=consider-using-with
+    try: oZipFile = zipfile.ZipFile(sArchive, 'r')
     except Exception as oXcpt:
         fnError('Error opening "%s" for unpacking into "%s": %s' % (sArchive, sDstDir, oXcpt,));
         return None;
@@ -2223,10 +2017,9 @@ def unpackTarFile(sArchive, sDstDir, fnLog, fnError = None, fnFilter = None):
     #
     try:
         if sys.hexversion >= 0x03060000:
-            oTarFile = tarfile.open(sArchive, 'r|*',                                # pylint: disable=consider-using-with
-                                    bufsize = g_cbGoodBufferSize, copybufsize = g_cbGoodBufferSize);
+            oTarFile = tarfile.open(sArchive, 'r|*', bufsize = g_cbGoodBufferSize, copybufsize = g_cbGoodBufferSize);
         else:
-            oTarFile = tarfile.open(sArchive, 'r|*', bufsize = g_cbGoodBufferSize); # pylint: disable=consider-using-with
+            oTarFile = tarfile.open(sArchive, 'r|*', bufsize = g_cbGoodBufferSize);
     except Exception as oXcpt:
         fnError('Error opening "%s" for unpacking into "%s": %s' % (sArchive, sDstDir, oXcpt,));
         return None;
@@ -2418,25 +2211,6 @@ def areBytesEqual(oLeft, oRight):
     return True;
 
 
-def calcCrc32OfFile(sFile):
-    """
-    Simple helper for calculating the CRC32 of a file.
-
-    Throws stuff if the file cannot be opened or read successfully.
-    """
-    import zlib;
-
-    uCrc32 = 0;
-    with open(sFile, 'rb') as oFile:
-        while True:
-            oBuf = oFile.read(1024 * 1024);
-            if not oBuf:
-                break
-            uCrc32 = zlib.crc32(oBuf, uCrc32);
-
-    return uCrc32 % 2**32;
-
-
 #
 # Unit testing.
 #
@@ -2456,13 +2230,6 @@ class BuildCategoryDataTestCase(unittest.TestCase):
         self.assertEqual(parseIntervalSeconds('1 Z 4'), (5, 'Unknown unit "Z".'));
         self.assertEqual(parseIntervalSeconds('1 hour 2m 5second'), (3725, None));
         self.assertEqual(parseIntervalSeconds('1 hour,2m ; 5second'), (3725, None));
-
-    def testZuluNormalization(self):
-        self.assertEqual(normalizeIsoTimestampToZulu('2011-01-02T03:34:25.000000000Z'), '2011-01-02T03:34:25.000000000Z');
-        self.assertEqual(normalizeIsoTimestampToZulu('2011-01-02T03:04:25-0030'), '2011-01-02T03:34:25.000000000Z');
-        self.assertEqual(normalizeIsoTimestampToZulu('2011-01-02T03:04:25+0030'), '2011-01-02T02:34:25.000000000Z');
-        self.assertEqual(normalizeIsoTimestampToZulu('2020-03-20T20:47:39,832312863+01:00'), '2020-03-20T19:47:39.832312000Z');
-        self.assertEqual(normalizeIsoTimestampToZulu('2020-03-20T20:47:39,832312863-02:00'), '2020-03-20T22:47:39.832312000Z');
 
     def testHasNonAsciiChars(self):
         self.assertEqual(hasNonAsciiCharacters(''), False);

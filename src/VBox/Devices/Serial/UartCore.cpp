@@ -1,4 +1,4 @@
-/* $Id: UartCore.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UartCore.cpp $ */
 /** @file
  * UartCore - UART  (16550A up to 16950) emulation.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -876,7 +876,7 @@ static VBOXSTRICTRC uartXmit(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTCORECC pT
         else
             PDMDevHlpTimerSetRelative(pDevIns, pThis->hTimerTxUnconnected, pThis->cSymbolXferTicks, NULL);
 
-        rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VINF_SUCCESS);
+        PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VINF_SUCCESS);
     }
 #endif
 
@@ -1503,12 +1503,12 @@ DECLHIDDEN(VBOXSTRICTRC) uartRegRead(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTC
 /**
  * @callback_method_impl{FNTMTIMERDEV, Fifo timer function.}
  */
-static DECLCALLBACK(void) uartR3RcvFifoTimeoutTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) uartR3RcvFifoTimeoutTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
-    LogFlowFunc(("pDevIns=%#p hTimer=%#p pvUser=%#p\n", pDevIns, hTimer, pvUser));
+    LogFlowFunc(("pDevIns=%#p pTimer=%#p pvUser=%#p\n", pDevIns, pTimer, pvUser));
     PUARTCORER3 pThisCC = (PUARTCORECC)pvUser;
     PUARTCORE   pThis   = pThisCC->pShared;
-    RT_NOREF(hTimer);
+    RT_NOREF(pTimer);
 
     if (pThis->FifoRecv.cbUsed < pThis->FifoRecv.cbItl)
     {
@@ -1518,18 +1518,17 @@ static DECLCALLBACK(void) uartR3RcvFifoTimeoutTimer(PPDMDEVINS pDevIns, TMTIMERH
 }
 
 /**
- * @callback_method_impl{FNTMTIMERDEV,
- *      TX timer function when there is no driver connected for
- *      draining the THR/FIFO.}
+ * @callback_method_impl{FNTMTIMERDEV, TX timer function when there is no driver connected for draining the THR/FIFO.}
  */
-static DECLCALLBACK(void) uartR3TxUnconnectedTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) uartR3TxUnconnectedTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
-    LogFlowFunc(("pDevIns=%#p hTimer=%#p pvUser=%#p\n", pDevIns, hTimer, pvUser));
+    LogFlowFunc(("pDevIns=%#p pTimer=%#p pvUser=%#p\n", pDevIns, pTimer, pvUser));
     PUARTCORER3 pThisCC = (PUARTCORECC)pvUser;
     PUARTCORE   pThis   = pThisCC->pShared;
-    Assert(hTimer == pThis->hTimerTxUnconnected);
+    RT_NOREF(pTimer);
 
-    VBOXSTRICTRC rc1 = PDMDevHlpTimerLockClock2(pDevIns, hTimer, &pThis->CritSect, VINF_SUCCESS /* must get it */);
+    VBOXSTRICTRC rc1 = PDMDevHlpTimerLockClock2(pDevIns, pThis->hTimerTxUnconnected, &pThis->CritSect,
+                                                VINF_SUCCESS /* must get it */);
     AssertRCReturnVoid(VBOXSTRICTRC_VAL(rc1));
 
     uint8_t bVal = 0;
@@ -1571,14 +1570,14 @@ static DECLCALLBACK(void) uartR3TxUnconnectedTimer(PPDMDEVINS pDevIns, TMTIMERHA
     }
 
     if (cbRead == 1)
-        PDMDevHlpTimerSetRelative(pDevIns, hTimer, pThis->cSymbolXferTicks, NULL);
+        PDMDevHlpTimerSetRelative(pDevIns, pThis->hTimerTxUnconnected, pThis->cSymbolXferTicks, NULL);
     else
     {
         /* NO data left, set the transmitter holding register as empty. */
         UART_REG_SET(pThis->uRegLsr, UART_REG_LSR_TEMT);
     }
 
-    PDMDevHlpTimerUnlockClock2(pDevIns, hTimer, &pThis->CritSect);
+    PDMDevHlpTimerUnlockClock2(pDevIns, pThis->hTimerTxUnconnected, &pThis->CritSect);
 }
 
 
@@ -1597,9 +1596,7 @@ static DECLCALLBACK(int) uartR3DataAvailRdrNotify(PPDMISERIALPORT pInterface, si
 
     AssertMsg((uint32_t)cbAvail == cbAvail, ("Too much data available\n"));
 
-    int rcLock = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rcLock, rcLock);
-
+    PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
     uint32_t cbAvailOld = ASMAtomicAddU32(&pThis->cbAvailRdr, (uint32_t)cbAvail);
     LogFlow(("    cbAvailRdr=%u -> cbAvailRdr=%u\n", cbAvailOld, cbAvail + cbAvailOld));
     if (pThis->uRegFcr & UART_REG_FCR_FIFO_EN)
@@ -1608,16 +1605,12 @@ static DECLCALLBACK(int) uartR3DataAvailRdrNotify(PPDMISERIALPORT pInterface, si
     {
         size_t cbRead = 0;
         int rc = pThisCC->pDrvSerial->pfnReadRdr(pThisCC->pDrvSerial, &pThis->uRegRbr, 1, &cbRead);
-        AssertRC(rc);
-
-        if (cbRead)
-        {
-            UART_REG_SET(pThis->uRegLsr, UART_REG_LSR_DR);
-            uartIrqUpdate(pDevIns, pThis, pThisCC);
-        }
+        AssertMsg(RT_SUCCESS(rc) && cbRead == 1, ("This shouldn't fail and always return one byte!\n")); RT_NOREF(rc);
+        UART_REG_SET(pThis->uRegLsr, UART_REG_LSR_DR);
+        uartIrqUpdate(pDevIns, pThis, pThisCC);
     }
-
     PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
+
     return VINF_SUCCESS;
 }
 
@@ -1633,13 +1626,10 @@ static DECLCALLBACK(int) uartR3DataSentNotify(PPDMISERIALPORT pInterface)
     PPDMDEVINS  pDevIns = pThisCC->pDevIns;
 
     /* Set the transmitter empty bit because everything was sent. */
-    int const rcLock = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rcLock, rcLock);
-
+    PDMCritSectEnter(&pThis->CritSect, VERR_IGNORED);
     UART_REG_SET(pThis->uRegLsr, UART_REG_LSR_TEMT);
     uartIrqUpdate(pDevIns, pThis, pThisCC);
-
-    PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
+    PDMCritSectLeave(&pThis->CritSect);
     return VINF_SUCCESS;
 }
 
@@ -1656,12 +1646,10 @@ static DECLCALLBACK(int) uartR3ReadWr(PPDMISERIALPORT pInterface, void *pvBuf, s
 
     AssertReturn(cbRead > 0, VERR_INVALID_PARAMETER);
 
-    int const rcLock = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rcLock, rcLock);
-
+    PDMCritSectEnter(&pThis->CritSect, VERR_IGNORED);
     uartR3TxQueueCopyFrom(pDevIns, pThis, pThisCC, pvBuf, cbRead, pcbRead);
+    PDMCritSectLeave(&pThis->CritSect);
 
-    PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
     LogFlowFunc(("-> VINF_SUCCESS{*pcbRead=%zu}\n", *pcbRead));
     return VINF_SUCCESS;
 }
@@ -1676,12 +1664,10 @@ static DECLCALLBACK(int) uartR3NotifyStsLinesChanged(PPDMISERIALPORT pInterface,
     PUARTCORECC pThisCC = RT_FROM_MEMBER(pInterface, UARTCORECC, ISerialPort);
     PUARTCORE   pThis   = pThisCC->pShared;
     PPDMDEVINS  pDevIns = pThisCC->pDevIns;
-    int const   rcLock  = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rcLock, rcLock);
 
+    PDMCritSectEnter(&pThis->CritSect, VERR_IGNORED);
     uartR3StsLinesUpdate(pDevIns, pThis, pThisCC, fNewStatusLines);
-
-    PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
+    PDMCritSectLeave(&pThis->CritSect);
     return VINF_SUCCESS;
 }
 
@@ -1695,13 +1681,11 @@ static DECLCALLBACK(int) uartR3NotifyBrk(PPDMISERIALPORT pInterface)
     PUARTCORECC pThisCC = RT_FROM_MEMBER(pInterface, UARTCORECC, ISerialPort);
     PUARTCORE   pThis   = pThisCC->pShared;
     PPDMDEVINS  pDevIns = pThisCC->pDevIns;
-    int const   rcLock  = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rcLock, rcLock);
 
+    PDMCritSectEnter(&pThis->CritSect, VERR_IGNORED);
     UART_REG_SET(pThis->uRegLsr, UART_REG_LSR_BI);
     uartIrqUpdate(pDevIns, pThis, pThisCC);
-
-    PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
+    PDMCritSectLeave(&pThis->CritSect);
     return VINF_SUCCESS;
 }
 
@@ -1959,23 +1943,18 @@ DECLHIDDEN(int) uartR3Attach(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTCORECC pT
             AssertLogRelMsgFailed(("Configuration error: instance %d has no serial interface!\n", pDevIns->iInstance));
             return VERR_PDM_MISSING_INTERFACE;
         }
-        rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-        if (RT_SUCCESS(rc))
-        {
-            uartR3XferReset(pDevIns, pThis, pThisCC);
-            PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
-        }
+        PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
+        uartR3XferReset(pDevIns, pThis, pThisCC);
+        PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
     }
     else if (rc == VERR_PDM_NO_ATTACHED_DRIVER)
     {
         pThisCC->pDrvBase = NULL;
         pThisCC->pDrvSerial = NULL;
-        rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-        if (RT_SUCCESS(rc))
-        {
-            uartR3XferReset(pDevIns, pThis, pThisCC);
-            PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
-        }
+        rc = VINF_SUCCESS;
+        PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
+        uartR3XferReset(pDevIns, pThis, pThisCC);
+        PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
         LogRel(("Serial#%d: no unit\n", pDevIns->iInstance));
     }
     else /* Don't call VMSetError here as we assume that the driver already set an appropriate error */
@@ -1998,12 +1977,7 @@ DECLHIDDEN(void) uartR3Detach(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTCORECC p
     /* Zero out important members. */
     pThisCC->pDrvBase   = NULL;
     pThisCC->pDrvSerial = NULL;
-    int const rcLock = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    PDM_CRITSECT_RELEASE_ASSERT_RC_DEV(pDevIns, &pThis->CritSect, rcLock);
-
     uartR3XferReset(pDevIns, pThis, pThisCC);
-
-    PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
 }
 
 
@@ -2094,7 +2068,7 @@ DECLHIDDEN(int) uartR3Init(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTCORECC pThi
      * Create the receive FIFO character timeout indicator timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL, uartR3RcvFifoTimeoutTimer, pThisCC,
-                              TMTIMER_FLAGS_NO_CRIT_SECT | TMTIMER_FLAGS_RING0, "UART Rcv FIFO",
+                              TMTIMER_FLAGS_NO_CRIT_SECT, "UART Rcv FIFO Timer",
                               &pThis->hTimerRcvFifoTimeout);
     AssertRCReturn(rc, rc);
 
@@ -2105,7 +2079,7 @@ DECLHIDDEN(int) uartR3Init(PPDMDEVINS pDevIns, PUARTCORE pThis, PUARTCORECC pThi
      * Create the transmit timer when no device is connected.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, uartR3TxUnconnectedTimer, pThisCC,
-                              TMTIMER_FLAGS_NO_CRIT_SECT | TMTIMER_FLAGS_NO_RING0, "UART TX unconnect",
+                              TMTIMER_FLAGS_NO_CRIT_SECT, "UART TX uncon. Timer",
                               &pThis->hTimerTxUnconnected);
     AssertRCReturn(rc, rc);
 

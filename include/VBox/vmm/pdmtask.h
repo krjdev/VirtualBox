@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -57,7 +57,7 @@ typedef uint64_t            PDMTASKHANDLE;
  * @remarks The device critical section will NOT be entered before calling the
  *          callback.  No other locks will be held either.
  */
-typedef DECLCALLBACKTYPE(void, FNPDMTASKDEV,(PPDMDEVINS pDevIns, void *pvUser));
+typedef DECLCALLBACK(void) FNPDMTASKDEV(PPDMDEVINS pDevIns, void *pvUser);
 /** Pointer to a FNPDMTASKDEV(). */
 typedef FNPDMTASKDEV *PFNPDMTASKDEV;
 
@@ -69,7 +69,7 @@ typedef FNPDMTASKDEV *PFNPDMTASKDEV;
  * @thread  Task worker thread.
  * @remarks No other locks will be held.
  */
-typedef DECLCALLBACKTYPE(void, FNPDMTASKDRV,(PPDMDRVINS pDrvIns, void *pvUser));
+typedef DECLCALLBACK(void) FNPDMTASKDRV(PPDMDRVINS pDrvIns, void *pvUser);
 /** Pointer to a FNPDMTASKDRV(). */
 typedef FNPDMTASKDRV *PFNPDMTASKDRV;
 
@@ -81,7 +81,7 @@ typedef FNPDMTASKDRV *PFNPDMTASKDRV;
  * @thread  Task worker thread.
  * @remarks No other locks will be held.
  */
-typedef DECLCALLBACKTYPE(void, FNPDMTASKUSB,(PPDMUSBINS pUsbIns, void *pvUser));
+typedef DECLCALLBACK(void) FNPDMTASKUSB(PPDMUSBINS pUsbIns, void *pvUser);
 /** Pointer to a FNPDMTASKUSB(). */
 typedef FNPDMTASKUSB *PFNPDMTASKUSB;
 
@@ -93,7 +93,7 @@ typedef FNPDMTASKUSB *PFNPDMTASKUSB;
  * @thread  Task worker thread.
  * @remarks No other locks will be held.
  */
-typedef DECLCALLBACKTYPE(void, FNPDMTASKINT,(PVM pVM, void *pvUser));
+typedef DECLCALLBACK(void) FNPDMTASKINT(PVM pVM, void *pvUser);
 /** Pointer to a FNPDMTASKINT(). */
 typedef FNPDMTASKINT *PFNPDMTASKINT;
 

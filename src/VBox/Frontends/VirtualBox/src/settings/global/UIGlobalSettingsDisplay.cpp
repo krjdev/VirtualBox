@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsDisplay.cpp 94248 2022-03-15 15:21:28Z vboxsync $ */
+/* $Id: UIGlobalSettingsDisplay.cpp $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsDisplay class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -15,19 +15,11 @@
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
 
-/* Qt includes: */
-#include <QCheckBox>
-#include <QLabel>
-#include <QVBoxLayout>
-
 /* GUI includes: */
 #include "UIDesktopWidgetWatchdog.h"
 #include "UIExtraDataManager.h"
-#include "UIGlobalDisplayFeaturesEditor.h"
 #include "UIGlobalSettingsDisplay.h"
-#include "UIMaximumGuestScreenSizeEditor.h"
 #include "UIMessageCenter.h"
-#include "UIScaleFactorEditor.h"
 
 
 /** Global settings: Display page data structure. */
@@ -35,19 +27,20 @@ struct UIDataSettingsGlobalDisplay
 {
     /** Constructs data. */
     UIDataSettingsGlobalDisplay()
-        : m_fActivateHoveredMachineWindow(false)
-        , m_fDisableHostScreenSaver(false)
+        : m_enmMaxGuestResolution(MaxGuestResolutionPolicy_Automatic)
+        , m_maxGuestResolution(QSize())
+        , m_fActivateHoveredMachineWindow(false)
     {}
 
     /** Returns whether the @a other passed data is equal to this one. */
     bool equal(const UIDataSettingsGlobalDisplay &other) const
     {
-        return    true
-               && (m_guiMaximumGuestScreenSizeValue == other.m_guiMaximumGuestScreenSizeValue)
-               && (m_scaleFactors == other.m_scaleFactors)
+        return true
+               && (m_enmMaxGuestResolution == other.m_enmMaxGuestResolution)
+               && (m_maxGuestResolution == other.m_maxGuestResolution)
                && (m_fActivateHoveredMachineWindow == other.m_fActivateHoveredMachineWindow)
-               && (m_fDisableHostScreenSaver == other.m_fDisableHostScreenSaver)
-                  ;
+               && (m_scaleFactors == other.m_scaleFactors)
+               ;
     }
 
     /** Returns whether the @a other passed data is equal to this one. */
@@ -55,32 +48,27 @@ struct UIDataSettingsGlobalDisplay
     /** Returns whether the @a other passed data is different from this one. */
     bool operator!=(const UIDataSettingsGlobalDisplay &other) const { return !equal(other); }
 
-    /** Holds the maximum guest-screen size value. */
-    UIMaximumGuestScreenSizeValue  m_guiMaximumGuestScreenSizeValue;
-    /** Holds the guest screen scale-factor. */
-    QList<double>                  m_scaleFactors;
+    /** Holds the maximum guest-screen resolution policy. */
+    MaxGuestResolutionPolicy m_enmMaxGuestResolution;
+    /** Holds the maximum guest-screen resolution. */
+    QSize m_maxGuestResolution;
     /** Holds whether we should automatically activate machine window under the mouse cursor. */
-    bool                           m_fActivateHoveredMachineWindow;
-    /** Holds whether we should disable host sceen saver on a vm is running. */
-    bool                           m_fDisableHostScreenSaver;
+    bool m_fActivateHoveredMachineWindow;
+    /** Holds the guest screen scale-factor. */
+    QList<double> m_scaleFactors;
 };
 
 
-/*********************************************************************************************************************************
-*   Class UIGlobalSettingsDisplay implementation.                                                                                *
-*********************************************************************************************************************************/
-
 UIGlobalSettingsDisplay::UIGlobalSettingsDisplay()
     : m_pCache(0)
-    , m_pEditorMaximumGuestScreenSize(0)
-    , m_pEditorScaleFactor(0)
-    , m_pEditorGlobalDisplayFeatures(0)
 {
+    /* Prepare: */
     prepare();
 }
 
 UIGlobalSettingsDisplay::~UIGlobalSettingsDisplay()
 {
+    /* Cleanup: */
     cleanup();
 }
 
@@ -92,16 +80,18 @@ void UIGlobalSettingsDisplay::loadToCacheFrom(QVariant &data)
     /* Clear cache initially: */
     m_pCache->clear();
 
-    /* Cache old data: */
-    UIDataSettingsGlobalDisplay oldData;
-    oldData.m_guiMaximumGuestScreenSizeValue = UIMaximumGuestScreenSizeValue(gEDataManager->maxGuestResolutionPolicy(),
-                                                                             gEDataManager->maxGuestResolutionForPolicyFixed());
-    oldData.m_scaleFactors = gEDataManager->scaleFactors(UIExtraDataManager::GlobalID);
-    oldData.m_fActivateHoveredMachineWindow = gEDataManager->activateHoveredMachineWindow();
-#if defined(VBOX_WS_WIN) || defined(VBOX_WS_X11)
-    oldData.m_fDisableHostScreenSaver = gEDataManager->disableHostScreenSaver();
-#endif /* VBOX_WS_WIN || VBOX_WS_X11 */
-    m_pCache->cacheInitialData(oldData);
+    /* Prepare old display data: */
+    UIDataSettingsGlobalDisplay oldDisplayData;
+
+    /* Gather old display data: */
+    oldDisplayData.m_enmMaxGuestResolution = gEDataManager->maxGuestResolutionPolicy();
+    if (oldDisplayData.m_enmMaxGuestResolution == MaxGuestResolutionPolicy_Fixed)
+        oldDisplayData.m_maxGuestResolution = gEDataManager->maxGuestResolutionForPolicyFixed();
+    oldDisplayData.m_fActivateHoveredMachineWindow = gEDataManager->activateHoveredMachineWindow();
+    oldDisplayData.m_scaleFactors = gEDataManager->scaleFactors(UIExtraDataManager::GlobalID);
+
+    /* Cache old display data: */
+    m_pCache->cacheInitialData(oldDisplayData);
 
     /* Upload properties to data: */
     UISettingsPageGlobal::uploadData(data);
@@ -109,26 +99,35 @@ void UIGlobalSettingsDisplay::loadToCacheFrom(QVariant &data)
 
 void UIGlobalSettingsDisplay::getFromCache()
 {
-    /* Load old data from cache: */
-    const UIDataSettingsGlobalDisplay &oldData = m_pCache->base();
-    m_pEditorMaximumGuestScreenSize->setValue(oldData.m_guiMaximumGuestScreenSizeValue);
-    m_pEditorScaleFactor->setScaleFactors(oldData.m_scaleFactors);
-    m_pEditorScaleFactor->setMonitorCount(gpDesktop->screenCount());
-    m_pEditorGlobalDisplayFeatures->setActivateOnMouseHover(oldData.m_fActivateHoveredMachineWindow);
-    m_pEditorGlobalDisplayFeatures->setDisableHostScreenSaver(oldData.m_fDisableHostScreenSaver);
+    /* Get old display data from the cache: */
+    const UIDataSettingsGlobalDisplay &oldDisplayData = m_pCache->base();
+
+    /* Load old display data from the cache: */
+    m_pMaxResolutionCombo->setCurrentIndex(m_pMaxResolutionCombo->findData((int)oldDisplayData.m_enmMaxGuestResolution));
+    if (oldDisplayData.m_enmMaxGuestResolution == MaxGuestResolutionPolicy_Fixed)
+    {
+        m_pResolutionWidthSpin->setValue(oldDisplayData.m_maxGuestResolution.width());
+        m_pResolutionHeightSpin->setValue(oldDisplayData.m_maxGuestResolution.height());
+    }
+    m_pCheckBoxActivateOnMouseHover->setChecked(oldDisplayData.m_fActivateHoveredMachineWindow);
+    m_pScaleFactorEditor->setScaleFactors(oldDisplayData.m_scaleFactors);
+    m_pScaleFactorEditor->setMonitorCount(gpDesktop->screenCount());
 }
 
 void UIGlobalSettingsDisplay::putToCache()
 {
-    /* Prepare new data: */
-    UIDataSettingsGlobalDisplay newData = m_pCache->base();
+    /* Prepare new display data: */
+    UIDataSettingsGlobalDisplay newDisplayData = m_pCache->base();
 
-    /* Cache new data: */
-    newData.m_guiMaximumGuestScreenSizeValue = m_pEditorMaximumGuestScreenSize->value();
-    newData.m_scaleFactors = m_pEditorScaleFactor->scaleFactors();
-    newData.m_fActivateHoveredMachineWindow = m_pEditorGlobalDisplayFeatures->activateOnMouseHover();
-    newData.m_fDisableHostScreenSaver = m_pEditorGlobalDisplayFeatures->disableHostScreenSaver();
-    m_pCache->cacheCurrentData(newData);
+    /* Gather new display data: */
+    newDisplayData.m_enmMaxGuestResolution = (MaxGuestResolutionPolicy)m_pMaxResolutionCombo->itemData(m_pMaxResolutionCombo->currentIndex()).toInt();
+    if (newDisplayData.m_enmMaxGuestResolution == MaxGuestResolutionPolicy_Fixed)
+        newDisplayData.m_maxGuestResolution = QSize(m_pResolutionWidthSpin->value(), m_pResolutionHeightSpin->value());
+    newDisplayData.m_fActivateHoveredMachineWindow = m_pCheckBoxActivateOnMouseHover->isChecked();
+    newDisplayData.m_scaleFactors = m_pScaleFactorEditor->scaleFactors();
+
+    /* Cache new display data: */
+    m_pCache->cacheCurrentData(newDisplayData);
 }
 
 void UIGlobalSettingsDisplay::saveFromCacheTo(QVariant &data)
@@ -136,8 +135,8 @@ void UIGlobalSettingsDisplay::saveFromCacheTo(QVariant &data)
     /* Fetch data to properties: */
     UISettingsPageGlobal::fetchData(data);
 
-    /* Update data and failing state: */
-    setFailed(!saveData());
+    /* Update display data and failing state: */
+    setFailed(!saveDisplayData());
 
     /* Upload properties to data: */
     UISettingsPageGlobal::uploadData(data);
@@ -145,53 +144,58 @@ void UIGlobalSettingsDisplay::saveFromCacheTo(QVariant &data)
 
 void UIGlobalSettingsDisplay::retranslateUi()
 {
-    /* These editors have own labels, but we want them to be properly layouted according to each other: */
-    int iMinimumLayoutHint = 0;
-    iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorMaximumGuestScreenSize->minimumLabelHorizontalHint());
-    iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorScaleFactor->minimumLabelHorizontalHint());
-    iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorGlobalDisplayFeatures->minimumLabelHorizontalHint());
-    m_pEditorMaximumGuestScreenSize->setMinimumLayoutIndent(iMinimumLayoutHint);
-    m_pEditorScaleFactor->setMinimumLayoutIndent(iMinimumLayoutHint);
-    m_pEditorGlobalDisplayFeatures->setMinimumLayoutIndent(iMinimumLayoutHint);
+    /* Translate uic generated strings: */
+    Ui::UIGlobalSettingsDisplay::retranslateUi(this);
+
+    /* Reload combo-box: */
+    reloadMaximumGuestScreenSizePolicyComboBox();
+}
+
+void UIGlobalSettingsDisplay::sltHandleMaximumGuestScreenSizePolicyChange()
+{
+    /* Get current resolution-combo tool-tip data: */
+    const QString strCurrentComboItemTip = m_pMaxResolutionCombo->itemData(m_pMaxResolutionCombo->currentIndex(), Qt::ToolTipRole).toString();
+    m_pMaxResolutionCombo->setWhatsThis(strCurrentComboItemTip);
+
+    /* Get current resolution-combo item data: */
+    const MaxGuestResolutionPolicy enmPolicy = (MaxGuestResolutionPolicy)m_pMaxResolutionCombo->itemData(m_pMaxResolutionCombo->currentIndex()).toInt();
+    /* Should be combo-level widgets enabled? */
+    const bool fComboLevelWidgetsEnabled = enmPolicy == MaxGuestResolutionPolicy_Fixed;
+    /* Enable/disable combo-level widgets: */
+    m_pResolutionWidthLabel->setEnabled(fComboLevelWidgetsEnabled);
+    m_pResolutionWidthSpin->setEnabled(fComboLevelWidgetsEnabled);
+    m_pResolutionHeightLabel->setEnabled(fComboLevelWidgetsEnabled);
+    m_pResolutionHeightSpin->setEnabled(fComboLevelWidgetsEnabled);
 }
 
 void UIGlobalSettingsDisplay::prepare()
 {
+    /* Apply UI decorations: */
+    Ui::UIGlobalSettingsDisplay::setupUi(this);
+
     /* Prepare cache: */
     m_pCache = new UISettingsCacheGlobalDisplay;
     AssertPtrReturnVoid(m_pCache);
 
-    /* Prepare everything: */
-    prepareWidgets();
+    /* Layout/widgets created in the .ui file. */
+    AssertPtrReturnVoid(m_pResolutionWidthSpin);
+    AssertPtrReturnVoid(m_pResolutionHeightSpin);
+    AssertPtrReturnVoid(m_pMaxResolutionCombo);
+    {
+        /* Configure widgets: */
+        const int iMinWidth = 640;
+        const int iMinHeight = 480;
+        const int iMaxSize = 16 * _1K;
+        m_pResolutionWidthSpin->setMinimum(iMinWidth);
+        m_pResolutionWidthSpin->setMaximum(iMaxSize);
+        m_pResolutionHeightSpin->setMinimum(iMinHeight);
+        m_pResolutionHeightSpin->setMaximum(iMaxSize);
+        connect(m_pMaxResolutionCombo, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),
+                this, &UIGlobalSettingsDisplay::sltHandleMaximumGuestScreenSizePolicyChange);
+    }
 
     /* Apply language settings: */
     retranslateUi();
-}
-
-void UIGlobalSettingsDisplay::prepareWidgets()
-{
-    /* Prepare main layout: */
-    QVBoxLayout *pLayout = new QVBoxLayout(this);
-    if (pLayout)
-    {
-        /* Prepare maximum guest screen size editor: */
-        m_pEditorMaximumGuestScreenSize = new UIMaximumGuestScreenSizeEditor(this);
-        if (m_pEditorMaximumGuestScreenSize)
-            pLayout->addWidget(m_pEditorMaximumGuestScreenSize);
-
-        /* Prepare scale-factor editor: */
-        m_pEditorScaleFactor = new UIScaleFactorEditor(this, true /* with label */);
-        if (m_pEditorScaleFactor)
-            pLayout->addWidget(m_pEditorScaleFactor);
-
-        /* Prepare global display features editor: */
-        m_pEditorGlobalDisplayFeatures = new UIGlobalDisplayFeaturesEditor(this);
-        if (m_pEditorGlobalDisplayFeatures)
-            pLayout->addWidget(m_pEditorGlobalDisplayFeatures);
-
-        /* Add stretch to the end: */
-        pLayout->addStretch();
-    }
 }
 
 void UIGlobalSettingsDisplay::cleanup()
@@ -201,38 +205,63 @@ void UIGlobalSettingsDisplay::cleanup()
     m_pCache = 0;
 }
 
-bool UIGlobalSettingsDisplay::saveData()
+void UIGlobalSettingsDisplay::reloadMaximumGuestScreenSizePolicyComboBox()
+{
+    /* Remember current position: */
+    int iCurrentPosition = m_pMaxResolutionCombo->currentIndex();
+    if (iCurrentPosition == -1)
+        iCurrentPosition = 0;
+
+    /* Clear combo-box: */
+    m_pMaxResolutionCombo->clear();
+
+    /* Create corresponding items: */
+    m_pMaxResolutionCombo->addItem(tr("Automatic", "Maximum Guest Screen Size"),
+                                   QVariant((int)MaxGuestResolutionPolicy_Automatic));
+    m_pMaxResolutionCombo->setItemData(m_pMaxResolutionCombo->count() - 1,
+                                       tr("Suggest a reasonable maximum screen size to the guest. "
+                                          "The guest will only see this suggestion when guest additions are installed."),
+                                       Qt::ToolTipRole);
+    m_pMaxResolutionCombo->addItem(tr("None", "Maximum Guest Screen Size"),
+                                   QVariant((int)MaxGuestResolutionPolicy_Any));
+    m_pMaxResolutionCombo->setItemData(m_pMaxResolutionCombo->count() - 1,
+                                       tr("Do not attempt to limit the size of the guest screen."),
+                                       Qt::ToolTipRole);
+    m_pMaxResolutionCombo->addItem(tr("Hint", "Maximum Guest Screen Size"),
+                                   QVariant((int)MaxGuestResolutionPolicy_Fixed));
+    m_pMaxResolutionCombo->setItemData(m_pMaxResolutionCombo->count() - 1,
+                                       tr("Suggest a maximum screen size to the guest. "
+                                          "The guest will only see this suggestion when guest additions are installed."),
+                                       Qt::ToolTipRole);
+
+    /* Choose previous position: */
+    m_pMaxResolutionCombo->setCurrentIndex(iCurrentPosition);
+    sltHandleMaximumGuestScreenSizePolicyChange();
+}
+
+bool UIGlobalSettingsDisplay::saveDisplayData()
 {
     /* Prepare result: */
     bool fSuccess = true;
-    /* Save display settings from cache: */
-    if (   fSuccess
-        && m_pCache->wasChanged())
+    /* Save display settings from the cache: */
+    if (fSuccess && m_pCache->wasChanged())
     {
-        /* Get old data from cache: */
-        const UIDataSettingsGlobalDisplay &oldData = m_pCache->base();
-        /* Get new data from cache: */
-        const UIDataSettingsGlobalDisplay &newData = m_pCache->data();
+        /* Get old display data from the cache: */
+        const UIDataSettingsGlobalDisplay &oldDisplayData = m_pCache->base();
+        /* Get new display data from the cache: */
+        const UIDataSettingsGlobalDisplay &newDisplayData = m_pCache->data();
 
-        /* Save maximum guest screen size and policy: */
+        /* Save maximum guest resolution policy and/or value: */
         if (   fSuccess
-            && newData.m_guiMaximumGuestScreenSizeValue != oldData.m_guiMaximumGuestScreenSizeValue)
-            /* fSuccess = */ gEDataManager->setMaxGuestScreenResolution(newData.m_guiMaximumGuestScreenSizeValue.m_enmPolicy,
-                                                                        newData.m_guiMaximumGuestScreenSizeValue.m_size);
-        /* Save guest-screen scale-factor: */
-        if (   fSuccess
-            && newData.m_scaleFactors != oldData.m_scaleFactors)
-            /* fSuccess = */ gEDataManager->setScaleFactors(newData.m_scaleFactors, UIExtraDataManager::GlobalID);
+            && (   newDisplayData.m_enmMaxGuestResolution != oldDisplayData.m_enmMaxGuestResolution
+                || newDisplayData.m_maxGuestResolution != oldDisplayData.m_maxGuestResolution))
+            gEDataManager->setMaxGuestScreenResolution(newDisplayData.m_enmMaxGuestResolution, newDisplayData.m_maxGuestResolution);
         /* Save whether hovered machine-window should be activated automatically: */
-        if (   fSuccess
-            && newData.m_fActivateHoveredMachineWindow != oldData.m_fActivateHoveredMachineWindow)
-            /* fSuccess = */ gEDataManager->setActivateHoveredMachineWindow(newData.m_fActivateHoveredMachineWindow);
-#if defined(VBOX_WS_WIN) || defined(VBOX_WS_X11)
-        /* Save whether the host screen saver is to be disable when a vm is running: */
-        if (   fSuccess
-            && newData.m_fDisableHostScreenSaver != oldData.m_fDisableHostScreenSaver)
-            /* fSuccess = */ gEDataManager->setDisableHostScreenSaver(newData.m_fDisableHostScreenSaver);
-#endif /* VBOX_WS_WIN || VBOX_WS_X11 */
+        if (fSuccess && newDisplayData.m_fActivateHoveredMachineWindow != oldDisplayData.m_fActivateHoveredMachineWindow)
+            gEDataManager->setActivateHoveredMachineWindow(newDisplayData.m_fActivateHoveredMachineWindow);
+        /* Save guest-screen scale-factor: */
+        if (fSuccess && newDisplayData.m_scaleFactors != oldDisplayData.m_scaleFactors)
+            gEDataManager->setScaleFactors(newDisplayData.m_scaleFactors, UIExtraDataManager::GlobalID);
     }
     /* Return result: */
     return fSuccess;

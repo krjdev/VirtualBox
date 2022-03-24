@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 3349 2020-05-23 09:54:19Z bird $
+# $Id: qt5.kmk 3301 2019-11-05 11:07:00Z bird $
 ## @file
 # Qt 5 unit.
 #
@@ -381,25 +381,14 @@ TOOL_QT5_MOC_CPP_DEPEND =
 TOOL_QT5_MOC_CPP_DEPORD =
 TOOL_QT5_MOC_CPP_OUTPUT =
 TOOL_QT5_MOC_CPP_OUTPUT_MAYBE =
-ifdef KMK_WITH_QUOTING
- define TOOL_QT5_MOC_CPP_CMDS
-	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
-		$(flags)\
-		$(qaddprefix sh,-I, $(incs))\
-		$(qaddprefix sh,-D, $(defs))\
-		-o $(out)\
-		$(source)
- endef
-else
- define TOOL_QT5_MOC_CPP_CMDS
+define TOOL_QT5_MOC_CPP_CMDS
 	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
 		$(addprefix -I, $(incs))\
 		$(addprefix -D, $(defs))\
 		-o $(out)\
 		$(source)
- endef
-endif
+endef
 
 ## MOC a C++ header file.
 # @param    $(target)   Normalized main target name.
@@ -415,25 +404,14 @@ TOOL_QT5_MOC_HPP_DEPEND =
 TOOL_QT5_MOC_HPP_DEPORD =
 TOOL_QT5_MOC_HPP_OUTPUT =
 TOOL_QT5_MOC_HPP_OUTPUT_MAYBE =
-ifdef KMK_WITH_QUOTING
- define TOOL_QT5_MOC_HPP_CMDS
-	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
-		$(flags)\
-		$(qaddprefix sh,-I, $(incs))\
-		$(qaddprefix sh,-D, $(defs))\
-		-o $(out)\
-		$(source)
- endef
-else
- define TOOL_QT5_MOC_HPP_CMDS
+define TOOL_QT5_MOC_HPP_CMDS
 	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
 		$(addprefix -I, $(incs))\
 		$(addprefix -D, $(defs))\
 		-o $(out)\
 		$(source)
- endef
-endif
+endef
 
 ## Compile a Qt user interface file (.ui).
 # @param    $(target)   Normalized main target name.
@@ -594,15 +572,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- ifdef KMK_WITH_QUOTING
-local source    := $(qabspathex ,$(source),$(defpath))
-local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
-local incs      := $(qabspathex ,$(incs),$(defpath))
- else
 local source    := $(abspathex $(source),$(defpath))
 local deps      := $(abspathex $(deps),$(defpath)) $(source)
 local incs      := $(abspathex $(incs),$(defpath))
- endif
 else
 local deps      += $(source)
 endif
@@ -694,15 +666,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- ifdef KMK_WITH_QUOTING
-local source    := $(qabspathex ,$(source),$(defpath))
-local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
-local incs      := $(qabspathex ,$(incs),$(defpath))
- else
 local source    := $(abspathex $(source),$(defpath))
 local deps      := $(abspathex $(deps),$(defpath)) $(source)
 local incs      := $(abspathex $(incs),$(defpath))
- endif
 else
 local deps      += $(source)
 endif
@@ -793,15 +759,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- ifdef KMK_WITH_QUOTING
-local source    := $(qabspathex ,$(source),$(defpath))
-local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
-local incs      := $(qabspathex ,$(incs),$(defpath))
- else
 local source    := $(abspathex $(source),$(defpath))
 local deps      := $(abspathex $(deps),$(defpath)) $(source)
 local incs      := $(abspathex $(incs),$(defpath))
- endif
 else
 local deps      += $(source)
 endif
@@ -900,15 +860,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- ifdef KMK_WITH_QUOTING
-local source    := $(qabspathex ,$(source),$(defpath))
-local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
-local incs      := $(qabspathex ,$(incs),$(defpath))
- else
 local source    := $(abspathex $(source),$(defpath))
 local deps      := $(abspathex $(deps),$(defpath)) $(source)
 local incs      := $(abspathex $(incs),$(defpath))
- endif
 else
 local deps      += $(source)
 endif
@@ -1002,15 +956,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- ifdef KMK_WITH_QUOTING
-local source    := $(qabspathex ,$(source),$(defpath))
-local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
-local incs      := $(qabspathex ,$(incs),$(defpath))
- else
 local source    := $(abspathex $(source),$(defpath))
 local deps      := $(abspathex $(deps),$(defpath)) $(source)
 local incs      := $(abspathex $(incs),$(defpath))
- endif
 else
 local deps      += $(source)
 endif

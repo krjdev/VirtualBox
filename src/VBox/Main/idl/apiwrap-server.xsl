@@ -170,7 +170,7 @@ public:
     <xsl:text>    END_COM_MAP()
 
 </xsl:text>
-    <xsl:value-of select="concat('    DECLARE_COMMON_CLASS_METHODS(', substring(@name, 2), 'Wrap)', $G_sNewLine)"/>
+    <xsl:value-of select="concat('    DECLARE_EMPTY_CTOR_DTOR(', substring(@name, 2), 'Wrap)', $G_sNewLine)"/>
 </xsl:template>
 
 <xsl:template match="interface" mode="classfooter">
@@ -1806,7 +1806,7 @@ Returns empty if not needed, non-empty ('yes') if needed. -->
     </xsl:for-each>
     <xsl:text>)
 {
-    LogRelFlow(("{%p} %s: enter</xsl:text>
+    LogRelFlow(("{%p} %s:enter</xsl:text>
     <xsl:for-each select="param">
         <xsl:text> </xsl:text>
         <xsl:apply-templates select="@type" mode="logparamtext">

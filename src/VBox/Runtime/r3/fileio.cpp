@@ -1,10 +1,10 @@
-/* $Id: fileio.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fileio.cpp $ */
 /** @file
  * IPRT - File I/O.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -220,6 +220,14 @@ RTR3DECL(uint64_t)  RTFileTell(RTFILE File)
 }
 
 
+/**
+ * Determine the maximum file size.
+ *
+ * @returns The max size of the file.
+ *          -1 on failure, the file position is undefined.
+ * @param   File        Handle to the file.
+ * @see     RTFileQueryMaxSizeEx.
+ */
 RTR3DECL(RTFOFF) RTFileGetMaxSize(RTFILE File)
 {
     RTFOFF cbMax;
@@ -255,7 +263,7 @@ RTDECL(int) RTFileCompareEx(const char *pszFile1, const char *pszFile2, uint32_t
     AssertReturn(*pszFile1, VERR_INVALID_PARAMETER);
     AssertPtrReturn(pszFile2, VERR_INVALID_POINTER);
     AssertReturn(*pszFile2, VERR_INVALID_PARAMETER);
-    AssertPtrNullReturn(pfnProgress, VERR_INVALID_POINTER);
+    AssertMsgReturn(!pfnProgress || VALID_PTR(pfnProgress), ("pfnProgress=%p\n", pfnProgress), VERR_INVALID_PARAMETER);
     AssertMsgReturn(!(fFlags & ~RTFILECOMP_FLAGS_MASK), ("%#x\n", fFlags), VERR_INVALID_PARAMETER);
 
     /*
@@ -301,7 +309,7 @@ RTDECL(int) RTFileCompareByHandlesEx(RTFILE hFile1, RTFILE hFile2, uint32_t fFla
      */
     AssertReturn(RTFileIsValid(hFile1), VERR_INVALID_HANDLE);
     AssertReturn(RTFileIsValid(hFile1), VERR_INVALID_HANDLE);
-    AssertPtrNullReturn(pfnProgress, VERR_INVALID_POINTER);
+    AssertMsgReturn(!pfnProgress || VALID_PTR(pfnProgress), ("pfnProgress=%p\n", pfnProgress), VERR_INVALID_PARAMETER);
     AssertMsgReturn(!(fFlags & ~RTFILECOMP_FLAGS_MASK), ("%#x\n", fFlags), VERR_INVALID_PARAMETER);
 
     /*

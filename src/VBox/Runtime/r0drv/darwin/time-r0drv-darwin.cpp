@@ -1,10 +1,10 @@
-/* $Id: time-r0drv-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: time-r0drv-darwin.cpp $ */
 /** @file
  * IPRT - Time, Ring-0 Driver, Darwin.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -93,6 +93,6 @@ RTDECL(PRTTIMESPEC) RTTimeNow(PRTTIMESPEC pTime)
     clock_nsec_t    uNanosecs;
 #endif
     clock_get_calendar_nanotime(&uSecs, &uNanosecs);
-    return RTTimeSpecSetNano(pTime, (int64_t)uSecs * RT_NS_1SEC + uNanosecs);
+    return RTTimeSpecSetNano(pTime, (uint64_t)uSecs * RT_NS_1SEC + uNanosecs);
 }
 

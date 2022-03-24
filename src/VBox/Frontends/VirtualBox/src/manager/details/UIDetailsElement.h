@@ -1,10 +1,10 @@
-/* $Id: UIDetailsElement.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIDetailsElement.h $ */
 /** @file
  * VBox Qt GUI - UIDetailsElement class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,6 @@ class QTextLayout;
 class UIDetailsSet;
 class UIGraphicsRotatorButton;
 class UIGraphicsTextPane;
-class CCloudMachine;
 class CMachine;
 
 
@@ -78,7 +77,7 @@ public:
       * @param  fOpened  Brings whether element is opened. */
     UIDetailsElement(UIDetailsSet *pParent, DetailsElementType enmType, bool fOpened);
     /** Destructs element item. */
-    virtual ~UIDetailsElement() RT_OVERRIDE;
+    virtual ~UIDetailsElement() /* override */;
 
     /** @name Item stuff.
       * @{ */
@@ -111,13 +110,10 @@ public:
 
     /** @name Layout stuff.
       * @{ */
-        /** Updates layout. */
-        virtual void updateLayout() RT_OVERRIDE;
-
         /** Returns minimum width-hint. */
-        virtual int minimumWidthHint() const RT_OVERRIDE;
+        virtual int minimumWidthHint() const /* override */;
         /** Returns minimum height-hint. */
-        virtual int minimumHeightHint() const RT_OVERRIDE;
+        virtual int minimumHeightHint() const /* override */;
     /** @} */
 
 protected:
@@ -133,40 +129,35 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles show @a pEvent. */
-        virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+        virtual void showEvent(QShowEvent *pEvent) /* override */;
 
         /** This event handler is delivered after the widget has been resized. */
-        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
         /** Handles hover enter @a event. */
-        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
         /** Handles hover leave @a event. */
-        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
 
         /** Handles mouse press @a event. */
-        virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+        virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
         /** Handles mouse double-click @a event. */
-        virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+        virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
 
         /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
     /** @} */
 
     /** @name Item stuff.
       * @{ */
         /** Returns RTTI item type. */
-        virtual int type() const RT_OVERRIDE { return Type; }
+        virtual int type() const /* override */ { return Type; }
 
         /** Returns the description of the item. */
-        virtual QString description() const RT_OVERRIDE;
+        virtual QString description() const /* override */;
 
         /** Returns cached machine reference. */
         const CMachine &machine();
-        /** Returns cached cloud machine reference. */
-        const CCloudMachine &cloudMachine();
-
-        /** Returns whether element is of local type. */
-        bool isLocal() const;
 
         /** Defines element @a strName. */
         void setName(const QString &strName);
@@ -185,20 +176,23 @@ protected:
     /** @name Children stuff.
       * @{ */
         /** Adds child @a pItem. */
-        virtual void addItem(UIDetailsItem *pItem) RT_OVERRIDE;
+        virtual void addItem(UIDetailsItem *pItem) /* override */;
         /** Removes child @a pItem. */
-        virtual void removeItem(UIDetailsItem *pItem) RT_OVERRIDE;
+        virtual void removeItem(UIDetailsItem *pItem) /* override */;
 
         /** Returns children items of certain @a enmType. */
-        virtual QList<UIDetailsItem*> items(UIDetailsItemType enmType) const RT_OVERRIDE;
+        virtual QList<UIDetailsItem*> items(UIDetailsItemType enmType) const /* override */;
         /** Returns whether there are children items of certain @a enmType. */
-        virtual bool hasItems(UIDetailsItemType enmType) const RT_OVERRIDE;
+        virtual bool hasItems(UIDetailsItemType enmType) const /* override */;
         /** Clears children items of certain @a enmType. */
-        virtual void clearItems(UIDetailsItemType enmType) RT_OVERRIDE;
+        virtual void clearItems(UIDetailsItemType enmType) /* override */;
     /** @} */
 
     /** @name Layout stuff.
       * @{ */
+        /** Updates layout. */
+        virtual void updateLayout() /* override */;
+
         /** Returns minimum width-hint for @a fClosed element. */
         virtual int minimumHeightHintForElement(bool fClosed) const;
 
@@ -222,12 +216,8 @@ private slots:
         /** Handles toggle finish. */
         void sltElementToggleFinish(bool fToggled);
 
-        /** Handles child anchor clicks. */
+        /** Handles children anchor clicks. */
         void sltHandleAnchorClicked(const QString &strAnchor);
-        /** Handles child copy request. */
-        void sltHandleCopyRequest();
-        /** Handles child edit request. */
-        void sltHandleEditRequest();
     /** @} */
 
     /** @name Layout stuff.
@@ -273,41 +263,6 @@ private:
         void updateAnimationParameters();
         /** Updates toggle button visibility.  */
         void updateButtonVisibility();
-
-        /** Popups name & system editor. */
-        void popupNameAndSystemEditor(bool fChooseName, bool fChoosePath, bool fChooseType, const QString &strValue);
-        /** Popups base-memory editor. */
-        void popupBaseMemoryEditor(const QString &strValue);
-        /** Popups boot-order editor. */
-        void popupBootOrderEditor(const QString &strValue);
-        /** Popups video-memory editor. */
-        void popupVideoMemoryEditor(const QString &strValue);
-        /** Popups graphics controller type editor. */
-        void popupGraphicsControllerTypeEditor(const QString &strValue);
-        /** Popups storage editor. */
-        void popupStorageEditor(const QString &strValue);
-        /** Popups audio host-driver type editor. */
-        void popupAudioHostDriverTypeEditor(const QString &strValue);
-        /** Popups audio controller type editor. */
-        void popupAudioControllerTypeEditor(const QString &strValue);
-        /** Popups network attachment type editor. */
-        void popupNetworkAttachmentTypeEditor(const QString &strValue);
-        /** Popups USB controller type editor. */
-        void popupUSBControllerTypeEditor(const QString &strValue);
-        /** Popups visual-state type editor. */
-        void popupVisualStateTypeEditor(const QString &strValue);
-#ifndef VBOX_WS_MAC
-        /** Popups menu-bar editor. */
-        void popupMenuBarEditor(const QString &strValue);
-#endif
-        /** Popups status-bar editor. */
-        void popupStatusBarEditor(const QString &strValue);
-#ifndef VBOX_WS_MAC
-        /** Popups mini-toolbar editor. */
-        void popupMiniToolbarEditor(const QString &strValue);
-#endif
-        /** Popups cloud editor. */
-        void popupCloudEditor(const QString &strValue);
     /** @} */
 
     /** @name Layout stuff.
@@ -322,6 +277,8 @@ private:
       * @{ */
         /** Paints background using specified @a pPainter and certain @a pOptions. */
         void paintBackground(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions) const;
+        /** Paints frame using passed @a pPainter and certain @a pOptions. */
+        void paintFrame(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions) const;
         /** Paints element info using specified @a pPainter and certain @a pOptions. */
         void paintElementInfo(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions) const;
 
@@ -350,10 +307,14 @@ private:
         /** Holds the text font. */
         QFont  m_textFont;
 
-        /** Holds the start default darkness. */
-        int m_iDefaultDarknessStart;
-        /** Holds the final default darkness. */
-        int m_iDefaultDarknessFinal;
+        /** Holds the start default tone. */
+        int m_iDefaultToneStart;
+        /** Holds the final default tone. */
+        int m_iDefaultToneFinal;
+        /** Holds the start hover tone. */
+        int m_iHoverToneStart;
+        /** Holds the final hover tone. */
+        int m_iHoverToneFinal;
 
         /** Holds whether element is hovered. */
         bool                m_fHovered;

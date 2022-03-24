@@ -1,10 +1,10 @@
-/* $Id: socket.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: socket.cpp $ */
 /** @file
  * IPRT - Network Sockets.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -148,9 +148,6 @@ typedef struct RTSOCKETINT
     /** Indicates whether the socket is operating in blocking or non-blocking mode
      * currently. */
     bool                fBlocking;
-    /** Whether to leave the native socket open rather than closing it (for
-     * RTHandleGetStandard). */
-    bool                fLeaveOpen;
 #if defined(RT_OS_WINDOWS) || defined(RT_OS_OS2)
     /** The pollset currently polling this socket.  This is NIL if no one is
      * polling. */
@@ -387,11 +384,9 @@ static int rtSocketNetAddrFromAddr(RTSOCKADDRUNION const *pSrc, size_t cbSrc, PR
 static int rtSocketAddrFromNetAddr(PCRTNETADDR pAddr, RTSOCKADDRUNION *pDst, size_t cbDst, int *pcbAddr)
 {
     RT_BZERO(pDst, cbDst);
-    if (pAddr->enmType == RTNETADDRTYPE_IPV4)
+    if (   pAddr->enmType == RTNETADDRTYPE_IPV4
+        && cbDst >= sizeof(struct sockaddr_in))
     {
-        if (cbDst < sizeof(struct sockaddr_in))
-            return VERR_BUFFER_OVERFLOW;
-
         pDst->Addr.sa_family       = AF_INET;
         pDst->IPv4.sin_port        = RT_H2N_U16(pAddr->uPort);
         pDst->IPv4.sin_addr.s_addr = pAddr->uAddr.IPv4.u;
@@ -399,11 +394,9 @@ static int rtSocketAddrFromNetAddr(PCRTNETADDR pAddr, RTSOCKADDRUNION *pDst, siz
             *pcbAddr = sizeof(pDst->IPv4);
     }
 #ifdef IPRT_WITH_TCPIP_V6
-    else if (pAddr->enmType == RTNETADDRTYPE_IPV6)
+    else if (   pAddr->enmType == RTNETADDRTYPE_IPV6
+             && cbDst >= sizeof(struct sockaddr_in6))
     {
-        if (cbDst < sizeof(struct sockaddr_in6))
-            return VERR_BUFFER_OVERFLOW;
-
         pDst->Addr.sa_family              = AF_INET6;
         pDst->IPv6.sin6_port              = RT_H2N_U16(pAddr->uPort);
         pSrc->IPv6.sin6_addr.s6_addr32[0] = pAddr->uAddr.IPv6.au32[0];
@@ -502,10 +495,8 @@ DECLINLINE(int) rtSocketSwitchBlockingMode(RTSOCKETINT *pThis, bool fBlocking)
  * @returns IPRT status code.
  * @param   ppSocket        Where to return the IPRT socket handle.
  * @param   hNative         The native handle.
- * @param   fLeaveOpen      Whether to leave the native socket handle open when
- *                          closed.
  */
-DECLHIDDEN(int) rtSocketCreateForNative(RTSOCKETINT **ppSocket, RTSOCKETNATIVE hNative, bool fLeaveOpen)
+DECLHIDDEN(int) rtSocketCreateForNative(RTSOCKETINT **ppSocket, RTSOCKETNATIVE hNative)
 {
     RTSOCKETINT *pThis = (RTSOCKETINT *)RTMemPoolAlloc(RTMEMPOOL_DEFAULT, sizeof(*pThis));
     if (!pThis)
@@ -514,7 +505,6 @@ DECLHIDDEN(int) rtSocketCreateForNative(RTSOCKETINT **ppSocket, RTSOCKETNATIVE h
     pThis->cUsers           = 0;
     pThis->hNative          = hNative;
     pThis->fClosed          = false;
-    pThis->fLeaveOpen       = fLeaveOpen;
     pThis->fBlocking        = true;
 #if defined(RT_OS_WINDOWS) || defined(RT_OS_OS2)
     pThis->hPollSet         = NIL_RTPOLLSET;
@@ -548,7 +538,7 @@ RTDECL(int) RTSocketFromNative(PRTSOCKET phSocket, RTHCINTPTR uNative)
     AssertReturn(uNative >= 0, VERR_INVALID_PARAMETER);
 #endif
     AssertPtrReturn(phSocket, VERR_INVALID_POINTER);
-    return rtSocketCreateForNative(phSocket, uNative, false /*fLeaveOpen*/);
+    return rtSocketCreateForNative(phSocket, uNative);
 }
 
 
@@ -588,7 +578,7 @@ DECLHIDDEN(int) rtSocketCreate(PRTSOCKET phSocket, int iDomain, int iType, int i
     /*
      * Wrap it.
      */
-    int rc = rtSocketCreateForNative(phSocket, hNative, false /*fLeaveOpen*/);
+    int rc = rtSocketCreateForNative(phSocket, hNative);
     if (RT_FAILURE(rc))
     {
 #ifdef RT_OS_WINDOWS
@@ -733,10 +723,10 @@ DECLHIDDEN(int) rtSocketCreateTcpPair(RTSOCKET *phServer, RTSOCKET *phClient)
     int rc = rtSocketCreateNativeTcpPair(&hServer, &hClient);
     if (RT_SUCCESS(rc))
     {
-        rc = rtSocketCreateForNative(phServer, hServer, false /*fLeaveOpen*/);
+        rc = rtSocketCreateForNative(phServer, hServer);
         if (RT_SUCCESS(rc))
         {
-            rc = rtSocketCreateForNative(phClient, hClient, false /*fLeaveOpen*/);
+            rc = rtSocketCreateForNative(phClient, hClient);
             if (RT_SUCCESS(rc))
                 return VINF_SUCCESS;
             RTSocketRelease(*phServer);
@@ -815,22 +805,19 @@ static int rtSocketCloseIt(RTSOCKETINT *pThis, bool fDestroy)
         {
             pThis->hNative = NIL_RTSOCKETNATIVE;
 
-            if (!pThis->fLeaveOpen)
+#ifdef RT_OS_WINDOWS
+            AssertReturn(g_pfnclosesocket, VERR_NET_NOT_UNSUPPORTED);
+            if (g_pfnclosesocket(hNative))
+#else
+            if (close(hNative))
+#endif
             {
+                rc = rtSocketError();
 #ifdef RT_OS_WINDOWS
-                AssertReturn(g_pfnclosesocket, VERR_NET_NOT_UNSUPPORTED);
-                if (g_pfnclosesocket(hNative))
+                AssertMsgFailed(("closesocket(%p) -> %Rrc\n", (uintptr_t)hNative, rc));
 #else
-                if (close(hNative))
+                AssertMsgFailed(("close(%d) -> %Rrc\n", hNative, rc));
 #endif
-                {
-                    rc = rtSocketError();
-#ifdef RT_OS_WINDOWS
-                    AssertMsgFailed(("closesocket(%p) -> %Rrc\n", (uintptr_t)hNative, rc));
-#else
-                    AssertMsgFailed(("close(%d) -> %Rrc\n", hNative, rc));
-#endif
-                }
             }
         }
 
@@ -2311,7 +2298,7 @@ DECLHIDDEN(int) rtSocketAccept(RTSOCKET hSocket, PRTSOCKET phClient, struct sock
         /*
          * Wrap the client socket.
          */
-        rc = rtSocketCreateForNative(phClient, hNativeClient, false /*fLeaveOpen*/);
+        rc = rtSocketCreateForNative(phClient, hNativeClient);
         if (RT_FAILURE(rc))
         {
 #ifdef RT_OS_WINDOWS

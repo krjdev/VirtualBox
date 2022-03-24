@@ -1,10 +1,10 @@
-/* $Id: DevFdc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevFdc.cpp $ */
 /** @file
  * VBox storage devices - Floppy disk controller
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -683,9 +683,6 @@ struct fdctrl_t {
     uint8_t data_state;
     uint8_t data_dir;
     uint8_t eot; /* last wanted sector */
-    /* Debugging only */
-    uint8_t cur_cmd;
-    uint8_t prev_cmd;
     /* States kept only to be returned back */
     /* Timers state */
     uint8_t timer0;
@@ -1070,8 +1067,6 @@ static void fdctrl_reset_fifo(fdctrl_t *fdctrl)
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
     fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
-    fdctrl->prev_cmd = fdctrl->cur_cmd;
-    fdctrl->cur_cmd = 0;
 }
 
 /* Set FIFO status for the host to read */
@@ -2116,7 +2111,7 @@ static const struct {
     { FD_CMD_SENSE_INTERRUPT_STATUS, 0xff, "SENSE INTERRUPT STATUS", 0, fdctrl_handle_sense_interrupt_status },
     { FD_CMD_RECALIBRATE, 0xff, "RECALIBRATE", 1, fdctrl_handle_recalibrate },
     { FD_CMD_FORMAT_TRACK, 0xbf, "FORMAT TRACK", 5, fdctrl_handle_format_track },
-    { FD_CMD_READ_TRACK, 0x9f, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
+    { FD_CMD_READ_TRACK, 0xbf, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
     { FD_CMD_RESTORE, 0xff, "RESTORE", 17, fdctrl_handle_restore }, /* part of READ DELETED DATA */
     { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
     { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
@@ -2193,7 +2188,6 @@ static void fdctrl_write_data(fdctrl_t *fdctrl, uint32_t value)
         FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
         fdctrl->data_len = handlers[pos].parameters + 1;
         fdctrl->msr |= FD_MSR_CMDBUSY;
-        fdctrl->cur_cmd = value & 0xff;
     }
 
     FLOPPY_DPRINTF("%s: %02x\n", __FUNCTION__, value);
@@ -2219,11 +2213,11 @@ static void fdctrl_write_data(fdctrl_t *fdctrl, uint32_t value)
 /**
  * @callback_method_impl{FNTMTIMERDEV}
  */
-static DECLCALLBACK(void) fdcTimerCallback(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) fdcTimerCallback(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     fdctrl_t *fdctrl = PDMDEVINS_2_DATA(pDevIns, fdctrl_t *);
     fdrive_t *cur_drv = get_cur_drv(fdctrl);
-    RT_NOREF(hTimer, pvUser);
+    RT_NOREF(pTimer, pvUser);
 
     /* Pretend we are spinning.
      * This is needed for Coherent, which uses READ ID to check for
@@ -2303,10 +2297,10 @@ static DECLCALLBACK(VBOXSTRICTRC) fdcIoPort1Write(PPDMDEVINS pDevIns, void *pvUs
 /**
  * @callback_method_impl{FNTMTIMERDEV}
  */
-static DECLCALLBACK(void) fdcTransferDelayTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) fdcTransferDelayTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     fdctrl_t *fdctrl = PDMDEVINS_2_DATA(pDevIns, fdctrl_t *);
-    RT_NOREF(pvUser, hTimer);
+    RT_NOREF(pvUser, pTimer);
     fdctrl_stop_transfer_now(fdctrl, fdctrl->st0, fdctrl->st1, fdctrl->st2);
 }
 
@@ -2314,10 +2308,10 @@ static DECLCALLBACK(void) fdcTransferDelayTimer(PPDMDEVINS pDevIns, TMTIMERHANDL
 /**
  * @callback_method_impl{FNTMTIMERDEV}
  */
-static DECLCALLBACK(void) fdcIrqDelayTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) fdcIrqDelayTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     fdctrl_t *fdctrl = PDMDEVINS_2_DATA(pDevIns, fdctrl_t *);
-    RT_NOREF(pvUser, hTimer);
+    RT_NOREF(pvUser, pTimer);
     fdctrl_raise_irq_now(fdctrl, fdctrl->st0);
 }
 
@@ -2370,67 +2364,6 @@ static DECLCALLBACK(VBOXSTRICTRC) fdcIoPort2Read(PPDMDEVINS pDevIns, void *pvUse
         return VINF_SUCCESS;
     }
     return VERR_IOM_IOPORT_UNUSED;
-}
-
-
-/* -=-=-=-=-=-=-=-=- Debugger callback -=-=-=-=-=-=-=-=- */
-
-/**
- * FDC debugger info callback.
- *
- * @param   pDevIns     The device instance.
- * @param   pHlp        The output helpers.
- * @param   pszArgs     The arguments.
- */
-static DECLCALLBACK(void) fdcInfo(PPDMDEVINS pDevIns, PCDBGFINFOHLP pHlp, const char *pszArgs)
-{
-    fdctrl_t    *pThis = PDMDEVINS_2_DATA(pDevIns, fdctrl_t *);
-    unsigned    i;
-    bool        fVerbose = false;
-
-    /* Parse arguments. */
-    if (pszArgs)
-        fVerbose = strstr(pszArgs, "verbose") != NULL;
-
-    /* Show basic information. */
-    pHlp->pfnPrintf(pHlp, "%s#%d: ",
-                    pDevIns->pReg->szName,
-                    pDevIns->iInstance);
-    pHlp->pfnPrintf(pHlp, "I/O=%X IRQ=%u DMA=%u ",
-                    pThis->io_base,
-                    pThis->irq_lvl,
-                    pThis->dma_chann);
-    pHlp->pfnPrintf(pHlp, "RC=%RTbool R0=%RTbool\n", pDevIns->fRCEnabled, pDevIns->fR0Enabled);
-
-    /* Print register contents. */
-    pHlp->pfnPrintf(pHlp, "Registers: MSR=%02X DSR=%02X DOR=%02X\n",
-                    pThis->msr, pThis->dsr, pThis->dor);
-    pHlp->pfnPrintf(pHlp, "           DIR=%02X\n",
-                    fdctrl_read_dir(pThis));
-
-    /* Print the current command, if any. */
-    if (pThis->cur_cmd)
-        pHlp->pfnPrintf(pHlp, "Curr cmd: %02X (%s)\n",
-                        pThis->cur_cmd,
-                        handlers[command_to_handler[pThis->cur_cmd]].name);
-    if (pThis->prev_cmd)
-        pHlp->pfnPrintf(pHlp, "Prev cmd: %02X (%s)\n",
-                        pThis->prev_cmd,
-                        handlers[command_to_handler[pThis->prev_cmd]].name);
-
-
-    for (i = 0; i < pThis->num_floppies; ++i)
-    {
-        fdrive_t  *drv = &pThis->drives[i];
-        pHlp->pfnPrintf(pHlp, "  Drive %u state:\n", i);
-        pHlp->pfnPrintf(pHlp, "    Medium : %u tracks, %u sectors\n",
-                        drv->max_track,
-                        drv->last_sect);
-        pHlp->pfnPrintf(pHlp, "    Current: track %u, head %u, sector %u\n",
-                        drv->track,
-                        drv->head,
-                        drv->sect);
-    }
 }
 
 
@@ -2990,24 +2923,21 @@ static DECLCALLBACK(int) fdcConstruct(PPDMDEVINS pDevIns, int iInstance, PCFGMNO
      * Create the FDC timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL, fdcTimerCallback, pThis,
-                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_NO_RING0,
-                              "FDC Timer", &pThis->hResultTimer);
+                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "FDC Timer", &pThis->hResultTimer);
     AssertRCReturn(rc, rc);
 
     /*
      * Create the transfer delay timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, fdcTransferDelayTimer, pThis,
-                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_NO_RING0,
-                              "FDC Transfer Delay", &pThis->hXferDelayTimer);
+                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "FDC Transfer Delay Timer", &pThis->hXferDelayTimer);
     AssertRCReturn(rc, rc);
 
     /*
      * Create the IRQ delay timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, fdcIrqDelayTimer, pThis,
-                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_NO_RING0,
-                              "FDC IRQ Delay", &pThis->hIrqDelayTimer);
+                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "FDC IRQ Delay Timer", &pThis->hIrqDelayTimer);
     AssertRCReturn(rc, rc);
 
     pThis->uIrqDelayMsec = uIrqDelay;
@@ -3068,11 +2998,6 @@ static DECLCALLBACK(int) fdcConstruct(PPDMDEVINS pDevIns, int iInstance, PCFGMNO
      */
     rc = PDMDevHlpSSMRegister(pDevIns, FDC_SAVESTATE_CURRENT, sizeof(*pThis), fdcSaveExec, fdcLoadExec);
     AssertRCReturn(rc, rc);
-
-    /*
-     * Register the debugger info callback.
-     */
-    PDMDevHlpDBGFInfoRegister(pDevIns, "fdc", "FDC info", fdcInfo);
 
     /*
      * Attach the status port (optional).

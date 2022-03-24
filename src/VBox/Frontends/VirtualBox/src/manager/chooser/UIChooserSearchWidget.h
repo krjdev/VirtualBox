@@ -1,10 +1,10 @@
-/* $Id: UIChooserSearchWidget.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserSearchWidget.h $ */
 /** @file
  * VBox Qt GUI - UIChooserSearchWidget class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ class UIChooserSearchWidget : public QIWithRetranslateUI<QWidget>
 
 signals:
 
-    void sigRedoSearch(const QString &strSearchTerm, int iSearchFlags);
+    void sigRedoSearch(const QString &strSearchTerm, int iItemSearchFlags);
     /** Is being signalled as next/prev tool buttons are pressed. @a fIsNext is true
       * for the next and false for the previous case. */
     void sigScrollToMatch(bool fIsNext);
@@ -56,15 +56,13 @@ public:
     void setScroolToIndex(int iScrollToIndex);
     /** Appends the @a strSearchText to the current (if any) search text. */
     void appendToSearchString(const QString &strSearchText);
-    /** Repeats the last search again. */
-    void redoSearch();
 
 protected:
 
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
-    virtual void hideEvent(QHideEvent *pEvent) RT_OVERRIDE;
-    virtual void retranslateUi() RT_OVERRIDE;
-    virtual bool eventFilter(QObject *pWatched, QEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
+    virtual void hideEvent(QHideEvent *pEvent) /* override */;
+    virtual void retranslateUi() /* override */;
+    virtual bool eventFilter(QObject *pWatched, QEvent *pEvent) /* override */;
 
 public slots:
 

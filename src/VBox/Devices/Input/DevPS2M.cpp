@@ -1,10 +1,10 @@
-/* $Id: DevPS2M.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevPS2M.cpp $ */
 /** @file
  * PS2M - PS/2 auxiliary device (mouse) emulation.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -218,8 +218,6 @@ static void ps2mR3SetDriverState(PPS2MR3 pThisCC, bool fEnabled)
 /* Reset the pointing device. */
 static void ps2mR3Reset(PPS2M pThis, PPS2MR3 pThisCC)
 {
-    LogFlowFunc(("Reset"));
-
     PS2Q_INSERT(&pThis->cmdQ, ARSP_BAT_OK);
     PS2Q_INSERT(&pThis->cmdQ, 0);
     pThis->enmMode   = AUX_MODE_STD;
@@ -258,9 +256,6 @@ static void ps2mSetDefaults(PPS2M pThis)
 /* Handle the sampling rate 'knock' sequence which selects protocol. */
 static void ps2mRateProtocolKnock(PPS2M pThis, uint8_t rate)
 {
-    PS2M_PROTO          enmOldProtocol = pThis->enmProtocol;
-    LogFlowFunc(("rate=%u\n", rate));
-
     switch (pThis->enmKnockState)
     {
     case PS2M_KNOCK_INITIAL:
@@ -303,12 +298,6 @@ static void ps2mRateProtocolKnock(PPS2M pThis, uint8_t rate)
     default:
         pThis->enmKnockState = PS2M_KNOCK_INITIAL;
     }
-
-    /* If the protocol changed, throw away any queued input because it now
-     * has the wrong format, which could severely confuse the guest.
-     */
-    if (enmOldProtocol != pThis->enmProtocol)
-        PS2Q_CLEAR(&pThis->evtQ);
 }
 
 /* Three-button event mask. */
@@ -323,8 +312,6 @@ static void ps2mReportAccumulatedEvents(PPS2M pThis, PPS2QHDR pQHdr, size_t cQEl
     uint8_t     val;
     int         dX, dY, dZ, dW;
 
-    LogFlowFunc(("cQElements=%zu, fAccumBtns=%RTbool\n", cQElements, fAccumBtns));
-
     /* Clamp the accumulated delta values to the allowed range. */
     dX = RT_MIN(RT_MAX(pThis->iAccumX, -255), 255);
     dY = RT_MIN(RT_MAX(pThis->iAccumY, -255), 255);
@@ -338,7 +325,6 @@ static void ps2mReportAccumulatedEvents(PPS2M pThis, PPS2QHDR pQHdr, size_t cQEl
         val |= RT_BIT(5);
 
     /* Send the standard 3-byte packet (always the same). */
-    LogFlowFunc(("Queuing standard 3-byte packet\n"));
     PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, val);
     PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, dX);
     PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, dY);
@@ -352,7 +338,6 @@ static void ps2mReportAccumulatedEvents(PPS2M pThis, PPS2QHDR pQHdr, size_t cQEl
         if (pThis->enmProtocol == PS2M_PROTO_IMPS2)
         {
             /* NB: Only uses 4-bit dZ range, despite using a full byte. */
-            LogFlowFunc(("Queuing ImPS/2 last byte\n"));
             PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, dZ);
             pThis->iAccumZ -= dZ;
         }
@@ -362,7 +347,6 @@ static void ps2mReportAccumulatedEvents(PPS2M pThis, PPS2QHDR pQHdr, size_t cQEl
            val  = (fBtnState & PS2M_IMEX_BTN_MASK) << 1;
            val |= dZ & 0x0f;
            pThis->iAccumZ -= dZ;
-           LogFlowFunc(("Queuing ImEx last byte\n"));
            PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, val);
         }
         else
@@ -395,7 +379,6 @@ static void ps2mReportAccumulatedEvents(PPS2M pThis, PPS2QHDR pQHdr, size_t cQEl
                /* Just Buttons 4/5 in bits 4 and 5. No scrolling. */
                val = (fBtnState & PS2M_IMEX_BTN_MASK) << 1;
             }
-            LogFlowFunc(("Queuing ImEx+horz last byte\n"));
             PS2CmnInsertQueue(pQHdr, cQElements, pbQElements, val);
         }
     }
@@ -427,37 +410,6 @@ bool ps2mIsRateSupported(uint8_t rate)
 
    return fValid;
 }
-
-
-/**
- * The keyboard controller disabled the auxiliary serial line.
- *
- * @param   pThis   The PS/2 auxiliary device shared instance data.
- */
-void PS2MLineDisable(PPS2M pThis)
-{
-    LogFlowFunc(("Disabling mouse serial line\n"));
-
-    pThis->fLineDisabled = true;
-}
-
-/**
- * The keyboard controller enabled the auxiliary serial line.
- *
- * @param   pThis   The PS/2 auxiliary device shared instance data.
- */
-void PS2MLineEnable(PPS2M pThis)
-{
-    LogFlowFunc(("Enabling mouse serial line\n"));
-
-    pThis->fLineDisabled = false;
-
-    /* If there was anything in the input queue,
-     * consider it lost and throw it away.
-     */
-    PS2Q_CLEAR(&pThis->evtQ);
-}
-
 
 /**
  * Receive and process a byte sent by the keyboard controller.
@@ -715,8 +667,6 @@ int PS2MByteFromAux(PPS2M pThis, uint8_t *pb)
 /** Is there any state change to send as events to the guest? */
 static uint32_t ps2mR3HaveEvents(PPS2M pThis)
 {
-/** @todo r=bird: Why is this returning uint32_t when you're calculating a
- *        boolean value here?  Also, it's a predicate function... */
     return   pThis->iAccumX || pThis->iAccumY || pThis->iAccumZ || pThis->iAccumW
            || ((pThis->fCurrB | pThis->fAccumB) != pThis->fReportedB);
 }
@@ -725,12 +675,15 @@ static uint32_t ps2mR3HaveEvents(PPS2M pThis)
  * @callback_method_impl{FNTMTIMERDEV,
  * Event rate throttling timer to emulate the auxiliary device sampling rate.}
  */
-static DECLCALLBACK(void) ps2mR3ThrottleTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) ps2mR3ThrottleTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
+    RT_NOREF(pDevIns, pTimer);
     PPS2M       pThis = (PS2M *)pvUser;
     uint32_t    uHaveEvents;
-    Assert(hTimer == pThis->hThrottleTimer);
-    Assert(PDMDevHlpCritSectIsOwner(pDevIns, pDevIns->pCritSectRoR3));
+
+    /* Grab the lock to avoid races with PutEvent(). */
+    int rc = PDMDevHlpCritSectEnter(pDevIns, pDevIns->pCritSectRoR3, VERR_SEM_BUSY);
+    AssertReleaseRC(rc);
 
     /* If more movement is accumulated, report it and restart the timer. */
     uHaveEvents = ps2mR3HaveEvents(pThis);
@@ -741,10 +694,12 @@ static DECLCALLBACK(void) ps2mR3ThrottleTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE 
         /* Report accumulated data, poke the KBC, and start the timer. */
         ps2mReportAccumulatedEvents(pThis, &pThis->evtQ.Hdr, RT_ELEMENTS(pThis->evtQ.abQueue), pThis->evtQ.abQueue, true);
         KBCUpdateInterrupts(pDevIns);
-        PDMDevHlpTimerSetMillies(pDevIns, hTimer, pThis->uThrottleDelay);
+        PDMDevHlpTimerSetMillies(pDevIns, pThis->hThrottleTimer, pThis->uThrottleDelay);
     }
     else
         pThis->fThrottleActive = false;
+
+    PDMDevHlpCritSectLeave(pDevIns, pDevIns->pCritSectRoR3);
 }
 
 /**
@@ -754,11 +709,11 @@ static DECLCALLBACK(void) ps2mR3ThrottleTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE 
  * We need to delay sending the result to the host for at least a tiny little
  * while.
  */
-static DECLCALLBACK(void) ps2mR3DelayTimer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) ps2mR3DelayTimer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     PPS2M   pThis   = &PDMDEVINS_2_DATA(pDevIns, PKBDSTATE)->Aux;
     PPS2MR3 pThisCC = &PDMDEVINS_2_DATA_CC(pDevIns, PKBDSTATER3)->Aux;
-    RT_NOREF(pvUser, hTimer);
+    RT_NOREF(pvUser, pTimer);
 
     LogFlowFunc(("Delay timer: cmd %02X\n", pThis->u8CurrCmd));
 
@@ -787,11 +742,10 @@ static DECLCALLBACK(void) ps2mR3InfoState(PPDMDEVINS pDevIns, PCDBGFINFOHLP pHlp
     NOREF(pszArgs);
 
     Assert(pThis->enmMode < RT_ELEMENTS(s_apcszModes));
-    pHlp->pfnPrintf(pHlp, "PS/2 mouse state: %s, %s mode, reporting %s, serial line %s\n",
+    pHlp->pfnPrintf(pHlp, "PS/2 mouse state: %s, %s mode, reporting %s\n",
                     s_apcszModes[pThis->enmMode],
                     pThis->u8State & AUX_STATE_REMOTE  ? "remote"  : "stream",
-                    pThis->u8State & AUX_STATE_ENABLED ? "enabled" : "disabled",
-                    pThis->fLineDisabled ? "disabled" : "enabled");
+                    pThis->u8State & AUX_STATE_ENABLED ? "enabled" : "disabled");
     Assert(pThis->enmProtocol < RT_ELEMENTS(s_apcszProtocols));
     pHlp->pfnPrintf(pHlp, "Protocol: %s, scaling %u:1\n",
                     s_apcszProtocols[pThis->enmProtocol],
@@ -822,8 +776,6 @@ static DECLCALLBACK(void) ps2mR3InfoState(PPDMDEVINS pDevIns, PCDBGFINFOHLP pHlp
  */
 static int ps2mR3PutEventWorker(PPDMDEVINS pDevIns, PPS2M pThis, int32_t dx, int32_t dy, int32_t dz, int32_t dw, uint32_t fButtons)
 {
-    LogFlowFunc(("dx=%d, dy=%d, dz=%d, dw=%d, fButtons=%X\n", dx, dy, dz, dw, fButtons));
-
     /* Update internal accumulators and button state. Ignore any buttons beyond 5. */
     pThis->iAccumX += dx;
     pThis->iAccumY += dy;
@@ -872,8 +824,8 @@ static DECLCALLBACK(int) ps2mR3MousePort_PutEvent(PPDMIMOUSEPORT pInterface, int
     PPS2MR3     pThisCC = RT_FROM_MEMBER(pInterface, PS2MR3, Mouse.IPort);
     PPDMDEVINS  pDevIns = pThisCC->pDevIns;
     PPS2M       pThis   = &PDMDEVINS_2_DATA(pDevIns, PKBDSTATE)->Aux;
-    int const   rcLock  = PDMDevHlpCritSectEnter(pDevIns, pDevIns->pCritSectRoR3, VERR_SEM_BUSY);
-    PDM_CRITSECT_RELEASE_ASSERT_RC_DEV(pDevIns, pDevIns->pCritSectRoR3, rcLock);
+    int rc = PDMDevHlpCritSectEnter(pDevIns, pDevIns->pCritSectRoR3, VERR_SEM_BUSY);
+    AssertReleaseRC(rc);
 
     LogRelFlowFunc(("dX=%d dY=%d dZ=%d dW=%d buttons=%02X\n", dx, dy, dz, dw, fButtons));
     /* NB: The PS/2 Y axis direction is inverted relative to ours. */
@@ -1060,10 +1012,6 @@ void PS2MR3Reset(PPS2M pThis)
 int PS2MR3Construct(PPDMDEVINS pDevIns, PPS2M pThis, PPS2MR3 pThisCC)
 {
     LogFlowFunc(("\n"));
-
-    pThis->cmdQ.Hdr.pszDescR3 = "Aux Cmd";
-    pThis->evtQ.Hdr.pszDescR3 = "Aux Evt";
-
 #ifdef RT_STRICT
     ps2mR3TestAccumulation();
 #endif
@@ -1081,15 +1029,14 @@ int PS2MR3Construct(PPDMDEVINS pDevIns, PPS2M pThis, PPS2MR3 pThisCC)
      * Create the input rate throttling timer. Does not use virtual time!
      */
     int rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_REAL, ps2mR3ThrottleTimer, pThis,
-                                  TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_NO_RING0,
-                                  "PS2M Throttle", &pThis->hThrottleTimer);
+                                  TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "PS2M Throttle Timer", &pThis->hThrottleTimer);
     AssertRCReturn(rc, rc);
 
     /*
      * Create the command delay timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL, ps2mR3DelayTimer, pThis,
-                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_RING0, "PS2M Delay", &pThis->hDelayTimer);
+                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "PS2M Delay Timer", &pThis->hDelayTimer);
     AssertRCReturn(rc, rc);
 
     /*
@@ -1126,8 +1073,6 @@ static void ps2mR3TestAccumulation(void)
     RT_ZERO(This);
     This.u8State = AUX_STATE_ENABLED;
     This.fThrottleActive = true;
-    This.cmdQ.Hdr.pszDescR3 = "Test Aux Cmd";
-    This.evtQ.Hdr.pszDescR3 = "Test Aux Evt";
     /* Certain Windows touch pad drivers report a double tap as a press, then
      * a release-press-release all within a single 10ms interval.  Simulate
      * this to check that it is handled right. */

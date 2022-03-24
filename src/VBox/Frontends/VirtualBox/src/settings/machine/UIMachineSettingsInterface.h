@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsInterface.h 94148 2022-03-09 12:33:50Z vboxsync $ */
+/* $Id: UIMachineSettingsInterface.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsInterface class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,20 +23,16 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIMachineSettingsInterface.gen.h"
 
 /* Forward declarations: */
-class QCheckBox;
-class QGridLayout;
-class QLabel;
 class UIActionPool;
-class UIMenuBarEditorWidget;
-class UIStatusBarEditorWidget;
-class UIVisualStateEditor;
 struct UIDataSettingsMachineInterface;
 typedef UISettingsCache<UIDataSettingsMachineInterface> UISettingsCacheMachineInterface;
 
 /** Machine settings: User Interface page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsInterface : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsInterface : public UISettingsPageMachine,
+                                                        public Ui::UIMachineSettingsInterface
 {
     Q_OBJECT;
 
@@ -50,36 +46,32 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
-    /** Prepares connections. */
-    void prepareConnections();
     /** Cleanups all. */
     void cleanup();
 
@@ -91,8 +83,6 @@ private:
     bool saveStatusBarData();
     /** Saves existing 'Mini-toolbar' data from the cache. */
     bool saveMiniToolbarData();
-    /** Saves existing 'Visual State' data from the cache. */
-    bool saveVisualStateData();
 
     /** Holds the machine ID copy. */
     const QUuid    m_uMachineId;
@@ -101,24 +91,6 @@ private:
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineInterface *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the main layout instance. */
-        QGridLayout             *m_pLayout;
-        /** Holds the menu-bar editor instance. */
-        UIMenuBarEditorWidget   *m_pEditorMenuBar;
-        /** Holds the visual state editor instance. */
-        UIVisualStateEditor     *m_pEditorVisualState;
-        /** Holds the mini-toolbar label instance. */
-        QLabel                  *m_pLabelMiniToolBar;
-        /** Holds the 'show mini-toolbar' check-box instance. */
-        QCheckBox               *m_pCheckBoxShowMiniToolBar;
-        /** Holds the 'mini-toolbar alignment' check-box instance. */
-        QCheckBox               *m_pCheckBoxMiniToolBarAlignment;
-        /** Holds the status-bar editor instance. */
-        UIStatusBarEditorWidget *m_pEditorStatusBar;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsInterface_h */

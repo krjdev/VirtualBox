@@ -909,7 +909,6 @@ CompareAndMergeDefaultString (
   // To find the <AltResp> with AltConfigHdr in AltCfgResp, ignore other <AltResp> which follow it.
   //
   StringPtr = StrStr (*AltCfgResp, AltConfigHdr);
-  ASSERT (StringPtr != NULL);
   StringPtrNext = StrStr (StringPtr + 1, L"&GUID");
   if (StringPtrNext != NULL) {
     TempCharA = *StringPtrNext;
@@ -5497,6 +5496,7 @@ HiiBlockToConfig (
   UINTN                               Index;
   UINT8                               *TemBuffer;
   CHAR16                              *TemString;
+  CHAR16                              TemChar;
 
   TmpBuffer = NULL;
 
@@ -5563,13 +5563,10 @@ HiiBlockToConfig (
   //
   // Copy <ConfigHdr> and an additional '&' to <ConfigResp>
   //
-  TemString = AllocateCopyPool (sizeof (CHAR16) * (StringPtr - ConfigRequest + 1), ConfigRequest);
-  if (TemString == NULL) {
-    return EFI_OUT_OF_RESOURCES;
-  }
-  TemString[StringPtr - ConfigRequest] = '\0';
-  AppendToMultiString(Config, TemString);
-  FreePool (TemString);
+  TemChar = *StringPtr;
+  *StringPtr = '\0';
+  AppendToMultiString(Config, ConfigRequest);
+  *StringPtr = TemChar;
 
   //
   // Parse each <RequestElement> if exists

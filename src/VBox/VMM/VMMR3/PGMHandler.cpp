@@ -1,10 +1,10 @@
-/* $Id: PGMHandler.cpp 93716 2022-02-14 10:36:21Z vboxsync $ */
+/* $Id: PGMHandler.cpp $ */
 /** @file
  * PGM - Page Manager / Monitor, Access Handlers.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,6 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_PGM
-#define VBOX_WITHOUT_PAGING_BIT_FIELDS /* 64-bit bitfields are just asking for trouble. See @bugref{9841} and others. */
 #include <VBox/vmm/dbgf.h>
 #include <VBox/vmm/pgm.h>
 #include <VBox/vmm/cpum.h>
@@ -33,7 +32,7 @@
 #include <VBox/vmm/selm.h>
 #include <VBox/vmm/ssm.h>
 #include "PGMInternal.h"
-#include <VBox/vmm/vmcc.h>
+#include <VBox/vmm/vm.h>
 #include "PGMInline.h"
 #include <VBox/dbg.h>
 
@@ -51,23 +50,70 @@
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PPGMPHYSHANDLER pHandler, void *pvUser);
-static DECLCALLBACK(int) pgmR3HandlerPhysicalOneSet(PPGMPHYSHANDLER pHandler, void *pvUser);
-static DECLCALLBACK(int) pgmR3InfoHandlersPhysicalOne(PPGMPHYSHANDLER pHandler, void *pvUser);
+static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PAVLROGCPHYSNODECORE pNode, void *pvUser);
+static DECLCALLBACK(int) pgmR3HandlerPhysicalOneSet(PAVLROGCPHYSNODECORE pNode, void *pvUser);
+static DECLCALLBACK(int) pgmR3InfoHandlersPhysicalOne(PAVLROGCPHYSNODECORE pNode, void *pvUser);
+
 
 
 
 /**
- * @callback_method_impl{FNPGMPHYSHANDLER,
- * Invalid callback entry triggering guru mediation}
+ * Register a physical page access handler type, extended version.
+ *
+ * @returns VBox status code.
+ * @param   pVM             The cross context VM structure.
+ * @param   enmKind         The kind of access handler.
+ * @param   fKeepPgmLock    Whether to hold the PGM lock while calling the
+ *                          handler or not.  Mainly for PGM callers.
+ * @param   pfnHandlerR3    Pointer to the ring-3 handler callback.
+ * @param   pfnHandlerR0    Pointer to the ring-0 handler callback.
+ * @param   pfnPfHandlerR0  Pointer to the ring-0 \#PF handler callback.
+ *                          callback.
+ * @param   pszDesc         The type description.
+ * @param   phType          Where to return the type handle (cross context
+ *                          safe).
  */
-DECLCALLBACK(VBOXSTRICTRC) pgmR3HandlerPhysicalHandlerInvalid(PVMCC pVM, PVMCPUCC pVCpu, RTGCPHYS GCPhys, void *pvPhys,
-                                                              void *pvBuf, size_t cbBuf, PGMACCESSTYPE enmAccessType,
-                                                              PGMACCESSORIGIN enmOrigin, uint64_t uUser)
+VMMR3_INT_DECL(int) PGMR3HandlerPhysicalTypeRegisterEx(PVM pVM, PGMPHYSHANDLERKIND enmKind, bool fKeepPgmLock,
+                                                       PFNPGMPHYSHANDLER pfnHandlerR3,
+                                                       R0PTRTYPE(PFNPGMPHYSHANDLER) pfnHandlerR0,
+                                                       R0PTRTYPE(PFNPGMRZPHYSPFHANDLER) pfnPfHandlerR0,
+                                                       const char *pszDesc, PPGMPHYSHANDLERTYPE phType)
 {
-    RT_NOREF(pVM, pVCpu, GCPhys, pvPhys, pvBuf, cbBuf, enmAccessType, enmOrigin, uUser);
-    LogRel(("GCPhys=%RGp cbBuf=%#zx enmAccessType=%d uUser=%#RX64\n", GCPhys, cbBuf, enmAccessType, uUser));
-    return VERR_PGM_HANDLER_IPE_1;
+    AssertPtrReturn(pfnHandlerR3, VERR_INVALID_POINTER);
+    AssertReturn(pfnHandlerR0   != NIL_RTR0PTR, VERR_INVALID_POINTER);
+    AssertReturn(pfnPfHandlerR0 != NIL_RTR0PTR, VERR_INVALID_POINTER);
+    AssertPtrReturn(pszDesc, VERR_INVALID_POINTER);
+    AssertReturn(   enmKind == PGMPHYSHANDLERKIND_WRITE
+                 || enmKind == PGMPHYSHANDLERKIND_ALL
+                 || enmKind == PGMPHYSHANDLERKIND_MMIO,
+                 VERR_INVALID_PARAMETER);
+
+    PPGMPHYSHANDLERTYPEINT pType;
+    int rc = MMHyperAlloc(pVM, sizeof(*pType), 0, MM_TAG_PGM_HANDLER_TYPES, (void **)&pType);
+    if (RT_SUCCESS(rc))
+    {
+        pType->u32Magic         = PGMPHYSHANDLERTYPEINT_MAGIC;
+        pType->cRefs            = 1;
+        pType->enmKind          = enmKind;
+        pType->uState           = enmKind == PGMPHYSHANDLERKIND_WRITE
+                                ? PGM_PAGE_HNDL_PHYS_STATE_WRITE : PGM_PAGE_HNDL_PHYS_STATE_ALL;
+        pType->fKeepPgmLock     = fKeepPgmLock;
+        pType->pfnHandlerR3     = pfnHandlerR3;
+        pType->pfnHandlerR0     = pfnHandlerR0;
+        pType->pfnPfHandlerR0   = pfnPfHandlerR0;
+        pType->pszDesc          = pszDesc;
+
+        pgmLock(pVM);
+        RTListOff32Append(&pVM->pgm.s.CTX_SUFF(pTrees)->HeadPhysHandlerTypes, &pType->ListNode);
+        pgmUnlock(pVM);
+
+        *phType = MMHyperHeapPtrToOffset(pVM, pType);
+        LogFlow(("PGMR3HandlerPhysicalTypeRegisterEx: %p/%#x: enmKind=%d pfnHandlerR3=%RHv pfnHandlerR0=%RHv pszDesc=%s\n",
+                 pType, *phType, enmKind, pfnHandlerR3, pfnPfHandlerR0, pszDesc));
+        return VINF_SUCCESS;
+    }
+    *phType = NIL_PGMPHYSHANDLERTYPE;
+    return rc;
 }
 
 
@@ -75,55 +121,94 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3HandlerPhysicalHandlerInvalid(PVMCC pVM, PVMCPUC
  * Register a physical page access handler type.
  *
  * @returns VBox status code.
- * @param   pVM         The cross context VM structure.
- * @param   enmKind     The kind of access handler.
- * @param   fFlags      PGMPHYSHANDLER_F_XXX
- * @param   pfnHandler  Pointer to the ring-3 handler callback.
- * @param   pszDesc     The type description.
- * @param   phType      Where to return the type handle (cross context safe).
+ * @param   pVM             The cross context VM structure.
+ * @param   enmKind         The kind of access handler.
+ * @param   fKeepPgmLock    Whether to hold the PGM lock while calling the
+ *                          handler or not.  Mainly for PGM callers.
+ * @param   pfnHandlerR3    Pointer to the ring-3 handler callback.
+ * @param   pszModR0        The name of the ring-0 module, NULL is an alias for
+ *                          the main ring-0 module.
+ * @param   pszHandlerR0    The name of the ring-0 handler, NULL if the ring-3
+ *                          handler should be called.
+ * @param   pszPfHandlerR0  The name of the ring-0 \#PF handler, NULL if the
+ *                          ring-3 handler should be called.
+ * @param   pszModRC        The name of the raw-mode context module, NULL is an
+ *                          alias for the main RC module.
+ * @param   pszHandlerRC    The name of the raw-mode context handler, NULL if
+ *                          the ring-3 handler should be called.
+ * @param   pszPfHandlerRC  The name of the raw-mode context \#PF handler, NULL
+ *                          if the ring-3 handler should be called.
+ * @param   pszDesc         The type description.
+ * @param   phType          Where to return the type handle (cross context
+ *                          safe).
  */
-VMMR3_INT_DECL(int) PGMR3HandlerPhysicalTypeRegister(PVM pVM, PGMPHYSHANDLERKIND enmKind, uint32_t fFlags,
-                                                     PFNPGMPHYSHANDLER pfnHandler, const char *pszDesc,
-                                                     PPGMPHYSHANDLERTYPE phType)
+VMMR3DECL(int) PGMR3HandlerPhysicalTypeRegister(PVM pVM, PGMPHYSHANDLERKIND enmKind, bool fKeepPgmLock,
+                                                R3PTRTYPE(PFNPGMPHYSHANDLER) pfnHandlerR3,
+                                                const char *pszModR0, const char *pszHandlerR0, const char *pszPfHandlerR0,
+                                                const char *pszModRC, const char *pszHandlerRC, const char *pszPfHandlerRC,
+                                                const char *pszDesc, PPGMPHYSHANDLERTYPE phType)
 {
+    LogFlow(("PGMR3HandlerPhysicalTypeRegister: enmKind=%d pfnHandlerR3=%RHv pszModR0=%s pszHandlerR0=%s pszPfHandlerR0=%s pszModRC=%s pszHandlerRC=%s pszPfHandlerRC=%s pszDesc=%s\n",
+             enmKind, pfnHandlerR3, pszModR0, pszHandlerR0, pszPfHandlerR0, pszModRC, pszHandlerRC, pszPfHandlerRC, pszDesc));
+
     /*
      * Validate input.
      */
-    AssertPtrReturn(phType, VERR_INVALID_POINTER);
-    *phType = NIL_PGMPHYSHANDLERTYPE;
-
-    AssertPtrReturn(pfnHandler, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszDesc, VERR_INVALID_POINTER);
-    AssertReturn(   enmKind == PGMPHYSHANDLERKIND_WRITE
-                 || enmKind == PGMPHYSHANDLERKIND_ALL
-                 || enmKind == PGMPHYSHANDLERKIND_MMIO,
-                 VERR_INVALID_PARAMETER);
-    AssertMsgReturn(!(fFlags & ~PGMPHYSHANDLER_F_VALID_MASK), ("%#x\n", fFlags), VERR_INVALID_FLAGS);
-
-    VM_ASSERT_EMT0_RETURN(pVM, VERR_VM_THREAD_NOT_EMT);
-    VM_ASSERT_STATE_RETURN(pVM, VMSTATE_CREATING, VERR_VM_INVALID_VM_STATE);
+    AssertPtrReturn(pfnHandlerR3, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszModR0, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszHandlerR0, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszPfHandlerR0, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszModRC, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszHandlerRC, VERR_INVALID_POINTER);
+    AssertPtrNullReturn(pszPfHandlerRC, VERR_INVALID_POINTER);
 
     /*
-     * Do the allocating.
+     * Resolve the R0 handlers.
      */
-    uint32_t const idxType = pVM->pgm.s.cPhysHandlerTypes;
-    AssertLogRelReturn(idxType < RT_ELEMENTS(pVM->pgm.s.aPhysHandlerTypes), VERR_OUT_OF_RESOURCES);
-    PPGMPHYSHANDLERTYPEINTR3 const pType = &pVM->pgm.s.aPhysHandlerTypes[idxType];
-    AssertReturn(pType->enmKind == PGMPHYSHANDLERKIND_INVALID, VERR_PGM_HANDLER_IPE_1);
-    pVM->pgm.s.cPhysHandlerTypes = idxType + 1;
+    R0PTRTYPE(PFNPGMPHYSHANDLER) pfnHandlerR0 = NIL_RTR0PTR;
+    int rc = PDMR3LdrGetSymbolR0Lazy(pVM, pszHandlerR0 ? pszModR0 : NULL, NULL /*pszSearchPath*/,
+                                     pszHandlerR0 ? pszHandlerR0 : "pgmPhysHandlerRedirectToHC", &pfnHandlerR0);
+    if (RT_SUCCESS(rc))
+    {
+        R0PTRTYPE(PFNPGMR0PHYSPFHANDLER) pfnPfHandlerR0 = NIL_RTR0PTR;
+        rc = PDMR3LdrGetSymbolR0Lazy(pVM, pszPfHandlerR0 ? pszModR0 : NULL, NULL /*pszSearchPath*/,
+                                     pszPfHandlerR0 ? pszPfHandlerR0 : "pgmPhysPfHandlerRedirectToHC", &pfnPfHandlerR0);
+        if (RT_SUCCESS(rc))
+        {
+            /*
+             * Resolve the GC handler.
+             */
+            RTRCPTR pfnHandlerRC   = NIL_RTRCPTR;
+            RTRCPTR pfnPfHandlerRC = NIL_RTRCPTR;
+            if (VM_IS_RAW_MODE_ENABLED(pVM))
+            {
+                rc = PDMR3LdrGetSymbolRCLazy(pVM, pszHandlerRC ? pszModRC : NULL, NULL /*pszSearchPath*/,
+                                             pszHandlerRC ? pszHandlerRC : "pgmPhysHandlerRedirectToHC", &pfnHandlerRC);
+                if (RT_SUCCESS(rc))
+                {
+                    rc = PDMR3LdrGetSymbolRCLazy(pVM, pszPfHandlerRC ? pszModRC : NULL, NULL /*pszSearchPath*/,
+                                                 pszPfHandlerRC ? pszPfHandlerRC : "pgmPhysPfHandlerRedirectToHC", &pfnPfHandlerRC);
+                    AssertMsgRC(rc, ("Failed to resolve %s.%s, rc=%Rrc.\n", pszPfHandlerRC ? pszModRC : VMMRC_MAIN_MODULE_NAME,
+                                     pszPfHandlerRC ? pszPfHandlerRC : "pgmPhysPfHandlerRedirectToHC", rc));
+                }
+                else
+                    AssertMsgFailed(("Failed to resolve %s.%s, rc=%Rrc.\n", pszHandlerRC ? pszModRC : VMMRC_MAIN_MODULE_NAME,
+                                     pszHandlerRC ? pszHandlerRC : "pgmPhysHandlerRedirectToHC", rc));
 
-    pType->enmKind          = enmKind;
-    pType->uState           = enmKind == PGMPHYSHANDLERKIND_WRITE
-                            ? PGM_PAGE_HNDL_PHYS_STATE_WRITE : PGM_PAGE_HNDL_PHYS_STATE_ALL;
-    pType->fKeepPgmLock     = RT_BOOL(fFlags & PGMPHYSHANDLER_F_KEEP_PGM_LOCK);
-    pType->fRing0DevInsIdx  = RT_BOOL(fFlags & PGMPHYSHANDLER_F_R0_DEVINS_IDX);
-    pType->pfnHandler       = pfnHandler;
-    pType->pszDesc          = pszDesc;
+            }
+            if (RT_SUCCESS(rc))
+                return PGMR3HandlerPhysicalTypeRegisterEx(pVM, enmKind, fKeepPgmLock, pfnHandlerR3,
+                                                          pfnHandlerR0, pfnPfHandlerR0, pszDesc, phType);
+        }
+        else
+            AssertMsgFailed(("Failed to resolve %s.%s, rc=%Rrc.\n", pszPfHandlerR0 ? pszModR0 : VMMR0_MAIN_MODULE_NAME,
+                             pszPfHandlerR0 ? pszPfHandlerR0 : "pgmPhysHandlerRedirectToHC", rc));
+    }
+    else
+        AssertMsgFailed(("Failed to resolve %s.%s, rc=%Rrc.\n", pszHandlerR0 ? pszModR0 : VMMR0_MAIN_MODULE_NAME,
+                         pszHandlerR0 ? pszHandlerR0 : "pgmPhysHandlerRedirectToHC", rc));
 
-    *phType = pType->hType;
-    LogFlow(("PGMR3HandlerPhysicalTypeRegisterEx: hType=%#RX64/%#x: enmKind=%d fFlags=%#x pfnHandler=%p pszDesc=%s\n",
-             pType->hType, idxType, enmKind, fFlags, pfnHandler, pszDesc));
-    return VINF_SUCCESS;
+    return rc;
 }
 
 
@@ -141,14 +226,10 @@ void pgmR3HandlerPhysicalUpdateAll(PVM pVM)
      * Clear and set.
      * (the right -> left on the setting pass is just bird speculating on cache hits)
      */
-    PGM_LOCK_VOID(pVM);
-
-    int rc = pVM->pgm.s.pPhysHandlerTree->doWithAllFromLeft(&pVM->pgm.s.PhysHandlerAllocator, pgmR3HandlerPhysicalOneClear, pVM);
-    AssertRC(rc);
-    rc = pVM->pgm.s.pPhysHandlerTree->doWithAllFromRight(&pVM->pgm.s.PhysHandlerAllocator, pgmR3HandlerPhysicalOneSet, pVM);
-    AssertRC(rc);
-
-    PGM_UNLOCK(pVM);
+    pgmLock(pVM);
+    RTAvlroGCPhysDoWithAll(&pVM->pgm.s.CTX_SUFF(pTrees)->PhysHandlers,  true, pgmR3HandlerPhysicalOneClear, pVM);
+    RTAvlroGCPhysDoWithAll(&pVM->pgm.s.CTX_SUFF(pTrees)->PhysHandlers, false, pgmR3HandlerPhysicalOneSet, pVM);
+    pgmUnlock(pVM);
 }
 
 
@@ -156,14 +237,15 @@ void pgmR3HandlerPhysicalUpdateAll(PVM pVM)
  * Clears all the page level flags for one physical handler range.
  *
  * @returns 0
- * @param   pHandler    The physical access handler entry.
- * @param   pvUser      Pointer to the VM.
+ * @param   pNode   Pointer to a PGMPHYSHANDLER.
+ * @param   pvUser  Pointer to the VM.
  */
-static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PPGMPHYSHANDLER pHandler, void *pvUser)
+static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PAVLROGCPHYSNODECORE pNode, void *pvUser)
 {
+    PPGMPHYSHANDLER pCur     = (PPGMPHYSHANDLER)pNode;
     PPGMRAMRANGE    pRamHint = NULL;
-    RTGCPHYS        GCPhys   = pHandler->Key;
-    RTUINT          cPages   = pHandler->cPages;
+    RTGCPHYS        GCPhys   = pCur->Core.Key;
+    RTUINT          cPages   = pCur->cPages;
     PVM             pVM      = (PVM)pvUser;
     for (;;)
     {
@@ -191,7 +273,7 @@ static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PPGMPHYSHANDLER pHandler, 
 
         if (--cPages == 0)
             return 0;
-        GCPhys += GUEST_PAGE_SIZE;
+        GCPhys += PAGE_SIZE;
     }
 }
 
@@ -200,17 +282,18 @@ static DECLCALLBACK(int) pgmR3HandlerPhysicalOneClear(PPGMPHYSHANDLER pHandler, 
  * Sets all the page level flags for one physical handler range.
  *
  * @returns 0
- * @param   pHandler    The physical access handler entry.
- * @param   pvUser      Pointer to the VM.
+ * @param   pNode   Pointer to a PGMPHYSHANDLER.
+ * @param   pvUser  Pointer to the VM.
  */
-static DECLCALLBACK(int) pgmR3HandlerPhysicalOneSet(PPGMPHYSHANDLER pHandler, void *pvUser)
+static DECLCALLBACK(int) pgmR3HandlerPhysicalOneSet(PAVLROGCPHYSNODECORE pNode, void *pvUser)
 {
     PVM                     pVM       = (PVM)pvUser;
-    PCPGMPHYSHANDLERTYPEINT pType     = PGMPHYSHANDLER_GET_TYPE_NO_NULL(pVM, pHandler);
-    unsigned                uState    = pType->uState;
+    PPGMPHYSHANDLER         pCur      = (PPGMPHYSHANDLER)pNode;
+    PPGMPHYSHANDLERTYPEINT  pCurType  = PGMPHYSHANDLER_GET_TYPE(pVM, pCur);
+    unsigned                uState    = pCurType->uState;
     PPGMRAMRANGE            pRamHint  = NULL;
-    RTGCPHYS                GCPhys    = pHandler->Key;
-    RTUINT                  cPages    = pHandler->cPages;
+    RTGCPHYS                GCPhys    = pCur->Core.Key;
+    RTUINT                  cPages    = pCur->cPages;
     for (;;)
     {
         PPGMPAGE pPage;
@@ -237,7 +320,7 @@ static DECLCALLBACK(int) pgmR3HandlerPhysicalOneSet(PPGMPHYSHANDLER pHandler, vo
 
         if (--cPages == 0)
             return 0;
-        GCPhys += GUEST_PAGE_SIZE;
+        GCPhys += PAGE_SIZE;
     }
 }
 
@@ -276,15 +359,14 @@ DECLCALLBACK(void) pgmR3InfoHandlers(PVM pVM, PCDBGFINFOHLP pHlp, const char *ps
      * Dump the handlers.
      */
     pHlp->pfnPrintf(pHlp,
-                    "Physical handlers: max %#x, %u allocator error%s, %u tree error%s\n"
-                    "%*s %*s %*s uUser             Type     Description\n",
-                    pVM->pgm.s.PhysHandlerAllocator.m_cNodes,
-                    pVM->pgm.s.PhysHandlerAllocator.m_cErrors, pVM->pgm.s.PhysHandlerAllocator.m_cErrors != 0 ? "s" : "",
-                    pVM->pgm.s.pPhysHandlerTree->m_cErrors, pVM->pgm.s.pPhysHandlerTree->m_cErrors != 0 ? "s" : "",
+                    "Physical handlers: (PhysHandlers=%d (%#x))\n"
+                    "%*s %*s %*s %*s HandlerGC UserGC    Type     Description\n",
+                    pVM->pgm.s.pTreesR3->PhysHandlers, pVM->pgm.s.pTreesR3->PhysHandlers,
                     - (int)sizeof(RTGCPHYS) * 2,     "From",
                     - (int)sizeof(RTGCPHYS) * 2 - 3, "- To (incl)",
-                    - (int)sizeof(RTHCPTR)  * 2 - 1, "Handler (R3)");
-    pVM->pgm.s.pPhysHandlerTree->doWithAllFromLeft(&pVM->pgm.s.PhysHandlerAllocator, pgmR3InfoHandlersPhysicalOne, &Args);
+                    - (int)sizeof(RTHCPTR)  * 2 - 1, "HandlerHC",
+                    - (int)sizeof(RTHCPTR)  * 2 - 1, "UserHC");
+    RTAvlroGCPhysDoWithAll(&pVM->pgm.s.pTreesR3->PhysHandlers, true, pgmR3InfoHandlersPhysicalOne, &Args);
 }
 
 
@@ -292,42 +374,32 @@ DECLCALLBACK(void) pgmR3InfoHandlers(PVM pVM, PCDBGFINFOHLP pHlp, const char *ps
  * Displays one physical handler range.
  *
  * @returns 0
- * @param   pHandler    The physical access handler entry.
- * @param   pvUser      Pointer to command helper functions.
+ * @param   pNode   Pointer to a PGMPHYSHANDLER.
+ * @param   pvUser  Pointer to command helper functions.
  */
-static DECLCALLBACK(int) pgmR3InfoHandlersPhysicalOne(PPGMPHYSHANDLER pHandler, void *pvUser)
+static DECLCALLBACK(int) pgmR3InfoHandlersPhysicalOne(PAVLROGCPHYSNODECORE pNode, void *pvUser)
 {
-    PPGMHANDLERINFOARG      pArgs = (PPGMHANDLERINFOARG)pvUser;
-    PCDBGFINFOHLP           pHlp  = pArgs->pHlp;
-    PCPGMPHYSHANDLERTYPEINT pType = PGMPHYSHANDLER_GET_TYPE_NO_NULL(pArgs->pVM, pHandler);
+    PPGMPHYSHANDLER        pCur     = (PPGMPHYSHANDLER)pNode;
+    PPGMHANDLERINFOARG     pArgs    = (PPGMHANDLERINFOARG)pvUser;
+    PCDBGFINFOHLP          pHlp     = pArgs->pHlp;
+    PPGMPHYSHANDLERTYPEINT pCurType = PGMPHYSHANDLER_GET_TYPE(pArgs->pVM, pCur);
     const char *pszType;
-    switch (pType->enmKind)
+    switch (pCurType->enmKind)
     {
         case PGMPHYSHANDLERKIND_MMIO:   pszType = "MMIO   "; break;
         case PGMPHYSHANDLERKIND_WRITE:  pszType = "Write  "; break;
         case PGMPHYSHANDLERKIND_ALL:    pszType = "All    "; break;
-        default:                        pszType = "???????"; break;
+        default:                        pszType = "????"; break;
     }
-
-    char   szFlags[80];
-    size_t cchFlags = 0;
-    if (pType->fKeepPgmLock)
-        cchFlags = RTStrPrintf(szFlags, sizeof(szFlags), "(keep-pgm-lock");
-    if (pType->fRing0DevInsIdx)
-        cchFlags += RTStrPrintf(&szFlags[cchFlags], sizeof(szFlags) - cchFlags, cchFlags ? ", keep-pgm-lock" : "(keep-pgm-lock");
-    if (pType->fRing0Enabled)
-        cchFlags += RTStrPrintf(&szFlags[cchFlags], sizeof(szFlags) - cchFlags, cchFlags ? ", r0-enabled)" : "(r0-enabled)");
-    else
-        cchFlags += RTStrPrintf(&szFlags[cchFlags], sizeof(szFlags) - cchFlags, cchFlags ? ", r3-only)" : "(r3-only)");
-
     pHlp->pfnPrintf(pHlp,
-                    "%RGp - %RGp  %p  %016RX64  %s  %s  %s\n",
-                    pHandler->Key, pHandler->KeyLast, pType->pfnHandler, pHandler->uUser, pszType, pHandler->pszDesc, szFlags);
+                    "%RGp - %RGp  %RHv  %RHv  %RHv  %RHv  %s  %s\n",
+                    pCur->Core.Key, pCur->Core.KeyLast, pCurType->pfnHandlerR3, pCur->pvUserR3,
+                    pCurType->pfnPfHandlerR0, pCur->pvUserR0, pszType, pCur->pszDesc);
 #ifdef VBOX_WITH_STATISTICS
     if (pArgs->fStats)
         pHlp->pfnPrintf(pHlp, "   cPeriods: %9RU64  cTicks: %11RU64  Min: %11RU64  Avg: %11RU64 Max: %11RU64\n",
-                        pHandler->Stat.cPeriods, pHandler->Stat.cTicks, pHandler->Stat.cTicksMin,
-                        pHandler->Stat.cPeriods ? pHandler->Stat.cTicks / pHandler->Stat.cPeriods : 0, pHandler->Stat.cTicksMax);
+                        pCur->Stat.cPeriods, pCur->Stat.cTicks, pCur->Stat.cTicksMin,
+                        pCur->Stat.cPeriods ? pCur->Stat.cTicks / pCur->Stat.cPeriods : 0, pCur->Stat.cTicksMax);
 #endif
     return 0;
 }

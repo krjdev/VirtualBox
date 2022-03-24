@@ -1,10 +1,10 @@
-/* $Id: fuzzclientcmd.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fuzzclientcmd.cpp $ */
 /** @file
  * IPRT - Fuzzing framework API, fuzzed client command.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,10 +45,8 @@
 #include <iprt/vfs.h>
 
 
-/*********************************************************************************************************************************
-*   Structures and Typedefs                                                                                                      *
-*********************************************************************************************************************************/
-typedef DECLCALLBACKTYPE(int, FNLLVMFUZZERTESTONEINPUT,(const uint8_t *pbData, size_t cbData));
+
+typedef DECLCALLBACK(int) FNLLVMFUZZERTESTONEINPUT(const uint8_t *pbData, size_t cbData);
 typedef FNLLVMFUZZERTESTONEINPUT *PFNLLVMFUZZERTESTONEINPUT;
 
 

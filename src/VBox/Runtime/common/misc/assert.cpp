@@ -1,10 +1,10 @@
-/* $Id: assert.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: assert.cpp $ */
 /** @file
  * IPRT - Assertions, common code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -223,10 +223,10 @@ RTDECL(void) RTAssertMsg1(const char *pszExpr, unsigned uLine, const char *pszFi
                 "\n!!Assertion Failed!!\n"
                 "Expression: %s\n"
                 "Location  : %s(%d) %s\n",
-                RT_VALID_PTR(pszExpr) ? pszExpr : "<none>",
-                RT_VALID_PTR(pszFile) ? pszFile : "<none>",
+                VALID_PTR(pszExpr) ? pszExpr : "<none>",
+                VALID_PTR(pszFile) ? pszFile : "<none>",
                 uLine,
-                RT_VALID_PTR(pszFunction) ? pszFunction : "");
+                VALID_PTR(pszFunction) ? pszFunction : "");
 # ifdef IPRT_WITH_ASSERT_STACK
         fprintf(stderr, "Stack     :\n%s\n", szStack);
 # endif

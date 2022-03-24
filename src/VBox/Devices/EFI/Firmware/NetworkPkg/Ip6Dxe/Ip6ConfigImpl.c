@@ -2,7 +2,6 @@
   The implementation of EFI IPv6 Configuration Protocol.
 
   Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) Microsoft Corporation.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -102,7 +101,7 @@ Ip6ConfigOnPolicyChanged (
     }
 
     //
-    // All IPv6 children that use global unicast address as its source address
+    // All IPv6 children that use global unicast address as it's source address
     // should be destroyed now. The survivers are those use the link-local address
     // or the unspecified address as the source address.
     // TODO: Conduct a check here.
@@ -336,7 +335,7 @@ Ip6ConfigSignalEvent (
 /**
   Read the configuration data from variable storage according to the VarName and
   gEfiIp6ConfigProtocolGuid. It checks the integrity of variable data. If the
-  data is corrupted, it clears the variable data to ZERO. Otherwise, it outputs the
+  data is corrupted, it clears the variable data to ZERO. Othewise, it outputs the
   configuration data to IP6_CONFIG_INSTANCE.
 
   @param[in]      VarName  The pointer to the variable name
@@ -391,9 +390,24 @@ Ip6ConfigReadConfigData (
                     );
     if (EFI_ERROR (Status) || (UINT16) (~NetblockChecksum ((UINT8 *) Variable, (UINT32) VarSize)) != 0) {
       //
-      // GetVariable error or the variable is corrupted.
+      // GetVariable still error or the variable is corrupted.
+      // Fall back to the default value.
       //
-      goto Error;
+      FreePool (Variable);
+
+      //
+      // Remove the problematic variable and return EFI_NOT_FOUND, a new
+      // variable will be set again.
+      //
+      gRT->SetVariable (
+             VarName,
+             &gEfiIp6ConfigProtocolGuid,
+             IP6_CONFIG_VARIABLE_ATTRIBUTE,
+             0,
+             NULL
+             );
+
+      return EFI_NOT_FOUND;
     }
 
     //
@@ -418,12 +432,7 @@ Ip6ConfigReadConfigData (
       if (!DATA_ATTRIB_SET (DataItem->Attribute, DATA_ATTRIB_SIZE_FIXED)) {
         //
         // This data item has variable length data.
-        // Check that the length is contained within the variable before allocating.
         //
-        if (DataRecord.DataSize > VarSize - DataRecord.Offset) {
-          goto Error;
-        }
-
         DataItem->Data.Ptr = AllocatePool (DataRecord.DataSize);
         if (DataItem->Data.Ptr == NULL) {
           //
@@ -445,28 +454,6 @@ Ip6ConfigReadConfigData (
   }
 
   return Status;
-
-Error:
-  //
-  // Fall back to the default value.
-  //
-  if (Variable != NULL) {
-    FreePool (Variable);
-  }
-
-  //
-  // Remove the problematic variable and return EFI_NOT_FOUND, a new
-  // variable will be set again.
-  //
-  gRT->SetVariable (
-         VarName,
-         &gEfiIp6ConfigProtocolGuid,
-         IP6_CONFIG_VARIABLE_ATTRIBUTE,
-         0,
-         NULL
-         );
-
-  return EFI_NOT_FOUND;
 }
 
 /**
@@ -625,7 +612,7 @@ Ip6ConfigGetIfInfo (
 }
 
 /**
-  The work function for EfiIp6ConfigSetData() to set the alternative interface ID
+  The work function for EfiIp6ConfigSetData() to set the alternative inteface ID
   for the communication device managed by this IP6Config instance, if the link local
   IPv6 addresses generated from the interface ID based on the default source the
   EFI IPv6 Protocol uses is a duplicate address.
@@ -928,7 +915,7 @@ Ip6ManualAddrDadCallback (
                                 under the current policy.
   @retval EFI_INVALID_PARAMETER One or more fields in Data is invalid.
   @retval EFI_OUT_OF_RESOURCES  Fail to allocate resource to complete the operation.
-  @retval EFI_NOT_READY         An asynchronous process is invoked to set the specified
+  @retval EFI_NOT_READY         An asynchrous process is invoked to set the specified
                                 configuration data, and the process is not finished.
   @retval EFI_ABORTED           The manual addresses to be set equal current
                                 configuration.
@@ -2047,7 +2034,7 @@ EfiIp6ConfigSetData (
     }
   } else {
     //
-    // Another asynchronous process is on the way.
+    // Another asynchornous process is on the way.
     //
     Status = EFI_ACCESS_DENIED;
   }

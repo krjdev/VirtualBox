@@ -1,10 +1,10 @@
-/* $Id: NetworkAdapterImpl.cpp 93561 2022-02-03 07:02:29Z vboxsync $ */
+/* $Id: NetworkAdapterImpl.cpp $ */
 /** @file
  * Implementation of INetworkAdapter in VBoxSVC.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -245,12 +245,9 @@ HRESULT NetworkAdapter::setAdapterType(NetworkAdapterType_T aAdapterType)
 #ifdef VBOX_WITH_VIRTIO
         case NetworkAdapterType_Virtio:
 #endif
-        case NetworkAdapterType_NE1000:
-        case NetworkAdapterType_NE2000:
-        case NetworkAdapterType_WD8003:
-        case NetworkAdapterType_WD8013:
-        case NetworkAdapterType_ELNK2:
-        case NetworkAdapterType_ELNK1:
+#ifdef VBOX_WITH_VIRTIO_NET_1_0
+        case NetworkAdapterType_Virtio_1_0:
+#endif /* VBOX_WITH_VIRTIO */
             break;
         default:
             return setError(E_FAIL,
@@ -593,65 +590,6 @@ HRESULT NetworkAdapter::setHostOnlyInterface(const com::Utf8Str &aHostOnlyInterf
     }
 
     return S_OK;
-}
-
-
-HRESULT NetworkAdapter::getHostOnlyNetwork(com::Utf8Str &aHostOnlyNetwork)
-{
-#ifdef VBOX_WITH_VMNET
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    aHostOnlyNetwork = mData->strHostOnlyNetworkName;
-
-    return S_OK;
-#else /* !VBOX_WITH_VMNET */
-    NOREF(aHostOnlyNetwork);
-    return E_NOTIMPL;
-#endif /* !VBOX_WITH_VMNET */
-}
-
-HRESULT NetworkAdapter::setHostOnlyNetwork(const com::Utf8Str &aHostOnlyNetwork)
-{
-#ifdef VBOX_WITH_VMNET
-    /* the machine needs to be mutable */
-    AutoMutableOrSavedOrRunningStateDependency adep(mParent);
-    if (FAILED(adep.rc())) return adep.rc();
-
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    if (mData->strHostOnlyNetworkName != aHostOnlyNetwork)
-    {
-        /* if an empty/null string is to be set, host only Network must be
-         * turned off */
-        if (   aHostOnlyNetwork.isEmpty()
-            && mData->fEnabled
-            && mData->mode == NetworkAttachmentType_HostOnly)
-        {
-            return setError(E_FAIL,
-                            tr("Empty or null host only Network name is not valid"));
-        }
-
-        mData.backup();
-        mData->strHostOnlyNetworkName = aHostOnlyNetwork;
-
-        // leave the lock before informing callbacks
-        alock.release();
-
-        AutoWriteLock mlock(mParent COMMA_LOCKVAL_SRC_POS);       // mParent is const, no need to lock
-        mParent->i_setModified(Machine::IsModified_NetworkAdapters);
-        mlock.release();
-
-        /* When changing the host adapter, adapt the CFGM logic to make this
-         * change immediately effect and to notify the guest that the network
-         * might have changed, therefore changeAdapter=TRUE. */
-        mParent->i_onNetworkAdapterChange(this, TRUE);
-    }
-
-    return S_OK;
-#else /* !VBOX_WITH_VMNET */
-    NOREF(aHostOnlyNetwork);
-    return E_NOTIMPL;
-#endif /* !VBOX_WITH_VMNET */
 }
 
 

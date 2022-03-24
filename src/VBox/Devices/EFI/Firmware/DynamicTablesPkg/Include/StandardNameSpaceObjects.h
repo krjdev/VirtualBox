@@ -79,7 +79,7 @@ typedef struct CmAStdObjAcpiTableInfo {
   UINT32                         AcpiTableSignature;
 
   /// The ACPI table revision
-  UINT8                          AcpiTableRevision;
+  UINT32                         AcpiTableRevision;
 
   /// The ACPI Table Generator ID
   ACPI_TABLE_GENERATOR_ID        TableGeneratorId;

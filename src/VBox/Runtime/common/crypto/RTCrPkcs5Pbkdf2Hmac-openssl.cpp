@@ -1,10 +1,10 @@
-/* $Id: RTCrPkcs5Pbkdf2Hmac-openssl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTCrPkcs5Pbkdf2Hmac-openssl.cpp $ */
 /** @file
  * IPRT - Crypto - RTCrPkcs5Pbkdf2Hmac implementation using OpenSSL.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,9 +37,7 @@
 # include <iprt/assert.h>
 
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
-# include <openssl/evp.h>
-# include "internal/openssl-post.h"
+# include "openssl/evp.h"
 
 
 RTDECL(int) RTCrPkcs5Pbkdf2Hmac(void const *pvInput, size_t cbInput, void const *pvSalt, size_t cbSalt, uint32_t cIterations,

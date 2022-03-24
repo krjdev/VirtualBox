@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,8 +29,6 @@
 # pragma once
 #endif
 
-#include <iprt/cdefs.h>
-
 /** @todo Much of the PAGE_* stuff here is obsolete and highly risky to have around.
  * As for component configs (MM_*), either we gather all in here or we move those bits away! */
 
@@ -53,8 +51,6 @@
  */
 #if defined(RT_ARCH_SPARC64)
 # define PAGE_SIZE          8192
-#elif defined(RT_ARCH_ARM64)
-# define PAGE_SIZE          16384
 #else
 # define PAGE_SIZE          4096
 #endif
@@ -65,8 +61,6 @@
  */
 #if defined(RT_ARCH_SPARC64)
 # define PAGE_SHIFT         13
-#elif defined(RT_ARCH_ARM64)
-# define PAGE_SHIFT         14
 #else
 # define PAGE_SHIFT         12
 #endif
@@ -74,24 +68,34 @@
 /**
  * i386 Page offset mask.
  *
- * @note If you do one-complement this, always insert a target type case after
- *       the operator!  Otherwise you may end up with weird results.
+ * Do NOT one-complement this for whatever purpose. You may get a 32-bit const when you want a 64-bit one.
+ * Use PAGE_BASE_MASK, PAGE_BASE_GC_MASK, PAGE_BASE_HC_MASK, PAGE_ADDRESS() or X86_PTE_PAE_PG_MASK.
  */
 #if defined(RT_ARCH_SPARC64)
 # define PAGE_OFFSET_MASK    0x1fff
-#elif defined(RT_ARCH_ARM64)
-# define PAGE_OFFSET_MASK    0x3fff
 #else
 # define PAGE_OFFSET_MASK    0xfff
 #endif
 
 /**
- * Page address mask for the uintptr_t sized pointers.
+ * Page address mask for the guest context POINTERS.
+ * @remark  Physical addresses are always masked using X86_PTE_PAE_PG_MASK!
+ */
+#define PAGE_BASE_GC_MASK   (~(RTGCUINTPTR)PAGE_OFFSET_MASK)
+
+/**
+ * Page address mask for the host context POINTERS.
+ * @remark  Physical addresses are always masked using X86_PTE_PAE_PG_MASK!
+ */
+#define PAGE_BASE_HC_MASK   (~(RTHCUINTPTR)PAGE_OFFSET_MASK)
+
+/**
+ * Page address mask for the both context POINTERS.
  *
  * Be careful when using this since it may be a size too big!
  * @remark  Physical addresses are always masked using X86_PTE_PAE_PG_MASK!
  */
-#define PAGE_BASE_MASK      (~(uintptr_t)PAGE_OFFSET_MASK)
+#define PAGE_BASE_MASK      (~(RTUINTPTR)PAGE_OFFSET_MASK)
 
 /**
  * Get the page aligned address of a POINTER in the CURRENT context.

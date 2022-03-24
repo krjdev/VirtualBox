@@ -1,10 +1,10 @@
-/* $Id: taf-asn1-decoder.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: taf-asn1-decoder.cpp $ */
 /** @file
  * IPRT - Crypto - Trust Anchor Format (RFC-5914), Decoder for ASN.1.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

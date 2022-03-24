@@ -1,10 +1,10 @@
-/* $Id: VirtualBoxSDSImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VirtualBoxSDSImpl.h $ */
 /** @file
  * VBox Global COM Class definition
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,7 +82,7 @@ public:
         COM_INTERFACE_ENTRY(IVirtualBoxSDS)
     END_COM_MAP()
 
-    DECLARE_COMMON_CLASS_METHODS(VirtualBoxSDS)
+    DECLARE_EMPTY_CTOR_DTOR(VirtualBoxSDS)
 
     HRESULT FinalConstruct();
     void    FinalRelease();

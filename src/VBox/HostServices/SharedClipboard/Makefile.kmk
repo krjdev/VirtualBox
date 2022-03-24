@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93444 2022-01-26 18:01:15Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the Shared Clipboard Host Service.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -44,15 +44,11 @@ VBoxSharedClipboard_SOURCES.darwin = \
 	VBoxSharedClipboardSvc-darwin.cpp \
 	darwin-pasteboard.cpp
 ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
- if1of ($(KBUILD_TARGET), linux)
-  VBoxSharedClipboard_DEFS    += VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
-  VBoxSharedClipboard_SOURCES += \
-	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-transfers-http.cpp
- endif
  VBoxSharedClipboard_DEFS    += VBOX_WITH_SHARED_CLIPBOARD_HOST
  VBoxSharedClipboard_SOURCES += \
 	VBoxSharedClipboardSvc-transfers.cpp \
 	VBoxSharedClipboardSvc-utils.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardArea.cpp \
 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardPath.cpp \
 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-transfers.cpp
  VBoxSharedClipboard_SOURCES.win += \
@@ -72,7 +68,9 @@ if1of ($(KBUILD_TARGET), linux solaris freebsd) ## @todo X11
 endif
 
 VBoxSharedClipboard_LIBS = \
-	$(LIB_RUNTIME)
+	$(LIB_VMM) \
+	$(LIB_RUNTIME) \
+	$(LIB_REM)
 if1of ($(KBUILD_TARGET), linux solaris freebsd)
  ifndef VBOX_HEADLESS
   VBoxSharedClipboard_LIBPATH = \

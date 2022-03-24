@@ -1,10 +1,10 @@
-/* $Id: DisplayResampleImage.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DisplayResampleImage.cpp $ */
 /** @file
  * Image resampling code, used for snapshot thumbnails.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -88,6 +88,7 @@ void BitmapScale32 (uint8_t *dst,
                 {
                     FIXEDPOINT xportion;
                     FIXEDPOINT pcontribution;
+                    int p;
                     if (FIXEDPOINT_FLOOR (sx) == FIXEDPOINT_FLOOR (sx1))
                     {
                         xportion = INT_TO_FIXEDPOINT(1) - FIXEDPOINT_FRACTION(sx);
@@ -109,7 +110,7 @@ void BitmapScale32 (uint8_t *dst,
                         pcontribution = xportion * yportion;
                     }
                     /* Color depth specific code begin */
-                    int32_t p = *(int32_t *)(pu8SrcLine + FIXEDPOINT_TO_INT(sx) * 4);
+                    p = *(uint32_t *)(pu8SrcLine + FIXEDPOINT_TO_INT(sx) * 4);
                     /* Color depth specific code end */
                     red   += trueColorGetRed (p) * pcontribution;
                     green += trueColorGetGreen (p) * pcontribution;

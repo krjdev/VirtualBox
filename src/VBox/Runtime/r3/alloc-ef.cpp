@@ -1,10 +1,10 @@
-/* $Id: alloc-ef.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: alloc-ef.cpp $ */
 /** @file
  * IPRT - Memory Allocation, electric fence.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -307,20 +307,6 @@ DECLINLINE(PRTMEMBLOCK) rtmemBlockDelayRemove(void)
     }
     rtmemBlockUnlock();
     return pBlock;
-}
-
-
-/**
- * Dumps the freed blocks.
- * This is something which you should call from gdb.
- */
-extern "C" void RTMemDumpFreed(void);
-void RTMemDumpFreed(void)
-{
-    fprintf(stderr, "address  size(alg)     caller\n");
-    for (PRTMEMBLOCK pCur = g_pBlocksDelayHead; pCur; pCur = (PRTMEMBLOCK)pCur->Core.pRight)
-        RTMemDumpOne(&pCur->Core, NULL);
-
 }
 
 # endif  /* RTALLOC_EFENCE_FREE_DELAYED */

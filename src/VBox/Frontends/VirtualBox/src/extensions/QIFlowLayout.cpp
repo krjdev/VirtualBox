@@ -1,10 +1,10 @@
-/* $Id: QIFlowLayout.cpp 94003 2022-03-01 00:36:09Z vboxsync $ */
+/* $Id: QIFlowLayout.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIFlowLayout class implementation.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -88,9 +88,7 @@ QSize QIFlowLayout::minimumSize() const
         size = size.expandedTo(pItem->minimumSize());
 
     /* Do not forget the margins: */
-    int iLeft, iTop, iRight, iBottom;
-    getContentsMargins(&iLeft, &iTop, &iRight, &iBottom);
-    size += QSize(iLeft + iRight, iTop + iBottom);
+    size += QSize(2 * margin(), 2 * margin());
 
     /* Return resulting size: */
     return size;

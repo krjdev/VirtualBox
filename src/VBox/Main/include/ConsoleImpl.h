@@ -1,10 +1,10 @@
-/* $Id: ConsoleImpl.h 93858 2022-02-20 07:47:37Z vboxsync $ */
+/* $Id: ConsoleImpl.h $ */
 /** @file
  * VBox Console COM Class definition
  */
 
 /*
- * Copyright (C) 2005-2022 Oracle Corporation
+ * Copyright (C) 2005-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,7 +63,6 @@ class VMMDevMouseInterface;
 class DisplayMouseInterface;
 class VMPowerUpTask;
 class VMPowerDownTask;
-class NvramStore;
 
 #include <iprt/uuid.h>
 #include <iprt/memsafer.h>
@@ -102,7 +101,7 @@ typedef struct VUSBIRHCONFIG *PVUSBIRHCONFIG;
 #define CHECK_CONSOLE_DRV(drv) \
     do { \
         if (!!(drv)) {} \
-        else return setError(E_ACCESSDENIED, Console::tr("The console is not powered up (%Rfn)"), __FUNCTION__); \
+        else return setError(E_ACCESSDENIED, tr("The console is not powered up (%Rfn)"), __FUNCTION__); \
     } while (0)
 
 // Console
@@ -111,7 +110,6 @@ typedef struct VUSBIRHCONFIG *PVUSBIRHCONFIG;
 class ConsoleMouseInterface
 {
 public:
-    virtual ~ConsoleMouseInterface() { }
     virtual VMMDevMouseInterface  *i_getVMMDevMouseInterface(){return NULL;}
     virtual DisplayMouseInterface *i_getDisplayMouseInterface(){return NULL;}
     virtual void i_onMouseCapabilityChange(BOOL supportsAbsolute,
@@ -128,13 +126,13 @@ class ATL_NO_VTABLE Console :
 
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(Console)
+    DECLARE_EMPTY_CTOR_DTOR(Console)
 
     HRESULT FinalConstruct();
     void FinalRelease();
 
     // public initializers/uninitializers for internal purposes only
-    HRESULT initWithMachine(IMachine *aMachine, IInternalMachineControl *aControl, LockType_T aLockType);
+    HRESULT init(IMachine *aMachine, IInternalMachineControl *aControl, LockType_T aLockType);
     void uninit();
 
 
@@ -145,7 +143,6 @@ public:
      *  called only by the VM execution thread.
      */
 
-    PCVMMR3VTABLE i_getVMMVTable() const RT_NOEXCEPT { return mpVMM; }
     Guest *i_getGuest() const { return mGuest; }
     Keyboard *i_getKeyboard() const { return mKeyboard; }
     Mouse *i_getMouse() const { return mMouse; }
@@ -162,9 +159,9 @@ public:
     int i_recordingStart(util::AutoWriteLock *pAutoLock = NULL);
     int i_recordingStop(util::AutoWriteLock *pAutoLock = NULL);
 # ifdef VBOX_WITH_AUDIO_RECORDING
-    AudioVideoRec *i_recordingGetAudioDrv(void) const { return mRecording.mAudioRec; }
+    AudioVideoRec *i_recordingGetAudioDrv(void) const { return Recording.mAudioRec; }
 # endif
-    RecordingContext *i_recordingGetContext(void) const { return mRecording.mpCtx; }
+    RecordingContext *i_recordingGetContext(void) const { return Recording.mpCtx; }
 # ifdef VBOX_WITH_AUDIO_RECORDING
     HRESULT i_recordingSendAudio(const void *pvData, size_t cbData, uint64_t uDurationMs);
 # endif
@@ -205,7 +202,7 @@ public:
     HRESULT i_onUSBDeviceDetach(IN_BSTR aId, IVirtualBoxErrorInfo *aError);
     HRESULT i_onBandwidthGroupChange(IBandwidthGroup *aBandwidthGroup);
     HRESULT i_onStorageDeviceChange(IMediumAttachment *aMediumAttachment, BOOL aRemove, BOOL aSilent);
-    HRESULT i_onExtraDataChange(const Bstr &aMachineId, const Bstr &aKey, const Bstr &aVal);
+    HRESULT i_onExtraDataChange(IN_BSTR aMachineId, IN_BSTR aKey, IN_BSTR aVal);
 
     HRESULT i_getGuestProperty(const Utf8Str &aName, Utf8Str *aValue, LONG64 *aTimestamp, Utf8Str *aFlags);
     HRESULT i_setGuestProperty(const Utf8Str &aName, const Utf8Str &aValue, const Utf8Str &aFlags);
@@ -292,8 +289,8 @@ public:
     static const char *i_storageControllerTypeToStr(StorageControllerType_T enmCtrlType);
     static HRESULT i_storageBusPortDeviceToLun(StorageBus_T enmBus, LONG port, LONG device, unsigned &uLun);
     // Called from event listener
-    HRESULT i_onNATRedirectRuleChanged(ULONG ulInstance, BOOL aNatRuleRemove,
-                                       NATProtocol_T aProto, IN_BSTR aHostIp, LONG aHostPort, IN_BSTR aGuestIp, LONG aGuestPort);
+    HRESULT i_onNATRedirectRuleChange(ULONG ulInstance, BOOL aNatRuleRemove,
+                                      NATProtocol_T aProto, IN_BSTR aHostIp, LONG aHostPort, IN_BSTR aGuestIp, LONG aGuestPort);
     HRESULT i_onNATDnsChanged();
 
     // Mouse interface
@@ -328,7 +325,7 @@ public:
 
 private:
 
-    // wrapped IConsole properties
+    // wraped IConsole properties
     HRESULT getMachine(ComPtr<IMachine> &aMachine);
     HRESULT getState(MachineState_T *aState);
     HRESULT getGuest(ComPtr<IGuest> &aGuest);
@@ -346,7 +343,7 @@ private:
     HRESULT setUseHostClipboard(BOOL aUseHostClipboard);
     HRESULT getEmulatedUSB(ComPtr<IEmulatedUSB> &aEmulatedUSB);
 
-    // wrapped IConsole methods
+    // wraped IConsole methods
     HRESULT powerUp(ComPtr<IProgress> &aProgress);
     HRESULT powerUpPaused(ComPtr<IProgress> &aProgress);
     HRESULT powerDown(ComPtr<IProgress> &aProgress);
@@ -384,7 +381,7 @@ private:
     HRESULT removeDiskEncryptionPassword(const com::Utf8Str &aId);
     HRESULT clearAllDiskEncryptionPasswords();
 
-    void notifyNatDnsChange(PUVM pUVM, PCVMMR3VTABLE pVMM, const char *pszDevice, ULONG ulInstanceMax);
+    void notifyNatDnsChange(PUVM pUVM, const char *pszDevice, ULONG ulInstanceMax);
     Utf8Str VRDPServerErrorToMsg(int vrc);
 
     /**
@@ -492,10 +489,10 @@ private:
     {
         typedef AutoVMCallerBase<taQuiet, true> Base;
     public:
-        SafeVMPtrBase(Console *aThat) : Base(aThat), mRC(E_FAIL), mpUVM(NULL), mpVMM(NULL)
+        SafeVMPtrBase(Console *aThat) : Base(aThat), mRC(E_FAIL), mpUVM(NULL)
         {
             if (Base::isOk())
-                mRC = aThat->i_safeVMPtrRetainer(&mpUVM, &mpVMM, taQuiet);
+                mRC = aThat->i_safeVMPtrRetainer(&mpUVM, taQuiet);
         }
         ~SafeVMPtrBase()
         {
@@ -503,8 +500,6 @@ private:
         }
         /** Direct PUVM access. */
         PUVM rawUVM() const { return mpUVM; }
-        /** Direct PCVMMR3VTABLE access. */
-        PCVMMR3VTABLE vtable() const { return mpVMM; }
         /** Release the handles. */
         void release()
         {
@@ -527,9 +522,8 @@ private:
             }
             Base::doRelease();
         }
-        HRESULT         mRC; /* Whether the VM ptr was retained. */
-        PUVM            mpUVM;
-        PCVMMR3VTABLE   mpVMM;
+        HRESULT mRC; /* Whether the VM ptr was retained. */
+        PUVM    mpUVM;
         DECLARE_CLS_COPY_CTOR_ASSIGN_NOOP(SafeVMPtrBase);
     };
 
@@ -640,10 +634,9 @@ private:
     typedef std::list <ComObjPtr<OUSBDevice> > USBDeviceList;
     typedef std::list <ComObjPtr<RemoteUSBDevice> > RemoteUSBDeviceList;
 
-    HRESULT i_loadVMM(void) RT_NOEXCEPT;
     HRESULT i_addVMCaller(bool aQuiet = false, bool aAllowNullVM = false);
     void    i_releaseVMCaller();
-    HRESULT i_safeVMPtrRetainer(PUVM *a_ppUVM, PCVMMR3VTABLE *a_ppVMM, bool aQuiet) RT_NOEXCEPT;
+    HRESULT i_safeVMPtrRetainer(PUVM *a_ppUVM, bool aQuiet);
     void    i_safeVMPtrReleaser(PUVM *a_ppUVM);
 
     HRESULT i_consoleInitReleaseLog(const ComPtr<IMachine> aMachine);
@@ -675,24 +668,13 @@ private:
     HRESULT i_createSharedFolder(const Utf8Str &strName, const SharedFolderData &aData);
     HRESULT i_removeSharedFolder(const Utf8Str &strName);
 
-    HRESULT i_suspendBeforeConfigChange(PUVM pUVM, PCVMMR3VTABLE pVMM, AutoWriteLock *pAlock, bool *pfResume);
-    void    i_resumeAfterConfigChange(PUVM pUVM, PCVMMR3VTABLE pVMM);
+    HRESULT i_suspendBeforeConfigChange(PUVM pUVM, AutoWriteLock *pAlock, bool *pfResume);
+    void    i_resumeAfterConfigChange(PUVM pUVM);
 
-    static DECLCALLBACK(int) i_configConstructor(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvConsole);
-    void InsertConfigString(PCFGMNODE pNode, const char *pcszName, const char *pcszValue);
-    void InsertConfigString(PCFGMNODE pNode, const char *pcszName, const Utf8Str &rStrValue);
-    void InsertConfigString(PCFGMNODE pNode, const char *pcszName, const Bstr &rBstrValue);
-    void InsertConfigPassword(PCFGMNODE pNode, const char *pcszName, const Utf8Str &rStrValue);
-    void InsertConfigBytes(PCFGMNODE pNode, const char *pcszName, const void *pvBytes, size_t cbBytes);
-    void InsertConfigInteger(PCFGMNODE pNode, const char *pcszName, uint64_t u64Integer);
-    void InsertConfigNode(PCFGMNODE pNode, const char *pcszName, PCFGMNODE *ppChild);
-    void InsertConfigNodeF(PCFGMNODE pNode, PCFGMNODE *ppChild, const char *pszNameFormat, ...);
-    void RemoveConfigValue(PCFGMNODE pNode, const char *pcszName);
-    int  SetBiosDiskInfo(ComPtr<IMachine> pMachine, PCFGMNODE pCfg, PCFGMNODE pBiosCfg,
-                         Bstr controllerName, const char * const s_apszBiosConfig[4]);
+    static DECLCALLBACK(int) i_configConstructor(PUVM pUVM, PVM pVM, void *pvConsole);
     void i_configAudioDriver(IVirtualBox *pVirtualBox, IMachine *pMachine, PCFGMNODE pLUN, const char *pszDriverName,
                              bool fAudioEnabledIn, bool fAudioEnabledOut);
-    int i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, AutoWriteLock *pAlock);
+    int i_configConstructorInner(PUVM pUVM, PVM pVM, AutoWriteLock *pAlock);
     int i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMachine *pMachine);
     int i_configDumpAPISettingsTweaks(IVirtualBox *pVirtualBox, IMachine *pMachine);
 
@@ -704,9 +686,9 @@ private:
                                    const ComPtr<IBIOSSettings> &ptrBiosSettings,
                                    bool fHMEnabled);
     int i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache);
-    int i_unmountMediumFromGuest(PUVM pUVM, PCVMMR3VTABLE pVMM, StorageBus_T enmBus, DeviceType_T enmDevType,
+    int i_unmountMediumFromGuest(PUVM pUVM, StorageBus_T enmBus, DeviceType_T enmDevType,
                                  const char *pcszDevice, unsigned uInstance, unsigned uLUN,
-                                 bool fForceUnmount) RT_NOEXCEPT;
+                                 bool fForceUnmount);
     int i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
                                    const char *pcszDevice,
                                    unsigned uInstance,
@@ -716,7 +698,6 @@ private:
                                    bool fHotplug,
                                    bool fForceUnmount,
                                    PUVM pUVM,
-                                   PCVMMR3VTABLE pVMM,
                                    DeviceType_T enmDevType,
                                    PCFGMNODE *ppLunL0);
     int i_configMediumAttachment(const char *pcszDevice,
@@ -735,7 +716,6 @@ private:
                                  bool fForceUnmount,
                                  bool fHotplug,
                                  PUVM pUVM,
-                                 PCVMMR3VTABLE pVMM,
                                  DeviceType_T *paLedDevType,
                                  PCFGMNODE *ppLunL0);
     int i_configMedium(PCFGMNODE pLunL0,
@@ -750,13 +730,12 @@ private:
                        const char *pcszBwGroup,
                        bool fDiscard,
                        bool fNonRotational,
-                       ComPtr<IMedium> ptrMedium,
+                       IMedium *pMedium,
                        MachineState_T aMachineState,
                        HRESULT *phrc);
     int i_configMediumProperties(PCFGMNODE pCur, IMedium *pMedium, bool *pfHostIP, bool *pfEncrypted);
     static DECLCALLBACK(int) i_reconfigureMediumAttachment(Console *pThis,
                                                            PUVM pUVM,
-                                                           PCVMMR3VTABLE pVMM,
                                                            const char *pcszDevice,
                                                            unsigned uInstance,
                                                            StorageBus_T enmBus,
@@ -771,7 +750,6 @@ private:
                                                            HRESULT *phrc);
     static DECLCALLBACK(int) i_changeRemovableMedium(Console *pThis,
                                                      PUVM pUVM,
-                                                     PCVMMR3VTABLE pVMM,
                                                      const char *pcszDevice,
                                                      unsigned uInstance,
                                                      StorageBus_T enmBus,
@@ -780,33 +758,30 @@ private:
                                                      bool fForce);
 
     HRESULT i_attachRawPCIDevices(PUVM pUVM, BusAssignmentManager *BusMgr, PCFGMNODE pDevices);
-    struct LEDSET;
-    typedef struct LEDSET *PLEDSET;
-    PPDMLED *i_getLedSet(uint32_t iLedSet);
-    uint32_t i_allocateDriverLeds(uint32_t cLeds, DeviceType_T enmType, DeviceType_T **ppSubTypes);
-    void i_attachStatusDriver(PCFGMNODE pCtlInst, DeviceType_T enmType,
-                              uint32_t uFirst, uint32_t uLast,
-                              DeviceType_T **ppaSubTypes,
+    void i_attachStatusDriver(PCFGMNODE pCtlInst, PPDMLED *papLeds,
+                              uint64_t uFirst, uint64_t uLast,
                               Console::MediumAttachmentMap *pmapMediumAttachments,
                               const char *pcszDevice, unsigned uInstance);
 
-    int i_configNetwork(const char *pszDevice, unsigned uInstance, unsigned uLun, INetworkAdapter *aNetworkAdapter,
-                        PCFGMNODE pCfg,  PCFGMNODE pLunL0, PCFGMNODE pInst, bool fAttachDetach, bool fIgnoreConnectFailure,
-                        PUVM pUVM, PCVMMR3VTABLE pVMM);
+    int i_configNetwork(const char *pszDevice, unsigned uInstance, unsigned uLun,
+                        INetworkAdapter *aNetworkAdapter, PCFGMNODE pCfg,
+                        PCFGMNODE pLunL0, PCFGMNODE pInst,
+                        bool fAttachDetach, bool fIgnoreConnectFailure);
     int i_configSerialPort(PCFGMNODE pInst, PortMode_T ePortMode, const char *pszPath, bool fServer);
-    static DECLCALLBACK(void) i_vmstateChangeCallback(PUVM pUVM, PCVMMR3VTABLE pVMM, VMSTATE enmState,
-                                                      VMSTATE enmOldState, void *pvUser);
-    static DECLCALLBACK(int) i_unplugCpu(Console *pThis, PUVM pUVM, PCVMMR3VTABLE pVMM, VMCPUID idCpu);
-    static DECLCALLBACK(int) i_plugCpu(Console *pThis, PUVM pUVM, PCVMMR3VTABLE pVMM, VMCPUID idCpu);
-    HRESULT i_doMediumChange(IMediumAttachment *aMediumAttachment, bool fForce, PUVM pUVM, PCVMMR3VTABLE pVMM);
-    HRESULT i_doCPURemove(ULONG aCpu, PUVM pUVM, PCVMMR3VTABLE pVMM);
-    HRESULT i_doCPUAdd(ULONG aCpu, PUVM pUVM, PCVMMR3VTABLE pVMM);
+    static DECLCALLBACK(void) i_vmstateChangeCallback(PUVM pUVM, VMSTATE enmState, VMSTATE enmOldState, void *pvUser);
+    static DECLCALLBACK(int) i_unplugCpu(Console *pThis, PUVM pUVM, VMCPUID idCpu);
+    static DECLCALLBACK(int) i_plugCpu(Console *pThis, PUVM pUVM, VMCPUID idCpu);
+    HRESULT i_doMediumChange(IMediumAttachment *aMediumAttachment, bool fForce, PUVM pUVM);
+    HRESULT i_doCPURemove(ULONG aCpu, PUVM pUVM);
+    HRESULT i_doCPUAdd(ULONG aCpu, PUVM pUVM);
 
-    HRESULT i_doNetworkAdapterChange(PUVM pUVM, PCVMMR3VTABLE pVMM, const char *pszDevice, unsigned uInstance,
+    HRESULT i_doNetworkAdapterChange(PUVM pUVM, const char *pszDevice, unsigned uInstance,
                                      unsigned uLun, INetworkAdapter *aNetworkAdapter);
-    static DECLCALLBACK(int) i_changeNetworkAttachment(Console *pThis, PUVM pUVM, PCVMMR3VTABLE pVMM, const char *pszDevice,
-                                                       unsigned uInstance, unsigned uLun, INetworkAdapter *aNetworkAdapter);
-    static DECLCALLBACK(int) i_changeSerialPortAttachment(Console *pThis, PUVM pUVM, PCVMMR3VTABLE pVMM, ISerialPort *pSerialPort);
+    static DECLCALLBACK(int) i_changeNetworkAttachment(Console *pThis, PUVM pUVM, const char *pszDevice,
+                                                       unsigned uInstance, unsigned uLun,
+                                                       INetworkAdapter *aNetworkAdapter);
+    static DECLCALLBACK(int) i_changeSerialPortAttachment(Console *pThis, PUVM pUVM,
+                                                          ISerialPort *pSerialPort);
 
     int i_changeClipboardMode(ClipboardMode_T aClipboardMode);
     int i_changeClipboardFileTransferMode(bool aEnabled);
@@ -816,16 +791,15 @@ private:
     HRESULT i_attachUSBDevice(IUSBDevice *aHostDevice, ULONG aMaskedIfs, const Utf8Str &aCaptureFilename);
     HRESULT i_detachUSBDevice(const ComObjPtr<OUSBDevice> &aHostDevice);
 
-    static DECLCALLBACK(int) i_usbAttachCallback(Console *that, PUVM pUVM, PCVMMR3VTABLE pVMM, IUSBDevice *aHostDevice,
-                                                 PCRTUUID aUuid, const char *aBackend, const char *aAddress,
-                                                 void *pvRemoteBackend, USBConnectionSpeed_T enmSpeed, ULONG aMaskedIfs,
+    static DECLCALLBACK(int) i_usbAttachCallback(Console *that, PUVM pUVM, IUSBDevice *aHostDevice, PCRTUUID aUuid,
+                                                 const char *aBackend, const char *aAddress, void *pvRemoteBackend,
+                                                 USBConnectionSpeed_T enmSpeed, ULONG aMaskedIfs,
                                                  const char *pszCaptureFilename);
-    static DECLCALLBACK(int) i_usbDetachCallback(Console *that, PUVM pUVM, PCVMMR3VTABLE pVMM, PCRTUUID aUuid);
+    static DECLCALLBACK(int) i_usbDetachCallback(Console *that, PUVM pUVM, PCRTUUID aUuid);
 #endif
 
     static DECLCALLBACK(int) i_attachStorageDevice(Console *pThis,
                                                    PUVM pUVM,
-                                                   PCVMMR3VTABLE pVMM,
                                                    const char *pcszDevice,
                                                    unsigned uInstance,
                                                    StorageBus_T enmBus,
@@ -834,14 +808,13 @@ private:
                                                    bool fSilent);
     static DECLCALLBACK(int) i_detachStorageDevice(Console *pThis,
                                                    PUVM pUVM,
-                                                   PCVMMR3VTABLE pVMM,
                                                    const char *pcszDevice,
                                                    unsigned uInstance,
                                                    StorageBus_T enmBus,
                                                    IMediumAttachment *aMediumAtt,
                                                    bool fSilent);
-    HRESULT i_doStorageDeviceAttach(IMediumAttachment *aMediumAttachment, PUVM pUVM, PCVMMR3VTABLE pVMM, bool fSilent);
-    HRESULT i_doStorageDeviceDetach(IMediumAttachment *aMediumAttachment, PUVM pUVM, PCVMMR3VTABLE pVMM, bool fSilent);
+    HRESULT i_doStorageDeviceAttach(IMediumAttachment *aMediumAttachment, PUVM pUVM, bool fSilent);
+    HRESULT i_doStorageDeviceDetach(IMediumAttachment *aMediumAttachment, PUVM pUVM, bool fSilent);
 
     static DECLCALLBACK(int)    i_stateProgressCallback(PUVM pUVM, unsigned uPercent, void *pvUser);
 
@@ -886,11 +859,10 @@ private:
     static const char *sSSMConsoleUnit;
 
     HRESULT i_loadDataFromSavedState();
-    int i_loadStateFileExecInternal(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t u32Version);
+    int i_loadStateFileExecInternal(PSSMHANDLE pSSM, uint32_t u32Version);
 
-    static DECLCALLBACK(int)    i_saveStateFileExec(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser);
-    static DECLCALLBACK(int)    i_loadStateFileExec(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser,
-                                                    uint32_t uVersion, uint32_t uPass);
+    static DECLCALLBACK(void)   i_saveStateFileExec(PSSMHANDLE pSSM, void *pvUser);
+    static DECLCALLBACK(int)    i_loadStateFileExec(PSSMHANDLE pSSM, void *pvUser, uint32_t uVersion, uint32_t uPass);
 
 #ifdef VBOX_WITH_GUEST_PROPS
     HRESULT                     i_doEnumerateGuestProperties(const Utf8Str &aPatterns,
@@ -928,8 +900,8 @@ private:
     HRESULT                     i_teleporterSrc(TeleporterStateSrc *pState);
     HRESULT                     i_teleporterSrcReadACK(TeleporterStateSrc *pState, const char *pszWhich, const char *pszNAckMsg = NULL);
     HRESULT                     i_teleporterSrcSubmitCommand(TeleporterStateSrc *pState, const char *pszCommand, bool fWaitForAck = true);
-    HRESULT                     i_teleporterTrg(PUVM pUVM, PCVMMR3VTABLE pVMM, IMachine *pMachine, Utf8Str *pErrorMsg,
-                                                bool fStartPaused, Progress *pProgress, bool *pfPowerOffOnFailure);
+    HRESULT                     i_teleporterTrg(PUVM pUVM, IMachine *pMachine, Utf8Str *pErrorMsg, bool fStartPaused,
+                                              Progress *pProgress, bool *pfPowerOffOnFailure);
     static DECLCALLBACK(int)    i_teleporterTrgServeConnection(RTSOCKET Sock, void *pvUser);
     /** @} */
 
@@ -957,7 +929,6 @@ private:
     const ComObjPtr<ExtPackManager> mptrExtPackManager;
 #endif
     const ComObjPtr<EmulatedUSB> mEmulatedUSB;
-    const ComObjPtr<NvramStore> mptrNvramStore;
 
     USBDeviceList mUSBDevices;
     RemoteUSBDeviceList mRemoteUSBDevices;
@@ -966,10 +937,6 @@ private:
     SharedFolderDataMap m_mapMachineSharedFolders;
     SharedFolderMap m_mapSharedFolders;             // the console instances
 
-    /** VMM loader handle. */
-    RTLDRMOD mhModVMM;
-    /** The VMM vtable. */
-    PCVMMR3VTABLE mpVMM;
     /** The user mode VM handle. */
     PUVM mpUVM;
     /** Holds the number of "readonly" mpUVM callers (users). */
@@ -1019,19 +986,32 @@ private:
 #endif
     BusAssignmentManager*       mBusMgr;
 
-    /** @name LEDs and their management
-     * @{ */
-    /** Number of LED sets in use in maLedSets. */
-    uint32_t          mcLedSets;
-    /** LED sets. */
-    struct LEDSET
+    enum
     {
-        PPDMLED      *papLeds;
-        uint32_t      cLeds;
-        DeviceType_T  enmType;
-        DeviceType_T *paSubTypes; /**< Optionally, device types for each individual LED. Runs parallel to papLeds. */
-    }                 maLedSets[32];
-    /** @} */
+        iLedFloppy  = 0,
+        cLedFloppy  = 2,
+        iLedIde     = iLedFloppy + cLedFloppy,
+        cLedIde     = 4,
+        iLedSata    = iLedIde + cLedIde,
+        cLedSata    = 30,
+        iLedScsi    = iLedSata + cLedSata,
+        cLedScsi    = 16,
+        iLedSas     = iLedScsi + cLedScsi,
+        cLedSas     = 8,
+        iLedUsb     = iLedSas + cLedSas,
+        cLedUsb     = 8,
+        iLedNvme    = iLedUsb + cLedUsb,
+        cLedNvme    = 30,
+        iLedVirtio  = iLedNvme + cLedNvme,
+        cLedVirtio  = 255,
+        cLedStorage = cLedFloppy + cLedIde + cLedSata + cLedScsi + cLedSas + cLedUsb + cLedNvme + cLedVirtio
+    };
+    DeviceType_T maStorageDevType[cLedStorage];
+    PPDMLED      mapStorageLeds[cLedStorage];
+    PPDMLED      mapNetworkLeds[36];    /**< @todo adapt this to the maximum network card count */
+    PPDMLED      mapSharedFolderLed;
+    PPDMLED      mapUSBLed[2];
+    PPDMLED      mapCrOglLed;
 
     MediumAttachmentMap mapMediumAttachments;
 
@@ -1107,11 +1087,11 @@ private:
         /** Pointer to capturing audio backend. */
         AudioVideoRec * const mAudioRec;
 # endif
-    } mRecording;
+    } Recording;
 #endif /* VBOX_WITH_RECORDING */
 
 #ifdef VBOX_WITH_CLOUD_NET
-    GatewayInfo mGateway;
+    GatewayInfo mGateways;
 #endif /* VBOX_WITH_CLOUD_NET */
 
     friend class VMTask;

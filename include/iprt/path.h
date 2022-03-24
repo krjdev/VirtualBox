@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1167,7 +1167,7 @@ RTDECL(int) RTPathJoinEx(char *pszPathDst, size_t cbPathDst,
  * @param   pvUser1         The first user parameter.
  * @param   pvUser2         The second user parameter.
  */
-typedef DECLCALLBACKTYPE(int, FNRTPATHTRAVERSER,(char const *pchPath, size_t cchPath, void *pvUser1, void *pvUser2));
+typedef DECLCALLBACK(int) FNRTPATHTRAVERSER(char const *pchPath, size_t cchPath, void *pvUser1, void *pvUser2);
 /** Pointer to a FNRTPATHTRAVERSER. */
 typedef FNRTPATHTRAVERSER *PFNRTPATHTRAVERSER;
 

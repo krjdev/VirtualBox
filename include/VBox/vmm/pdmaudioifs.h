@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -227,7 +227,7 @@ PDMIHOSTAUDIOPORT1 <--> PDMIHOSTAUDIO1
  * the virtual machine be starving and lagging behind.  Likewise, we have about
  * 150ms of buffer space will can fill when the VM is in a catch-up mode.  Now,
  * 300ms and 150 ms isn't much for the purpose of glossing over
- * scheduling/timing differences here, but we can't do too much more or the lag
+ * scheduling/timinig differences here, but we can't do too much more or the lag
  * will grow rather annoying.  The pre-buffering is implemented by DrvAudio.
  *
  * In addition to the backend buffer that defaults to 300ms, we have the

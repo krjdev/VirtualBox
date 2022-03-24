@@ -1,10 +1,10 @@
-; $Id: ASMSerializeInstruction-rdtscp.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMSerializeInstruction-rdtscp.asm $
 ;; @file
 ; IPRT - ASMSerializeInstruction() using rdtscp.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,13 +34,13 @@ BEGINCODE
 
 
 ;;
-; Executes a serializing instruction.
+; Executes a seralizing instruction.
 ;
 ; The RDTSCP instruction is fast, though it may trigger a VM EXIT if the VMM
 ; is intercepting TSC reads for some timing reason or in general.
 ;
-RT_BEGINPROC    ASMSerializeInstructionRdTscp
+BEGINPROC_EXPORTED ASMSerializeInstructionRdTscp
         rdtscp
         ret
-ENDPROC         ASMSerializeInstructionRdTscp
+ENDPROC            ASMSerializeInstructionRdTscp
 

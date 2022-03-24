@@ -1,4 +1,4 @@
-$Id: vboxtxs-readme.txt 84481 2020-05-25 07:56:41Z vboxsync $
+$Id: vboxtxs-readme.txt $
 
 
 VirtualBox Test eXecution Service
@@ -26,43 +26,25 @@ for both cases.
 Linux Installation
 ------------------
 
-1.   mkdir -p /opt/validationkit
+1.   cd /root
 2.   scp/download VBoxValidationKit*.zip there.
 3.   unzip VBoxValidationKit*.zip
-4.   chmod -R u+w,a+x /opt/validationkit/ && chown -R root.root /opt/
+4.   chmod -R u+w,a+x /opt/validationkit/
 5.   cd /etc/init.d/
-
-6 a) For init.rc distros:
-     Link up the right init script (see connection type above):
+6a.  init.rc: Link up the right init script (see connection type above):
        nat)   ln -s ../../opt/validationkit/linux/vboxtxs-nat ./vboxtxs
        other) ln -s ../../opt/validationkit/linux/vboxtxs     ./vboxtxs
-6 b) Add vboxtxs to runlevels 2, 3, 5 and any other that makes sense
-     on the distro. There is usually some command for doing this, e.g.
-       ```update-rc.d vboxtxs defaults && update-rc.d vboxtxs enable``` (Debian-based)
-    or
-       ```chkconfig --add vboxtxs``` (OL/RHEL)
-
-  ... or ...
-
-7 a) For systemd distros: Link/copy up the vboxtxs.system to [/usr]/lib/systemd/, e.g.
-       cp /opt/validationkit/linux/vboxtxs.service /etc/systemd/system
-  b) Enable the vboxtxs service via:
-       systemctl enable vboxtxs
-
-  For all distros again:
-
-8a.  Check the CD-ROM location (--cdrom <path>) in vboxtxs and fix it so it's correct, make sure
+6b.  systemd: Link/copy up the vboxtxs.system to [/usr]/lib/systemd/.
+7a.  init.rc: Add vboxtxs to runlevels 2, 3, 5 and any other that makes sense
+     on the distro. There is usually some command for doing this...
+7b.  systemd: Enable the vboxtxs service.
+8a.  check the CD-ROM location (--cdrom <path>) in vboxtxs and fix it so it's correct, make sure
      to update in svn as well.
-8b.  Optional: If no suitable CD-ROM location is available on the guest yet, do a:
+8a.  optional: If no suitable CD-ROM location is available on the guest yet, do a:
     mkdir -p /media/cdrom; vi /etc/fstab
      and enter this in /etc/fstab:
     /dev/sr0<tab>/media/cdrom<tab>udf,iso9660<tab>user,noauto,exec,utf8<tab>0<tab>0
-8c.  Optional: If SELinux denies execution of TXS, make sure to allow this, based on
-     how the distribution handles SELinux exceptions. Often there even is a GUI for that
-     (e.g. Oracle Linux 8+).
-9.   Make sure that the package sources are still valid and up to date (apt / yum / ++)
-10.  reboot / done.
-11.  Do test.
+9.   reboot / done.
 
 
 OS/2 Installation
@@ -120,7 +102,6 @@ Windows Installation
 9. Import the right service setup (see connection type above):
      nat)   start C:\Apps\vboxtxs-nat.reg
      other) start C:\Apps\vboxtxs.reg
-10. Make sure that the CD-ROM location is assigned to D: (via "Disk Management").
 11. reboot / done
 12. Do test.
 

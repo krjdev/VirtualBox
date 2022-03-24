@@ -1,10 +1,10 @@
-/* $Id: UIGuestProcessControlWidget.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGuestProcessControlWidget.cpp $ */
 /** @file
  * VBox Qt GUI - UIGuestProcessControlWidget class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,6 +18,7 @@
 /* Qt includes: */
 #include <QApplication>
 #include <QMenu>
+#include <QSplitter>
 #include <QVBoxLayout>
 
 /* GUI includes: */
@@ -28,7 +29,7 @@
 #include "UIGuestControlInterface.h"
 #include "UIGuestControlTreeItem.h"
 #include "UIGuestProcessControlWidget.h"
-#include "QIToolBar.h"
+#include "UIToolBar.h"
 #include "UIIconPool.h"
 #include "UIVMInformationDialog.h"
 #include "UICommon.h"
@@ -47,7 +48,7 @@ class UISessionProcessPropertiesDialog : public QIDialog
 
 public:
 
-    UISessionProcessPropertiesDialog(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    UISessionProcessPropertiesDialog(QWidget *pParent = 0, Qt::WindowFlags flags = 0);
     void setPropertyText(const QString &strProperty);
 
 private:
@@ -79,7 +80,7 @@ public:
 
 protected:
 
-    void contextMenuEvent(QContextMenuEvent *pEvent) RT_OVERRIDE;
+    void contextMenuEvent(QContextMenuEvent *pEvent) /* override */;
 
 private slots:
 
@@ -97,8 +98,8 @@ private:
 *   UISessionProcessPropertiesDialog implementation.                                                                             *
 *********************************************************************************************************************************/
 
-UISessionProcessPropertiesDialog::UISessionProcessPropertiesDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
-    :QIDialog(pParent, enmFlags)
+UISessionProcessPropertiesDialog::UISessionProcessPropertiesDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags flags /*= 0 */)
+    :QIDialog(pParent, flags)
     , m_pMainLayout(new QVBoxLayout)
     , m_pInfoEdit(new QTextEdit)
 {
@@ -294,6 +295,7 @@ UIGuestProcessControlWidget::UIGuestProcessControlWidget(EmbedTo enmEmbedding, c
     :QIWithRetranslateUI<QWidget>(pParent)
     , m_comGuest(comGuest)
     , m_pMainLayout(0)
+    , m_pSplitter(0)
     , m_pTreeWidget(0)
     , m_enmEmbedding(enmEmbedding)
     , m_pToolBar(0)
@@ -306,12 +308,14 @@ UIGuestProcessControlWidget::UIGuestProcessControlWidget(EmbedTo enmEmbedding, c
     prepareConnections();
     prepareToolBar();
     initGuestSessionTree();
+    loadSettings();
     retranslateUi();
 }
 
 UIGuestProcessControlWidget::~UIGuestProcessControlWidget()
 {
-    sltCleanupListener();
+    saveSettings();
+    cleanupListener();
 }
 
 void UIGuestProcessControlWidget::retranslateUi()
@@ -334,13 +338,28 @@ void UIGuestProcessControlWidget::prepareObjects()
 
     /* Configure layout: */
     m_pMainLayout->setSpacing(0);
+
+    m_pSplitter = new QSplitter;
+
+    if (!m_pSplitter)
+        return;
+
+    m_pSplitter->setOrientation(Qt::Vertical);
+
+    m_pMainLayout->addWidget(m_pSplitter);
+
+
     m_pTreeWidget = new UIGuestControlTreeWidget;
 
     if (m_pTreeWidget)
     {
-        m_pMainLayout->addWidget(m_pTreeWidget);
+        m_pSplitter->addWidget(m_pTreeWidget);
         m_pTreeWidget->setColumnCount(3);
     }
+
+    m_pSplitter->setStretchFactor(0, 2);
+    m_pSplitter->setStretchFactor(1, 1);
+
     updateTreeWidget();
 }
 
@@ -446,17 +465,22 @@ void UIGuestProcessControlWidget::prepareListener()
 
 
     /* Register event listener for CProgress event source: */
-    comEventSource.RegisterListener(m_comEventListener, eventTypes, FALSE /* active? */);
+    comEventSource.RegisterListener(m_comEventListener, eventTypes,
+        gEDataManager->eventHandlingType() == EventHandlingType_Active ? TRUE : FALSE);
     AssertWrapperOk(comEventSource);
 
-    /* Register event sources in their listeners as well: */
-    m_pQtListener->getWrapped()->registerSource(comEventSource, m_comEventListener);
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Register event sources in their listeners as well: */
+        m_pQtListener->getWrapped()->registerSource(comEventSource, m_comEventListener);
+    }
 }
 
 void UIGuestProcessControlWidget::prepareToolBar()
 {
     /* Create toolbar: */
-    m_pToolBar = new QIToolBar(parentWidget());
+    m_pToolBar = new UIToolBar(parentWidget());
     if (m_pToolBar)
     {
         /* Configure toolbar: */
@@ -493,6 +517,28 @@ void UIGuestProcessControlWidget::initGuestSessionTree()
         addGuestSession(sessions.at(i));
     }
 }
+
+void UIGuestProcessControlWidget::cleanupListener()
+{
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Unregister everything: */
+        m_pQtListener->getWrapped()->unregisterSources();
+    }
+
+    /* Make sure VBoxSVC is available: */
+    if (!uiCommon().isVBoxSVCAvailable())
+        return;
+
+    /* Get CProgress event source: */
+    CEventSource comEventSource = m_comGuest.GetEventSource();
+    AssertWrapperOk(comEventSource);
+
+    /* Unregister event listener for CProgress event source: */
+    comEventSource.UnregisterListener(m_comEventListener);
+}
+
 
 void UIGuestProcessControlWidget::sltGuestSessionRegistered(CGuestSession guestSession)
 {
@@ -538,21 +584,22 @@ void UIGuestProcessControlWidget::sltGuestSessionUnregistered(CGuestSession gues
         delete selectedItem;
 }
 
-void UIGuestProcessControlWidget::sltCleanupListener()
+void UIGuestProcessControlWidget::saveSettings()
 {
-    /* Unregister everything: */
-    m_pQtListener->getWrapped()->unregisterSources();
-
-    /* Make sure VBoxSVC is available: */
-    if (!uiCommon().isVBoxSVCAvailable())
+    if (!m_pSplitter)
         return;
+    gEDataManager->setGuestControlProcessControlSplitterHints(m_pSplitter->sizes());
+}
 
-    /* Get CProgress event source: */
-    CEventSource comEventSource = m_comGuest.GetEventSource();
-    AssertWrapperOk(comEventSource);
-
-    /* Unregister event listener for CProgress event source: */
-    comEventSource.UnregisterListener(m_comEventListener);
+void UIGuestProcessControlWidget::loadSettings()
+{
+    if (!m_pSplitter)
+        return;
+    QList<int> splitterHints = gEDataManager->guestControlProcessControlSplitterHints();
+    if (splitterHints.size() != 2)
+        return;
+    if (splitterHints[0] != 0 && splitterHints[1] != 0)
+        m_pSplitter->setSizes(splitterHints);
 }
 
 #include "UIGuestProcessControlWidget.moc"

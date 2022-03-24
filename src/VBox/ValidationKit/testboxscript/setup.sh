@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# $Id: setup.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: setup.sh $
 ## @file
 # VirtualBox Validation Kit - TestBoxScript Service Setup on Unixy platforms.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -374,7 +374,6 @@ common_testboxscript_args_to_config()
             "--testrsrc-server-user")   TESTBOXSCRIPT_TESTRSRC_USER="$2"; shift;;
             "--testrsrc-server-passwd") TESTBOXSCRIPT_TESTRSRC_PASSWD="$2"; shift;;
             "--testrsrc-server-mountopt") TESTBOXSCRIPT_TESTRSRC_MOUNTOPT="$2"; shift;;
-            "--spb")                     ;;
             "--putenv")
                 MY_FOUND=no
                 MY_VAR=`echo $2 | sed -e 's/=.*$//' `
@@ -440,9 +439,7 @@ common_compile_testboxscript_command_line() {
         if [ "${!varcfg}" != "${!vardef}"  -a  "${var}" != "PYTHON" ]; then # PYTHON handled above.
             my_opt=TESTBOXSCRIPT_OPT_${var}
             if [ -n "${!my_opt}" ]; then
-                if [ "${!my_opt}"  == "--spb" ]; then
-                    os_add_args "${!my_opt}"
-                elif [ "${!my_opt}"  != "--skip" ]; then
+                if [ "${!my_opt}"  != "--skip" ]; then
                     os_add_args "${!my_opt}" "${!varcfg}"
                 fi
             else
@@ -502,9 +499,8 @@ HOST_ARCH=${RETVAL}
 # Config.
 #
 TESTBOXSCRIPT_CFG_NAMES="DIR PYTHON USER HWVIRT IOMMU NESTED_PAGING SYSTEM_UUID PATH_TESTRSRC TEST_MANAGER SCRATCH_ROOT"
-TESTBOXSCRIPT_CFG_NAMES="${TESTBOXSCRIPT_CFG_NAMES} BUILDS_PATH   BUILDS_TYPE   BUILDS_NAME   BUILDS_SHARE   BUILDS_USER"
-TESTBOXSCRIPT_CFG_NAMES="${TESTBOXSCRIPT_CFG_NAMES} BUILDS_PASSWD BUILDS_MOUNTOPT TESTRSRC_PATH TESTRSRC_TYPE TESTRSRC_NAME"
-TESTBOXSCRIPT_CFG_NAMES="${TESTBOXSCRIPT_CFG_NAMES} TESTRSRC_SHARE TESTRSRC_USER TESTRSRC_PASSWD TESTRSRC_MOUNTOPT SPB"
+TESTBOXSCRIPT_CFG_NAMES="${TESTBOXSCRIPT_CFG_NAMES}   BUILDS_PATH   BUILDS_TYPE   BUILDS_NAME   BUILDS_SHARE   BUILDS_USER   BUILDS_PASSWD   BUILDS_MOUNTOPT"
+TESTBOXSCRIPT_CFG_NAMES="${TESTBOXSCRIPT_CFG_NAMES} TESTRSRC_PATH TESTRSRC_TYPE TESTRSRC_NAME TESTRSRC_SHARE TESTRSRC_USER TESTRSRC_PASSWD TESTRSRC_MOUNTOPT"
 
 # testboxscript.py option to config mappings.
 TESTBOXSCRIPT_OPT_DIR="--skip"
@@ -516,7 +512,6 @@ TESTBOXSCRIPT_OPT_NESTED_PAGING_YES="--nested-paging"
 TESTBOXSCRIPT_OPT_NESTED_PAGING_NO="--no-nested-paging"
 TESTBOXSCRIPT_OPT_IOMMU_YES="--io-mmu"
 TESTBOXSCRIPT_OPT_IOMMU_NO="--no-io-mmu"
-TESTBOXSCRIPT_OPT_SPB="--spb"
 TESTBOXSCRIPT_OPT_SYSTEM_UUID="--system-uuid"
 TESTBOXSCRIPT_OPT_TEST_MANAGER="--test-manager"
 TESTBOXSCRIPT_OPT_SCRATCH_ROOT="--scratch-root"
@@ -542,7 +537,6 @@ TESTBOXSCRIPT_DEFAULT_USER="vbox"
 TESTBOXSCRIPT_DEFAULT_HWVIRT=""
 TESTBOXSCRIPT_DEFAULT_IOMMU=""
 TESTBOXSCRIPT_DEFAULT_NESTED_PAGING=""
-TESTBOXSCRIPT_DEFAULT_SPB=""
 TESTBOXSCRIPT_DEFAULT_SYSTEM_UUID=""
 TESTBOXSCRIPT_DEFAULT_PATH_TESTRSRC=""
 TESTBOXSCRIPT_DEFAULT_TEST_MANAGER=""
@@ -611,7 +605,7 @@ do
             exit 0;
             ;;
         -V|--version)
-            echo '$Revision: 93115 $'
+            echo '$Revision: 135976 $'
             exit 0;
             ;;
 
@@ -639,7 +633,6 @@ do
         --testrsrc-server-user)     TESTBOXSCRIPT_TESTRSRC_USER="$2"; shift;;
         --testrsrc-server-passwd)   TESTBOXSCRIPT_TESTRSRC_PASSWD="$2"; shift;;
         --testrsrc-server-mountopt) TESTBOXSCRIPT_TESTRSRC_MOUNTOPT="$2"; shift;;
-        --spb)                      TESTBOXSCRIPT_SPB="yes";;
         *)
             echo 'Syntax error: Unknown option:' "$1" >&2;
             exit 1;

@@ -1,10 +1,10 @@
-/* $Id: scmrw.cpp 93945 2022-02-24 21:16:02Z vboxsync $ */
+/* $Id: scmrw.cpp $ */
 /** @file
  * IPRT Testcase / Tool - Source Code Massager.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1058,68 +1058,6 @@ bool rewrite_SvnSyncProcess(PSCMRWSTATE pState, PSCMSTREAM pIn, PSCMSTREAM pOut,
     }
     else if (rc != VERR_NOT_FOUND)
         ScmError(pState, rc, "ScmSvnQueryProperty: %Rrc\n", rc);
-
-    return false;
-}
-
-/**
- * Checks the that there is no bidirectional unicode fun in the file.
- *
- * @returns false - the state carries these kinds of changes.
- * @param   pState              The rewriter state.
- * @param   pIn                 The input stream.
- * @param   pOut                The output stream.
- * @param   pSettings           The settings.
- */
-bool rewrite_UnicodeChecks(PSCMRWSTATE pState, PSCMSTREAM pIn, PSCMSTREAM pOut, PCSCMSETTINGSBASE pSettings)
-{
-    RT_NOREF2(pIn, pOut);
-    if (pSettings->fSkipUnicodeChecks)
-        return false;
-
-    /*
-     * Just scan the input for weird stuff and fail if we find anything we don't like.
-     */
-    uint32_t    iLine = 0;
-    SCMEOL      enmEol;
-    size_t      cchLine;
-    const char *pchLine;
-    while ((pchLine = ScmStreamGetLine(pIn, &cchLine, &enmEol)) != NULL)
-    {
-        iLine++;
-        const char *pchCur  = pchLine;
-        size_t      cchLeft = cchLine;
-        while (cchLeft > 0)
-        {
-            RTUNICP uc = 0;
-            int rc = RTStrGetCpNEx(&pchCur, &cchLeft, &uc);
-            if (RT_SUCCESS(rc))
-            {
-                const char *pszWhat;
-                switch (uc)
-                {
-                    default:
-                        continue;
-
-                    /* Potentially evil bi-directional control codes (Table I, trojan-source.pdf):  */
-                    case 0x202a: pszWhat = "LRE - left-to-right embedding"; break;
-                    case 0x202b: pszWhat = "RLE - right-to-left embedding"; break;
-                    case 0x202d: pszWhat = "LRO - left-to-right override"; break;
-                    case 0x202e: pszWhat = "RLO - right-to-left override"; break;
-                    case 0x2066: pszWhat = "LRI - left-to-right isolate"; break;
-                    case 0x2067: pszWhat = "RLI - right-to-left isolate"; break;
-                    case 0x2068: pszWhat = "FSI - first strong isolate"; break;
-                    case 0x202c: pszWhat = "PDF - pop directional formatting (LRE, RLE, LRO, RLO)"; break;
-                    case 0x2069: pszWhat = "PDI - pop directional isolate (LRI, RLI)"; break;
-
-                    /** @todo add checks for homoglyphs too. */
-                }
-                ScmFixManually(pState, "%u:%zu: Evil unicode codepoint: %s\n", iLine, pchCur - pchLine, pszWhat);
-            }
-            else
-                ScmFixManually(pState, "%u:%zu: Invalid UTF-8 encoding: %Rrc\n", iLine, pchCur - pchLine, rc);
-        }
-    }
 
     return false;
 }
@@ -3149,7 +3087,7 @@ bool rewrite_FixHeaderGuards(PSCMRWSTATE pState, PSCMSTREAM pIn, PSCMSTREAM pOut
         if (RT_FAILURE(rc))
             return ScmError(pState, rc, "seek error\n");
         fRet |= pSettings->fPragmaOnce;
-        ScmVerbose(pState, pSettings->fPragmaOnce ? 2 : 3, "Missing #pragma once\n");
+        ScmVerbose(pState, 2, "Missing #pragma once\n");
     }
 
     /*
@@ -3248,87 +3186,6 @@ bool rewrite_FixHeaderGuards(PSCMRWSTATE pState, PSCMSTREAM pIn, PSCMSTREAM pOut
     }
 
     return fRet;
-}
-
-
-/**
- * Checks for PAGE_SIZE, PAGE_SHIFT and PAGE_OFFSET_MASK w/o a GUEST_ or HOST_
- * prefix as well as banning PAGE_BASE_HC_MASK, PAGE_BASE_GC_MASK and
- * PAGE_BASE_MASK.
- *
- * @returns true if modifications were made, false if not.
- * @param   pIn                 The input stream.
- * @param   pOut                The output stream.
- * @param   pSettings           The settings.
- */
-bool rewrite_PageChecks(PSCMRWSTATE pState, PSCMSTREAM pIn, PSCMSTREAM pOut, PCSCMSETTINGSBASE pSettings)
-{
-    RT_NOREF(pOut);
-    if (!pSettings->fOnlyGuestHostPage && !pSettings->fNoASMMemPageUse)
-        return false;
-
-    static RTSTRTUPLE const g_aWords[] =
-    {
-        { RT_STR_TUPLE("PAGE_SIZE") },
-        { RT_STR_TUPLE("PAGE_SHIFT") },
-        { RT_STR_TUPLE("PAGE_OFFSET_MASK") },
-        { RT_STR_TUPLE("PAGE_BASE_MASK") },
-        { RT_STR_TUPLE("PAGE_BASE_GC_MASK") },
-        { RT_STR_TUPLE("PAGE_BASE_HC_MASK") },
-        { RT_STR_TUPLE("PAGE_ADDRESS") },
-        { RT_STR_TUPLE("PHYS_PAGE_ADDRESS") },
-        { RT_STR_TUPLE("ASMMemIsZeroPage") },
-        { RT_STR_TUPLE("ASMMemZeroPage") },
-    };
-    size_t const iFirstWord = pSettings->fOnlyGuestHostPage ? 0 : 7;
-    size_t const iEndWords  = pSettings->fNoASMMemPageUse   ? 9 : 7;
-
-    uint32_t    iLine = 0;
-    SCMEOL      enmEol;
-    size_t      cchLine;
-    const char *pchLine;
-    while ((pchLine = ScmStreamGetLine(pIn, &cchLine, &enmEol)) != NULL)
-    {
-        iLine++;
-        for (size_t i = iFirstWord; i < iEndWords; i++)
-        {
-            size_t const cchWord = g_aWords[i].cch;
-            if (cchLine >= cchWord)
-            {
-                const char * const pszWord = g_aWords[i].psz;
-                const char        *pchHit  = (const char *)memchr(pchLine, *pszWord, cchLine);
-                while (pchHit)
-                {
-                    size_t cchLeft = (uintptr_t)&pchLine[cchLine] - (uintptr_t)pchHit;
-                    if (   cchLeft >= cchWord
-                        && memcmp(pchHit, pszWord, cchWord) == 0
-                        && (   pchHit == pchLine
-                            || !ScmIsCIdentifierChar(pchHit[-1]))
-                        && (   cchLeft == cchWord
-                            || !ScmIsCIdentifierChar(pchHit[cchWord])) )
-                    {
-                        if (i < 3)
-                            ScmFixManually(pState, "%u:%zu: %s is not allow! Use GUEST_%s or HOST_%s instead.\n",
-                                           iLine, pchHit - pchLine + 1, pszWord, pszWord, pszWord);
-                        else if (i < 7)
-                            ScmFixManually(pState, "%u:%zu: %s is not allow! Rewrite using GUEST/HOST_PAGE_OFFSET_MASK.\n",
-                                           iLine, pchHit - pchLine + 1, pszWord);
-                        else
-                            ScmFixManually(pState, "%u:%zu: %s is not allow! Use %s with correct page size instead.\n",
-                                           iLine, pchHit - pchLine + 1, pszWord, i == 3 ? "ASMMemIsZero" : "RT_BZERO");
-                    }
-
-                    /* next */
-                    cchLeft -= 1;
-                    if (cchLeft < cchWord)
-                        break;
-                    pchHit = (const char *)memchr(pchHit + 1, *pszWord, cchLeft);
-                }
-            }
-        }
-    }
-
-    return false;
 }
 
 

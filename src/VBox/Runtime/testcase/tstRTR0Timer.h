@@ -1,10 +1,10 @@
-/* $Id: tstRTR0Timer.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTR0Timer.h $ */
 /** @file
  * IPRT R0 Testcase - Timers, common header.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,8 +61,6 @@ typedef enum TSTRTR0TIMER
     TSTRTR0TIMER_PERIODIC_OMNI_HIRES,
     TSTRTR0TIMER_LATENCY_OMNI,
     TSTRTR0TIMER_LATENCY_OMNI_HIRES,
-    TSTRTR0TIMER_ONE_SHOT_RESOLUTION,
-    TSTRTR0TIMER_ONE_SHOT_RESOLUTION_HIRES,
     TSTRTR0TIMER_END
 } TSTRTR0TIMER;
 
@@ -78,7 +76,6 @@ typedef enum TSTRTR0TIMER
      || (uOperation) == TSTRTR0TIMER_PERIODIC_SPECIFIC_HIRES \
      || (uOperation) == TSTRTR0TIMER_PERIODIC_OMNI_HIRES \
      || (uOperation) == TSTRTR0TIMER_LATENCY_OMNI_HIRES \
-     || (uOperation) == TSTRTR0TIMER_ONE_SHOT_RESOLUTION_HIRES \
     )
 
 #endif /* !IPRT_INCLUDED_SRC_testcase_tstRTR0Timer_h */

@@ -1,10 +1,10 @@
-/* $Id: bs3kit.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3kit.h $ */
 /** @file
  * BS3Kit - structures, symbols, macros and stuff.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1921,14 +1921,6 @@ BS3_CMN_PROTO_FARSTUB(4, uint32_t, Bs3SelProtFar16DataToFlat,(uint32_t uFar1616)
 BS3_CMN_PROTO_FARSTUB(4, uint32_t, Bs3SelRealModeDataToFlat,(uint32_t uFar1616));
 
 /**
- * Converts a link-time pointer to a current context pointer.
- *
- * @returns Converted pointer.
- * @param   pvLnkPtr    The pointer the linker produced.
- */
-BS3_CMN_PROTO_FARSTUB(4, void BS3_FAR *, Bs3SelLnkPtrToCurPtr,(void BS3_FAR *pvLnkPtr));
-
-/**
  * Gets a flat address from a working poitner.
  *
  * @returns flat address (32-bit or 64-bit).
@@ -2185,10 +2177,8 @@ BS3_CMN_PROTO_STUB(void, Bs3MemGuardedTestPageFree,(void BS3_FAR *pvGuardedPage)
  */
 BS3_CMN_PROTO_STUB(void, Bs3MemPrintInfo, (void));
 
-/** The end RAM address below 4GB (approximately). */
+/** Highes RAM byte below 4G. */
 extern uint32_t  g_uBs3EndOfRamBelow4G;
-/** The end RAM address above 4GB, zero if no memory above 4GB. */
-extern uint64_t  g_uBs3EndOfRamAbove4G;
 
 
 /**
@@ -2247,30 +2237,6 @@ BS3_CMN_PROTO_STUB(int, Bs3PagingInitRootForPAE,(void));
  * @remarks Must not be called in real-mode!
  */
 BS3_CMN_PROTO_STUB(int, Bs3PagingInitRootForLM,(void));
-
-/**
- * Maps all RAM above 4GB into the long mode page tables.
- *
- * This requires Bs3PagingInitRootForLM to have been called first.
- *
- * @returns IPRT status code.
- * @retval  VERR_WRONG_ORDER if Bs3PagingInitRootForLM wasn't called.
- * @retval  VINF_ALREADY_INITIALIZED if already called or someone mapped
- *          something else above 4GiB already.
- * @retval  VERR_OUT_OF_RANGE if too much RAM (more than 2^47 bytes).
- * @retval  VERR_NO_MEMORY if no more memory for paging structures.
- * @retval  VERR_UNSUPPORTED_ALIGNMENT if the bs3kit allocator malfunctioned and
- *          didn't give us page aligned memory as it should.
- *
- * @param   puFailurePoint      Where to return the address where we encountered
- *                              a failure.  Optional.
- *
- * @remarks Must be called in 32-bit or 64-bit mode as paging structures will be
- *          allocated using BS3MEMKIND_FLAT32, as there might not be sufficient
- *          BS3MEMKIND_TILED memory around.  (Also, too it's simply too much of
- *          a bother to deal with 16-bit for something that's long-mode only.)
- */
-BS3_CMN_PROTO_STUB(int, Bs3PagingMapRamAbove4GForLM,(uint64_t *puFailurePoint));
 
 /**
  * Modifies the page table protection of an address range.
@@ -2460,10 +2426,8 @@ BS3_CMN_PROTO_NOSB(void, Bs3KbdWrite,(uint8_t bCmd, uint8_t bData));
  * end-of-interrupt, and all IRQs masked.  The individual PIC users will have to
  * use #Bs3PicUpdateMask unmask their IRQ once they've got all the handlers
  * installed.
- *
- * @param   fForcedReInit   Force a reinitialization.
  */
-BS3_CMN_PROTO_STUB(void, Bs3PicSetup,(bool fForcedReInit));
+BS3_CMN_PROTO_STUB(void, Bs3PicSetup,(void));
 
 /**
  * Updates the PIC masks.
@@ -2494,22 +2458,19 @@ BS3_CMN_PROTO_STUB(void, Bs3PitSetupAndEnablePeriodTimer,(uint16_t cHzDesired));
  */
 BS3_CMN_PROTO_STUB(void, Bs3PitDisable,(void));
 
-/** Nanoseconds (approx) since last the PIT timer was started. */
+/** Nano seconds (approx) since last the PIT timer was started. */
 extern uint64_t volatile    g_cBs3PitNs;
 /** Milliseconds seconds (very approx) since last the PIT timer was started. */
 extern uint64_t volatile    g_cBs3PitMs;
 /** Number of ticks since last the PIT timer was started.  */
 extern uint32_t volatile    g_cBs3PitTicks;
-/** The current interval in nanoseconds.
- * This is 0 if not yet started (cleared by Bs3PitDisable). */
+/** The current interval in nanon seconds.  */
 extern uint32_t             g_cBs3PitIntervalNs;
 /** The current interval in milliseconds (approximately).
- * This is 0 if not yet started (cleared by Bs3PitDisable). */
-extern uint16_t             g_cBs3PitIntervalMs;
-/** The current PIT frequency (approximately).
- * 0 if not yet started (cleared by Bs3PitDisable; used for checking the
- * state internally). */
-extern uint16_t volatile    g_cBs3PitIntervalHz;
+ * This is 0 if not yet started (used for checking the state internally). */
+extern uint16_t volatile    g_cBs3PitIntervalMs;
+/** The current PIT frequency (approximately).  0 if not yet started.  */
+extern uint16_t             g_cBs3PitIntervalHz;
 
 
 /**
@@ -2705,17 +2666,17 @@ BS3_CMN_PROTO_STUB(void, Bs3RegCtxSetGrpSegFromFlat,(PBS3REGCTX pRegCtx, PBS3REG
  * @param   pSel        The selector register (points within @a pRegCtx).
  * @param   pvPtr       Current context pointer.
  */
-BS3_CMN_PROTO_STUB(void, Bs3RegCtxSetGrpSegFromCurPtr,(PBS3REGCTX pRegCtx, PBS3REG pGpr, PRTSEL pSel, void BS3_FAR *pvPtr));
+BS3_CMN_PROTO_STUB(void, Bs3RegCtxSetGrpSegFromCurPtr,(PBS3REGCTX pRegCtx, PBS3REG pGpr, PRTSEL pSel, void  BS3_FAR *pvPtr));
 
 /**
- * Sets a GPR and DS to point at the same location as @a pvPtr.
+ * Sets a GPR and DS to point at the same location as @a ovPtr.
  *
  * @param   pRegCtx     The register context.
  * @param   pGpr        The general purpose register to set (points within
  *                      @a pRegCtx).
  * @param   pvPtr       Current context pointer.
  */
-BS3_CMN_PROTO_STUB(void, Bs3RegCtxSetGrpDsFromCurPtr,(PBS3REGCTX pRegCtx, PBS3REG pGpr, void BS3_FAR *pvPtr));
+BS3_CMN_PROTO_STUB(void, Bs3RegCtxSetGrpDsFromCurPtr,(PBS3REGCTX pRegCtx, PBS3REG pGpr, void  BS3_FAR *pvPtr));
 
 /**
  * Sets CS:RIP to point at the same piece of code as @a uFlatCode.
@@ -3174,7 +3135,7 @@ BS3_CMN_PROTO_STUB(void, Bs3TrapPrintFrame,(PCBS3TRAPFRAME pTrapFrame));
 /**
  * Sets up a long jump from a trap handler.
  *
- * The long jump will only be performed once, but will catch any kind of trap,
+ * The long jump will only be performed onced, but will catch any kind of trap,
  * fault, interrupt or irq.
  *
  * @retval  true on the initial call.
@@ -3238,47 +3199,9 @@ BS3_CMN_PROTO_STUB(void, Bs3TestSubV,(const char BS3_FAR *pszFormat, va_list BS3
 BS3_CMN_PROTO_STUB(void, Bs3TestSubDone,(void));
 
 /**
- * Equivalent to RTTestIValue.
- */
-BS3_CMN_PROTO_STUB(void, Bs3TestValue,(const char BS3_FAR *pszName, uint64_t u64Value, uint8_t bUnit));
-
-/**
  * Equivalent to RTTestSubErrorCount.
  */
 BS3_CMN_PROTO_STUB(uint16_t, Bs3TestSubErrorCount,(void));
-
-/**
- * Get nanosecond host timestamp.
- *
- * This only works when testing is enabled and will not work in VMs configured
- * with a 286, 186 or 8086/8088 CPU profile.
- */
-BS3_CMN_PROTO_STUB(uint64_t, Bs3TestNow,(void));
-
-
-/**
- * Queries an unsigned 8-bit configuration value.
- *
- * @returns Value.
- * @param   uCfg        A VMMDEV_TESTING_CFG_XXX value.
- */
-BS3_CMN_PROTO_STUB(uint8_t, Bs3TestQueryCfgU8,(uint16_t uCfg));
-
-/**
- * Queries an unsigned 8-bit configuration value.
- *
- * @returns Value.
- * @param   uCfg        A VMMDEV_TESTING_CFG_XXX value.
- */
-BS3_CMN_PROTO_STUB(bool, Bs3TestQueryCfgBool,(uint16_t uCfg));
-
-/**
- * Queries an unsigned 32-bit configuration value.
- *
- * @returns Value.
- * @param   uCfg        A VMMDEV_TESTING_CFG_XXX value.
- */
-BS3_CMN_PROTO_STUB(uint32_t, Bs3TestQueryCfgU32,(uint16_t uCfg));
 
 /**
  * Equivalent to RTTestIPrintf with RTTESTLVL_ALWAYS.
@@ -3735,8 +3658,6 @@ typedef BS3TESTMODEBYONEENTRY const *PCBS3TESTMODEBYONEENTRY;
  * @{ */
 /** Only test modes that has paging enabled. */
 #define BS3TESTMODEBYONEENTRY_F_ONLY_PAGING     RT_BIT_32(0)
-/** Minimal mode selection. */
-#define BS3TESTMODEBYONEENTRY_F_MINIMAL         RT_BIT_32(1)
 /** @} */
 
 
@@ -3990,7 +3911,7 @@ BS3_MODE_PROTO_NOSB(void, Bs3TestDoModes,(PCBS3TESTMODEENTRY paEntries, size_t c
  *
  * @param   paEntries       The mode sub-test-by-one entries.
  * @param   cEntries        The number of sub-test-by-one entries.
- * @param   fFlags          BS3TESTMODEBYONEENTRY_F_XXX.
+ * @param   fFlags          Reserved for the future, MBZ.
  */
 BS3_MODE_PROTO_NOSB(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_t cEntries, uint32_t fFlags));
 
@@ -4003,77 +3924,8 @@ BS3_MODE_PROTO_NOSB(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries
  */
 BS3_MODE_PROTO_NOSB(void, Bs3TestDoModesByMax,(PCBS3TESTMODEBYMAXENTRY paEntries, size_t cEntries));
 
-/** @} */
-
-
-/** @defgroup grp_bs3kit_bios_int15     BIOS - int 15h
- * @{ */
-
-/** An INT15E820 data entry. */
-typedef struct INT15E820ENTRY
-{
-    uint64_t    uBaseAddr;
-    uint64_t    cbRange;
-    /** Memory type this entry describes, see INT15E820_TYPE_XXX. */
-    uint32_t    uType;
-    /** Optional.   */
-    uint32_t    fAcpi3;
-} INT15E820ENTRY;
-AssertCompileSize(INT15E820ENTRY,24);
-
-
-/** @name INT15E820_TYPE_XXX - Memory types returned by int 15h function 0xe820.
- * @{ */
-#define INT15E820_TYPE_USABLE               1 /**< Usable RAM. */
-#define INT15E820_TYPE_RESERVED             2 /**< Reserved by the system, unusable. */
-#define INT15E820_TYPE_ACPI_RECLAIMABLE     3 /**< ACPI reclaimable memory, whatever that means. */
-#define INT15E820_TYPE_ACPI_NVS             4 /**< ACPI non-volatile storage? */
-#define INT15E820_TYPE_BAD                  5 /**< Bad memory, unusable. */
-/** @} */
-
-
-/**
- * Performs an int 15h function 0xe820 call.
- *
- * @returns Success indicator.
- * @param   pEntry              The return buffer.
- * @param   pcbEntry            Input: The size of the buffer (min 20 bytes);
- *                              Output: The size of the returned data.
- * @param   puContinuationValue Where to get and return the continuation value (EBX)
- *                              Set to zero the for the first call.  Returned as zero
- *                              after the last entry.
- */
-BS3_MODE_PROTO_STUB(bool, Bs3BiosInt15hE820,(INT15E820ENTRY BS3_FAR *pEntry, uint32_t BS3_FAR *pcbEntry,
-                                             uint32_t BS3_FAR *puContinuationValue));
-
-/**
- * Performs an int 15h function 0x88 call.
- *
- * @returns UINT32_MAX on failure, number of KBs above 1MB otherwise.
- */
-#if ARCH_BITS != 16 || !defined(BS3_BIOS_INLINE_RM)
-BS3_MODE_PROTO_STUB(uint32_t, Bs3BiosInt15h88,(void));
-#else
-BS3_DECL(uint32_t) Bs3BiosInt15h88(void);
-# pragma aux Bs3BiosInt15h88 = \
-    ".286" \
-    "clc" \
-    "mov    ax, 08800h" \
-    "int    15h" \
-    "jc     failed" \
-    "xor    dx, dx" \
-    "jmp    done" \
-    "failed:" \
-    "xor    ax, ax" \
-    "dec    ax" \
-    "mov    dx, ax" \
-    "done:" \
-    value [ax dx] \
-    modify exact [ax bx cx dx es];
-#endif
 
 /** @} */
-
 
 /** @} */
 

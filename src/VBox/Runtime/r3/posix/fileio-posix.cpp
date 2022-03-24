@@ -1,10 +1,10 @@
-/* $Id: fileio-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fileio-posix.cpp $ */
 /** @file
  * IPRT - File I/O, POSIX, Part 1.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -679,9 +679,9 @@ RTR3DECL(int) RTFileQuerySize(RTFILE hFile, uint64_t *pcbSize)
     {
         *pcbSize = st.st_size;
         if (   st.st_size != 0
-#if defined(RT_OS_SOLARIS) || defined(RT_OS_DARWIN)
+#if defined(RT_OS_SOLARIS)
             || (!S_ISBLK(st.st_mode) && !S_ISCHR(st.st_mode))
-#elif defined(RT_OS_FREEBSD) || defined(RT_OS_NETBSD) || defined(RT_OS_DARWIN)
+#elif defined(RT_OS_FREEBSD) || defined(RT_OS_NETBSD)
             || !S_ISCHR(st.st_mode)
 #else
             || !S_ISBLK(st.st_mode)
@@ -704,12 +704,7 @@ RTR3DECL(int) RTFileQuerySize(RTFILE hFile, uint64_t *pcbSize)
                 return VINF_SUCCESS;
             }
         }
-
-        /* Always fail block devices.  Character devices doesn't all need to be
-           /dev/rdisk* nodes, they should return ENOTTY but /dev/null returns ENODEV
-           and we include EINVAL just in case. */
-        if (!S_ISBLK(st.st_mode) && (errno == ENOTTY || errno == ENODEV || errno == EINVAL))
-            return VINF_SUCCESS;
+        /* must be a block device, fail on failure. */
 
 #elif defined(RT_OS_SOLARIS)
         struct dk_minfo MediaInfo;
@@ -887,8 +882,8 @@ RTR3DECL(int) RTFileRename(const char *pszSrc, const char *pszDst, unsigned fRen
     /*
      * Validate input.
      */
-    AssertPtrReturn(pszSrc, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszDst, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszSrc), ("%p\n", pszSrc), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszDst), ("%p\n", pszDst), VERR_INVALID_POINTER);
     AssertMsgReturn(*pszSrc, ("%p\n", pszSrc), VERR_INVALID_PARAMETER);
     AssertMsgReturn(*pszDst, ("%p\n", pszDst), VERR_INVALID_PARAMETER);
     AssertMsgReturn(!(fRename & ~RTPATHRENAME_FLAGS_REPLACE), ("%#x\n", fRename), VERR_INVALID_PARAMETER);

@@ -1,10 +1,10 @@
-/* $Id: VBoxDispVHWA.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDispVHWA.h $ */
 /** @file
  * VBox XPDM Display driver, helper functions which interacts with our miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,8 +61,7 @@ typedef struct _VBOXVHWASURFDESC
     VBOXVHWAREGION NonupdatedMemRegion;
 }VBOXVHWASURFDESC, *PVBOXVHWASURFDESC;
 
-typedef DECLCALLBACKTYPE(void, FNVBOXVHWACMDCOMPLETION,(PVBOXDISPDEV pDev, VBOXVHWACMD RT_UNTRUSTED_VOLATILE_HOST *pCmd,
-                                                        void *pvContext));
+typedef DECLCALLBACK(void) FNVBOXVHWACMDCOMPLETION(PVBOXDISPDEV pDev, VBOXVHWACMD RT_UNTRUSTED_VOLATILE_HOST *pCmd, void *pvContext);
 typedef FNVBOXVHWACMDCOMPLETION *PFNVBOXVHWACMDCOMPLETION;
 
 void VBoxDispVHWAInit(PVBOXDISPDEV pDev);

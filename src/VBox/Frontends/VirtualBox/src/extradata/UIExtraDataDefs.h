@@ -1,10 +1,10 @@
-/* $Id: UIExtraDataDefs.h 94005 2022-03-01 00:58:47Z vboxsync $ */
+/* $Id: UIExtraDataDefs.h $ */
 /** @file
  * VBox Qt GUI - Extra-data related definitions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,11 +43,11 @@ namespace UIExtraDataDefs
 {
     /** @name General
       * @{ */
+        /** Holds event handling type. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_EventHandlingType;
+
         /** Holds restricted dialogs. */
         SHARED_LIBRARY_STUFF extern const char *GUI_RestrictedDialogs;
-
-        /** Holds the color theme type. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_ColorTheme;
     /** @} */
 
     /** @name Messaging
@@ -56,12 +56,6 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_SuppressMessages;
         /** Holds the list of messages for the Message/Popup center frameworks with inverted check-box state. */
         SHARED_LIBRARY_STUFF extern const char *GUI_InvertMessageOption;
-        /** Holds whether successfull notification-progresses should NOT close automatically. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_NotificationCenter_KeepSuccessfullProgresses;
-        /** Holds notification-center alignment. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_NotificationCenter_Alignment;
-        /** Holds notification-center order. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_NotificationCenter_Order;
 #if !defined(VBOX_BLEEDING_EDGE) && !defined(DEBUG)
         /** Holds version for which user wants to prevent BETA build warning. */
         SHARED_LIBRARY_STUFF extern const char *GUI_PreventBetaWarning;
@@ -96,6 +90,12 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_RestrictedMachineSettingsPages;
     /** @} */
 
+    /** @name Settings: General
+      * @{ */
+        /** Holds whether host screen-saver should be disabled. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_HostScreenSaverDisabled;
+    /** @} */
+
     /** @name Settings: Language
       * @{ */
         /** Holds GUI language ID. */
@@ -108,8 +108,6 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_MaxGuestResolution;
         /** Holds whether hovered machine-window should be activated. */
         SHARED_LIBRARY_STUFF extern const char *GUI_ActivateHoveredMachineWindow;
-        /** Holds whether the host scrrn saver is disabled when a vm is running. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_DisableHostScreenSaver;
     /** @} */
 
     /** @name Settings: Keyboard
@@ -158,7 +156,6 @@ namespace UIExtraDataDefs
       * @{ */
         /** Holds recent folder for VISO creation content. */
         SHARED_LIBRARY_STUFF extern const char *GUI_VISOCreator_RecentFolder;
-        SHARED_LIBRARY_STUFF extern const char *GUI_VISOCreator_DialogGeometry;
     /** @} */
 
     /** @name VirtualBox Manager
@@ -218,26 +215,8 @@ namespace UIExtraDataDefs
 
     /** @name Cloud Profile Manager
       * @{ */
-        /** Holds Cloud Profile Manager restrictions. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_CloudProfileManager_Restrictions;
         /** Holds whether Cloud Profile Manager details expanded. */
         SHARED_LIBRARY_STUFF extern const char *GUI_CloudProfileManager_Details_Expanded;
-    /** @} */
-
-    /** @name Cloud Console Manager
-      * @{ */
-        /** Holds Cloud Console Manager applications/profiles. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_CloudConsoleManager_Application;
-        /** Holds Cloud Console Manager restrictions. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_CloudConsoleManager_Restrictions;
-        /** Holds whether Cloud Console Manager details expanded. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_CloudConsoleManager_Details_Expanded;
-    /** @} */
-
-    /** @name Cloud Console
-      * @{ */
-        /** Holds Cloud Console public key path. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_CloudConsole_PublicKey_Path;
     /** @} */
 
 #ifdef VBOX_GUI_WITH_EXTRADATA_MANAGER_UI
@@ -266,6 +245,8 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_PreventReconfiguration;
         /** Holds whether machine snapshot operations disabled. */
         SHARED_LIBRARY_STUFF extern const char *GUI_PreventSnapshotOperations;
+        /** Holds whether this machine is first time started. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_FirstRun;
         /** Except Mac OS X: Holds redefined machine-window icon names. */
         SHARED_LIBRARY_STUFF extern const char *GUI_MachineWindowIcons;
 #ifndef VBOX_WS_MAC
@@ -335,6 +316,18 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_VirtualScreenToHostScreen;
         /** Holds whether automatic mounting/unmounting of guest-screens enabled. */
         SHARED_LIBRARY_STUFF extern const char *GUI_AutomountGuestScreens;
+#ifdef VBOX_WITH_VIDEOHWACCEL
+        /** Holds whether 2D acceleration should use linear sretch. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_Accelerate2D_StretchLinear;
+        /** Holds whether 2D acceleration should use YV12 pixel format. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_Accelerate2D_PixformatYV12;
+        /** Holds whether 2D acceleration should use UYVY pixel format. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_Accelerate2D_PixformatUYVY;
+        /** Holds whether 2D acceleration should use YUY2 pixel format. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_Accelerate2D_PixformatYUY2;
+        /** Holds whether 2D acceleration should use AYUV pixel format. */
+        SHARED_LIBRARY_STUFF extern const char *GUI_Accelerate2D_PixformatAYUV;
+#endif /* VBOX_WITH_VIDEOHWACCEL */
 #ifndef VBOX_WS_MAC
         /** Holds whether mini-toolbar is enabled for full and seamless screens. */
         SHARED_LIBRARY_STUFF extern const char *GUI_ShowMiniToolBar;
@@ -418,8 +411,6 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_LastCloseAction;
         /** Holds machine close hook script name as simple string. */
         SHARED_LIBRARY_STUFF extern const char *GUI_CloseActionHook;
-        /** Holds whether machine should discard state on power off. */
-        SHARED_LIBRARY_STUFF extern const char *GUI_DiscardStateOnPowerOff;
     /** @} */
 
 #ifdef VBOX_WITH_DEBUGGER_GUI
@@ -447,32 +438,13 @@ namespace UIExtraDataDefs
         SHARED_LIBRARY_STUFF extern const char *GUI_GuestControl_LogViewerVisiblePanels;
     /** @} */
 
-    /** @name Help Browser
-      * @{ */
-        SHARED_LIBRARY_STUFF extern const char *GUI_HelpBrowser_LastURLList;
-        SHARED_LIBRARY_STUFF extern const char *GUI_HelpBrowser_DialogGeometry;
-        SHARED_LIBRARY_STUFF extern const char *GUI_HelpBrowser_Bookmarks;
-        SHARED_LIBRARY_STUFF extern const char *GUI_HelpBrowser_ZoomPercentage;
-    /** @} */
-
-    /** @name Manager UI: VM Activity Overview Related stuff
-      * @{ */
-        SHARED_LIBRARY_STUFF extern const char *GUI_VMActivityOverview_HiddenColumns;
-        SHARED_LIBRARY_STUFF extern const char *GUI_VMActivityOverview_ShowAllMachines;
-    /** @} */
-
-    /** @name Medium Selector stuff
-      * @{ */
-        SHARED_LIBRARY_STUFF extern const char *GUI_MediumSelector_DialogGeometry;
-    /** @} */
-
     /** @name Old key support stuff.
       * @{ */
         /** Prepares obsolete keys map. */
-        SHARED_LIBRARY_STUFF QMultiMap<QString, QString> prepareObsoleteKeysMap();
+        SHARED_LIBRARY_STUFF QMap<QString, QString> prepareObsoleteKeysMap();
 
         /** Holds the obsolete keys map. */
-        SHARED_LIBRARY_STUFF extern QMultiMap<QString, QString> g_mapOfObsoleteKeys;
+        SHARED_LIBRARY_STUFF extern QMap<QString, QString> g_mapOfObsoleteKeys;
     /** @} */
 }
 
@@ -504,7 +476,6 @@ public:
     {
         DialogType_Invalid     = 0,
         DialogType_VISOCreator = RT_BIT(0),
-        DialogType_BootFailure = RT_BIT(1),
         DialogType_All         = 0xFFFF
     };
     Q_ENUM(DialogType);
@@ -760,9 +731,6 @@ public:
 #ifdef VBOX_WITH_CLOUD_NET
         DetailsElementOptionTypeNetwork_CloudNetwork    = RT_BIT(7),
 #endif /* VBOX_WITH_CLOUD_NET */
-#ifdef VBOX_WITH_VMNET
-        DetailsElementOptionTypeNetwork_HostOnlyNetwork = RT_BIT(8),
-#endif /* VBOX_WITH_VMNET */
         DetailsElementOptionTypeNetwork_Default         = 0xFFFF
     };
     Q_ENUM(DetailsElementOptionTypeNetwork);
@@ -802,10 +770,9 @@ public:
     enum DetailsElementOptionTypeUserInterface
     {
         DetailsElementOptionTypeUserInterface_Invalid     = 0,
-        DetailsElementOptionTypeUserInterface_VisualState = RT_BIT(0),
-        DetailsElementOptionTypeUserInterface_MenuBar     = RT_BIT(1),
-        DetailsElementOptionTypeUserInterface_StatusBar   = RT_BIT(2),
-        DetailsElementOptionTypeUserInterface_MiniToolbar = RT_BIT(3),
+        DetailsElementOptionTypeUserInterface_MenuBar     = RT_BIT(0),
+        DetailsElementOptionTypeUserInterface_StatusBar   = RT_BIT(1),
+        DetailsElementOptionTypeUserInterface_MiniToolbar = RT_BIT(2),
         DetailsElementOptionTypeUserInterface_Default     = 0xFFFF
     };
     Q_ENUM(DetailsElementOptionTypeUserInterface);
@@ -820,18 +787,22 @@ public:
 };
 
 
+/** Common UI: Event handling types. */
+enum EventHandlingType
+{
+    EventHandlingType_Active,
+    EventHandlingType_Passive
+};
+
+
 /** Common UI: GUI feature types. */
 enum GUIFeatureType
 {
-    GUIFeatureType_None           = 0,
-    GUIFeatureType_NoSelector     = RT_BIT(0),
-#ifdef VBOX_WS_MAC
-    GUIFeatureType_NoUserElements = RT_BIT(1),
-#else
-    GUIFeatureType_NoMenuBar      = RT_BIT(1),
-#endif
-    GUIFeatureType_NoStatusBar    = RT_BIT(2),
-    GUIFeatureType_All            = 0xFF
+    GUIFeatureType_None        = 0,
+    GUIFeatureType_NoSelector  = RT_BIT(0),
+    GUIFeatureType_NoMenuBar   = RT_BIT(1),
+    GUIFeatureType_NoStatusBar = RT_BIT(2),
+    GUIFeatureType_All         = 0xFF
 };
 
 
@@ -846,10 +817,11 @@ enum GlobalSettingsPageType
 #endif
     GlobalSettingsPageType_Language,
     GlobalSettingsPageType_Display,
+    GlobalSettingsPageType_Network,
+    GlobalSettingsPageType_Extensions,
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
     GlobalSettingsPageType_Proxy,
 #endif
-    GlobalSettingsPageType_Interface,
     GlobalSettingsPageType_Max
 };
 Q_DECLARE_METATYPE(GlobalSettingsPageType);
@@ -884,7 +856,7 @@ enum WizardType
     WizardType_ExportAppliance,
     WizardType_ImportAppliance,
     WizardType_NewCloudVM,
-    WizardType_AddCloudVM,
+    WizardType_FirstRun,
     WizardType_NewVD,
     WizardType_CloneVD
 };
@@ -897,16 +869,6 @@ enum WizardMode
     WizardMode_Basic,
     WizardMode_Expert
 };
-
-
-/** Common UI: Color Theme types. */
-enum UIColorThemeType
-{
-    UIColorThemeType_Auto,
-    UIColorThemeType_Light,
-    UIColorThemeType_Dark,
-};
-Q_DECLARE_METATYPE(UIColorThemeType);
 
 
 /** Tool item classes. */
@@ -924,19 +886,14 @@ enum UIToolType
     UIToolType_Invalid,
     /* Global types: */
     UIToolType_Welcome,
-    UIToolType_Extensions,
     UIToolType_Media,
     UIToolType_Network,
     UIToolType_Cloud,
-    UIToolType_CloudConsole,
-    UIToolType_VMActivityOverview,
     /* Machine types: */
     UIToolType_Error,
     UIToolType_Details,
     UIToolType_Snapshots,
     UIToolType_Logs,
-    UIToolType_VMActivity,
-    UIToolType_FileManager
 };
 Q_DECLARE_METATYPE(UIToolType);
 
@@ -1021,12 +978,13 @@ Q_DECLARE_METATYPE(IndicatorType);
 /** Runtime UI: Machine close actions. */
 enum MachineCloseAction
 {
-    MachineCloseAction_Invalid   = 0,
-    MachineCloseAction_Detach    = RT_BIT(0),
-    MachineCloseAction_SaveState = RT_BIT(1),
-    MachineCloseAction_Shutdown  = RT_BIT(2),
-    MachineCloseAction_PowerOff  = RT_BIT(3),
-    MachineCloseAction_All       = 0xFF
+    MachineCloseAction_Invalid                    = 0,
+    MachineCloseAction_Detach                     = RT_BIT(0),
+    MachineCloseAction_SaveState                  = RT_BIT(1),
+    MachineCloseAction_Shutdown                   = RT_BIT(2),
+    MachineCloseAction_PowerOff                   = RT_BIT(3),
+    MachineCloseAction_PowerOff_RestoringSnapshot = RT_BIT(4),
+    MachineCloseAction_All                        = 0xFF
 };
 Q_DECLARE_METATYPE(MachineCloseAction);
 
@@ -1091,40 +1049,18 @@ enum InformationElementType
 Q_DECLARE_METATYPE(InformationElementType);
 
 
-/** Runtime UI: Maximum guest-screen size policy types.
-  * @note This policy determines which guest-screen sizes we wish to
-  *       handle. We also accept anything smaller than the current size. */
-enum MaximumGuestScreenSizePolicy
+/** Runtime UI: Maximum guest-screen resolution policy types.
+  * @note This policy determines which guest-screen resolutions we wish to
+  *       handle. We also accept anything smaller than the current resolution. */
+enum MaxGuestResolutionPolicy
 {
     /** Anything at all. */
-    MaximumGuestScreenSizePolicy_Any,
+    MaxGuestResolutionPolicy_Any,
     /** Anything up to a fixed size. */
-    MaximumGuestScreenSizePolicy_Fixed,
+    MaxGuestResolutionPolicy_Fixed,
     /** Anything up to host-screen available space. */
-    MaximumGuestScreenSizePolicy_Automatic
+    MaxGuestResolutionPolicy_Automatic
 };
-Q_DECLARE_METATYPE(MaximumGuestScreenSizePolicy);
 
-
-/** Manager UI: VM Activity Overview Column types.
-  * @note The first element must be 0 and the rest must be consecutive */
-enum VMActivityOverviewColumn
-{
-    VMActivityOverviewColumn_Name = 0,
-    VMActivityOverviewColumn_CPUGuestLoad,
-    VMActivityOverviewColumn_CPUVMMLoad,
-    VMActivityOverviewColumn_RAMUsedAndTotal,
-    VMActivityOverviewColumn_RAMUsedPercentage,
-    VMActivityOverviewColumn_NetworkUpRate,
-    VMActivityOverviewColumn_NetworkDownRate,
-    VMActivityOverviewColumn_NetworkUpTotal,
-    VMActivityOverviewColumn_NetworkDownTotal,
-    VMActivityOverviewColumn_DiskIOReadRate,
-    VMActivityOverviewColumn_DiskIOWriteRate,
-    VMActivityOverviewColumn_DiskIOReadTotal,
-    VMActivityOverviewColumn_DiskIOWriteTotal,
-    VMActivityOverviewColumn_VMExits,
-    VMActivityOverviewColumn_Max
-};
 
 #endif /* !FEQT_INCLUDED_SRC_extradata_UIExtraDataDefs_h */

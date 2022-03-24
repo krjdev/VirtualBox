@@ -1,10 +1,10 @@
-/* $Id: ConsoleVRDPServer.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ConsoleVRDPServer.h $ */
 /** @file
  * VBox Console VRDE Server Helper class and implementation of IVRDEServerInfo
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,8 +63,6 @@ typedef struct _VRDPInputSynch
 class ConsoleVRDPServer
 {
 public:
-    DECLARE_TRANSLATE_METHODS(ConsoleVRDPServer)
-
     ConsoleVRDPServer (Console *console);
     ~ConsoleVRDPServer ();
 
@@ -380,7 +378,7 @@ class ATL_NO_VTABLE VRDEServerInfo :
 public:
     DECLARE_NOT_AGGREGATABLE(VRDEServerInfo)
 
-    DECLARE_COMMON_CLASS_METHODS(VRDEServerInfo)
+    DECLARE_EMPTY_CTOR_DTOR(VRDEServerInfo)
 
     HRESULT FinalConstruct();
     void FinalRelease();

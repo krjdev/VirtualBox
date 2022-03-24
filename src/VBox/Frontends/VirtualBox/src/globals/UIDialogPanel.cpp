@@ -1,10 +1,10 @@
-/* $Id: UIDialogPanel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIDialogPanel.cpp $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -91,7 +91,7 @@ void UIDialogPanel::prepareConnections()
 void UIDialogPanel::retranslateUi()
 {
     if (m_pCloseButton)
-        m_pCloseButton->setToolTip(tr("Close the pane"));
+        m_pCloseButton->setToolTip(QApplication::translate("UIVisoCreator", "Close the pane"));
 }
 
 void UIDialogPanel::showEvent(QShowEvent *pEvent)

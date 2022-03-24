@@ -1,11 +1,11 @@
 @echo off
-rem $Id: Combined-1-Prepare.cmd 93115 2022-01-01 11:31:46Z vboxsync $
+rem $Id: Combined-1-Prepare.cmd $
 rem rem @file
 rem Windows NT batch script for preparing both amd64 and x86 for signing submission.
 rem
 
 rem
-rem Copyright (C) 2018-2022 Oracle Corporation
+rem Copyright (C) 2018-2020 Oracle Corporation
 rem
 rem This file is part of VirtualBox Open Source Edition (OSE), as
 rem available from http://www.virtualbox.org. This file is free software;

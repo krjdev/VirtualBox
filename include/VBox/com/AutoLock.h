@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -87,8 +87,7 @@ enum VBoxLockingClass
     LOCKCLASS_OTHEROBJECT = 10,             // any regular object member variable lock
     LOCKCLASS_PROGRESSLIST = 11,            // list of progress objects in VirtualBox; no other object lock
                                             // may be held after this!
-    LOCKCLASS_OBJECTSTATE = 12,             // object state lock (handled by AutoCaller classes)
-    LOCKCLASS_TRANSLATOR = 13               // translator internal lock
+    LOCKCLASS_OBJECTSTATE = 12              // object state lock (handled by AutoCaller classes)
 };
 
 void InitAutoLockSystem();
@@ -249,7 +248,6 @@ private:
 class Lockable
 {
 public:
-    virtual ~Lockable() { } /* To make VC++ 2019 happy. */
 
     /**
      * Returns a pointer to a LockHandle used by AutoWriteLock/AutoReadLock

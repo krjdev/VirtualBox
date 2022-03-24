@@ -1,10 +1,10 @@
-/* $Id: UIMachinePreview.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachinePreview.h $ */
 /** @file
  * VBox Qt GUI - UIMachinePreview class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -62,7 +62,7 @@ public:
     /** Constructs preview element, passing pParent to the base-class. */
     UIMachinePreview(QIGraphicsWidget *pParent);
     /** Destructs preview element. */
-    virtual ~UIMachinePreview() RT_OVERRIDE;
+    virtual ~UIMachinePreview() /* override */;
 
     /** @name Item stuff.
       * @{ */
@@ -77,27 +77,27 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
         /** Handles show @a pEvent. */
-        virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+        virtual void showEvent(QShowEvent *pEvent) /* override */;
         /** Handles hide @a pEvent. */
-        virtual void hideEvent(QHideEvent *pEvent) RT_OVERRIDE;
+        virtual void hideEvent(QHideEvent *pEvent) /* override */;
 
         /** Handles context-menu @a pEvent. */
-        virtual void contextMenuEvent(QGraphicsSceneContextMenuEvent *pEvent) RT_OVERRIDE;
+        virtual void contextMenuEvent(QGraphicsSceneContextMenuEvent *pEvent) /* override */;
 
         /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
     /** @} */
 
     /** @name Item stuff.
       * @{ */
         /** Returns RTTI item type. */
-        virtual int type() const RT_OVERRIDE { return Type; }
+        virtual int type() const /* override */ { return Type; }
     /** @} */
 
     /** @name Layout stuff.
@@ -105,7 +105,7 @@ protected:
         /** Returns size-hint.
           * @param  enmWhich    Brings size-hint type.
           * @param  constraint  Brings size constraint. */
-        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const RT_OVERRIDE;
+        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const /* override */;
     /** @} */
 
 private slots:

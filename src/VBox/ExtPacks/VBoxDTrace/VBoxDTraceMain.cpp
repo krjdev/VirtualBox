@@ -1,10 +1,10 @@
-/* $Id: VBoxDTraceMain.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDTraceMain.cpp $ */
 /** @file
  * VBoxDTrace main module.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -83,7 +83,6 @@ static const VBOXEXTPACKREG g_vboxDTraceExtPackReg =
 {
     VBOXEXTPACKREG_VERSION,
     /* .uVBoxFullVersion =  */  VBOX_FULL_VERSION,
-    /* .pszNlsBaseName =    */  NULL,
     /* .pfnInstalled =      */  NULL,
     /* .pfnUninstall =      */  NULL,
     /* .pfnVirtualBoxReady =*/  NULL,

@@ -1,10 +1,10 @@
-/* $Id: VBoxNetLwfInstall.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetLwfInstall.cpp $ */
 /** @file
  * NetLwfInstall - VBoxNetLwf installer command line tool
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,9 +33,9 @@
 #define VBOX_NETLWF_RETRIES 10
 
 
-static DECLCALLBACK(void) winNetCfgLogger(const char *pszString)
+static VOID winNetCfgLogger (LPCSTR szString)
 {
-    printf("%s", pszString);
+    printf("%s", szString);
 }
 
 /** Wrapper around GetfullPathNameW that will try an alternative INF location.
@@ -55,13 +55,13 @@ static DWORD MyGetfullPathNameW(LPCWSTR pwszName, size_t cchFull, LPWSTR pwszFul
     if (GetFileAttributesW(pwszFull) == INVALID_FILE_ATTRIBUTES)
     {
         WCHAR wsz[512];
-        DWORD cch = GetModuleFileNameW(GetModuleHandle(NULL), &wsz[0], RT_ELEMENTS(wsz));
+        DWORD cch = GetModuleFileNameW(GetModuleHandle(NULL), &wsz[0], sizeof(wsz) / sizeof(wsz[0]));
         if (cch > 0)
         {
             while (cch > 0 && wsz[cch - 1] != '/' && wsz[cch - 1] != '\\' && wsz[cch - 1] != ':')
                 cch--;
             unsigned i = 0;
-            while (cch < RT_ELEMENTS(wsz))
+            while (cch < sizeof(wsz) / sizeof(wsz[0]))
             {
                 wsz[cch] = pwszFilePart[i++];
                 if (!wsz[cch])
@@ -82,75 +82,82 @@ static DWORD MyGetfullPathNameW(LPCWSTR pwszName, size_t cchFull, LPWSTR pwszFul
 
 static int VBoxNetLwfInstall()
 {
-    WCHAR wszInf[MAX_PATH];
+    WCHAR Inf[MAX_PATH];
     INetCfg *pnc;
-    int rcExit = RTEXITCODE_FAILURE;
+    LPWSTR lpszLockedBy = NULL;
+    int r = 1;
 
     VBoxNetCfgWinSetLogging(winNetCfgLogger);
 
     HRESULT hr = CoInitialize(NULL);
     if (hr == S_OK)
     {
-        for (int i = 0;; i++)
+        int i = 0;
+        do
         {
-            LPWSTR pwszLockedBy = NULL;
-            hr = VBoxNetCfgWinQueryINetCfg(&pnc, TRUE, VBOX_NETCFG_APP_NAME, 10000, &pwszLockedBy);
+            hr = VBoxNetCfgWinQueryINetCfg(&pnc, TRUE, VBOX_NETCFG_APP_NAME, 10000, &lpszLockedBy);
             if (hr == S_OK)
             {
                 DWORD dwSize;
-                dwSize = MyGetfullPathNameW(VBOX_NETLWF_INF, RT_ELEMENTS(wszInf), wszInf);
+                dwSize = MyGetfullPathNameW(VBOX_NETLWF_INF, sizeof(Inf)/sizeof(Inf[0]), Inf);
                 if (dwSize > 0)
                 {
-                    /** @todo add size check for (RT_ELEMENTS(wszInf) == dwSize (string length in WCHARs) */
-                    hr = VBoxNetCfgWinNetLwfInstall(pnc, wszInf);
+                    /** @todo add size check for (sizeof(Inf)/sizeof(Inf[0])) == dwSize (string length in sizeof(Inf[0])) */
+                    hr = VBoxNetCfgWinNetLwfInstall(pnc, Inf);
                     if (hr == S_OK)
                     {
                         wprintf(L"installed successfully\n");
-                        rcExit = RTEXITCODE_SUCCESS;
+                        r = 0;
                     }
                     else
-                        wprintf(L"error installing VBoxNetLwf (%#lx)\n", hr);
+                    {
+                        wprintf(L"error installing VBoxNetLwf (0x%x)\n", hr);
+                    }
                 }
                 else
                 {
                     hr = HRESULT_FROM_WIN32(GetLastError());
-                    wprintf(L"error getting full inf path for VBoxNetLwf.inf (%#lx)\n", hr);
+                    wprintf(L"error getting full inf path for VBoxNetLwf.inf (0x%x)\n", hr);
                 }
+
 
                 VBoxNetCfgWinReleaseINetCfg(pnc, TRUE);
                 break;
             }
-
-            if (hr == NETCFG_E_NO_WRITE_LOCK && pwszLockedBy)
+            else if (hr == NETCFG_E_NO_WRITE_LOCK && lpszLockedBy)
             {
-                if (i < VBOX_NETLWF_RETRIES && !wcscmp(pwszLockedBy, L"6to4svc.dll"))
+                if (i < VBOX_NETLWF_RETRIES && !wcscmp(lpszLockedBy, L"6to4svc.dll"))
                 {
-                    wprintf(L"6to4svc.dll is holding the lock, retrying %d out of %d\n", i + 1, VBOX_NETLWF_RETRIES);
-                    CoTaskMemFree(pwszLockedBy);
+                    wprintf(L"6to4svc.dll is holding the lock, retrying %d out of %d\n", ++i, VBOX_NETLWF_RETRIES);
+                    CoTaskMemFree(lpszLockedBy);
                 }
                 else
                 {
-                    wprintf(L"Error: write lock is owned by another application (%s), close the application and retry installing\n",
-                            pwszLockedBy);
-                    CoTaskMemFree(pwszLockedBy);
+                    wprintf(L"Error: write lock is owned by another application (%s), close the application and retry installing\n", lpszLockedBy);
+                    r = 1;
+                    CoTaskMemFree(lpszLockedBy);
                     break;
                 }
             }
             else
             {
-                wprintf(L"Error getting the INetCfg interface (%#lx)\n", hr);
+                wprintf(L"Error getting the INetCfg interface (0x%x)\n", hr);
+                r = 1;
                 break;
             }
-        }
+        } while (true);
 
         CoUninitialize();
     }
     else
-        wprintf(L"Error initializing COM (%#lx)\n", hr);
+    {
+        wprintf(L"Error initializing COM (0x%x)\n", hr);
+        r = 1;
+    }
 
     VBoxNetCfgWinSetLogging(NULL);
 
-    return rcExit;
+    return r;
 }
 
 int __cdecl main(int argc, char **argv)

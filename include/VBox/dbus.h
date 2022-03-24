@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -95,7 +95,6 @@ typedef struct DBusMessageIter DBusMessageIter;
 #define DBUS_TYPE_BOOLEAN                   ((int) 'b')
 #define DBUS_TYPE_INT32                     ((int) 'i')
 #define DBUS_TYPE_UINT32                    ((int) 'u')
-#define DBUS_TYPE_DOUBLE                    ((int) 'd')
 #define DBUS_TYPE_STRING                    ((int) 's')
 #define DBUS_TYPE_STRING_AS_STRING          "s"
 
@@ -105,7 +104,6 @@ typedef struct DBusMessageIter DBusMessageIter;
 #define DBUS_TYPE_ARRAY_AS_STRING           "a"
 #define DBUS_TYPE_DICT_ENTRY                ((int) 'e')
 #define DBUS_TYPE_DICT_ENTRY_AS_STRING      "e"
-#define DBUS_TYPE_STRUCT                    ((int) 'r')
 
 typedef enum
 {

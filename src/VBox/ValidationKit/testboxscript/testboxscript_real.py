@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: testboxscript_real.py 94125 2022-03-08 14:15:09Z vboxsync $
+# $Id: testboxscript_real.py $
 
 """
 TestBox Script - main().
@@ -8,7 +8,7 @@ TestBox Script - main().
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94125 $"
+__version__ = "$Revision: 136077 $"
 
 
 # Standard python imports.
@@ -181,14 +181,14 @@ class TestBoxScript(object):
             constants.tbreq.SIGNON_PARAM_MEM_SIZE:         { self.VALUE: None,     self.FN: self._getHostMemSize },
             constants.tbreq.SIGNON_PARAM_SCRATCH_SIZE:     { self.VALUE: None,     self.FN: self._getFreeScratchSpace },
         }
-        for sItem in self._ddSignOnParams:                      # pylint: disable=consider-using-dict-items
+        for sItem in self._ddSignOnParams:
             if self._ddSignOnParams[sItem][self.FN] is not None:
                 self._ddSignOnParams[sItem][self.VALUE] = self._ddSignOnParams[sItem][self.FN]()
 
         testboxcommons.log('Starting Test Box script (%s)' % (self._getScriptRev(),));
         testboxcommons.log('Test Manager URL: %s' % self._oOptions.sTestManagerUrl,)
         testboxcommons.log('Scratch root path: %s' % self._oOptions.sScratchRoot,)
-        for sItem in self._ddSignOnParams:                      # pylint: disable=consider-using-dict-items
+        for sItem in self._ddSignOnParams:
             testboxcommons.log('Sign-On value %18s: %s' % (sItem, self._ddSignOnParams[sItem][self.VALUE]));
 
         #
@@ -322,7 +322,7 @@ class TestBoxScript(object):
             utils.sudoProcessCall(['/bin/mkdir', '-p', sMountPoint]);
             if sType == 'cifs':
                 ## @todo This stuff doesn't work on wei01-x4600b.de.oracle.com running 11.1. FIXME!
-                oPasswdFile = tempfile.TemporaryFile();     # pylint: disable=consider-using-with
+                oPasswdFile = tempfile.TemporaryFile();
                 oPasswdFile.write(sPassword + '\n');
                 oPasswdFile.flush();
                 utils.sudoProcessOutputChecked(['/sbin/mount', '-F', 'smbfs',
@@ -379,7 +379,7 @@ class TestBoxScript(object):
                 self._sTestBoxHelper = os.path.join(g_ksValidationKitDir, utils.getHostOs(), utils.getHostArch(), \
                                                     'TestBoxHelper');
             else: # Only for in-tree testing, so don't bother be too accurate right now.
-                sType = os.environ.get('KBUILD_TYPE', 'debug');
+                sType = os.environ.get('KBUILD_TYPE', os.environ.get('BUILD_TYPE', 'debug'));
                 self._sTestBoxHelper = os.path.join(g_ksValidationKitDir, os.pardir, os.pardir, os.pardir, 'out', \
                                                     utils.getHostOsDotArch(), sType, 'testboxscript', \
                                                     utils.getHostOs(), utils.getHostArch(), \
@@ -794,7 +794,7 @@ class TestBoxScript(object):
 
         # Assemble SIGN-ON request parameters and send the request.
         dParams = {};
-        for sParam in self._ddSignOnParams:                     # pylint: disable=consider-using-dict-items
+        for sParam in self._ddSignOnParams:
             dParams[sParam] = self._ddSignOnParams[sParam][self.VALUE];
         oResponse = TestBoxConnection.sendSignOn(self._oOptions.sTestManagerUrl, dParams);
 
@@ -847,16 +847,16 @@ class TestBoxScript(object):
 
         # Refresh sign-on parameters, changes triggers sign-on.
         fNeedSignOn = not self._fSignedOn or self._fNeedReSignOn;
-        for sItem in self._ddSignOnParams:                      # pylint: disable=consider-using-dict-items
-            if self._ddSignOnParams[sItem][self.FN] is None:
+        for item in self._ddSignOnParams:
+            if self._ddSignOnParams[item][self.FN] is None:
                 continue
 
-            sOldValue = self._ddSignOnParams[sItem][self.VALUE]
-            self._ddSignOnParams[sItem][self.VALUE] = self._ddSignOnParams[sItem][self.FN]()
-            if sOldValue != self._ddSignOnParams[sItem][self.VALUE]:
+            sOldValue = self._ddSignOnParams[item][self.VALUE]
+            self._ddSignOnParams[item][self.VALUE] = self._ddSignOnParams[item][self.FN]()
+            if sOldValue != self._ddSignOnParams[item][self.VALUE]:
                 fNeedSignOn = True
-                testboxcommons.log('Detected %s parameter change: %s -> %s'
-                                   % (sItem, sOldValue, self._ddSignOnParams[sItem][self.VALUE],))
+                testboxcommons.log('Detected %s parameter change: %s -> %s' %
+                                   (item, sOldValue, self._ddSignOnParams[item][self.VALUE]))
 
         if fNeedSignOn:
             self._doSignOn();
@@ -1012,14 +1012,6 @@ class TestBoxScript(object):
         parser.add_option("-E", "--putenv", metavar = "<variable>=<value>", action = "append",
                           dest = "asEnvVars", default = [],
                           help = "Sets an environment variable. Can be repeated.");
-        def sbp_callback(option, opt_str, value, parser):
-            _, _, _ = opt_str, value, option
-            parser.values.sTestManagerUrl = 'http://10.162.100.8/testmanager/'
-            parser.values.sBuildsServerName = 'vbox-st02.ru.oracle.com'
-            parser.values.sTestRsrcServerName = 'vbox-st02.ru.oracle.com'
-            parser.values.sTestRsrcServerShare = 'scratch/data/testrsrc'
-        parser.add_option("--spb", "--load-sbp-defaults", action="callback", callback=sbp_callback,
-                          help="Load defaults for the sbp setup.")
 
         (oOptions, args) = parser.parse_args()
         # Check command line

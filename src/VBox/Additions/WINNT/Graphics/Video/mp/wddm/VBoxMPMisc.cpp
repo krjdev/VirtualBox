@@ -1,10 +1,10 @@
-/* $Id: VBoxMPMisc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPMisc.cpp $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,7 +18,7 @@
 #include "VBoxMPWddm.h"
 #include <VBoxVideoVBE.h>
 #include <iprt/param.h>
-#include <iprt/utf16.h>
+#include <stdio.h>
 
 /* simple handle -> value table API */
 NTSTATUS vboxWddmHTableCreate(PVBOXWDDM_HTABLE pTbl, uint32_t cSize)
@@ -215,6 +215,7 @@ NTSTATUS vboxWddmRegQueryDisplaySettingsKeyName(PVBOXMP_DEVEXT pDevExt, D3DDDI_V
         ULONG cbBuf, PWCHAR pBuf, PULONG pcbResult)
 {
     NTSTATUS Status = STATUS_SUCCESS;
+    PWCHAR pSuffix;
     const WCHAR* pKeyPrefix;
     UINT cbKeyPrefix;
     UNICODE_STRING* pVGuid = vboxWddmVGuidGet(pDevExt);
@@ -244,9 +245,13 @@ NTSTATUS vboxWddmRegQueryDisplaySettingsKeyName(PVBOXMP_DEVEXT pDevExt, D3DDDI_V
     ULONG cbResult = cbKeyPrefix + pVGuid->Length + 2 + 8; // L"\\" + "XXXX"
     if (cbBuf >= cbResult)
     {
-        ssize_t cwcFmt = RTUtf16Printf(pBuf, cbBuf / sizeof(WCHAR), "%ls%.*ls\\%04d",
-                                       pKeyPrefix, pVGuid->Length / sizeof(WCHAR), pVGuid->Buffer, VidPnSourceId);
-        Assert((size_t)cwcFmt + 1 == cbResult / sizeof(WCHAR)); RT_NOREF(cwcFmt);
+        wcscpy(pBuf, pKeyPrefix);
+        pSuffix = pBuf + (cbKeyPrefix-2)/2;
+        memcpy(pSuffix, pVGuid->Buffer, pVGuid->Length);
+        pSuffix += pVGuid->Length/2;
+        pSuffix[0] = L'\\';
+        pSuffix += 1;
+        swprintf(pSuffix, L"%04d", VidPnSourceId);
     }
     else
     {
@@ -1085,6 +1090,7 @@ static BOOLEAN g_bVBoxUmdD3DCAPS9IsInited = FALSE;
 
 static void vboxUmdDumpDword(DWORD *pvData, DWORD cData)
 {
+    char aBuf[16*4];
     DWORD dw1, dw2, dw3, dw4;
     for (UINT i = 0; i < (cData & (~3)); i+=4)
     {
@@ -1092,7 +1098,8 @@ static void vboxUmdDumpDword(DWORD *pvData, DWORD cData)
         dw2 = *pvData++;
         dw3 = *pvData++;
         dw4 = *pvData++;
-        LOGREL(("0x%08x, 0x%08x, 0x%08x, 0x%08x,\n", dw1, dw2, dw3, dw4));
+        sprintf(aBuf, "0x%08x, 0x%08x, 0x%08x, 0x%08x,\n", dw1, dw2, dw3, dw4);
+        LOGREL(("%s", aBuf));
     }
 
     cData = cData % 4;
@@ -1102,16 +1109,19 @@ static void vboxUmdDumpDword(DWORD *pvData, DWORD cData)
             dw1 = *pvData++;
             dw2 = *pvData++;
             dw3 = *pvData++;
-            LOGREL(("0x%08x, 0x%08x, 0x%08x\n", dw1, dw2, dw3));
+            sprintf(aBuf, "0x%08x, 0x%08x, 0x%08x\n", dw1, dw2, dw3);
+            LOGREL(("%s", aBuf));
             break;
         case 2:
             dw1 = *pvData++;
             dw2 = *pvData++;
-            LOGREL(("0x%08x, 0x%08x\n", dw1, dw2));
+            sprintf(aBuf, "0x%08x, 0x%08x\n", dw1, dw2);
+            LOGREL(("%s", aBuf));
             break;
         case 1:
             dw1 = *pvData++;
-            LOGREL(("0x%8x\n", dw1));
+            sprintf(aBuf, "0x%8x\n", dw1);
+            LOGREL(("%s", aBuf));
             break;
         default:
             break;

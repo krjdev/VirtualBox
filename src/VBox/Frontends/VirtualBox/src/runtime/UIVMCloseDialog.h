@@ -1,10 +1,10 @@
-/* $Id: UIVMCloseDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMCloseDialog.h $ */
 /** @file
  * VBox Qt GUI - UIVMCloseDialog class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,18 +61,21 @@ public:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
+
+    /** Updates widgets availability. */
+    void sltUpdateWidgetAvailability();
 
     /** Accepts the dialog. */
     void accept();
@@ -98,6 +101,9 @@ private:
     void setButtonEnabledPowerOff(bool fEnabled);
     /** Defines whether 'PowerOff' button is visible. */
     void setButtonVisiblePowerOff(bool fVisible);
+
+    /** Defines whether 'Discard' check-box is visible. */
+    void setCheckBoxVisibleDiscard(bool fVisible);
 
     /** Prepares all. */
     void prepare();
@@ -165,6 +171,11 @@ private:
     QLabel       *m_pLabelIconPowerOff;
     /** Holds the 'PowerOff' radio-button instance.  */
     QRadioButton *m_pRadioButtonPowerOff;
+
+    /** Holds the 'Discard' check-box instance.  */
+    QCheckBox *m_pCheckBoxDiscard;
+    /** Holds the 'Discard' check-box text. */
+    QString    m_strDiscardCheckBoxText;
 
     /** Holds the last close action. */
     MachineCloseAction  m_enmLastCloseAction;

@@ -1,10 +1,10 @@
-/* $Id: VirtualBoxErrorInfoImpl.cpp 93909 2022-02-24 10:44:19Z vboxsync $ */
+/* $Id: VirtualBoxErrorInfoImpl.cpp $ */
 /** @file
  * VirtualBoxErrorInfo COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -85,7 +85,7 @@ STDMETHODIMP VirtualBoxErrorInfo::COMGETTER(ResultCode)(LONG *aResultCode)
 {
     CheckComArgOutPointerValid(aResultCode);
 
-    *aResultCode = (LONG)m_resultCode;
+    *aResultCode = m_resultCode;
     return S_OK;
 }
 
@@ -244,12 +244,13 @@ NS_IMETHODIMP VirtualBoxErrorInfo::GetMessage(char **aMessage)
 /* readonly attribute nsresult result; */
 NS_IMETHODIMP VirtualBoxErrorInfo::GetResult(nsresult *aResult)
 {
-    AssertReturn(aResult, NS_ERROR_INVALID_POINTER);
+    if (!aResult)
+      return NS_ERROR_INVALID_POINTER;
 
     PRInt32 lrc;
     nsresult rc = COMGETTER(ResultCode)(&lrc);
     if (SUCCEEDED(rc))
-      *aResult = (nsresult)lrc;
+      *aResult = lrc;
     return rc;
 }
 

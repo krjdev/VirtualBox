@@ -1,4 +1,4 @@
-/* $Id: tstVBoxAPIXPCOM.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstVBoxAPIXPCOM.cpp $ */
 /** @file
  *
  * tstVBoxAPIXPCOM - sample program to illustrate the VirtualBox
@@ -8,7 +8,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -104,15 +104,15 @@ void listVMs(IVirtualBox *virtualBox)
      * Get the list of all registered VMs
      */
     IMachine **machines = NULL;
-    PRUint32 cMachines = 0;
+    PRUint32 machineCnt = 0;
 
-    rc = virtualBox->GetMachines(&cMachines, &machines);
+    rc = virtualBox->GetMachines(&machineCnt, &machines);
     if (NS_SUCCEEDED(rc))
     {
         /*
          * Iterate through the collection
          */
-        for (PRUint32 i = 0; i < cMachines; ++ i)
+        for (PRUint32 i = 0; i < machineCnt; ++ i)
         {
             IMachine *machine = machines[i];
             if (machine)
@@ -167,7 +167,6 @@ void listVMs(IVirtualBox *virtualBox)
                 machine->Release();
             }
         }
-        nsMemory::Free(machines);
     }
     printf("----------------------------------------------------\n\n");
 }
@@ -427,19 +426,13 @@ void createVM(IVirtualBox *virtualBox)
                 printf("Failed to delete the machine! rc=%#x\n",
                        NS_FAILED(rc) ? rc : resultCode);
         }
-
-        /* Release the media array: */
-        for (PRUint32 i = 0; i < cMedia; i++)
-            if (aMedia[i])
-                aMedia[i]->Release();
-        nsMemory::Free(aMedia);
     }
 }
 
 // main
 ///////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char **argv)
+int main()
 {
     /*
      * Check that PRUnichar is equal in size to what compiler composes L""
@@ -456,24 +449,6 @@ int main(int argc, char **argv)
                (unsigned long) sizeof(wchar_t));
         return -1;
     }
-
-#if 1 /* Please ignore this! It is very very crude. */
-# ifdef RTPATH_APP_PRIVATE_ARCH
-    if (!getenv("VBOX_XPCOM_HOME"))
-        setenv("VBOX_XPCOM_HOME", RTPATH_APP_PRIVATE_ARCH, 1);
-# else
-    char szTmp[8192];
-    if (!getenv("VBOX_XPCOM_HOME"))
-    {
-        strcpy(szTmp, argv[0]);
-        *strrchr(szTmp, '/') = '\0';
-        strcat(szTmp, "/..");
-        fprintf(stderr, "tstVBoxAPIXPCOM: VBOX_XPCOM_HOME is not set, using '%s' instead\n", szTmp);
-        setenv("VBOX_XPCOM_HOME", szTmp, 1);
-    }
-# endif
-#endif
-    (void)argc; (void)argv;
 
     nsresult rc;
 

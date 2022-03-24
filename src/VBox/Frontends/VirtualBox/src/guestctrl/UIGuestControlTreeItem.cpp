@@ -1,10 +1,10 @@
-/* $Id: UIGuestControlTreeItem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIGuestControlTreeItem.cpp $ */
 /** @file
  * VBox Qt GUI - UIGuestSessionTreeItem class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,18 +66,27 @@ void UIGuestControlTreeItem::prepareListener(CEventSource comEventSource, QVecto
     m_comEventListener = CEventListener(m_pQtListener);
 
     /* Register event listener for CProgress event source: */
-    comEventSource.RegisterListener(m_comEventListener, eventTypes, FALSE /* active? */);
+    comEventSource.RegisterListener(m_comEventListener, eventTypes,
+        gEDataManager->eventHandlingType() == EventHandlingType_Active ? TRUE : FALSE);
 
-    /* Register event sources in their listeners as well: */
-    m_pQtListener->getWrapped()->registerSource(comEventSource, m_comEventListener);
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Register event sources in their listeners as well: */
+        m_pQtListener->getWrapped()->registerSource(comEventSource, m_comEventListener);
+    }
 }
 
 void UIGuestControlTreeItem::cleanupListener(CEventSource comEventSource)
 {
     if (!comEventSource.isOk())
         return;
-    /* Unregister everything: */
-    m_pQtListener->getWrapped()->unregisterSources();
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Unregister everything: */
+        m_pQtListener->getWrapped()->unregisterSources();
+    }
 
     /* Make sure VBoxSVC is available: */
     if (!uiCommon().isVBoxSVCAvailable())

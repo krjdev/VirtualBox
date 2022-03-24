@@ -355,39 +355,28 @@ ReallocateAcpiTableBuffer (
                  NewMaxTableNumber * sizeof (UINT32);
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    //
-    // Allocate memory in the lower 32 bit of address range for
-    // compatibility with ACPI 1.0 OS.
-    //
-    // This is done because ACPI 1.0 pointers are 32 bit values.
-    // ACPI 2.0 OS and all 64 bit OS must use the 64 bit ACPI table addresses.
-    // There is no architectural reason these should be below 4GB, it is purely
-    // for convenience of implementation that we force memory below 4GB.
-    //
-    PageAddress = 0xFFFFFFFF;
-    Status = gBS->AllocatePages (
-                    mAcpiTableAllocType,
-                    EfiACPIReclaimMemory,
-                    EFI_SIZE_TO_PAGES (TotalSize),
-                    &PageAddress
-                    );
-  } else {
-    Status = gBS->AllocatePool (
-                    EfiACPIReclaimMemory,
-                    TotalSize,
-                    (VOID **)&Pointer
-                    );
-  }
+  //
+  // Allocate memory in the lower 32 bit of address range for
+  // compatibility with ACPI 1.0 OS.
+  //
+  // This is done because ACPI 1.0 pointers are 32 bit values.
+  // ACPI 2.0 OS and all 64 bit OS must use the 64 bit ACPI table addresses.
+  // There is no architectural reason these should be below 4GB, it is purely
+  // for convenience of implementation that we force memory below 4GB.
+  //
+  PageAddress = 0xFFFFFFFF;
+  Status = gBS->AllocatePages (
+                  mAcpiTableAllocType,
+                  EfiACPIReclaimMemory,
+                  EFI_SIZE_TO_PAGES (TotalSize),
+                  &PageAddress
+                  );
 
   if (EFI_ERROR (Status)) {
     return EFI_OUT_OF_RESOURCES;
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    Pointer = (UINT8 *)(UINTN)PageAddress;
-  }
-
+  Pointer = (UINT8 *) (UINTN) PageAddress;
   ZeroMem (Pointer, TotalSize);
 
   AcpiTableInstance->Rsdt1 = (EFI_ACPI_DESCRIPTION_HEADER *) Pointer;
@@ -417,51 +406,26 @@ ReallocateAcpiTableBuffer (
   }
   CopyMem (AcpiTableInstance->Xsdt, TempPrivateData.Xsdt, (sizeof (EFI_ACPI_DESCRIPTION_HEADER) + mEfiAcpiMaxNumTables * sizeof (UINT64)));
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    //
-    // Calculate orignal ACPI table buffer size
-    //
-    TotalSize = sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 2.0/3.0 XSDT
-                mEfiAcpiMaxNumTables * sizeof (UINT64);
+  //
+  // Calculate orignal ACPI table buffer size
+  //
+  TotalSize = sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 2.0/3.0 XSDT
+              mEfiAcpiMaxNumTables * sizeof (UINT64);
 
-    if ((PcdGet32 (PcdAcpiExposedTableVersions) & EFI_ACPI_TABLE_VERSION_1_0B) != 0) {
-      TotalSize += sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 1.0 RSDT
-                   mEfiAcpiMaxNumTables * sizeof (UINT32) +
-                   sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 2.0/3.0 RSDT
-                   mEfiAcpiMaxNumTables * sizeof (UINT32);
-    }
-
-    gBS->FreePages ((EFI_PHYSICAL_ADDRESS)(UINTN)TempPrivateData.Rsdt1,
-           EFI_SIZE_TO_PAGES (TotalSize));
-  } else {
-    gBS->FreePool (TempPrivateData.Rsdt1);
+  if ((PcdGet32 (PcdAcpiExposedTableVersions) & EFI_ACPI_TABLE_VERSION_1_0B) != 0) {
+    TotalSize += sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 1.0 RSDT
+                 mEfiAcpiMaxNumTables * sizeof (UINT32) +
+                 sizeof (EFI_ACPI_DESCRIPTION_HEADER) +         // for ACPI 2.0/3.0 RSDT
+                 mEfiAcpiMaxNumTables * sizeof (UINT32);
   }
+
+  gBS->FreePages ((EFI_PHYSICAL_ADDRESS)(UINTN)TempPrivateData.Rsdt1, EFI_SIZE_TO_PAGES (TotalSize));
 
   //
   // Update the Max ACPI table number
   //
   mEfiAcpiMaxNumTables = NewMaxTableNumber;
   return EFI_SUCCESS;
-}
-
-/**
-  Free the memory associated with the provided EFI_ACPI_TABLE_LIST instance.
-
-  @param  TableEntry                EFI_ACPI_TABLE_LIST instance pointer
-
-**/
-STATIC
-VOID
-FreeTableMemory (
-  EFI_ACPI_TABLE_LIST   *TableEntry
-  )
-{
-  if (TableEntry->PoolAllocation) {
-    gBS->FreePool (TableEntry->Table);
-  } else {
-    gBS->FreePages ((EFI_PHYSICAL_ADDRESS)(UINTN)TableEntry->Table,
-           EFI_SIZE_TO_PAGES (TableEntry->TableSize));
-  }
 }
 
 /**
@@ -490,15 +454,14 @@ AddTableToList (
   OUT UINTN                               *Handle
   )
 {
-  EFI_STATUS            Status;
-  EFI_ACPI_TABLE_LIST   *CurrentTableList;
-  UINT32                CurrentTableSignature;
-  UINT32                CurrentTableSize;
-  UINT32                *CurrentRsdtEntry;
-  VOID                  *CurrentXsdtEntry;
-  EFI_PHYSICAL_ADDRESS  AllocPhysAddress;
-  UINT64                Buffer64;
-  BOOLEAN               AddToRsdt;
+  EFI_STATUS          Status;
+  EFI_ACPI_TABLE_LIST *CurrentTableList;
+  UINT32              CurrentTableSignature;
+  UINT32              CurrentTableSize;
+  UINT32              *CurrentRsdtEntry;
+  VOID                *CurrentXsdtEntry;
+  UINT64              Buffer64;
+  BOOLEAN             AddToRsdt;
 
   //
   // Check for invalid input parameters
@@ -533,9 +496,8 @@ AddTableToList (
   // There is no architectural reason these should be below 4GB, it is purely
   // for convenience of implementation that we force memory below 4GB.
   //
-  AllocPhysAddress                  = 0xFFFFFFFF;
-  CurrentTableList->TableSize       = CurrentTableSize;
-  CurrentTableList->PoolAllocation  = FALSE;
+  CurrentTableList->PageAddress   = 0xFFFFFFFF;
+  CurrentTableList->NumberOfPages = EFI_SIZE_TO_PAGES (CurrentTableSize);
 
   //
   // Allocation memory type depends on the type of the table
@@ -556,21 +518,9 @@ AddTableToList (
     Status = gBS->AllocatePages (
                     AllocateMaxAddress,
                     EfiACPIMemoryNVS,
-                    EFI_SIZE_TO_PAGES (CurrentTableList->TableSize),
-                    &AllocPhysAddress
+                    CurrentTableList->NumberOfPages,
+                    &CurrentTableList->PageAddress
                     );
-  } else if (mAcpiTableAllocType == AllocateAnyPages) {
-    //
-    // If there is no allocation limit, there is also no need to use page
-    // based allocations for ACPI tables, which may be wasteful on platforms
-    // such as AArch64 that allocate multiples of 64 KB
-    //
-    Status = gBS->AllocatePool (
-                    EfiACPIReclaimMemory,
-                    CurrentTableList->TableSize,
-                    (VOID **)&CurrentTableList->Table
-                    );
-    CurrentTableList->PoolAllocation = TRUE;
   } else {
     //
     // All other tables are ACPI reclaim memory, no alignment requirements.
@@ -578,10 +528,9 @@ AddTableToList (
     Status = gBS->AllocatePages (
                     mAcpiTableAllocType,
                     EfiACPIReclaimMemory,
-                    EFI_SIZE_TO_PAGES (CurrentTableList->TableSize),
-                    &AllocPhysAddress
+                    CurrentTableList->NumberOfPages,
+                    &CurrentTableList->PageAddress
                     );
-    CurrentTableList->Table = (EFI_ACPI_COMMON_HEADER *)(UINTN)AllocPhysAddress;
   }
   //
   // Check return value from memory alloc.
@@ -590,10 +539,10 @@ AddTableToList (
     gBS->FreePool (CurrentTableList);
     return EFI_OUT_OF_RESOURCES;
   }
-
-  if (!CurrentTableList->PoolAllocation) {
-    CurrentTableList->Table = (EFI_ACPI_COMMON_HEADER *)(UINTN)AllocPhysAddress;
-  }
+  //
+  // Update the table pointer with the allocated memory start
+  //
+  CurrentTableList->Table = (EFI_ACPI_COMMON_HEADER *) (UINTN) CurrentTableList->PageAddress;
 
   //
   // Initialize the table contents
@@ -626,7 +575,7 @@ AddTableToList (
     if (((Version & EFI_ACPI_TABLE_VERSION_1_0B) != 0 && AcpiTableInstance->Fadt1 != NULL) ||
         ((Version & ACPI_TABLE_VERSION_GTE_2_0)  != 0 && AcpiTableInstance->Fadt3 != NULL)
         ) {
-      FreeTableMemory (CurrentTableList);
+      gBS->FreePages (CurrentTableList->PageAddress, CurrentTableList->NumberOfPages);
       gBS->FreePool (CurrentTableList);
       return EFI_ACCESS_DENIED;
     }
@@ -780,7 +729,7 @@ AddTableToList (
     if (((Version & EFI_ACPI_TABLE_VERSION_1_0B) != 0 && AcpiTableInstance->Facs1 != NULL) ||
         ((Version & ACPI_TABLE_VERSION_GTE_2_0)  != 0 && AcpiTableInstance->Facs3 != NULL)
         ) {
-      FreeTableMemory (CurrentTableList);
+      gBS->FreePages (CurrentTableList->PageAddress, CurrentTableList->NumberOfPages);
       gBS->FreePool (CurrentTableList);
       return EFI_ACCESS_DENIED;
     }
@@ -864,7 +813,7 @@ AddTableToList (
     if (((Version & EFI_ACPI_TABLE_VERSION_1_0B) != 0 && AcpiTableInstance->Dsdt1 != NULL) ||
         ((Version & ACPI_TABLE_VERSION_GTE_2_0)  != 0 && AcpiTableInstance->Dsdt3 != NULL)
         ) {
-      FreeTableMemory (CurrentTableList);
+      gBS->FreePages (CurrentTableList->PageAddress, CurrentTableList->NumberOfPages);
       gBS->FreePool (CurrentTableList);
       return EFI_ACCESS_DENIED;
     }
@@ -1500,7 +1449,7 @@ DeleteTable (
     //
     // Free the Table
     //
-    FreeTableMemory (Table);
+    gBS->FreePages (Table->PageAddress, Table->NumberOfPages);
     RemoveEntryList (&(Table->Link));
     gBS->FreePool (Table);
   }
@@ -1745,29 +1694,19 @@ AcpiTableAcpiTableConstructor (
     RsdpTableSize += sizeof (EFI_ACPI_1_0_ROOT_SYSTEM_DESCRIPTION_POINTER);
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    PageAddress = 0xFFFFFFFF;
-    Status = gBS->AllocatePages (
-                    mAcpiTableAllocType,
-                    EfiACPIReclaimMemory,
-                    EFI_SIZE_TO_PAGES (RsdpTableSize),
-                    &PageAddress
-                    );
-  } else {
-    Status = gBS->AllocatePool (
-                    EfiACPIReclaimMemory,
-                    RsdpTableSize,
-                    (VOID **)&Pointer
-                    );
-  }
+  PageAddress = 0xFFFFFFFF;
+  Status = gBS->AllocatePages (
+                  mAcpiTableAllocType,
+                  EfiACPIReclaimMemory,
+                  EFI_SIZE_TO_PAGES (RsdpTableSize),
+                  &PageAddress
+                  );
 
   if (EFI_ERROR (Status)) {
     return EFI_OUT_OF_RESOURCES;
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    Pointer = (UINT8 *)(UINTN)PageAddress;
-  }
+  Pointer = (UINT8 *) (UINTN) PageAddress;
   ZeroMem (Pointer, RsdpTableSize);
 
   AcpiTableInstance->Rsdp1 = (EFI_ACPI_1_0_ROOT_SYSTEM_DESCRIPTION_POINTER *) Pointer;
@@ -1789,44 +1728,29 @@ AcpiTableAcpiTableConstructor (
                  mEfiAcpiMaxNumTables * sizeof (UINT32);
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    //
-    // Allocate memory in the lower 32 bit of address range for
-    // compatibility with ACPI 1.0 OS.
-    //
-    // This is done because ACPI 1.0 pointers are 32 bit values.
-    // ACPI 2.0 OS and all 64 bit OS must use the 64 bit ACPI table addresses.
-    // There is no architectural reason these should be below 4GB, it is purely
-    // for convenience of implementation that we force memory below 4GB.
-    //
-    PageAddress = 0xFFFFFFFF;
-    Status = gBS->AllocatePages (
-                    mAcpiTableAllocType,
-                    EfiACPIReclaimMemory,
-                    EFI_SIZE_TO_PAGES (TotalSize),
-                    &PageAddress
-                    );
-  } else {
-    Status = gBS->AllocatePool (
-                    EfiACPIReclaimMemory,
-                    TotalSize,
-                    (VOID **)&Pointer
-                    );
-  }
+  //
+  // Allocate memory in the lower 32 bit of address range for
+  // compatibility with ACPI 1.0 OS.
+  //
+  // This is done because ACPI 1.0 pointers are 32 bit values.
+  // ACPI 2.0 OS and all 64 bit OS must use the 64 bit ACPI table addresses.
+  // There is no architectural reason these should be below 4GB, it is purely
+  // for convenience of implementation that we force memory below 4GB.
+  //
+  PageAddress = 0xFFFFFFFF;
+  Status = gBS->AllocatePages (
+                  mAcpiTableAllocType,
+                  EfiACPIReclaimMemory,
+                  EFI_SIZE_TO_PAGES (TotalSize),
+                  &PageAddress
+                  );
 
   if (EFI_ERROR (Status)) {
-    if (mAcpiTableAllocType != AllocateAnyPages) {
-      gBS->FreePages ((EFI_PHYSICAL_ADDRESS)(UINTN)AcpiTableInstance->Rsdp1,
-             EFI_SIZE_TO_PAGES (RsdpTableSize));
-    } else {
-      gBS->FreePool (AcpiTableInstance->Rsdp1);
-    }
+    gBS->FreePages ((EFI_PHYSICAL_ADDRESS)(UINTN)AcpiTableInstance->Rsdp1, EFI_SIZE_TO_PAGES (RsdpTableSize));
     return EFI_OUT_OF_RESOURCES;
   }
 
-  if (mAcpiTableAllocType != AllocateAnyPages) {
-    Pointer = (UINT8 *)(UINTN)PageAddress;
-  }
+  Pointer = (UINT8 *) (UINTN) PageAddress;
   ZeroMem (Pointer, TotalSize);
 
   AcpiTableInstance->Rsdt1 = (EFI_ACPI_DESCRIPTION_HEADER *) Pointer;

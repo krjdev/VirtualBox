@@ -1,10 +1,10 @@
-/* $Id: STAM.cpp 93468 2022-01-27 21:17:12Z vboxsync $ */
+/* $Id: STAM.cpp $ */
 /** @file
  * STAM - The Statistics Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,7 +81,7 @@ typedef struct STAMR3PRINTONEARGS
 {
     PUVM        pUVM;
     void       *pvArg;
-    DECLCALLBACKMEMBER(void, pfnPrintf,(struct STAMR3PRINTONEARGS *pvArg, const char *pszFormat, ...));
+    DECLCALLBACKMEMBER(void, pfnPrintf)(struct STAMR3PRINTONEARGS *pvArg, const char *pszFormat, ...);
 } STAMR3PRINTONEARGS, *PSTAMR3PRINTONEARGS;
 
 
@@ -218,9 +218,9 @@ static const STAMR0SAMPLE g_aGVMMStats[] =
     { RT_UOFFSETOF(GVMMSTATS, SchedSum.cPollHalts),       STAMTYPE_U64_RESET, STAMUNIT_CALLS, "/GVMM/Sum/PollHalts", "The number of times the EMT has halted in a GVMMR0SchedPoll call." },
     { RT_UOFFSETOF(GVMMSTATS, SchedSum.cPollWakeUps),     STAMTYPE_U64_RESET, STAMUNIT_CALLS, "/GVMM/Sum/PollWakeUps", "The number of wake ups done during GVMMR0SchedPoll." },
 
-    { RT_UOFFSETOF(GVMMSTATS, cVMs),                      STAMTYPE_U32,       STAMUNIT_COUNT, "/GVMM/VMs", "The number of VMs accessible to the caller." },
-    { RT_UOFFSETOF(GVMMSTATS, cEMTs),                     STAMTYPE_U32,       STAMUNIT_COUNT, "/GVMM/EMTs", "The number of emulation threads." },
-    { RT_UOFFSETOF(GVMMSTATS, cHostCpus),                 STAMTYPE_U32,       STAMUNIT_COUNT, "/GVMM/HostCPUs", "The number of host CPUs." },
+    { RT_UOFFSETOF(GVMMSTATS, cVMs),                      STAMTYPE_U32,       STAMUNIT_CALLS, "/GVMM/VMs", "The number of VMs accessible to the caller." },
+    { RT_UOFFSETOF(GVMMSTATS, cEMTs),                     STAMTYPE_U32,       STAMUNIT_CALLS, "/GVMM/EMTs", "The number of emulation threads." },
+    { RT_UOFFSETOF(GVMMSTATS, cHostCpus),                 STAMTYPE_U32,       STAMUNIT_CALLS, "/GVMM/HostCPUs", "The number of host CPUs." },
 };
 
 
@@ -312,8 +312,7 @@ VMMR3DECL(int) STAMR3InitUVM(PUVM pUVM)
     /*
      * Register the ring-0 statistics (GVMM/GMM).
      */
-    if (!SUPR3IsDriverless())
-        stamR3Ring0StatsRegisterU(pUVM);
+    stamR3Ring0StatsRegisterU(pUVM);
 
 #ifdef VBOX_WITH_DEBUGGER
     /*
@@ -1857,7 +1856,7 @@ VMMR3DECL(int)  STAMR3Reset(PUVM pUVM, const char *pszPat)
     /* ring-0 */
     GVMMRESETSTATISTICSSREQ GVMMReq;
     GMMRESETSTATISTICSSREQ  GMMReq;
-    bool fGVMMMatched = (!pszPat || !*pszPat) && !SUPR3IsDriverless();
+    bool fGVMMMatched = !pszPat || !*pszPat;
     bool fGMMMatched  = fGVMMMatched;
     if (fGVMMMatched)
     {
@@ -2462,11 +2461,9 @@ static int stamR3PrintOne(PSTAMDESC pDesc, void *pvArg)
                 return VINF_SUCCESS;
 
             uint64_t u64 = pDesc->u.pProfile->cPeriods ? pDesc->u.pProfile->cPeriods : 1;
-            pArgs->pfnPrintf(pArgs, "%-32s %8llu %s (%12llu %s, %7llu %s, max %9llu, min %7lld)\n", pDesc->pszName,
+            pArgs->pfnPrintf(pArgs, "%-32s %8llu %s (%12llu ticks, %7llu times, max %9llu, min %7lld)\n", pDesc->pszName,
                              pDesc->u.pProfile->cTicks / u64, STAMR3GetUnit(pDesc->enmUnit),
-                             pDesc->u.pProfile->cTicks, STAMR3GetUnit1(pDesc->enmUnit),
-                             pDesc->u.pProfile->cPeriods, STAMR3GetUnit2(pDesc->enmUnit),
-                             pDesc->u.pProfile->cTicksMax, pDesc->u.pProfile->cTicksMin);
+                             pDesc->u.pProfile->cTicks, pDesc->u.pProfile->cPeriods, pDesc->u.pProfile->cTicksMax, pDesc->u.pProfile->cTicksMin);
             break;
         }
 
@@ -2592,18 +2589,17 @@ VMMR3DECL(int) STAMR3Enum(PUVM pUVM, const char *pszPat, PFNSTAMR3ENUM pfnEnum, 
 static int stamR3EnumOne(PSTAMDESC pDesc, void *pvArg)
 {
     PSTAMR3ENUMONEARGS pArgs = (PSTAMR3ENUMONEARGS)pvArg;
-    const char *pszUnit = STAMR3GetUnit(pDesc->enmUnit);
     int rc;
     if (pDesc->enmType == STAMTYPE_CALLBACK)
     {
         /* Give the enumerator something useful. */
         char szBuf[512];
         pDesc->u.Callback.pfnPrint(pArgs->pVM, pDesc->u.Callback.pvSample, szBuf, sizeof(szBuf));
-        rc = pArgs->pfnEnum(pDesc->pszName, pDesc->enmType, szBuf, pDesc->enmUnit, pszUnit,
+        rc = pArgs->pfnEnum(pDesc->pszName, pDesc->enmType, szBuf, pDesc->enmUnit,
                             pDesc->enmVisibility, pDesc->pszDesc, pArgs->pvUser);
     }
     else
-        rc = pArgs->pfnEnum(pDesc->pszName, pDesc->enmType, pDesc->u.pv, pDesc->enmUnit, pszUnit,
+        rc = pArgs->pfnEnum(pDesc->pszName, pDesc->enmType, pDesc->u.pv, pDesc->enmUnit,
                             pDesc->enmVisibility, pDesc->pszDesc, pArgs->pvUser);
     return rc;
 }
@@ -2979,36 +2975,6 @@ static void stamR3Ring0StatsRegisterU(PUVM pUVM)
         stamR3RegisterU(pUVM, (uint8_t *)&pUVM->stam.s.GVMMStats + g_aGVMMStats[i].offVar, NULL, NULL,
                         g_aGVMMStats[i].enmType, STAMVISIBILITY_ALWAYS, g_aGVMMStats[i].pszName,
                         g_aGVMMStats[i].enmUnit, g_aGVMMStats[i].pszDesc, STAM_REFRESH_GRP_GVMM);
-
-    for (unsigned i = 0; i < pUVM->cCpus; i++)
-    {
-        char   szName[120];
-        size_t cchBase = RTStrPrintf(szName, sizeof(szName), pUVM->cCpus < 10 ? "/GVMM/VCpus/%u/" : "/GVMM/VCpus/%02u/", i);
-
-        strcpy(&szName[cchBase], "cWakeUpTimerHits");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].cWakeUpTimerHits, NULL, NULL,
-                        STAMTYPE_U32, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_OCCURENCES, "", STAM_REFRESH_GRP_GVMM);
-
-        strcpy(&szName[cchBase], "cWakeUpTimerMisses");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].cWakeUpTimerMisses, NULL, NULL,
-                        STAMTYPE_U32, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_OCCURENCES, "", STAM_REFRESH_GRP_GVMM);
-
-        strcpy(&szName[cchBase], "cWakeUpTimerCanceled");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].cWakeUpTimerCanceled, NULL, NULL,
-                        STAMTYPE_U32, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_OCCURENCES, "", STAM_REFRESH_GRP_GVMM);
-
-        strcpy(&szName[cchBase], "cWakeUpTimerSameCpu");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].cWakeUpTimerSameCpu, NULL, NULL,
-                        STAMTYPE_U32, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_OCCURENCES, "", STAM_REFRESH_GRP_GVMM);
-
-        strcpy(&szName[cchBase], "Start");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].Start, NULL, NULL,
-                        STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_TICKS_PER_CALL, "", STAM_REFRESH_GRP_GVMM);
-
-        strcpy(&szName[cchBase], "Stop");
-        stamR3RegisterU(pUVM, &pUVM->stam.s.GVMMStats.aVCpus[i].Stop, NULL, NULL,
-                        STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, szName, STAMUNIT_TICKS_PER_CALL, "", STAM_REFRESH_GRP_GVMM);
-    }
     pUVM->stam.s.cRegisteredHostCpus = 0;
 
     /* GMM */
@@ -3033,7 +2999,6 @@ VMMR3DECL(const char *) STAMR3GetUnit(STAMUNIT enmUnit)
         case STAMUNIT_CALLS:                return "calls";
         case STAMUNIT_COUNT:                return "count";
         case STAMUNIT_BYTES:                return "bytes";
-        case STAMUNIT_BYTES_PER_CALL:       return "bytes/call";
         case STAMUNIT_PAGES:                return "pages";
         case STAMUNIT_ERRORS:               return "errors";
         case STAMUNIT_OCCURENCES:           return "times";
@@ -3052,67 +3017,6 @@ VMMR3DECL(const char *) STAMR3GetUnit(STAMUNIT enmUnit)
         default:
             AssertMsgFailed(("Unknown unit %d\n", enmUnit));
             return "(?unit?)";
-    }
-}
-
-
-/**
- * For something per something-else unit, get the first something.
- *
- * @returns Pointer to read only unit string.
- * @param   enmUnit     The unit.
- */
-VMMR3DECL(const char *) STAMR3GetUnit1(STAMUNIT enmUnit)
-{
-    switch (enmUnit)
-    {
-        case STAMUNIT_NONE:                 return "";
-        case STAMUNIT_CALLS:                return "calls";
-        case STAMUNIT_COUNT:                return "count";
-        case STAMUNIT_BYTES:                return "bytes";
-        case STAMUNIT_BYTES_PER_CALL:       return "bytes";
-        case STAMUNIT_PAGES:                return "pages";
-        case STAMUNIT_ERRORS:               return "errors";
-        case STAMUNIT_OCCURENCES:           return "times";
-        case STAMUNIT_TICKS:                return "ticks";
-        case STAMUNIT_TICKS_PER_CALL:       return "ticks";
-        case STAMUNIT_TICKS_PER_OCCURENCE:  return "ticks";
-        case STAMUNIT_GOOD_BAD:             return "good";
-        case STAMUNIT_MEGABYTES:            return "megabytes";
-        case STAMUNIT_KILOBYTES:            return "kilobytes";
-        case STAMUNIT_NS:                   return "ns";
-        case STAMUNIT_NS_PER_CALL:          return "ns";
-        case STAMUNIT_NS_PER_OCCURENCE:     return "ns";
-        case STAMUNIT_PCT:                  return "%";
-        case STAMUNIT_HZ:                   return "Hz";
-
-        default:
-            AssertMsgFailed(("Unknown unit %d\n", enmUnit));
-            return "(?unit?)";
-    }
-}
-
-
-/**
- * For something per something-else unit, get the something-else.
- *
- * @returns Pointer to read only unit string.
- * @param   enmUnit     The unit.
- */
-VMMR3DECL(const char *) STAMR3GetUnit2(STAMUNIT enmUnit)
-{
-    switch (enmUnit)
-    {
-        case STAMUNIT_TICKS_PER_CALL:       return "calls";
-        case STAMUNIT_NS_PER_CALL:          return "calls";
-        case STAMUNIT_BYTES_PER_CALL:       return "calls";
-        case STAMUNIT_TICKS_PER_OCCURENCE:  return "times";
-        case STAMUNIT_NS_PER_OCCURENCE:     return "times";
-        case STAMUNIT_NONE:                 return "times";
-        case STAMUNIT_GOOD_BAD:             return "bad";
-        default:
-            AssertMsgFailed(("Wrong unit %d\n", enmUnit));
-            return "times";
     }
 }
 

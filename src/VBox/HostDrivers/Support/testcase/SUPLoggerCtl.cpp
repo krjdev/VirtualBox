@@ -1,10 +1,10 @@
-/* $Id: SUPLoggerCtl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLoggerCtl.cpp $ */
 /** @file
  * SUPLoggerCtl - Support Driver Logger Control.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,7 +58,7 @@ static int usage(void)
 
 int main(int argc, char **argv)
 {
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
 
     /*
      * Options are mandatory.
@@ -150,36 +150,28 @@ int main(int argc, char **argv)
     }
 
     /*
-     * Make sure the support library is initialized.
+     * Do the requested job.
      */
-    int rc = SUPR3Init(NULL /*ppSession*/);
-    if (RT_SUCCESS(rc))
+    int rc;
+    switch (enmWhat)
     {
-        /*
-         * Do the requested job.
-         */
-        switch (enmWhat)
-        {
-            case kSupLoggerCtl_Set:
-                rc = SUPR3LoggerSettings(enmWhich, pszFlags, pszGroups, pszDest);
-                break;
-            case kSupLoggerCtl_Create:
-                rc = SUPR3LoggerCreate(enmWhich, pszFlags, pszGroups, pszDest);
-                break;
-            case kSupLoggerCtl_Destroy:
-                rc = SUPR3LoggerDestroy(enmWhich);
-                break;
-            default:
-                rc = VERR_INTERNAL_ERROR;
-                break;
-        }
-        if (RT_SUCCESS(rc))
-            RTPrintf("SUPLoggerCtl: Success\n");
-        else
-            RTStrmPrintf(g_pStdErr, "SUPLoggerCtl: error: rc=%Rrc\n", rc);
+        case kSupLoggerCtl_Set:
+            rc = SUPR3LoggerSettings(enmWhich, pszFlags, pszGroups, pszDest);
+            break;
+        case kSupLoggerCtl_Create:
+            rc = SUPR3LoggerCreate(enmWhich, pszFlags, pszGroups, pszDest);
+            break;
+        case kSupLoggerCtl_Destroy:
+            rc = SUPR3LoggerDestroy(enmWhich);
+            break;
+        default:
+            rc = VERR_INTERNAL_ERROR;
+            break;
     }
+    if (RT_SUCCESS(rc))
+        RTPrintf("SUPLoggerCtl: Success\n");
     else
-        RTStrmPrintf(g_pStdErr, "SUPR3Init: error: rc=%Rrc\n", rc);
+        RTStrmPrintf(g_pStdErr, "SUPLoggerCtl: error: rc=%Rrc\n", rc);
 
     return RT_SUCCESS(rc) ? 0 : 1;
 }

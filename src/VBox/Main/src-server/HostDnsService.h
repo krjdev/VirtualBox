@@ -1,10 +1,10 @@
-/* $Id: HostDnsService.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HostDnsService.h $ */
 /** @file
  * Host DNS listener.
  */
 
 /*
- * Copyright (C) 2005-2022 Oracle Corporation
+ * Copyright (C) 2005-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 #include <iprt/cpp/lock.h>
 
 #include <list>
-#include <iprt/sanitized/string>
 #include <vector>
 
 typedef std::list<com::Utf8Str> Utf8StrList;
@@ -37,12 +36,11 @@ typedef const HostDnsMonitorProxy *PCHostDnsMonitorProxy;
 
 class HostDnsInformation
 {
-public:
+  public:
     static const uint32_t IGNORE_SERVER_ORDER = RT_BIT_32(0);
     static const uint32_t IGNORE_SUFFIXES     = RT_BIT_32(1);
 
-public:
-    /** @todo r=bird: Why on earth are we using std::string and not Utf8Str?   */
+  public:
     std::vector<std::string> servers;
     std::string domain;
     std::vector<std::string> searchList;

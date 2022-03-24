@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -127,8 +127,6 @@
 #define VERR_NO_PAGE_MEMORY                 (-27)
 /** Already initialized. */
 #define VINF_ALREADY_INITIALIZED            28
-/** Already initialized. */
-#define VERR_ALREADY_INITIALIZED            (-28)
 /** The specified thread is dead. */
 #define VERR_THREAD_IS_DEAD                 (-29)
 /** The specified thread is not waitable. */
@@ -381,11 +379,6 @@
 #define VERR_EMPTY_STRING                   (-22422)
 /** Too many references to an object. */
 #define VERR_TOO_MANY_REFERENCES            (-22423)
-/** Returned by RTThreadQueryTerminationStatus to indicate that the thread is
- * (or should be) terminating. */
-#define VINF_THREAD_IS_TERMINATING          (22424)
-/** The thread is terminating. */
-#define VERR_THREAD_IS_TERMINATING          (-22424)
 /** Unable to translate one or more of the arguments to the codeset the child
  * process is expected to use. */
 #define VERR_PROC_NO_ARG_TRANSLATION        (-22425)
@@ -1450,10 +1443,6 @@
  * @{ */
 /** The internal logger revision did not match. */
 #define VERR_LOG_REVISION_MISMATCH                  (-22300)
-/** Logging is disabled or logger instance could not be created. */
-#define VINF_LOG_DISABLED                           (22301)
-/** No logger instance. */
-#define VINF_LOG_NO_LOGGER                          (22302)
 /** @} */
 
 /* see above, 22400..22499 is used for misc codes! */
@@ -2726,7 +2715,6 @@
 #define VERR_IOQUEUE_BUSY                                       (-26203)
 /** @} */
 
-
 /** @name FTP status codes
  * @{ */
 /** FTP Internal Server Error. */
@@ -2743,52 +2731,6 @@
 #define VERR_FTP_CLIENT_NOT_FOUND                               (-26405)
 /** Client limit has been reached. */
 #define VERR_FTP_CLIENT_LIMIT_REACHED                           (-26406)
-/** @} */
-
-
-/** @name Trace Log status codes.
- * @{ */
-/** The trace log is malformed. */
-#define VERR_TRACELOG_READER_MALFORMED_LOG                      (-26600)
-/** The trace log version is not supported. */
-#define VERR_TRACELOG_READER_LOG_UNSUPPORTED                    (-26601)
-/** The trace log reader iterator reached the end of the event list. */
-#define VERR_TRACELOG_READER_ITERATOR_END                       (-26602)
-/** @} */
-
-
-/** @name Hardened AVL tree status codes.
- * @{ */
-/** Node index is out of bounds. */
-#define VERR_HARDAVL_INDEX_OUT_OF_BOUNDS                        (-26801)
-/** Node pointer is not within the memory allocated for nodes. */
-#define VERR_HARDAVL_POINTER_OUT_OF_BOUNDS                      (-26802)
-/** Node pointer does not point to the start of a node. */
-#define VERR_HARDAVL_MISALIGNED_POINTER                         (-26803)
-/** Bogus reference to freed node. */
-#define VERR_HARDAVL_NODE_IS_FREE                               (-26804)
-/** Stack overflow during AVL tree operation. */
-#define VERR_HARDAVL_STACK_OVERFLOW                             (-26810)
-/** Attempted to insert mode with invalid key range. */
-#define VERR_HARDAVL_INSERT_INVALID_KEY_RANGE                   (-26811)
-/** Bad left tree height. */
-#define VERR_HARDAVL_BAD_LEFT_HEIGHT                            (-26812)
-/** Bad left right height. */
-#define VERR_HARDAVL_BAD_RIGHT_HEIGHT                           (-26813)
-/** Bad new tree height. */
-#define VERR_HARDAVL_BAD_NEW_HEIGHT                             (-26814)
-/** Unexpected NULL pointer to left subtree. */
-#define VERR_HARDAVL_UNEXPECTED_NULL_LEFT                       (-26815)
-/** Unexpected NULL pointer to right subtree. */
-#define VERR_HARDAVL_UNEXPECTED_NULL_RIGHT                      (-26816)
-/** Tree traversal encountered more nodes than available in the allocator. */
-#define VERR_HARDAVL_TRAVERSED_TOO_MANY_NODES                   (-26817)
-/** Too deep walk during lookup.  */
-#define VERR_HARDAVL_LOOKUP_TOO_DEEP                            (-26818)
-/** Bad tree height. */
-#define VERR_HARDAVL_BAD_HEIGHT                                 (-26819)
-/** Unbalanced tree. */
-#define VERR_HARDAVL_UNBALANCED                                 (-26820)
 /** @} */
 
 /* SED-END */

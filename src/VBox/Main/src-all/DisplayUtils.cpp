@@ -1,10 +1,10 @@
-/* $Id: DisplayUtils.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: DisplayUtils.cpp $ */
 /** @file
- * Implementation of IDisplay helpers, currently only used in VBoxSVC.
+ * Implementation of IDisplay helpers.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

@@ -1,10 +1,10 @@
-/* $Id: UIThreadPool.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIThreadPool.h $ */
 /** @file
  * VBox Qt GUI - UIThreadPool class declaration.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,7 +55,7 @@ public:
       *                               pool will wait for the worker-thread on cleanup. */
     UIThreadPool(ulong cMaxWorkers = 3, ulong cMsWorkerIdleTimeout = 5000);
     /** Destructs worker-thread pool. */
-    virtual ~UIThreadPool() RT_OVERRIDE;
+    virtual ~UIThreadPool() /* override */;
 
     /** Returns whether the 'termination sequence' is started. */
     bool isTerminating() const;

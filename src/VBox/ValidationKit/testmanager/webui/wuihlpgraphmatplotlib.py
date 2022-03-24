@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuihlpgraphmatplotlib.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: wuihlpgraphmatplotlib.py $
 
 """
 Test Manager Web-UI - Graph Helpers - Implemented using matplotlib.
@@ -7,7 +7,7 @@ Test Manager Web-UI - Graph Helpers - Implemented using matplotlib.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 # Standard Python Import and extensions installed on the system.
 import re;
@@ -128,8 +128,8 @@ class WuiHlpBarGraph(WuiHlpGraphMatplotlibBase):
 
         for i in range(1, len(aoTable)):
             asNames.append(aoTable[i].sName);
-            for j, oValue in enumerate(aoTable[i].aoValues):
-                fpValue = float(oValue);
+            for j in range(len(aoTable[i].aoValues)):
+                fpValue = float(aoTable[i].aoValues[j]);
                 aoSeries[j].append(fpValue);
                 if fpValue < fpMin:
                     fpMin = fpValue;

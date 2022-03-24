@@ -1,10 +1,10 @@
-/* $Id: TextScript.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: TextScript.h $ */
 /** @file
  * Classes for reading/parsing/saving text scripts (unattended installation, ++).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,8 +31,7 @@
  *
  * @todo get rid of this silly bugger.
  */
-class AbstractScript
-    : public RTCNonCopyable
+class AbstractScript : public RTCNonCopyable
 {
 protected:
     /** For setting errors.
@@ -43,8 +42,6 @@ private: /* no default constructors for children. */
     AbstractScript() {}
 
 public:
-    DECLARE_TRANSLATE_METHODS(AbstractScript)
-
     AbstractScript(VirtualBoxBase *pSetError) : mpSetError(pSetError) {}
     virtual ~AbstractScript() {}
 
@@ -103,8 +100,6 @@ protected:
     Utf8Str     mStrSavedPath;          /**< Path where an saved script with user's data is located (set by save()). */
 
 public:
-    DECLARE_TRANSLATE_METHODS(BaseTextScript)
-
     BaseTextScript(VirtualBoxBase *pSetError, const char *pszDefaultTemplateFilename, const char *pszDefaultFilename)
         : AbstractScript(pSetError)
         , mpszDefaultTemplateFilename(pszDefaultTemplateFilename)
@@ -166,8 +161,6 @@ protected:
     bool                mfDataParsed;          /**< Indicates whether the script has been parse() yet.  */
 
 public:
-    DECLARE_TRANSLATE_METHODS(GeneralTextScript)
-
     GeneralTextScript(VirtualBoxBase *pSetError, const char *pszDefaultTemplateFilename = NULL, const char *pszDefaultFilename = NULL)
         : BaseTextScript(pSetError, pszDefaultTemplateFilename, pszDefaultFilename), mfDataParsed(false)
     {}

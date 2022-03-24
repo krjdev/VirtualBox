@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -47,9 +47,7 @@ typedef enum CFGMVALUETYPE
     /** String value. */
     CFGMVALUETYPE_STRING,
     /** Bytestring value. */
-    CFGMVALUETYPE_BYTES,
-    /** Password value, same as String but hides the content in dump. */
-    CFGMVALUETYPE_PASSWORD
+    CFGMVALUETYPE_BYTES
 } CFGMVALUETYPE;
 /** Pointer to configuration manager property type. */
 typedef CFGMVALUETYPE *PCFGMVALUETYPE;
@@ -81,10 +79,9 @@ typedef enum CFGMCONFIGTYPE
  * @returns VBox status code.
  * @param   pUVM        The user mode VM handle.
  * @param   pVM         The cross context VM structure.
- * @param   pVMM        The VMM R3 vtable.
  * @param   pvUser      The argument supplied to VMR3Create().
  */
-typedef DECLCALLBACKTYPE(int, FNCFGMCONSTRUCTOR,(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvUser));
+typedef DECLCALLBACK(int) FNCFGMCONSTRUCTOR(PUVM pUVM, PVM pVM, void *pvUser);
 /** Pointer to a FNCFGMCONSTRUCTOR(). */
 typedef FNCFGMCONSTRUCTOR *PFNCFGMCONSTRUCTOR;
 
@@ -114,8 +111,6 @@ VMMR3DECL(int)          CFGMR3InsertStringFV(PCFGMNODE pNode, const char *pszNam
                                              const char *pszFormat, va_list va) RT_IPRT_FORMAT_ATTR(3, 0);
 VMMR3DECL(int)          CFGMR3InsertStringW(PCFGMNODE pNode, const char *pszName, PCRTUTF16 pwszValue);
 VMMR3DECL(int)          CFGMR3InsertBytes(PCFGMNODE pNode, const char *pszName, const void *pvBytes, size_t cbBytes);
-VMMR3DECL(int)          CFGMR3InsertPassword(PCFGMNODE pNode, const char *pszName, const char *pszString);
-VMMR3DECL(int)          CFGMR3InsertPasswordN(PCFGMNODE pNode, const char *pszName, const char *pszString, size_t cchString);
 VMMR3DECL(int)          CFGMR3InsertValue(PCFGMNODE pNode, PCFGMLEAF pValue);
 VMMR3DECL(int)          CFGMR3RemoveValue(PCFGMNODE pNode, const char *pszName);
 
@@ -152,8 +147,6 @@ VMMR3DECL(int)          CFGMR3QueryInteger(     PCFGMNODE pNode, const char *psz
 VMMR3DECL(int)          CFGMR3QueryIntegerDef(  PCFGMNODE pNode, const char *pszName, uint64_t *pu64, uint64_t u64Def);
 VMMR3DECL(int)          CFGMR3QueryString(      PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString);
 VMMR3DECL(int)          CFGMR3QueryStringDef(   PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString, const char *pszDef);
-VMMR3DECL(int)          CFGMR3QueryPassword(    PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString);
-VMMR3DECL(int)          CFGMR3QueryPasswordDef( PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString, const char *pszDef);
 VMMR3DECL(int)          CFGMR3QueryBytes(       PCFGMNODE pNode, const char *pszName, void *pvData, size_t cbData);
 
 

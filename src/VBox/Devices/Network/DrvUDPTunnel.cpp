@@ -1,4 +1,4 @@
-/* $Id: DrvUDPTunnel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvUDPTunnel.cpp $ */
 /** @file
  * DrvUDPTunnel - UDP tunnel network transport driver
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -413,7 +413,7 @@ static DECLCALLBACK(void) drvUDPTunnelDestruct(PPDMDRVINS pDrvIns)
 
     if (pThis->pszDestIP)
     {
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDestIP);
+        MMR3HeapFree(pThis->pszDestIP);
         pThis->pszDestIP = NULL;
     }
 
@@ -453,7 +453,6 @@ static DECLCALLBACK(int) drvUDPTunnelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
     PDRVUDPTUNNEL pThis = PDMINS_2_DATA(pDrvIns, PDRVUDPTUNNEL);
-    PCPDMDRVHLPR3 pHlp  = pDrvIns->pHlpR3;
 
     /*
      * Init the static parts.
@@ -488,10 +487,8 @@ static DECLCALLBACK(int) drvUDPTunnelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns,  "sport"
-                                            "|dest"
-                                            "|dport",
-                                            "");
+    if (!CFGMR3AreValuesValid(pCfg, "sport\0dest\0dport"))
+        return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES, "");
 
     /*
      * Check that no-one is attached to us.
@@ -513,7 +510,7 @@ static DECLCALLBACK(int) drvUDPTunnelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
      */
     int rc;
     char szVal[16];
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "sport", szVal, sizeof(szVal), "4444");
+    rc = CFGMR3QueryStringDef(pCfg, "sport", szVal, sizeof(szVal), "4444");
     if (RT_FAILURE(rc))
         rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                               N_("DrvUDPTunnel: Configuration error: Querying \"sport\" as string failed"));
@@ -524,7 +521,7 @@ static DECLCALLBACK(int) drvUDPTunnelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
     if (!pThis->uSrcPort)
         pThis->uSrcPort = 4444;
 
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "dport", szVal, sizeof(szVal), "4445");
+    rc = CFGMR3QueryStringDef(pCfg, "dport", szVal, sizeof(szVal), "4445");
     if (RT_FAILURE(rc))
         rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                               N_("DrvUDPTunnel: Configuration error: Querying \"dport\" as string failed"));
@@ -535,7 +532,7 @@ static DECLCALLBACK(int) drvUDPTunnelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
     if (!pThis->uDestPort)
         pThis->uDestPort = 4445;
 
-    rc = pHlp->pfnCFGMQueryStringAllocDef(pCfg, "dest", &pThis->pszDestIP, "127.0.0.1");
+    rc = CFGMR3QueryStringAllocDef(pCfg, "dest", &pThis->pszDestIP, "127.0.0.1");
     if (RT_FAILURE(rc))
         rc = PDMDRV_SET_ERROR(pDrvIns, rc,
                               N_("DrvUDPTunnel: Configuration error: Querying \"dest\" as string failed"));

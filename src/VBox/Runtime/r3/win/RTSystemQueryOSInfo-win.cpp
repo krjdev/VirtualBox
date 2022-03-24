@@ -1,10 +1,10 @@
-/* $Id: RTSystemQueryOSInfo-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTSystemQueryOSInfo-win.cpp $ */
 /** @file
  * IPRT - RTSystemQueryOSInfo, generic stub.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -315,6 +315,7 @@ static int rtSystemWinQueryOSVersion(RTSYSOSINFO enmInfo, char *pszInfo, size_t 
 }
 
 
+
 RTDECL(int) RTSystemQueryOSInfo(RTSYSOSINFO enmInfo, char *pszInfo, size_t cchInfo)
 {
     /*
@@ -342,5 +343,17 @@ RTDECL(int) RTSystemQueryOSInfo(RTSYSOSINFO enmInfo, char *pszInfo, size_t cchIn
     }
 
     return VERR_NOT_SUPPORTED;
+}
+
+
+RTDECL(uint32_t) RTSystemGetNtBuildNo(void)
+{
+    return g_WinOsInfoEx.dwBuildNumber;
+}
+
+
+RTDECL(uint64_t) RTSystemGetNtVersion(void)
+{
+    return RTSYSTEM_MAKE_NT_VERSION(g_WinOsInfoEx.dwMajorVersion, g_WinOsInfoEx.dwMinorVersion, g_WinOsInfoEx.dwBuildNumber);
 }
 

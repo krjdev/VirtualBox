@@ -1,10 +1,10 @@
-/* $Id: VBoxLA.cpp 94184 2022-03-11 18:24:17Z vboxsync $ */
+/* $Id: VBoxLA.cpp $ */
 /** @file
  * VBoxLA - VBox Location Awareness notifications.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -830,8 +830,7 @@ static int laWaitProperties(uint32_t u32GuestPropHandle,
                                  NULL /* ppszValue */,
                                  pu64Timestamp,
                                  NULL /* ppszFlags */,
-                                 &cbBuf,
-                                 NULL /* pfWasDeleted */);
+                                 &cbBuf);
 
         if (rc != VERR_BUFFER_OVERFLOW)
             break;

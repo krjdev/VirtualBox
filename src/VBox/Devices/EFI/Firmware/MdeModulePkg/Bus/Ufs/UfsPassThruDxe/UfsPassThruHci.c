@@ -3,7 +3,6 @@
   for upper layer application to execute UFS-supported SCSI cmds.
 
   Copyright (c) 2014 - 2019, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) Microsoft Corporation.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -864,10 +863,7 @@ UfsGetReturnDataFromQueryResponse (
     case UtpQueryFuncOpcodeSetFlag:
     case UtpQueryFuncOpcodeClrFlag:
     case UtpQueryFuncOpcodeTogFlag:
-      //
-      // The 'FLAG VALUE' field is at byte offset 3 of QueryResp->Tsf.Value
-      //
-      *((UINT8*)(Packet->DataBuffer)) = *((UINT8*)&(QueryResp->Tsf.Value) + 3);
+      CopyMem (Packet->DataBuffer, &QueryResp->Tsf.Value, sizeof (UINT8));
       break;
     case UtpQueryFuncOpcodeRdAttr:
     case UtpQueryFuncOpcodeWrAttr:
@@ -2286,7 +2282,7 @@ ProcessAsyncTaskList (
   // Check the entries in the async I/O queue are done or not.
   //
   if (!IsListEmpty(&Private->Queue)) {
-    BASE_LIST_FOR_EACH_SAFE (Entry, NextEntry, &Private->Queue) {
+    EFI_LIST_FOR_EACH_SAFE (Entry, NextEntry, &Private->Queue) {
       TransReq  = UFS_PASS_THRU_TRANS_REQ_FROM_THIS (Entry);
       Packet    = TransReq->Packet;
 

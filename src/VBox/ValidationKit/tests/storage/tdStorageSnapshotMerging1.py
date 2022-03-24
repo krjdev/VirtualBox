@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: tdStorageSnapshotMerging1.py 94124 2022-03-08 13:51:55Z vboxsync $
+# $Id: tdStorageSnapshotMerging1.py $
 
 """
 VirtualBox Validation Kit - Storage snapshotting and merging testcase.
@@ -8,7 +8,7 @@ VirtualBox Validation Kit - Storage snapshotting and merging testcase.
 
 __copyright__ = \
 """
-Copyright (C) 2013-2022 Oracle Corporation
+Copyright (C) 2013-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,12 +27,13 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94124 $"
+__version__ = "$Revision: 143455 $"
 
 
 # Standard Python imports.
 import os;
 import sys;
+import zlib;
 
 # Only the main script needs to modify the path.
 try:    __file__
@@ -41,7 +42,6 @@ g_ksValidationKitDir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 sys.path.append(g_ksValidationKitDir);
 
 # Validation Kit imports.
-from common     import utils;
 from testdriver import reporter;
 from testdriver import base;
 from testdriver import vbox;
@@ -51,6 +51,20 @@ from testdriver import vboxwrappers;
 # Python 3 hacks:
 if sys.version_info[0] >= 3:
     long = int;     # pylint: disable=redefined-builtin,invalid-name
+
+
+def crc32_of_file(filepath):
+    fileobj = open(filepath,'rb');
+    current = 0;
+
+    while True:
+        buf = fileobj.read(1024 * 1024);
+        if not buf:
+            break
+        current = zlib.crc32(buf, current);
+
+    fileobj.close();
+    return current % 2**32;
 
 
 class tdStorageSnapshot(vbox.TestDriver):                                      # pylint: disable=too-many-instance-attributes
@@ -334,7 +348,7 @@ class tdStorageSnapshot(vbox.TestDriver):                                      #
 
                     uResCrc32 = long(0);
                     if fRc:
-                        uResCrc32 = long(utils.calcCrc32OfFile(sResFilePathRaw));
+                        uResCrc32 = long(crc32_of_file(sResFilePathRaw));
                         if uResCrc32 == uOrigCrc:
                             reporter.log('Snapshot merged successfully. Crc32 is correct');
                             fRc = True;

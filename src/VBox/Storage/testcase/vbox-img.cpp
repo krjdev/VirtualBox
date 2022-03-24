@@ -1,10 +1,10 @@
-/* $Id: vbox-img.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vbox-img.cpp $ */
 /** @file
  * Standalone image manipulation tool
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1629,7 +1629,7 @@ static DECLCALLBACK(bool) vdIfCfgCreateBaseAreKeysValid(void *pvUser, const char
 
 static DECLCALLBACK(int) vdIfCfgCreateBaseQuerySize(void *pvUser, const char *pszName, size_t *pcbValue)
 {
-    AssertPtrReturn(pcbValue, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pcbValue), VERR_INVALID_POINTER);
 
     AssertPtrReturn(pvUser, VERR_GENERAL_FAILURE);
 
@@ -1643,7 +1643,7 @@ static DECLCALLBACK(int) vdIfCfgCreateBaseQuerySize(void *pvUser, const char *ps
 
 static DECLCALLBACK(int) vdIfCfgCreateBaseQuery(void *pvUser, const char *pszName, char *pszValue, size_t cchValue)
 {
-    AssertPtrReturn(pszValue, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pszValue), VERR_INVALID_POINTER);
 
     AssertPtrReturn(pvUser, VERR_GENERAL_FAILURE);
 

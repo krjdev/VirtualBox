@@ -17,7 +17,6 @@ Module Name:
 #include <IndustryStandard/I440FxPiix4.h>
 #include <IndustryStandard/Q35MchIch9.h>
 #include <PiPei.h>
-#include <Register/Intel/SmramSaveStateMap.h>
 
 //
 // The Library classes this module consumes
@@ -27,14 +26,12 @@ Module Name:
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/IoLib.h>
-#include <Library/MemEncryptSevLib.h>
 #include <Library/PcdLib.h>
 #include <Library/PciLib.h>
 #include <Library/PeimEntryPoint.h>
 #include <Library/ResourcePublicationLib.h>
 #include <Library/MtrrLib.h>
 #include <Library/QemuFwCfgLib.h>
-#include <Library/QemuFwCfgSimpleParserLib.h>
 
 #include "Platform.h"
 #include "Cmos.h"
@@ -46,8 +43,6 @@ STATIC UINT32 mS3AcpiReservedMemorySize;
 
 STATIC UINT16 mQ35TsegMbytes;
 
-BOOLEAN mQ35SmramAtDefaultSmbase;
-
 UINT32 mQemuUc32Base;
 
 VOID
@@ -58,7 +53,18 @@ Q35TsegMbytesInitialization (
   UINT16        ExtendedTsegMbytes;
   RETURN_STATUS PcdStatus;
 
-  ASSERT (mHostBridgeDevId == INTEL_Q35_MCH_DEVICE_ID);
+  if (mHostBridgeDevId != INTEL_Q35_MCH_DEVICE_ID) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: no TSEG (SMRAM) on host bridge DID=0x%04x; "
+      "only DID=0x%04x (Q35) is supported\n",
+      __FUNCTION__,
+      mHostBridgeDevId,
+      INTEL_Q35_MCH_DEVICE_ID
+      ));
+    ASSERT (FALSE);
+    CpuDeadLoop ();
+  }
 
   //
   // Check if QEMU offers an extended TSEG.
@@ -92,38 +98,6 @@ Q35TsegMbytesInitialization (
   PcdStatus = PcdSet16S (PcdQ35TsegMbytes, ExtendedTsegMbytes);
   ASSERT_RETURN_ERROR (PcdStatus);
   mQ35TsegMbytes = ExtendedTsegMbytes;
-}
-
-
-VOID
-Q35SmramAtDefaultSmbaseInitialization (
-  VOID
-  )
-{
-  RETURN_STATUS PcdStatus;
-
-  ASSERT (mHostBridgeDevId == INTEL_Q35_MCH_DEVICE_ID);
-
-  mQ35SmramAtDefaultSmbase = FALSE;
-  if (FeaturePcdGet (PcdCsmEnable)) {
-    DEBUG ((DEBUG_INFO, "%a: SMRAM at default SMBASE not checked due to CSM\n",
-      __FUNCTION__));
-  } else {
-    UINTN CtlReg;
-    UINT8 CtlRegVal;
-
-    CtlReg = DRAMC_REGISTER_Q35 (MCH_DEFAULT_SMBASE_CTL);
-    PciWrite8 (CtlReg, MCH_DEFAULT_SMBASE_QUERY);
-    CtlRegVal = PciRead8 (CtlReg);
-    mQ35SmramAtDefaultSmbase = (BOOLEAN)(CtlRegVal ==
-                                         MCH_DEFAULT_SMBASE_IN_RAM);
-    DEBUG ((DEBUG_INFO, "%a: SMRAM at default SMBASE %a\n", __FUNCTION__,
-      mQ35SmramAtDefaultSmbase ? "found" : "not found"));
-  }
-
-  PcdStatus = PcdSetBoolS (PcdQ35SmramAtDefaultSmbase,
-                mQ35SmramAtDefaultSmbase);
-  ASSERT_RETURN_ERROR (PcdStatus);
 }
 
 
@@ -343,7 +317,7 @@ GetFirstNonAddress (
 {
   UINT64               FirstNonAddress;
   UINT64               Pci64Base, Pci64Size;
-  UINT32               FwCfgPciMmio64Mb;
+  CHAR8                MbString[7 + 1];
   EFI_STATUS           Status;
   FIRMWARE_CONFIG_ITEM FwCfgItem;
   UINTN                FwCfgSize;
@@ -386,35 +360,30 @@ GetFirstNonAddress (
 
   //
   // See if the user specified the number of megabytes for the 64-bit PCI host
-  // aperture. Accept an aperture size up to 16TB.
+  // aperture. The number of non-NUL characters in MbString allows for
+  // 9,999,999 MB, which is approximately 10 TB.
   //
   // As signaled by the "X-" prefix, this knob is experimental, and might go
   // away at any time.
   //
-  Status = QemuFwCfgParseUint32 ("opt/ovmf/X-PciMmio64Mb", FALSE,
-             &FwCfgPciMmio64Mb);
-  switch (Status) {
-  case EFI_UNSUPPORTED:
-  case EFI_NOT_FOUND:
-    break;
-  case EFI_SUCCESS:
-    if (FwCfgPciMmio64Mb <= 0x1000000) {
-      Pci64Size = LShiftU64 (FwCfgPciMmio64Mb, 20);
-      break;
+  Status = QemuFwCfgFindFile ("opt/ovmf/X-PciMmio64Mb", &FwCfgItem,
+             &FwCfgSize);
+  if (!EFI_ERROR (Status)) {
+    if (FwCfgSize >= sizeof MbString) {
+      DEBUG ((EFI_D_WARN,
+        "%a: ignoring malformed 64-bit PCI host aperture size from fw_cfg\n",
+        __FUNCTION__));
+    } else {
+      QemuFwCfgSelectItem (FwCfgItem);
+      QemuFwCfgReadBytes (FwCfgSize, MbString);
+      MbString[FwCfgSize] = '\0';
+      Pci64Size = LShiftU64 (AsciiStrDecimalToUint64 (MbString), 20);
     }
-    //
-    // fall through
-    //
-  default:
-    DEBUG ((DEBUG_WARN,
-      "%a: ignoring malformed 64-bit PCI host aperture size from fw_cfg\n",
-      __FUNCTION__));
-    break;
   }
 
   if (Pci64Size == 0) {
     if (mBootMode != BOOT_ON_S3_RESUME) {
-      DEBUG ((DEBUG_INFO, "%a: disabling 64-bit PCI host aperture\n",
+      DEBUG ((EFI_D_INFO, "%a: disabling 64-bit PCI host aperture\n",
         __FUNCTION__));
       PcdStatus = PcdSet64S (PcdPciMmio64Size, 0);
       ASSERT_RETURN_ERROR (PcdStatus);
@@ -472,7 +441,7 @@ GetFirstNonAddress (
     PcdStatus = PcdSet64S (PcdPciMmio64Size, Pci64Size);
     ASSERT_RETURN_ERROR (PcdStatus);
 
-    DEBUG ((DEBUG_INFO, "%a: Pci64Base=0x%Lx Pci64Size=0x%Lx\n",
+    DEBUG ((EFI_D_INFO, "%a: Pci64Base=0x%Lx Pci64Size=0x%Lx\n",
       __FUNCTION__, Pci64Base, Pci64Size));
   }
 
@@ -632,7 +601,7 @@ PublishPeiMemory (
     MemorySize = mS3AcpiReservedMemorySize;
   } else {
     PeiMemoryCap = GetPeiMemoryCap ();
-    DEBUG ((DEBUG_INFO, "%a: mPhysMemAddressWidth=%d PeiMemoryCap=%u KB\n",
+    DEBUG ((EFI_D_INFO, "%a: mPhysMemAddressWidth=%d PeiMemoryCap=%u KB\n",
       __FUNCTION__, mPhysMemAddressWidth, PeiMemoryCap >> 10));
 
     //
@@ -659,15 +628,6 @@ PublishPeiMemory (
 #endif
 
   //
-  // MEMFD_BASE_ADDRESS separates the SMRAM at the default SMBASE from the
-  // normal boot permanent PEI RAM. Regarding the S3 boot path, the S3
-  // permanent PEI RAM is located even higher.
-  //
-  if (FeaturePcdGet (PcdSmmSmramRequire) && mQ35SmramAtDefaultSmbase) {
-    ASSERT (SMM_DEFAULT_SMBASE + MCH_DEFAULT_SMBASE_SIZE <= MemoryBase);
-  }
-
-  //
   // Publish this memory to the PEI Core
   //
   Status = PublishSystemMemory(MemoryBase, MemorySize);
@@ -678,28 +638,6 @@ PublishPeiMemory (
 
 
 #ifndef VBOX
-STATIC
-VOID
-QemuInitializeRamBelow1gb (
-  VOID
-  )
-{
-  if (FeaturePcdGet (PcdSmmSmramRequire) && mQ35SmramAtDefaultSmbase) {
-    AddMemoryRangeHob (0, SMM_DEFAULT_SMBASE);
-    AddReservedMemoryBaseSizeHob (SMM_DEFAULT_SMBASE, MCH_DEFAULT_SMBASE_SIZE,
-      TRUE /* Cacheable */);
-    STATIC_ASSERT (
-      SMM_DEFAULT_SMBASE + MCH_DEFAULT_SMBASE_SIZE < BASE_512KB + BASE_128KB,
-      "end of SMRAM at default SMBASE ends at, or exceeds, 640KB"
-      );
-    AddMemoryRangeHob (SMM_DEFAULT_SMBASE + MCH_DEFAULT_SMBASE_SIZE,
-      BASE_512KB + BASE_128KB);
-  } else {
-    AddMemoryRangeHob (0, BASE_512KB + BASE_128KB);
-  }
-}
-
-
 /**
   Peform Memory Detection for QEMU / KVM
 
@@ -715,7 +653,7 @@ QemuInitializeRam (
   MTRR_SETTINGS               MtrrSettings;
   EFI_STATUS                  Status;
 
-  DEBUG ((DEBUG_INFO, "%a called\n", __FUNCTION__));
+  DEBUG ((EFI_D_INFO, "%a called\n", __FUNCTION__));
 
   //
   // Determine total memory size available
@@ -744,12 +682,12 @@ QemuInitializeRam (
     // allocation HOBs, and to honor preexistent memory allocation HOBs when
     // looking for an area to borrow.
     //
-    QemuInitializeRamBelow1gb ();
+    AddMemoryRangeHob (0, BASE_512KB + BASE_128KB);
   } else {
     //
     // Create memory HOBs
     //
-    QemuInitializeRamBelow1gb ();
+    AddMemoryRangeHob (0, BASE_512KB + BASE_128KB);
 
     if (FeaturePcdGet (PcdSmmSmramRequire)) {
       UINT32 TsegSize;
@@ -939,33 +877,6 @@ InitializeRamRegions (
       (UINT64)(UINTN) PcdGet32 (PcdOvmfSecPageTablesSize),
       EfiACPIMemoryNVS
       );
-
-    if (MemEncryptSevEsIsEnabled ()) {
-      //
-      // If SEV-ES is enabled, reserve the GHCB-related memory area. This
-      // includes the extra page table used to break down the 2MB page
-      // mapping into 4KB page entries where the GHCB resides and the
-      // GHCB area itself.
-      //
-      // Since this memory range will be used by the Reset Vector on S3
-      // resume, it must be reserved as ACPI NVS.
-      //
-      BuildMemoryAllocationHob (
-        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSecGhcbPageTableBase),
-        (UINT64)(UINTN) PcdGet32 (PcdOvmfSecGhcbPageTableSize),
-        EfiACPIMemoryNVS
-        );
-      BuildMemoryAllocationHob (
-        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSecGhcbBase),
-        (UINT64)(UINTN) PcdGet32 (PcdOvmfSecGhcbSize),
-        EfiACPIMemoryNVS
-        );
-      BuildMemoryAllocationHob (
-        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSecGhcbBackupBase),
-        (UINT64)(UINTN) PcdGet32 (PcdOvmfSecGhcbBackupSize),
-        EfiACPIMemoryNVS
-        );
-    }
 #endif
   }
 
@@ -1011,37 +922,6 @@ InitializeRamRegions (
         TsegSize,
         EfiReservedMemoryType
         );
-      //
-      // Similarly, allocate away the (already reserved) SMRAM at the default
-      // SMBASE, if it exists.
-      //
-      if (mQ35SmramAtDefaultSmbase) {
-        BuildMemoryAllocationHob (
-          SMM_DEFAULT_SMBASE,
-          MCH_DEFAULT_SMBASE_SIZE,
-          EfiReservedMemoryType
-          );
-      }
     }
-
-#ifdef MDE_CPU_X64
-    if (MemEncryptSevEsIsEnabled ()) {
-      //
-      // If SEV-ES is enabled, reserve the SEV-ES work area.
-      //
-      // Since this memory range will be used by the Reset Vector on S3
-      // resume, it must be reserved as ACPI NVS.
-      //
-      // If S3 is unsupported, then various drivers might still write to the
-      // work area. We ought to prevent DXE from serving allocation requests
-      // such that they would overlap the work area.
-      //
-      BuildMemoryAllocationHob (
-        (EFI_PHYSICAL_ADDRESS)(UINTN) FixedPcdGet32 (PcdSevEsWorkAreaBase),
-        (UINT64)(UINTN) FixedPcdGet32 (PcdSevEsWorkAreaSize),
-        mS3Supported ? EfiACPIMemoryNVS : EfiBootServicesData
-        );
-    }
-#endif
   }
 }

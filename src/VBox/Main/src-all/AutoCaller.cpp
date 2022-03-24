@@ -1,10 +1,10 @@
-/* $Id: AutoCaller.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: AutoCaller.cpp $ */
 /** @file
  * VirtualBox object state implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,10 +22,6 @@
 #include "AutoCaller.h"
 #include "LoggingNew.h"
 
-#include "VBoxNls.h"
-
-
-DECLARE_TRANSLATION_CONTEXT(AutoCallerCtx);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -204,7 +200,7 @@ HRESULT ObjectState::addCaller(bool aLimited /* = false */)
     if (FAILED(rc))
     {
         if (mState == Limited)
-            rc = mObj->setError(rc, AutoCallerCtx::tr("The object functionality is limited"));
+            rc = mObj->setError(rc, "The object functionality is limited");
         else if (FAILED(mFailedRC) && mFailedRC != E_ACCESSDENIED)
         {
             /* replay recorded error information */
@@ -213,7 +209,7 @@ HRESULT ObjectState::addCaller(bool aLimited /* = false */)
             rc = mFailedRC;
         }
         else
-            rc = mObj->setError(rc, AutoCallerCtx::tr("The object is not ready"));
+            rc = mObj->setError(rc, "The object is not ready");
     }
 
     return rc;
@@ -297,13 +293,12 @@ void ObjectState::autoInitSpanDestructor(State aNewState, HRESULT aFailedRC, com
         RTSemEventMultiSignal(mInitUninitSem);
     }
 
-    if (aNewState == InitFailed || aNewState == Limited)
+    if (aNewState == InitFailed)
     {
         mFailedRC = aFailedRC;
-        /* apFailedEI may be NULL, when there is no explicit setFailed() or
-         * setLimited() call, which also implies that aFailedRC is S_OK.
-         * This case is used by objects (the majority) which don't want
-         * delayed error signalling. */
+        /* apFailedEI may be NULL, when there is no explicit setFailed() call,
+         * which also implies that aFailedRC is S_OK. This case is used by
+         * objects (the majority) which don't want delayed error signalling. */
         mpFailedEI = apFailedEI;
     }
     else

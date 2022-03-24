@@ -8,7 +8,7 @@
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -30,13 +30,6 @@ MY_CDROM_NOCHROOT="/cdrom"
 MY_EXITCODE=0
 MY_DEBUG="" # "yes"
 
-@@VBOX_COND_HAS_PROXY@@
-PROXY="@@VBOX_INSERT_PROXY@@"
-export http_proxy="${PROXY}"
-export https_proxy="${PROXY}"
-echo "HTTP proxy is ${http_proxy}" | tee -a "${MY_LOGFILE}"
-echo "HTTPS proxy is ${https_proxy}" | tee -a "${MY_LOGFILE}"
-@@VBOX_COND_END@@
 
 #
 # Do we need to exec using target bash?  If so, we must do that early
@@ -278,6 +271,7 @@ else
 fi
 
 @@VBOX_COND_END@@
+
 
 #
 # Run user command.

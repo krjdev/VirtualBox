@@ -1,10 +1,10 @@
-/* $Id: UIMachineLogicNormal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineLogicNormal.h $ */
 /** @file
  * VBox Qt GUI - UIMachineLogicNormal class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,13 +66,18 @@ private slots:
     /** Toggles status-bar presence.*/
     void sltToggleStatusBar();
 
+    /** Handles guest-screen toggle requests. */
+    void sltHandleActionTriggerViewScreenToggle(int iIndex, bool fEnabled);
+    /** Handles guest-screen resize requests. */
+    void sltHandleActionTriggerViewScreenResize(int iIndex, const QSize &size);
+
     /** Handles host-screen available-area change. */
-    virtual void sltHostScreenAvailableAreaChange() RT_OVERRIDE;
+    virtual void sltHostScreenAvailableAreaChange() /* override */;
 
 private:
 
     /* Prepare helpers: */
-    virtual void prepareActionGroups() RT_OVERRIDE;
+    virtual void prepareActionGroups() /* override */;
     void prepareActionConnections();
     void prepareMachineWindows();
 #ifndef VBOX_WS_MAC

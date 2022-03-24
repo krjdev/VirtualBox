@@ -1,10 +1,10 @@
-/* $Id: SUPLib-linux.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLib-linux.cpp $ */
 /** @file
  * VirtualBox Support Library - GNU/Linux specific parts.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -75,7 +75,7 @@
 
 
 
-DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
+int suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, bool fUnrestricted, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
 {
     RT_NOREF2(penmWhat, pErrInfo);
 
@@ -96,18 +96,9 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
     munmap(pv, PAGE_SIZE);
 
     /*
-     * Driverless?
-     */
-    if (fFlags & SUPR3INIT_F_DRIVERLESS)
-    {
-        pThis->fDriverless = true;
-        return VINF_SUCCESS;
-    }
-
-    /*
      * Try open the device.
      */
-    const char *pszDeviceNm = fFlags & SUPR3INIT_F_UNRESTRICTED ? DEVICE_NAME_SYS : DEVICE_NAME_USR;
+    const char *pszDeviceNm = fUnrestricted ? DEVICE_NAME_SYS : DEVICE_NAME_USR;
     int hDevice = open(pszDeviceNm, O_RDWR, 0);
     if (hDevice < 0)
     {
@@ -126,12 +117,6 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
                 case EACCES:    rc = VERR_VM_DRIVER_NOT_ACCESSIBLE; break;
                 case ENOENT:    rc = VERR_VM_DRIVER_NOT_INSTALLED; break;
                 default:        rc = VERR_VM_DRIVER_OPEN_ERROR; break;
-            }
-            if (fFlags & SUPR3INIT_F_DRIVERLESS_MASK)
-            {
-                LogRel(("Failed to open \"%s\", errno=%d, rc=%Rrc - Switching to driverless mode.\n", pszDeviceNm, errno, rc));
-                pThis->fDriverless = true;
-                return VINF_SUCCESS;
             }
             LogRel(("Failed to open \"%s\", errno=%d, rc=%Rrc\n", pszDeviceNm, errno, rc));
             return rc;
@@ -155,12 +140,12 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
      * We're done.
      */
     pThis->hDevice       = hDevice;
-    pThis->fUnrestricted = RT_BOOL(fFlags & SUPR3INIT_F_UNRESTRICTED);
+    pThis->fUnrestricted = fUnrestricted;
     return VINF_SUCCESS;
 }
 
 
-DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
+int suplibOsTerm(PSUPLIBDATA pThis)
 {
     /*
      * Close the device if it's actually open.
@@ -178,21 +163,21 @@ DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
 
 #ifndef IN_SUP_HARDENED_R3
 
-DECLHIDDEN(int) suplibOsInstall(void)
+int suplibOsInstall(void)
 {
     // nothing to do on Linux
     return VERR_NOT_IMPLEMENTED;
 }
 
 
-DECLHIDDEN(int) suplibOsUninstall(void)
+int suplibOsUninstall(void)
 {
     // nothing to do on Linux
     return VERR_NOT_IMPLEMENTED;
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
+int suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
 {
     AssertMsg(pThis->hDevice != (intptr_t)NIL_RTFILE, ("SUPLIB not initiated successfully!\n"));
     NOREF(cbReq);
@@ -222,7 +207,7 @@ DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvRe
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
+int suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
 {
     int rc = ioctl(pThis->hDevice, uFunction, idCpu);
     if (rc == -1)
@@ -231,96 +216,42 @@ DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintpt
 }
 
 
-DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFlags, void **ppvPages)
+int suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, void **ppvPages)
 {
-    /*
-     * If large pages are requested, try use the MAP_HUGETBL flags.  This takes
-     * pages from the reserved huge page pool (see sysctl vm.nr_hugepages) and
-     * is typically not configured.  Also, when the pool is exhausted we get
-     * ENOMEM back at us.  So, when it fails try again w/o MAP_HUGETLB.
-     */
-    int fMmap = MAP_PRIVATE | MAP_ANONYMOUS;
-#ifdef MAP_HUGETLB
-    if ((fFlags & SUP_PAGE_ALLOC_F_LARGE_PAGES) && !(cPages & 511))
-        fMmap |= MAP_HUGETLB;
-#endif
+    size_t cbMmap = (pThis->fSysMadviseWorks ? cPages : cPages + 2) << PAGE_SHIFT;
+    char *pvPages = (char *)mmap(NULL, cbMmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (pvPages == MAP_FAILED)
+        return VERR_NO_MEMORY;
 
-    size_t cbMmap = cPages << PAGE_SHIFT;
-    if (   !pThis->fSysMadviseWorks
-        && (fFlags & (SUP_PAGE_ALLOC_F_FOR_LOCKING | SUP_PAGE_ALLOC_F_LARGE_PAGES)) == SUP_PAGE_ALLOC_F_FOR_LOCKING)
-        cbMmap += PAGE_SIZE * 2;
-
-    uint8_t *pbPages = (uint8_t *)mmap(NULL, cbMmap, PROT_READ | PROT_WRITE, fMmap, -1, 0);
-#ifdef MAP_HUGETLB
-    if (pbPages == MAP_FAILED && (fMmap & MAP_HUGETLB))
+    if (pThis->fSysMadviseWorks)
     {
-        /* Try again without MAP_HUGETLB if mmap fails: */
-        fMmap &= ~MAP_HUGETLB;
-        if (!pThis->fSysMadviseWorks && (fFlags & SUP_PAGE_ALLOC_F_FOR_LOCKING))
-            cbMmap = (cPages + 2) << PAGE_SHIFT;
-        pbPages = (uint8_t *)mmap(NULL, cbMmap, PROT_READ | PROT_WRITE, fMmap, -1, 0);
+        /*
+         * It is not fatal if we fail here but a forked child (e.g. the ALSA sound server)
+         * could crash. Linux < 2.6.16 does not implement madvise(MADV_DONTFORK) but the
+         * kernel seems to split bigger VMAs and that is all that we want -- later we set the
+         * VM_DONTCOPY attribute in supdrvOSLockMemOne().
+         */
+        if (madvise (pvPages, cbMmap, MADV_DONTFORK))
+            LogRel(("SUPLib: madvise %p-%p failed\n", pvPages, cbMmap));
+        *ppvPages = pvPages;
     }
-#endif
-    if (pbPages != MAP_FAILED)
+    else
     {
-        if (   !(fFlags & SUP_PAGE_ALLOC_F_FOR_LOCKING)
-            || pThis->fSysMadviseWorks
-#ifdef MAP_HUGETLB
-            || (fMmap & MAP_HUGETLB)
-#endif
-           )
-        {
-            /*
-             * It is not fatal if we fail here but a forked child (e.g. the ALSA sound server)
-             * could crash. Linux < 2.6.16 does not implement madvise(MADV_DONTFORK) but the
-             * kernel seems to split bigger VMAs and that is all that we want -- later we set the
-             * VM_DONTCOPY attribute in supdrvOSLockMemOne().
-             */
-            if (   madvise(pbPages, cbMmap, MADV_DONTFORK)
-#ifdef MAP_HUGETLB
-                && !(fMmap & MAP_HUGETLB)
-#endif
-               )
-                LogRel(("SUPLib: madvise %p-%p failed\n", pbPages, cbMmap));
-
-#ifdef MADV_HUGEPAGE
-            /*
-             * Try enable transparent huge pages for the allocation if desired
-             * and we weren't able to use MAP_HUGETBL above.
-             * Note! KVM doesn't seem to benefit much from this.
-             */
-            if (   !(fMmap & MAP_HUGETLB)
-                && (fFlags & SUP_PAGE_ALLOC_F_LARGE_PAGES)
-                && !(cPages & 511)) /** @todo PORTME: x86 assumption */
-                madvise(pbPages, cbMmap, MADV_HUGEPAGE);
-#endif
-        }
-        else
-        {
-            /*
-             * madvise(MADV_DONTFORK) is not available (most probably Linux 2.4). Enclose any
-             * mmapped region by two unmapped pages to guarantee that there is exactly one VM
-             * area struct of the very same size as the mmap area.
-             */
-            mprotect(pbPages,                      PAGE_SIZE, PROT_NONE);
-            mprotect(pbPages + cbMmap - PAGE_SIZE, PAGE_SIZE, PROT_NONE);
-            pbPages += PAGE_SHIFT;
-        }
-
-        /** @todo Dunno why we do this, really. It's a waste of time.  Maybe it was
-         * to try make sure the pages were allocated or something before we locked them,
-         * so I qualified it with SUP_PAGE_ALLOC_F_FOR_LOCKING (unused) for now... */
-        if (fFlags & SUP_PAGE_ALLOC_F_FOR_LOCKING)
-            memset(pbPages, 0, cPages << PAGE_SHIFT);
-
-        *ppvPages = pbPages;
-        return VINF_SUCCESS;
+        /*
+         * madvise(MADV_DONTFORK) is not available (most probably Linux 2.4). Enclose any
+         * mmapped region by two unmapped pages to guarantee that there is exactly one VM
+         * area struct of the very same size as the mmap area.
+         */
+        mprotect(pvPages,                      PAGE_SIZE, PROT_NONE);
+        mprotect(pvPages + cbMmap - PAGE_SIZE, PAGE_SIZE, PROT_NONE);
+        *ppvPages = pvPages + PAGE_SIZE;
     }
-    return VERR_NO_MEMORY;
+    memset(*ppvPages, 0, cPages << PAGE_SHIFT);
+    return VINF_SUCCESS;
 }
 
 
-DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t cPages)
+int suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t cPages)
 {
     NOREF(pThis);
     munmap(pvPages, cPages << PAGE_SHIFT);
@@ -337,7 +268,7 @@ DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t cPages
  * @returns VBox status code (no info).
  * @param   ppszWhy         Where to return explanatory message.
  */
-DECLHIDDEN(int) suplibOsQueryVTxSupported(const char **ppszWhy)
+int suplibOsQueryVTxSupported(const char **ppszWhy)
 {
     char szBuf[256];
     int rc = RTSystemQueryOSInfo(RTSYSOSINFO_RELEASE, szBuf, sizeof(szBuf));

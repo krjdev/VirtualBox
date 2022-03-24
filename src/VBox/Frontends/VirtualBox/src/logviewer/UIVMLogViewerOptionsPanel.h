@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerOptionsPanel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMLogViewerOptionsPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,15 +51,15 @@ public:
     void setShowLineNumbers(bool bShowLineNumbers);
     void setWrapLines(bool bWrapLines);
     void setFontSizeInPoints(int fontSizeInPoints);
-    virtual QString panelName() const RT_OVERRIDE;
+    virtual QString panelName() const /* override */;
 
 public slots:
 
 
 protected:
 
-    virtual void prepareWidgets() RT_OVERRIDE;
-    virtual void prepareConnections() RT_OVERRIDE;
+    virtual void prepareWidgets() /* override */;
+    virtual void prepareConnections() /* override */;
 
     /** Handles the translation event. */
     void retranslateUi();

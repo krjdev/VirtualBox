@@ -1,10 +1,10 @@
-/* $Id: tstRTR0TimerDriver.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTR0TimerDriver.cpp $ */
 /** @file
  * IPRT R0 Testcase - Timers, driver program.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,7 +79,6 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         RTR3TestR0SimpleTest(TSTRTR0TIMER_PERIODIC_BASIC,       "Basic periodic");
         if (RTTestErrorCount(g_hTest) == 0)
         {
-            RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_RESOLUTION, "One shot resolution");
 #  if 1
             RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_RESTART, "Restart one shot from callback");
             RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_DESTROY, "Destroy one shot from callback");
@@ -101,7 +100,6 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         RTR3TestR0SimpleTest(TSTRTR0TIMER_PERIODIC_BASIC_HIRES, "Basic hires periodic");
         if (RTTestErrorCount(g_hTest) == 0)
         {
-            RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_RESOLUTION_HIRES, "One shot hires resolution");
 #  if 1
             RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_RESTART_HIRES, "Restart hires one shot from callback");
             RTR3TestR0SimpleTest(TSTRTR0TIMER_ONE_SHOT_DESTROY_HIRES, "Destroy hires one shot from callback");

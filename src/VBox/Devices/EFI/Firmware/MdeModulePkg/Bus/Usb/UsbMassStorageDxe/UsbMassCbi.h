@@ -1,5 +1,5 @@
 /** @file
-  Definition for the USB mass storage Control/Bulk/Interrupt (CBI) transport,
+  Defination for the USB mass storage Control/Bulk/Interrupt (CBI) transport,
   according to USB Mass Storage Class Control/Bulk/Interrupt (CBI) Transport, Revision 1.1.
 
 Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>

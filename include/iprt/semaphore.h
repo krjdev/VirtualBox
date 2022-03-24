@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -174,18 +174,6 @@ RTDECL(int)  RTSemEventDestroy(RTSEMEVENT hEventSem);
 RTDECL(int)  RTSemEventSignal(RTSEMEVENT hEventSem);
 
 /**
- * Whether RTSemEventSignal can be safely called w/o risk of preemption.
- *
- * Checks whether the caller can safely signal a single release semaphore
- * without any risk of getting preempted on locks or similar while doing so.
- * This also checks whether the context is suitable in general.
- *
- * @returns true if safe, false if not.
- * @remarks Only ring-0.
- */
-RTR0DECL(bool) RTSemEventIsSignalSafe(void);
-
-/**
  * Wait for the event semaphore to be signaled, resume on interruption.
  *
  * This function will resume if the wait is interrupted by an async system event
@@ -349,18 +337,6 @@ RTDECL(int)  RTSemEventMultiDestroy(RTSEMEVENTMULTI hEventMultiSem);
  *          the allocator does not work under these circumstances.
  */
 RTDECL(int)  RTSemEventMultiSignal(RTSEMEVENTMULTI hEventMultiSem);
-
-/**
- * Whether RTSemEventMultiSignal can be safely called w/o risk of preemption.
- *
- * Checks whether the caller can safely signal a multiple release semaphore
- * without any risk of getting preempted on locks or similar while doing so.
- * This also checks whether the context is suitable in general.
- *
- * @returns true if safe, false if not.
- * @remarks Only ring-0.
- */
-RTR0DECL(bool) RTSemEventMultiIsSignalSafe(void);
 
 /**
  * Resets an event multi semaphore to non-signaled state.

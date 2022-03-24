@@ -1,10 +1,10 @@
-/* $Id: dbgcfg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgcfg.cpp $ */
 /** @file
  * IPRT - Debugging Configuration.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -728,8 +728,7 @@ static int rtDbgCfgTryDownloadAndOpen(PRTDBGCFGINT pThis, const char *pszServer,
         return VWRN_NOT_FOUND;
     if (!pszCacheSubDir || !*pszCacheSubDir)
         return VWRN_NOT_FOUND;
-    if (   !(fFlags & RTDBGCFG_O_SYMSRV)
-        && !(fFlags & RTDBGCFG_O_DEBUGINFOD))
+    if (!(fFlags & RTDBGCFG_O_SYMSRV))
         return VWRN_NOT_FOUND;
 
     /*
@@ -794,28 +793,16 @@ static int rtDbgCfgTryDownloadAndOpen(PRTDBGCFGINT pThis, const char *pszServer,
             RTHttpUseSystemProxySettings(hHttp);
             RTHttpSetFollowRedirects(hHttp, 8);
 
-            static const char * const s_apszHeadersMsSymSrv[] =
+            static const char * const s_apszHeaders[] =
             {
                 "User-Agent: Microsoft-Symbol-Server/6.6.0999.9",
                 "Pragma: no-cache",
             };
 
-            static const char * const s_apszHeadersDebuginfod[] =
-            {
-                "User-Agent: IPRT DbgCfg 1.0",
-                "Pragma: no-cache",
-            };
-
-            if (fFlags & RTDBGCFG_O_SYMSRV)
-                rc = RTHttpSetHeaders(hHttp, RT_ELEMENTS(s_apszHeadersMsSymSrv), s_apszHeadersMsSymSrv);
-            else /* Must be debuginfod. */
-                rc = RTHttpSetHeaders(hHttp, RT_ELEMENTS(s_apszHeadersDebuginfod), s_apszHeadersDebuginfod);
+            rc = RTHttpSetHeaders(hHttp, RT_ELEMENTS(s_apszHeaders), s_apszHeaders);
             if (RT_SUCCESS(rc))
             {
-                if (fFlags & RTDBGCFG_O_SYMSRV)
-                    RTStrPrintf(szUrl, sizeof(szUrl), "%s/%s/%s/%s", pszServer, pszFilename, pszCacheSubDir, pszFilename);
-                else
-                    RTStrPrintf(szUrl, sizeof(szUrl), "%s/buildid/%s/debuginfo", pszServer, pszCacheSubDir);
+                RTStrPrintf(szUrl, sizeof(szUrl), "%s/%s/%s/%s", pszServer, pszFilename, pszCacheSubDir, pszFilename);
 
                 /** @todo Use some temporary file name and rename it after the operation
                  *        since not all systems support read-deny file sharing
@@ -827,8 +814,7 @@ static int rtDbgCfgTryDownloadAndOpen(PRTDBGCFGINT pThis, const char *pszServer,
                     RTFileDelete(pszPath);
                     rtDbgCfgLog1(pThis, "%Rrc on URL '%s'\n", rc, szUrl);
                 }
-                if (   rc == VERR_HTTP_NOT_FOUND
-                    && (fFlags & RTDBGCFG_O_SYMSRV))
+                if (rc == VERR_HTTP_NOT_FOUND)
                 {
                     /* Try the compressed version of the file. */
                     pszPath[strlen(pszPath) - 1] = '_';
@@ -1403,23 +1389,6 @@ RTDECL(int) RTDbgCfgOpenDwo(RTDBGCFG hDbgCfg, const char *pszFilename, uint32_t 
     return rtDbgCfgOpenWithSubDir(hDbgCfg, pszFilename, szSubDir, NULL,
                                   RT_OPSYS_UNKNOWN | RTDBGCFG_O_EXT_DEBUG_FILE,
                                   pfnCallback, pvUser1, pvUser2);
-}
-
-
-RTDECL(int) RTDbgCfgOpenDwoBuildId(RTDBGCFG hDbgCfg, const char *pszFilename, const uint8_t *pbBuildId,
-                                   size_t cbBuildId, PFNRTDBGCFGOPEN pfnCallback, void *pvUser1, void *pvUser2)
-{
-    char *pszSubDir = NULL;
-    int rc = RTStrAPrintf(&pszSubDir, "%#.*Rhxs", cbBuildId, pbBuildId);
-    if (RT_SUCCESS(rc))
-    {
-        rc = rtDbgCfgOpenWithSubDir(hDbgCfg, pszFilename, pszSubDir, NULL,
-                                    RTDBGCFG_O_DEBUGINFOD | RT_OPSYS_UNKNOWN | RTDBGCFG_O_EXT_DEBUG_FILE,
-                                    pfnCallback, pvUser1, pvUser2);
-        RTStrFree(pszSubDir);
-    }
-
-    return rc;
 }
 
 

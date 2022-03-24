@@ -1,10 +1,10 @@
-/* $Id: UIGraphicsScrollBar.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGraphicsScrollBar.cpp $ */
 /** @file
  * VBox Qt GUI - UIGraphicsScrollBar class implementation.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -77,7 +77,7 @@ public:
     UIGraphicsScrollBarToken(Qt::Orientation enmOrientation, QIGraphicsWidget *pParent = 0);
 
     /** Returns minimum size-hint. */
-    virtual QSizeF minimumSizeHint() const RT_OVERRIDE;
+    virtual QSizeF minimumSizeHint() const /* override */;
 
     /** Returns whether token is hovered. */
     bool isHovered() const { return m_fHovered; }
@@ -85,17 +85,17 @@ public:
 protected:
 
     /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-    virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+    virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
 
     /** Handles mouse-press @a pEvent. */
-    virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
     /** Handles mouse-release @a pEvent. */
-    virtual void mouseMoveEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseMoveEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
 
     /** Handles hover enter @a pEvent. */
-    virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+    virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
     /** Handles hover leave @a pEvent. */
-    virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+    virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
 
 private:
 
@@ -152,12 +152,13 @@ void UIGraphicsScrollBarToken::paint(QPainter *pPainter, const QStyleOptionGraph
     pPainter->save();
 
     /* Prepare color: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
 
 #ifdef VBOX_WS_MAC
 
     /* Draw background: */
-    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Window).darker(190);
+    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Mid);
+    backgroundColor = backgroundColor.darker(140);
     QRectF actualRectangle = pOptions->rect;
     actualRectangle.setLeft(pOptions->rect.left() + .22 * pOptions->rect.width());
     actualRectangle.setRight(pOptions->rect.right() - .22 * pOptions->rect.width());
@@ -173,7 +174,7 @@ void UIGraphicsScrollBarToken::paint(QPainter *pPainter, const QStyleOptionGraph
 #else
 
     /* Draw background: */
-    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Window).darker(140);
+    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Mid);
     pPainter->fillRect(pOptions->rect, backgroundColor);
 
 #endif
@@ -989,7 +990,7 @@ void UIGraphicsScrollBar::paintBackground(QPainter *pPainter, const QRect &recta
     pPainter->save();
 
     /* Prepare color: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
 
 #ifdef VBOX_WS_MAC
 
@@ -1014,9 +1015,9 @@ void UIGraphicsScrollBar::paintBackground(QPainter *pPainter, const QRect &recta
     /* Emulate token when necessary: */
     if (m_iHoveringValue < 100)
     {
-        QColor tokenColor = pal.color(QPalette::Active, QPalette::Window);
+        QColor tokenColor = pal.color(QPalette::Active, QPalette::Mid);
         tokenColor.setAlpha(255 * ((double)m_iRevealingValue / 100));
-        tokenColor = tokenColor.darker(190);
+        tokenColor = tokenColor.darker(140);
         QRectF tokenRectangle = QRect(actualTokenPosition(), QSize(m_iExtent, 2 * m_iExtent));
         QRectF actualRectangle = tokenRectangle;
         if (m_fAutoHideMode)
@@ -1042,7 +1043,7 @@ void UIGraphicsScrollBar::paintBackground(QPainter *pPainter, const QRect &recta
 #else
 
     /* Draw background: */
-    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Window);
+    QColor backgroundColor = pal.color(QPalette::Active, QPalette::Midlight);
     backgroundColor.setAlpha(50 + (double)m_iHoveringValue / 100 * 150);
     QRect actualRectangle = rectangle;
     actualRectangle.setLeft(actualRectangle.left() + .85 * actualRectangle.width() * ((double)100 - m_iHoveringValue) / 100);
@@ -1051,7 +1052,7 @@ void UIGraphicsScrollBar::paintBackground(QPainter *pPainter, const QRect &recta
     /* Emulate token when necessary: */
     if (m_iHoveringValue < 100)
     {
-        QColor tokenColor = pal.color(QPalette::Active, QPalette::Window).darker(140);
+        QColor tokenColor = pal.color(QPalette::Active, QPalette::Dark);
         QRect tokenRectangle = QRect(actualTokenPosition(), QSize(m_iExtent, m_iExtent));
         tokenRectangle.setLeft(tokenRectangle.left() + .85 * tokenRectangle.width() * ((double)100 - m_iHoveringValue) / 100);
         pPainter->fillRect(tokenRectangle, tokenColor);

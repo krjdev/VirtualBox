@@ -258,7 +258,7 @@ SmmAccessPeiEntryPoint (
   //
   HostBridgeDevId = PciRead16 (OVMF_HOSTBRIDGE_DID);
   if (HostBridgeDevId != INTEL_Q35_MCH_DEVICE_ID) {
-    DEBUG ((DEBUG_ERROR, "%a: no SMRAM with host bridge DID=0x%04x; only "
+    DEBUG ((EFI_D_ERROR, "%a: no SMRAM with host bridge DID=0x%04x; only "
       "DID=0x%04x (Q35) is supported\n", __FUNCTION__, HostBridgeDevId,
       INTEL_Q35_MCH_DEVICE_ID));
     goto WrongConfig;
@@ -274,7 +274,7 @@ SmmAccessPeiEntryPoint (
   EsmramcVal = PciRead8 (DRAMC_REGISTER_Q35 (MCH_ESMRAMC));
   RegMask8 = MCH_ESMRAMC_SM_CACHE | MCH_ESMRAMC_SM_L1 | MCH_ESMRAMC_SM_L2;
   if ((EsmramcVal & RegMask8) != RegMask8) {
-    DEBUG ((DEBUG_ERROR, "%a: this Q35 implementation lacks SMRAM\n",
+    DEBUG ((EFI_D_ERROR, "%a: this Q35 implementation lacks SMRAM\n",
       __FUNCTION__));
     goto WrongConfig;
   }
@@ -351,12 +351,12 @@ SmmAccessPeiEntryPoint (
     UINTN Idx;
 
     Count = SmramMapSize / sizeof SmramMap[0];
-    DEBUG ((DEBUG_VERBOSE, "%a: SMRAM map follows, %d entries\n", __FUNCTION__,
+    DEBUG ((EFI_D_VERBOSE, "%a: SMRAM map follows, %d entries\n", __FUNCTION__,
       (INT32)Count));
-    DEBUG ((DEBUG_VERBOSE, "% 20a % 20a % 20a % 20a\n", "PhysicalStart(0x)",
+    DEBUG ((EFI_D_VERBOSE, "% 20a % 20a % 20a % 20a\n", "PhysicalStart(0x)",
       "PhysicalSize(0x)", "CpuStart(0x)", "RegionState(0x)"));
     for (Idx = 0; Idx < Count; ++Idx) {
-      DEBUG ((DEBUG_VERBOSE, "% 20Lx % 20Lx % 20Lx % 20Lx\n",
+      DEBUG ((EFI_D_VERBOSE, "% 20Lx % 20Lx % 20Lx % 20Lx\n",
         SmramMap[Idx].PhysicalStart, SmramMap[Idx].PhysicalSize,
         SmramMap[Idx].CpuStart, SmramMap[Idx].RegionState));
     }
@@ -371,12 +371,6 @@ SmmAccessPeiEntryPoint (
 
   CopyMem (GuidHob, &SmramMap[DescIdxSmmS3ResumeState],
     sizeof SmramMap[DescIdxSmmS3ResumeState]);
-
-  //
-  // SmramAccessLock() depends on "mQ35SmramAtDefaultSmbase"; init the latter
-  // just before exposing the former via PEI_SMM_ACCESS_PPI.Lock().
-  //
-  InitQ35SmramAtDefaultSmbase ();
 
   //
   // We're done. The next step should succeed, but even if it fails, we can't

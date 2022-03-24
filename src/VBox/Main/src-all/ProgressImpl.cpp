@@ -1,10 +1,10 @@
-/* $Id: ProgressImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ProgressImpl.cpp $ */
 /** @file
  * VirtualBox Progress COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -368,7 +368,7 @@ HRESULT Progress::i_notifyComplete(HRESULT aResultCode)
 #endif /* !defined(VBOX_WITH_XPCOM) */
     }
 
-    return i_notifyCompleteWorker(aResultCode, errorInfo);
+    return notifyComplete(aResultCode, errorInfo);
 }
 
 /**
@@ -412,7 +412,7 @@ HRESULT Progress::i_notifyCompleteV(HRESULT aResultCode,
     AssertComRCReturnRC(rc);
     errorInfo->init(aResultCode, aIID, pcszComponent, text);
 
-    return i_notifyCompleteWorker(aResultCode, errorInfo);
+    return notifyComplete(aResultCode, errorInfo);
 }
 
 /**
@@ -459,7 +459,7 @@ HRESULT Progress::i_notifyCompleteBothV(HRESULT aResultCode,
     AssertComRCReturnRC(rc);
     errorInfo->initEx(aResultCode, vrc, aIID, pszComponent, text);
 
-    return i_notifyCompleteWorker(aResultCode, errorInfo);
+    return notifyComplete(aResultCode, errorInfo);
 }
 
 /**
@@ -655,7 +655,7 @@ HRESULT Progress::getResultCode(LONG *aResultCode)
     if (!mCompleted)
         return setError(E_FAIL, tr("Result code is not available, operation is still in progress"));
 
-    *aResultCode = (LONG)mResultCode;
+    *aResultCode = mResultCode;
 
     return S_OK;
 }
@@ -765,16 +765,19 @@ HRESULT Progress::waitForCompletion(LONG aTimeout)
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
     /* if we're already completed, take a shortcut */
-    if (!mCompleted && aTimeout != 0)
+    if (!mCompleted)
     {
-        RTMSINTERVAL cMsWait  = aTimeout < 0 ? RT_INDEFINITE_WAIT : (RTMSINTERVAL)aTimeout;
-        uint64_t     msLast   = aTimeout < 0 ? 0                  : RTTimeMilliTS();
+        int vrc = VINF_SUCCESS;
+        bool fForever = aTimeout < 0;
+        int64_t timeLeft = aTimeout;
+        int64_t lastTime = RTTimeMilliTS();
 
-        for (;;)
+        while (!mCompleted && (fForever || timeLeft > 0))
         {
             mWaitersCount++;
             alock.release();
-            int vrc = RTSemEventMultiWait(mCompletedSem, cMsWait);
+            vrc = RTSemEventMultiWait(mCompletedSem,
+                                      fForever ? RT_INDEFINITE_WAIT : (RTMSINTERVAL)timeLeft);
             alock.acquire();
             mWaitersCount--;
 
@@ -783,24 +786,22 @@ HRESULT Progress::waitForCompletion(LONG aTimeout)
                 RTSemEventMultiReset(mCompletedSem);
 
             if (RT_FAILURE(vrc) && vrc != VERR_TIMEOUT)
-                return setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Failed to wait for the task completion (%Rrc)"), vrc);
-
-            if (mCompleted)
                 break;
 
-            if (aTimeout >= 0)
+            if (!fForever)
             {
-                uint64_t msNow = RTTimeMilliTS();
-                uint64_t cMsElapsed = msNow - msLast;
-                if (cMsWait <= cMsElapsed)
-                    break;
-                cMsWait -= (RTMSINTERVAL)cMsElapsed;
-                msLast   = msNow;
+                int64_t now = RTTimeMilliTS();
+                timeLeft -= now - lastTime;
+                lastTime = now;
             }
         }
+
+        if (RT_FAILURE(vrc) && vrc != VERR_TIMEOUT)
+            return setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Failed to wait for the task completion (%Rrc)"), vrc);
     }
 
     LogFlowThisFuncLeave();
+
     return S_OK;
 }
 
@@ -823,17 +824,20 @@ HRESULT Progress::waitForOperationCompletion(ULONG aOperation, LONG aTimeout)
     /* if we're already completed or if the given operation is already done,
      * then take a shortcut */
     if (    !mCompleted
-         && aOperation >= m_ulCurrentOperation
-         && aTimeout != 0)
+         && aOperation >= m_ulCurrentOperation)
     {
-        RTMSINTERVAL cMsWait  = aTimeout < 0 ? RT_INDEFINITE_WAIT : (RTMSINTERVAL)aTimeout;
-        uint64_t     msLast   = aTimeout < 0 ? 0                  : RTTimeMilliTS();
+        int vrc = VINF_SUCCESS;
+        bool fForever = aTimeout < 0;
+        int64_t timeLeft = aTimeout;
+        int64_t lastTime = RTTimeMilliTS();
 
-        for (;;)
+        while (    !mCompleted && aOperation >= m_ulCurrentOperation
+                && (fForever || timeLeft > 0))
         {
             mWaitersCount ++;
             alock.release();
-            int vrc = RTSemEventMultiWait(mCompletedSem, cMsWait);
+            vrc = RTSemEventMultiWait(mCompletedSem,
+                                      fForever ? RT_INDEFINITE_WAIT : (unsigned) timeLeft);
             alock.acquire();
             mWaitersCount--;
 
@@ -842,24 +846,22 @@ HRESULT Progress::waitForOperationCompletion(ULONG aOperation, LONG aTimeout)
                 RTSemEventMultiReset(mCompletedSem);
 
             if (RT_FAILURE(vrc) && vrc != VERR_TIMEOUT)
-                return setErrorBoth(E_FAIL, vrc, tr("Failed to wait for the operation completion (%Rrc)"), vrc);
-
-            if (mCompleted || aOperation >= m_ulCurrentOperation)
                 break;
 
-            if (aTimeout >= 0)
+            if (!fForever)
             {
-                uint64_t msNow = RTTimeMilliTS();
-                uint64_t cMsElapsed = msNow - msLast;
-                if (cMsWait <= cMsElapsed)
-                    break;
-                cMsWait -= (RTMSINTERVAL)cMsElapsed;
-                msLast   = msNow;
+                int64_t now = RTTimeMilliTS();
+                timeLeft -= now - lastTime;
+                lastTime = now;
             }
         }
+
+        if (RT_FAILURE(vrc) && vrc != VERR_TIMEOUT)
+            return setErrorBoth(E_FAIL, vrc, tr("Failed to wait for the operation completion (%Rrc)"), vrc);
     }
 
     LogFlowThisFuncLeave();
+
     return S_OK;
 }
 
@@ -910,7 +912,7 @@ HRESULT Progress::setCurrentOperationProgress(ULONG aPercent)
         m_ulOperationPercent = aPercent;
         ULONG actualPercent = 0;
         getPercent(&actualPercent);
-        ::FireProgressPercentageChangedEvent(pEventSource, mId.toString(), (LONG)actualPercent);
+        fireProgressPercentageChangedEvent(pEventSource, mId.toUtf16().raw(), actualPercent);
     }
 
     return S_OK;
@@ -1023,10 +1025,10 @@ HRESULT Progress::waitForOtherProgressCompletion(const ComPtr<IProgress> &aProgr
     LONG iRc;
     rc = aProgressOther->COMGETTER(ResultCode)(&iRc);
     if (FAILED(rc)) return rc;
-    if (FAILED((HRESULT)iRc))
+    if (FAILED(iRc))
     {
         setError(ProgressErrorInfo(aProgressOther));
-        rc = (HRESULT)iRc;
+        rc = iRc;
     }
 
     LogFlowThisFuncLeave();
@@ -1067,7 +1069,7 @@ HRESULT Progress::setNextOperation(const com::Utf8Str &aNextOperationDescription
 
     ULONG actualPercent = 0;
     getPercent(&actualPercent);
-    ::FireProgressPercentageChangedEvent(pEventSource, mId.toString(), (LONG)actualPercent);
+    fireProgressPercentageChangedEvent(pEventSource, mId.toUtf16().raw(), actualPercent);
 
     return S_OK;
 }
@@ -1111,29 +1113,11 @@ HRESULT Progress::notifyPointOfNoReturn(void)
  */
 HRESULT Progress::notifyComplete(LONG aResultCode, const ComPtr<IVirtualBoxErrorInfo> &aErrorInfo)
 {
-    return i_notifyCompleteWorker((HRESULT)aResultCode, aErrorInfo);
-}
-
-
-// private internal helpers
-/////////////////////////////////////////////////////////////////////////////
-
-/**
- * Marks the operation as complete and attaches full error info.
- *
- * This is where the actual work is done, the related methods all end up here.
- *
- * @param aResultCode       Operation result (error) code, must not be S_OK.
- * @param aErrorInfo        List of arguments for the format string.
- *
- * @note This is just notifyComplete with the correct aResultCode type.
- */
-HRESULT Progress::i_notifyCompleteWorker(HRESULT aResultCode, const ComPtr<IVirtualBoxErrorInfo> &aErrorInfo)
-{
-    LogThisFunc(("aResultCode=%Rhrc\n", aResultCode));
+    LogThisFunc(("aResultCode=%d\n", aResultCode));
     /* on failure we expect error info, on success there must be none */
     AssertMsg(FAILED(aResultCode) ^ aErrorInfo.isNull(),
-              ("No error info but trying to set a failed result (%08X/%Rhrc)!\n", aResultCode, aResultCode));
+              ("No error info but trying to set a failed result (%08X)!\n",
+               aResultCode));
 
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
@@ -1161,10 +1145,14 @@ HRESULT Progress::i_notifyCompleteWorker(HRESULT aResultCode, const ComPtr<IVirt
     if (mWaitersCount > 0)
         RTSemEventMultiSignal(mCompletedSem);
 
-    ::FireProgressTaskCompletedEvent(pEventSource, mId.toString());
+    fireProgressTaskCompletedEvent(pEventSource, mId.toUtf16().raw());
 
     return S_OK;
 }
+
+
+// private internal helpers
+/////////////////////////////////////////////////////////////////////////////
 
 /**
  * Internal helper to compute the total percent value based on the member values and

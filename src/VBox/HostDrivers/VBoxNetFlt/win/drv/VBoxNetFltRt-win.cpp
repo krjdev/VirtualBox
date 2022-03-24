@@ -1,10 +1,10 @@
-/* $Id: VBoxNetFltRt-win.cpp 93304 2022-01-18 11:29:03Z vboxsync $ */
+/* $Id: VBoxNetFltRt-win.cpp $ */
 /** @file
  * VBoxNetFltRt-win.cpp - Bridged Networking Driver, Windows Specific Runtime Code.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -130,7 +130,7 @@ INIT_IDC_INFO g_VBoxInitIdcInfo;
  */
 static VBOXNETFLTGLOBALS g_VBoxNetFltGlobals;
 /* win-specific global data */
-VBOXNETFLTGLOBALS_WIN g_VBoxNetFltGlobalsWin = {{{0}}};
+VBOXNETFLTGLOBALS_WIN g_VBoxNetFltGlobalsWin = {0};
 
 
 /*********************************************************************************************************************************

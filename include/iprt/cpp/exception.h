@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,12 +31,6 @@
 
 #include <iprt/cpp/ministring.h>
 #include <exception>
-
-#if RT_MSC_PREREQ(RT_MSC_VER_VC140)
-# pragma warning(push)
-# pragma warning(disable:4275) /* non dll-interface class 'std::exception' used as base for dll-interface class 'RTCError' */
-#endif
-
 
 /** @defgroup grp_rt_cpp_exceptions     C++ Exceptions
  * @ingroup grp_rt_cpp
@@ -101,8 +95,5 @@ protected:
 
 /** @} */
 
-#if RT_MSC_PREREQ(RT_MSC_VER_VC140)
-# pragma warning(pop)
-#endif
 #endif /* !IPRT_INCLUDED_cpp_exception_h */
 

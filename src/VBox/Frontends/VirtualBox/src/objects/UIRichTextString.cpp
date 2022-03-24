@@ -1,10 +1,10 @@
-/* $Id: UIRichTextString.cpp 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: UIRichTextString.cpp $ */
 /** @file
  * VBox Qt GUI - UIRichTextString class implementation.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,7 +18,6 @@
 /* Qt includes: */
 #include <QApplication>
 #include <QPalette>
-#include <QRegExp>
 
 /* GUI includes: */
 #include "UIRichTextString.h"
@@ -68,10 +67,10 @@ QString UIRichTextString::toString() const
     return strString;
 }
 
-QVector<QTextLayout::FormatRange> UIRichTextString::formatRanges(int iShift /* = 0 */) const
+QList<QTextLayout::FormatRange> UIRichTextString::formatRanges(int iShift /* = 0 */) const
 {
     /* Prepare format range list: */
-    QVector<QTextLayout::FormatRange> ranges;
+    QList<QTextLayout::FormatRange> ranges;
 
     /* Add own format range first: */
     QTextLayout::FormatRange range;

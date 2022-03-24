@@ -1,10 +1,10 @@
-/* $Id: IOBufMgmt.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: IOBufMgmt.cpp $ */
 /** @file
  * VBox storage devices: I/O buffer management API.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -254,7 +254,7 @@ static size_t iobufMgrAllocSegment(PIOBUFMGRINT pThis, PRTSGSEG pSeg, size_t cb)
                 {
                     iBinCur--;
                     pBinCur = &pThis->paBins[iBinCur];
-                    iobufMgrBinObjAdd(pBinCur, pbMem + RT_BIT_Z(iBinCur + pThis->u32OrderMin));
+                    iobufMgrBinObjAdd(pBinCur, pbMem + (size_t)RT_BIT(iBinCur + pThis->u32OrderMin)); /* (RT_BIT causes weird MSC warning without cast) */
                 }
 
                 /* For the last bin we will get two new memory blocks. */
@@ -298,7 +298,7 @@ static size_t iobufMgrAllocSegment(PIOBUFMGRINT pThis, PRTSGSEG pSeg, size_t cb)
     else if (pBin->iFree != 0)
     {
         pSeg->pvSeg = iobufMgrBinObjRemove(pBin);
-        pSeg->cbSeg = RT_BIT_Z(u32Order);
+        pSeg->cbSeg = (size_t)RT_BIT_32(u32Order);
         cbAlloc = pSeg->cbSeg;
         AssertPtr(pSeg->pvSeg);
 
@@ -419,7 +419,8 @@ DECLHIDDEN(int) IOBUFMgrDestroy(IOBUFMGR hIoBufMgr)
     return rc;
 }
 
-DECLHIDDEN(int) IOBUFMgrAllocBuf(IOBUFMGR hIoBufMgr, PIOBUFDESC pIoBufDesc, size_t cbIoBuf, size_t *pcbIoBufAllocated)
+DECLHIDDEN(int) IOBUFMgrAllocBuf(IOBUFMGR hIoBufMgr, PIOBUFDESC pIoBufDesc, size_t cbIoBuf,
+                                 size_t *pcbIoBufAllocated)
 {
     PIOBUFMGRINT pThis = hIoBufMgr;
 

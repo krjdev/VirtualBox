@@ -1,10 +1,10 @@
-/* $Id: VBoxMPCm.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPCm.cpp $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,8 +34,7 @@ typedef enum
     VBOXVIDEOCM_CMD_CTL_KM_TYPE_DUMMY_32BIT = 0x7fffffff
 } VBOXVIDEOCM_CMD_CTL_KM_TYPE;
 
-typedef DECLCALLBACKTYPE(VOID, FNVBOXVIDEOCM_CMD_CB,(PVBOXVIDEOCM_CTX pContext, struct VBOXVIDEOCM_CMD_CTL_KM *pCmd,
-                                                     PVOID pvContext));
+typedef DECLCALLBACK(VOID) FNVBOXVIDEOCM_CMD_CB(PVBOXVIDEOCM_CTX pContext, struct VBOXVIDEOCM_CMD_CTL_KM *pCmd, PVOID pvContext);
 typedef FNVBOXVIDEOCM_CMD_CB *PFNVBOXVIDEOCM_CMD_CB;
 
 typedef struct VBOXVIDEOCM_CMD_CTL_KM

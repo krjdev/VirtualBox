@@ -1,11 +1,11 @@
-/* $Id: VBoxGuestR3LibHGCM.cpp 93967 2022-02-28 10:08:26Z vboxsync $ */
+/* $Id: VBoxGuestR3LibHGCM.cpp $ */
 /** @file
  * VBoxGuestR3Lib - Ring-3 Support Library for VirtualBox guest additions,
  * generic HGCM.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -65,7 +65,7 @@ VBGLR3DECL(int) VbglR3HGCMConnect(const char *pszServiceName, HGCMCLIENTID *pidC
  * Disconnect from an HGCM service.
  *
  * @returns VBox status code.
- * @param   idClient        The client id returned by VbglR3HGCMConnect().
+ * @param   idClient        The client id returned by VbglR3InfoSvcConnect().
  */
 VBGLR3DECL(int) VbglR3HGCMDisconnect(HGCMCLIENTID idClient)
 {
@@ -96,3 +96,4 @@ VBGLR3DECL(int) VbglR3HGCMCall(PVBGLIOCHGCMCALL pInfo, size_t cbInfo)
 
     return vbglR3DoIOCtl(VBGL_IOCTL_HGCM_CALL(cbInfo), &pInfo->Hdr, cbInfo);
 }
+

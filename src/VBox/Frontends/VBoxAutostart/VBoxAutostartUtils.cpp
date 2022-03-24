@@ -1,11 +1,11 @@
-/* $Id: VBoxAutostartUtils.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxAutostartUtils.cpp $ */
 /** @file
  * VBoxAutostart - VirtualBox Autostart service, start machines during system boot.
  *                 Utils used by the windows and posix frontends.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,11 @@
 #include <iprt/thread.h>
 #include <iprt/stream.h>
 #include <iprt/log.h>
-#include <iprt/path.h>      /* RTPATH_MAX */
+#include <iprt/path.h>
+
+#include <algorithm>
+#include <list>
+#include <string>
 
 #include "VBoxAutostart.h"
 
@@ -47,8 +51,6 @@ DECLHIDDEN(const char *) machineStateToName(MachineState_T machineState, bool fS
             return "teleported";
         case MachineState_Aborted:
             return "aborted";
-        case MachineState_AbortedSaved:
-            return "aborted-saved";
         case MachineState_Running:
             return "running";
         case MachineState_Paused:

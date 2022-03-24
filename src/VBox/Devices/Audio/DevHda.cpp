@@ -1,4 +1,4 @@
-/* $Id: DevHda.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevHda.cpp $ */
 /** @file
  * Intel HD Audio Controller Emulation.
  *
@@ -8,7 +8,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,8 +82,8 @@
  */
 #define DEVHDA_LOCK(a_pDevIns, a_pThis) \
     do { \
-        int const rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
-        PDM_CRITSECT_RELEASE_ASSERT_RC_DEV((a_pDevIns), &(a_pThis)->CritSect, rcLock); \
+        int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
+        AssertRC(rcLock); \
     } while (0)
 
 /**
@@ -91,7 +91,7 @@
  */
 #define DEVHDA_LOCK_RETURN(a_pDevIns, a_pThis, a_rcBusy) \
     do { \
-        int const rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, a_rcBusy); \
+        int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, a_rcBusy); \
         if (rcLock == VINF_SUCCESS) \
         { /* likely */ } \
         else \
@@ -106,12 +106,12 @@
  */
 # define DEVHDA_LOCK_RETURN_VOID(a_pDevIns, a_pThis) \
     do { \
-        int const rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
+        int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
         if (rcLock == VINF_SUCCESS) \
         { /* likely */ } \
         else \
         { \
-            PDM_CRITSECT_RELEASE_ASSERT_RC_DEV((a_pDevIns), &(a_pThis)->CritSect, rcLock); \
+            AssertRC(rcLock); \
             return; \
         } \
     } while (0)
@@ -1606,7 +1606,7 @@ static VBOXSTRICTRC hdaRegWriteSDCTL(PPDMDEVINS pDevIns, PHDASTATE pThis, uint32
         LogFunc(("[SD%RU8] Reset enter\n", uSD));
 
         STAM_REL_PROFILE_START_NS(&pStreamR3->State.StatReset, a);
-        Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
+        Assert(PDMCritSectIsOwner(&pThis->CritSect));
         PAUDMIXSINK const pMixSink = pStreamR3->pMixSink ? pStreamR3->pMixSink->pMixSink : NULL;
         if (pMixSink)
             AudioMixerSinkLock(pMixSink);
@@ -1636,7 +1636,7 @@ static VBOXSTRICTRC hdaRegWriteSDCTL(PPDMDEVINS pDevIns, PHDASTATE pThis, uint32
             Assert(!fReset && !fInReset); /* (code change paranoia, currently impossible ) */
             LogFunc(("[SD%RU8] State changed (fRun=%RTbool)\n", uSD, fRun));
 
-            Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
+            Assert(PDMCritSectIsOwner(&pThis->CritSect));
             /** @todo bird: It's not clear to me when the pMixSink is actually
              *        assigned to the stream, so being paranoid till I find out... */
             PAUDMIXSINK const pMixSink = pStreamR3->pMixSink ? pStreamR3->pMixSink->pMixSink : NULL;
@@ -2777,8 +2777,7 @@ DECLHIDDEN(int) hdaR3MixerRemoveStream(PHDACODECR3 pCodec, PDMAUDIOMIXERCTL enmM
 DECLHIDDEN(int) hdaR3MixerControl(PHDACODECR3 pCodec, PDMAUDIOMIXERCTL enmMixerCtl, uint8_t uSD, uint8_t uChannel)
 {
     PHDASTATER3 pThisCC = RT_FROM_MEMBER(pCodec, HDASTATER3, Codec);
-    PPDMDEVINS  pDevIns = pThisCC->pDevIns;
-    PHDASTATE   pThis   = PDMDEVINS_2_DATA(pDevIns, PHDASTATE);
+    PHDASTATE   pThis   = PDMDEVINS_2_DATA(pThisCC->pDevIns, PHDASTATE);
     LogFunc(("enmMixerCtl=%s, uSD=%RU8, uChannel=%RU8\n", PDMAudioMixerCtlGetName(enmMixerCtl), uSD, uChannel));
 
     if (uSD == 0) /* Stream number 0 is reserved. */
@@ -2828,7 +2827,7 @@ DECLHIDDEN(int) hdaR3MixerControl(PHDACODECR3 pCodec, PDMAUDIOMIXERCTL enmMixerC
         {
             LogFunc(("Sink '%s' was assigned to stream #%RU8 (channel %RU8) before\n",
                      pSink->pMixSink->pszName, pOldStreamShared->u8SD, pOldStreamShared->u8Channel));
-            Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
+            Assert(PDMCritSectIsOwner(&pThis->CritSect));
 
             /* Only disable the stream if the stream descriptor # has changed. */
             if (pOldStreamShared->u8SD != uSD)
@@ -2856,7 +2855,7 @@ DECLHIDDEN(int) hdaR3MixerControl(PHDACODECR3 pCodec, PDMAUDIOMIXERCTL enmMixerC
 
             PHDASTREAMR3 pStreamR3     = &pThisCC->aStreams[uSD];
             PHDASTREAM   pStreamShared = &pThis->aStreams[uSD];
-            Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
+            Assert(PDMCritSectIsOwner(&pThis->CritSect));
 
             pSink->pStreamR3     = pStreamR3;
             pSink->pStreamShared = pStreamShared;
@@ -2912,7 +2911,7 @@ DECLHIDDEN(int) hdaR3MixerSetVolume(PHDACODECR3 pCodec, PDMAUDIOMIXERCTL enmMixe
 /**
  * @callback_method_impl{FNTMTIMERDEV, Main routine for the stream's timer.}
  */
-static DECLCALLBACK(void) hdaR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) hdaR3Timer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     PHDASTATE       pThis         = PDMDEVINS_2_DATA(pDevIns, PHDASTATE);
     PHDASTATER3     pThisCC       = PDMDEVINS_2_DATA_CC(pDevIns, PHDASTATER3);
@@ -2920,12 +2919,10 @@ static DECLCALLBACK(void) hdaR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, v
     AssertReturnVoid(idxStream < RT_ELEMENTS(pThis->aStreams));
     PHDASTREAM      pStreamShared = &pThis->aStreams[idxStream];
     PHDASTREAMR3    pStreamR3     = &pThisCC->aStreams[idxStream];
-    Assert(hTimer == pStreamShared->hTimer);
+    RT_NOREF(pTimer);
 
     Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
-    Assert(PDMDevHlpTimerIsLockOwner(pDevIns, hTimer));
-
-    RT_NOREF(hTimer);
+    Assert(PDMDevHlpTimerIsLockOwner(pDevIns, pStreamShared->hTimer));
 
     hdaR3StreamTimerMain(pDevIns, pThis, pThisCC, pStreamShared, pStreamR3);
 }
@@ -2940,7 +2937,7 @@ static DECLCALLBACK(void) hdaR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, v
 static void hdaR3GCTLReset(PPDMDEVINS pDevIns, PHDASTATE pThis, PHDASTATER3 pThisCC)
 {
     LogFlowFuncEnter();
-    Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
+    Assert(PDMCritSectIsOwner(&pThis->CritSect));
 
     /*
      * Make sure all streams have stopped as these have both timers and
@@ -4082,8 +4079,7 @@ static DECLCALLBACK(int) hdaR3LoadExec(PPDMDEVINS pDevIns, PSSMHANDLE pSSM, uint
                             ("HDA stream ID=%RU8 not supported, skipping loadingit ...\n", idStream),
                             RT_ZERO(StreamDummyShared); RT_ZERO(StreamDummyR3));
 
-        rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED); /* timer code requires this */
-        AssertRCReturn(rc, rc);
+        PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED); /* timer code requires this */
         rc = hdaR3StreamSetUp(pDevIns, pThis, pStreamShared, pStreamR3, idStream);
         PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
         if (RT_FAILURE(rc))
@@ -4746,11 +4742,8 @@ static DECLCALLBACK(int) hdaR3Destruct(PPDMDEVINS pDevIns)
     PHDASTATE   pThis   = PDMDEVINS_2_DATA(pDevIns, PHDASTATE);
     PHDASTATER3 pThisCC = PDMDEVINS_2_DATA_CC(pDevIns, PHDASTATER3);
 
-    if (PDMDevHlpCritSectIsInitialized(pDevIns, &pThis->CritSect))
-    {
-        int rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-        AssertRC(rc);
-    }
+    if (PDMCritSectIsInitialized(&pThis->CritSect))
+        PDMCritSectEnter(&pThis->CritSect, VERR_IGNORED);
 
     PHDADRIVER pDrv;
     while (!RTListIsEmpty(&pThisCC->lstDrv))
@@ -4773,10 +4766,10 @@ static DECLCALLBACK(int) hdaR3Destruct(PPDMDEVINS pDevIns)
         pThisCC->pMixer = NULL;
     }
 
-    if (PDMDevHlpCritSectIsInitialized(pDevIns, &pThis->CritSect))
+    if (PDMCritSectIsInitialized(&pThis->CritSect))
     {
-        PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
-        PDMDevHlpCritSectDelete(pDevIns, &pThis->CritSect);
+        PDMCritSectLeave(&pThis->CritSect);
+        PDMR3CritSectDelete(&pThis->CritSect);
     }
     return VINF_SUCCESS;
 }
@@ -5112,17 +5105,16 @@ static DECLCALLBACK(int) hdaR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFGM
      *        on exact (virtual) DMA timing and uses DMA Position Buffers
      *        instead of the LPIB registers.
      */
-    /** @todo r=bird: The need to use virtual sync is perhaps because TM
-     *        doesn't schedule regular TMCLOCK_VIRTUAL timers as accurately as it
-     *        should (VT-x preemption timer, etc).  Hope to address that before
-     *        long. @bugref{9943}. */
     static const char * const s_apszNames[] =
-    { "HDA SD0", "HDA SD1", "HDA SD2", "HDA SD3", "HDA SD4", "HDA SD5", "HDA SD6", "HDA SD7", };
+    {
+        "HDA SD0", "HDA SD1", "HDA SD2", "HDA SD3",
+        "HDA SD4", "HDA SD5", "HDA SD6", "HDA SD7",
+    };
     AssertCompile(RT_ELEMENTS(s_apszNames) == HDA_MAX_STREAMS);
     for (size_t i = 0; i < HDA_MAX_STREAMS; i++)
     {
         rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, hdaR3Timer, (void *)(uintptr_t)i,
-                                  TMTIMER_FLAGS_NO_CRIT_SECT | TMTIMER_FLAGS_RING0, s_apszNames[i], &pThis->aStreams[i].hTimer);
+                                  TMTIMER_FLAGS_NO_CRIT_SECT, s_apszNames[i], &pThis->aStreams[i].hTimer);
         AssertRCReturn(rc, rc);
 
         rc = PDMDevHlpTimerSetCritSect(pDevIns, pThis->aStreams[i].hTimer, &pThis->CritSect);

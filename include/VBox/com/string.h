@@ -1,10 +1,10 @@
-/* $Id: string.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: string.h $ */
 /** @file
  * MS COM / XPCOM Abstraction Layer - Smart string classes declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -172,83 +172,6 @@ public:
         return *this;
     }
 
-    /**
-     * Extended assignment method that returns a COM status code instead of an
-     * exception on failure.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   a_rSrcStr   The source string
-     */
-    HRESULT assignEx(const Bstr &a_rSrcStr) RT_NOEXCEPT
-    {
-        return cleanupAndCopyFromEx((const OLECHAR *)a_rSrcStr.m_bstr);
-    }
-
-    /**
-     * Extended assignment method that returns a COM status code instead of an
-     * exception on failure.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   a_pSrcStr   The source string
-     */
-    HRESULT assignEx(CBSTR a_pSrcStr) RT_NOEXCEPT
-    {
-        return cleanupAndCopyFromEx((const OLECHAR *)a_pSrcStr);
-    }
-
-    /**
-     * Assign the value of a RTCString/Utf8Str string, no exceptions.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   a_rSrcStr   The source string
-     */
-    HRESULT assignEx(RTCString const &a_rSrcStr) RT_NOEXCEPT
-    {
-        return cleanupAndCopyFromNoThrow(a_rSrcStr.c_str(), a_rSrcStr.length());
-    }
-
-    /**
-     * Assign the value of a RTCString/Utf8Str substring, no exceptions.
-     *
-     * @returns S_OK, E_OUTOFMEMORY or E_INVALIDARG.
-     * @param   a_rSrcStr   The source string
-     * @param   a_offSrc    The character (byte) offset of the substring.
-     * @param   a_cchSrc    The number of characters (bytes) to copy from the source
-     *                      string.
-     */
-    HRESULT assignEx(RTCString const &a_rSrcStr, size_t a_offSrc, size_t a_cchSrc) RT_NOEXCEPT
-    {
-        size_t const cchTmp = a_rSrcStr.length();
-        if (   a_offSrc + a_cchSrc < cchTmp
-            && a_offSrc < cchTmp)
-            return cleanupAndCopyFromNoThrow(a_rSrcStr.c_str() + a_offSrc, a_cchSrc);
-        return E_INVALIDARG;
-    }
-
-    /**
-     * Assign the value of a zero terminated UTF-8 string, no exceptions.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   a_pszSrcStr The source string.
-     */
-    HRESULT assignEx(const char *a_pszSrcStr) RT_NOEXCEPT
-    {
-        return cleanupAndCopyFromNoThrow(a_pszSrcStr, RTSTR_MAX);
-    }
-
-    /**
-     * Assign the value of a UTF-8 substring, no exceptions.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   a_pszSrcStr The source string.
-     * @param   a_cchSrc    The number of characters (bytes) to copy from the source
-     *                      string.
-     */
-    HRESULT assignEx(const char *a_pszSrcStr, size_t a_cchSrc) RT_NOEXCEPT
-    {
-        return cleanupAndCopyFromNoThrow(a_pszSrcStr, a_cchSrc);
-    }
-
 #ifdef _MSC_VER
 # if _MSC_VER >= 1400
     RTMEMEF_NEW_AND_DELETE_OPERATORS();
@@ -354,19 +277,6 @@ public:
      * @returns true if @a a_pThat equals this string.
      * @param   a_pThat    The native BSTR to compare with. */
     bool equalsIgnoreCase(BSTR a_pThat) const           { return compare(a_pThat, CaseInsensitive) == 0; }
-
-    /**
-     * Checks if the string starts with @a a_rStart.
-     */
-    bool startsWith(Bstr const &a_rStart) const;
-    /**
-     * Checks if the string starts with @a a_rStart.
-     */
-    bool startsWith(RTCString const &a_rStart) const;
-    /**
-     * Checks if the string starts with @a a_pszStart.
-     */
-    bool startsWith(const char *a_pszStart) const;
 
     /**
      * Returns true if the member string has no length.
@@ -750,52 +660,6 @@ public:
     Bstr &erase(size_t offStart = 0, size_t cwcLength = RTSTR_MAX) RT_NOEXCEPT;
 
 
-    /** @name BASE64 related methods
-     * @{ */
-    /**
-     * Encodes the given data as BASE64.
-     *
-     * @returns S_OK or E_OUTOFMEMORY.
-     * @param   pvData          Pointer to the data to encode.
-     * @param   cbData          Number of bytes to encode.
-     * @param   fLineBreaks     Whether to add line breaks (true) or just encode it
-     *                          as a continuous string.
-     * @sa RTBase64EncodeUtf16
-     */
-    HRESULT base64Encode(const void *pvData, size_t cbData, bool fLineBreaks = false);
-
-    /**
-     * Decodes the string as BASE64.
-     *
-     * @returns IPRT status code, see RTBase64DecodeUtf16Ex.
-     * @param   pvData          Where to return the decoded bytes.
-     * @param   cbData          Size of the @a pvData return buffer.
-     * @param   pcbActual       Where to return number of bytes actually decoded.
-     *                          This is optional and if not specified, the request
-     *                          will fail unless @a cbData matches the data size
-     *                          exactly.
-     * @param   ppwszEnd        Where to return pointer to the first non-base64
-     *                          character following the encoded data.  This is
-     *                          optional and if NULL, the request will fail if there
-     *                          are anything trailing the encoded bytes in the
-     *                          string.
-     * @sa base64DecodedSize, RTBase64DecodeUtf16
-     */
-    int base64Decode(void *pvData, size_t cbData, size_t *pcbActual = NULL, PRTUTF16 *ppwszEnd = NULL);
-
-    /**
-     * Determins the size of the BASE64 encoded data in the string.
-     *
-     * @returns The length in bytes. -1 if the encoding is bad.
-     *
-     * @param   ppwszEnd        If not NULL, this will point to the first char
-     *                          following the Base64 encoded text block. If
-     *                          NULL the entire string is assumed to be Base64.
-     * @sa      base64Decode, RTBase64DecodedUtf16Size
-     */
-    ssize_t base64DecodedSize(PRTUTF16 *ppwszEnd = NULL);
-    /** @} */
-
 #if defined(VBOX_WITH_XPCOM)
     /**
      *  Returns a pointer to the raw member UTF-16 string. If the member string is empty,
@@ -1041,20 +905,6 @@ protected:
     void cleanupAndCopyFrom(const OLECHAR *a_bstrSrc);
 
     /**
-     * Protected internal helper to copy a string, implying cleanup().
-     *
-     * This variant copies from a zero-terminated UTF-16 string (which need not be a
-     * BSTR, i.e. need not have a length prefix).
-     *
-     * If the source is empty, this sets the member string to NULL.
-     *
-     * @param   a_bstrSrc           The source string.  The caller guarantees
-     *                              that this is valid UTF-16.
-     * @returns S_OK or E_OUTOFMEMORY
-     */
-    HRESULT cleanupAndCopyFromEx(const OLECHAR *a_bstrSrc) RT_NOEXCEPT;
-
-    /**
      * Protected internal helper to copy a string. This ignores the previous object
      * state, so either call this from a constructor or call cleanup() first.
      *
@@ -1084,9 +934,6 @@ protected:
      * @throws  std::bad_alloc - the object is representing an empty string.
      */
     void copyFromN(const char *a_pszSrc, size_t a_cchSrc);
-
-    /** cleanup() + non-throwing copyFromN(). */
-    HRESULT cleanupAndCopyFromNoThrow(const char *a_pszSrc, size_t a_cchMax) RT_NOEXCEPT;
 
     Bstr   &appendWorkerUtf16(PCRTUTF16 pwszSrc, size_t cwcSrc);
     Bstr   &appendWorkerUtf8(const char *pszSrc, size_t cchSrc);
@@ -1296,7 +1143,13 @@ public:
      * @param   pbstr Where to store a clone of the string.
      * @returns S_OK or E_OUTOFMEMORY (COM status codes).
      */
-    HRESULT cloneToEx(BSTR *pbstr) const RT_NOEXCEPT;
+    HRESULT cloneToEx(BSTR *pbstr) const
+    {
+        if (!pbstr)
+            return S_OK;
+        Bstr bstr(*this);
+        return bstr.detachToEx(pbstr);
+    }
 
     /**
      * Safe assignment from BSTR.
@@ -1384,10 +1237,6 @@ protected:
  * @code
     Utf8StrFmt strName("program name = %s", argv[0]);
    @endcode
- *
- * @note    Do not use in assignments to Utf8Str variables.  Instead use
- *          RTCString::printf directly on the variable!  This avoid an extra
- *          temporary Utf8Str instance and assignment operation.
  */
 class Utf8StrFmt : public Utf8Str
 {

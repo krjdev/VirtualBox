@@ -1,10 +1,10 @@
-/* $Id: UIConverter.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIConverter.cpp $ */
 /** @file
  * VBox Qt GUI - UIConverter implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,15 +23,25 @@
 UIConverter* UIConverter::s_pInstance = 0;
 
 /* static */
-void UIConverter::create()
+void UIConverter::prepare()
 {
-    AssertReturnVoid(!s_pInstance);
-    new UIConverter;
+    /* Make sure instance WAS NOT created yet: */
+    if (s_pInstance)
+        return;
+
+    /* Prepare instance: */
+    s_pInstance = new UIConverter;
 }
 
 /* static */
-void UIConverter::destroy()
+void UIConverter::cleanup()
 {
-    AssertPtrReturnVoid(s_pInstance);
+    /* Make sure instance WAS NOT destroyed yet: */
+    if (!s_pInstance)
+        return;
+
+    /* Cleanup instance: */
     delete s_pInstance;
+    s_pInstance = 0;
 }
+

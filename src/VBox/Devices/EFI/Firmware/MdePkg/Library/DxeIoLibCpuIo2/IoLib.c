@@ -11,7 +11,7 @@
 #include "DxeCpuIo2LibInternal.h"
 
 //
-// Global variable to cache pointer to CpuIo2 protocol.
+// Globle varible to cache pointer to CpuIo2 protocol.
 //
 EFI_CPU_IO2_PROTOCOL  *mCpuIo = NULL;
 

@@ -1,10 +1,10 @@
-/* $Id: vboxmrxnp.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vboxmrxnp.cpp $ */
 /** @file
  * VirtualBox Windows Guest Shared Folders - Network provider dll
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1144,7 +1144,7 @@ DWORD APIENTRY NPGetResourceParent(LPNETRESOURCE pNetResource,
         || pLastSlash == pParent->lpRemoteName + 1)
     {
         /* It is a leading backslash. Construct "no parent" NETRESOURCE. */
-        NETRESOURCE *pNetResourceNP = (NETRESOURCE *)pBuffer;
+        NETRESOURCE *pNetResource = (NETRESOURCE *)pBuffer;
 
         cbEntry = sizeof(NETRESOURCE);
         cbEntry += sizeof(MRX_VBOX_PROVIDER_NAME_U); /* remote name */
@@ -1158,20 +1158,20 @@ DWORD APIENTRY NPGetResourceParent(LPNETRESOURCE pNetResource,
         }
         else
         {
-            memset (pNetResourceNP, 0, sizeof (*pNetResourceNP));
+            memset (pNetResource, 0, sizeof (*pNetResource));
 
-            pNetResourceNP->dwType = RESOURCETYPE_ANY;
-            pNetResourceNP->dwDisplayType = RESOURCEDISPLAYTYPE_NETWORK;
-            pNetResourceNP->dwUsage = RESOURCEUSAGE_CONTAINER;
+            pNetResource->dwType = RESOURCETYPE_ANY;
+            pNetResource->dwDisplayType = RESOURCEDISPLAYTYPE_NETWORK;
+            pNetResource->dwUsage = RESOURCEUSAGE_CONTAINER;
 
             WCHAR *pStrings = (WCHAR *)((PBYTE)pBuffer + *pBufferSize);
             pStrings = (PWCHAR)((PBYTE)pStrings - (cbEntry - sizeof(NETRESOURCE)));
 
-            pNetResourceNP->lpRemoteName = pStrings;
+            pNetResource->lpRemoteName = pStrings;
             CopyMemory (pStrings, MRX_VBOX_PROVIDER_NAME_U, sizeof(MRX_VBOX_PROVIDER_NAME_U));
             pStrings += sizeof(MRX_VBOX_PROVIDER_NAME_U) / sizeof(WCHAR);
 
-            pNetResourceNP->lpProvider = pStrings;
+            pNetResource->lpProvider = pStrings;
             CopyMemory (pStrings, MRX_VBOX_PROVIDER_NAME_U, sizeof(MRX_VBOX_PROVIDER_NAME_U));
             pStrings += sizeof(MRX_VBOX_PROVIDER_NAME_U) / sizeof(WCHAR);
 

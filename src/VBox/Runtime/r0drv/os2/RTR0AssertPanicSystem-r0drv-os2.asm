@@ -1,4 +1,4 @@
-; $Id: RTR0AssertPanicSystem-r0drv-os2.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: RTR0AssertPanicSystem-r0drv-os2.asm $
 ;; @file
 ; IPRT - RTR0AssertPanicSystem, Ring-0 Driver, OS/2.
 ;
@@ -6,7 +6,7 @@
 ;
 ; Contributed by knut st. osmundsen.
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;

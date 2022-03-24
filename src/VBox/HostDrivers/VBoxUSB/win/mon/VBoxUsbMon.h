@@ -1,9 +1,9 @@
-/* $Id: VBoxUsbMon.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxUsbMon.h $ */
 /** @file
  * VBox USB Monitor
  */
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,7 +59,7 @@ NTSTATUS VBoxUsbMonQueryBusRelations(PDEVICE_OBJECT pDevObj, PFILE_OBJECT pFileO
 
 void vboxUsbDbgPrintUnicodeString(PUNICODE_STRING pUnicodeString);
 
-typedef DECLCALLBACKTYPE(BOOLEAN, FNVBOXUSBMONDEVWALKER,(PFILE_OBJECT pHubFile, PDEVICE_OBJECT pHubDo, PVOID pvContext));
+typedef DECLCALLBACK(BOOLEAN) FNVBOXUSBMONDEVWALKER(PFILE_OBJECT pHubFile, PDEVICE_OBJECT pHubDo, PVOID pvContext);
 typedef FNVBOXUSBMONDEVWALKER *PFNVBOXUSBMONDEVWALKER;
 
 VOID vboxUsbMonHubDevWalk(PFNVBOXUSBMONDEVWALKER pfnWalker, PVOID pvWalker);

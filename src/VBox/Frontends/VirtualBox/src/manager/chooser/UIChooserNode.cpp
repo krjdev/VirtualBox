@@ -1,10 +1,10 @@
-/* $Id: UIChooserNode.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIChooserNode.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserNode class definition.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,5 +81,5 @@ void UIChooserNode::setDisabled(bool fDisabled)
         return;
     m_fDisabled = fDisabled;
     if (m_pItem)
-        m_pItem->setDisabledEffect(m_fDisabled);
+        m_pItem->disableEnableItem(m_fDisabled);
 }

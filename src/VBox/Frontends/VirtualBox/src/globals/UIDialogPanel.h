@@ -1,10 +1,10 @@
-/* $Id: UIDialogPanel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIDialogPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,7 +46,6 @@ public:
 signals:
 
     void sigHidePanel(UIDialogPanel *pPanel);
-    void sigShowPanel(UIDialogPanel *pPanel);
 
 protected:
 
@@ -58,12 +57,12 @@ protected:
     QHBoxLayout*               mainLayout();
 
     /** Handles the translation event. */
-    void retranslateUi() RT_OVERRIDE;
+    void retranslateUi() /* override */;
 
     /** Handles the Qt show @a pEvent. */
-    void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles the Qt hide @a pEvent. */
-    void hideEvent(QHideEvent *pEvent) RT_OVERRIDE;
+    void hideEvent(QHideEvent *pEvent) /* override */;
     void addVerticalSeparator();
 
 private:

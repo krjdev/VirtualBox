@@ -1,7 +1,7 @@
 /** @file
   MADT table parser
 
-  Copyright (c) 2016 - 2020, ARM Limited. All rights reserved.
+  Copyright (c) 2016 - 2019, ARM Limited. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Reference(s):
@@ -15,7 +15,6 @@
 #include <Library/UefiLib.h>
 #include "AcpiParser.h"
 #include "AcpiTableParser.h"
-#include "AcpiViewConfig.h"
 #include "MadtParser.h"
 
 // Local Variables
@@ -261,29 +260,28 @@ ParseAcpiMadt (
       PARSER_PARAMS (MadtInterruptControllerHeaderParser)
       );
 
-    // Check if the values used to control the parsing logic have been
-    // successfully read.
-    if ((MadtInterruptControllerType == NULL) ||
-        (MadtInterruptControllerLength == NULL)) {
+    // Make sure forward progress is made.
+    if (*MadtInterruptControllerLength < 2) {
       IncrementErrorCount ();
       Print (
-        L"ERROR: Insufficient remaining table buffer length to read the " \
-          L"Interrupt Controller Structure header. Length = %d.\n",
-        AcpiTableLength - Offset
+        L"ERROR: Structure length is too small: " \
+          L"MadtInterruptControllerLength = %d. " \
+          L"MadtInterruptControllerType = %d. MADT parsing aborted.\n",
+        *MadtInterruptControllerLength,
+        *MadtInterruptControllerType
         );
       return;
     }
 
-    // Validate Interrupt Controller Structure length
-    if ((*MadtInterruptControllerLength == 0) ||
-        ((Offset + (*MadtInterruptControllerLength)) > AcpiTableLength)) {
+    // Make sure the MADT structure lies inside the table
+    if ((Offset + *MadtInterruptControllerLength) > AcpiTableLength) {
       IncrementErrorCount ();
       Print (
-        L"ERROR: Invalid Interrupt Controller Structure length. " \
-          L"Length = %d. Offset = %d. AcpiTableLength = %d.\n",
+        L"ERROR: Invalid MADT structure length. " \
+          L"MadtInterruptControllerLength = %d. " \
+          L"RemainingTableBufferLength = %d. MADT parsing aborted.\n",
         *MadtInterruptControllerLength,
-        Offset,
-        AcpiTableLength
+        AcpiTableLength - Offset
         );
       return;
     }

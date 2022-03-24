@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-storageattach</refname>
     <refpurpose>attach, remove, and modify storage media used by a virtual machine</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -257,7 +257,7 @@
             the medium unusable or lead to broken VM configurations if
             another VM already refers to the same medium.
           </para><para>
-            Using the <option>--setuuid=""</option> option
+            Using the <option>--setuuid=&ldquo;&rdquo;</option> option
             assigns a new random UUID to an image, which can resolve
             duplicate UUID errors if you used a file copy utility to
             duplicate an image.

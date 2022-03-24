@@ -1,10 +1,10 @@
-; $Id: ASMSerializeInstruction-cpuid.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMSerializeInstruction-cpuid.asm $
 ;; @file
 ; IPRT - ASMSerializeInstruction() using cpuid.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,16 +34,16 @@ BEGINCODE
 
 
 ;;
-; Executes a serializing instruction.
+; Executes a seralizing instruction.
 ;
 ; The CPUID instruction isn't fast or slow, but it always triggers a VM EXIT in
 ; a virtualized environment, which is prohibitively expensive.
 ;
-RT_BEGINPROC    ASMSerializeInstructionCpuId
+BEGINPROC_EXPORTED ASMSerializeInstructionCpuId
         push    xBX
         xor     eax, eax
         cpuid
         pop     xBX
         ret
-ENDPROC         ASMSerializeInstructionCpuId
+ENDPROC            ASMSerializeInstructionCpuId
 

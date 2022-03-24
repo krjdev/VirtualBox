@@ -1,10 +1,10 @@
-/* $Id: RTLocaleQueryNormalizedBaseLocaleName-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTLocaleQueryNormalizedBaseLocaleName-win.cpp $ */
 /** @file
  * IPRT - RTLocaleQueryNormalizedBaseLocaleName, ring-3, Windows.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

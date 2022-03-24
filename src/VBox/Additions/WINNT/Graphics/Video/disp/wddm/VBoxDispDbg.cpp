@@ -1,10 +1,10 @@
-/* $Id: VBoxDispDbg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDispDbg.cpp $ */
 /** @file
  * VBoxVideo Display D3D User mode dll
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,7 +50,7 @@ char *vboxVDbgDoGetModuleName()
 
 static void vboxDispLogDbgFormatStringV(char * szBuffer, uint32_t cbBuffer, const char * szString, va_list pArgList)
 {
-    uint32_t cbWritten = sprintf(szBuffer, "['%s' 0x%lx.0x%lx] Disp: ", vboxVDbgDoGetModuleName(), GetCurrentProcessId(), GetCurrentThreadId());
+    uint32_t cbWritten = sprintf(szBuffer, "['%s' 0x%x.0x%x] Disp: ", vboxVDbgDoGetModuleName(), GetCurrentProcessId(), GetCurrentThreadId());
     if (cbWritten > cbBuffer)
     {
         AssertReleaseFailed();
@@ -132,7 +132,7 @@ typedef struct VBOXVDBG_DUMP_INFO
     const RECT *pRect;
 } VBOXVDBG_DUMP_INFO, *PVBOXVDBG_DUMP_INFO;
 
-typedef DECLCALLBACKTYPE(void, FNVBOXVDBG_CONTENTS_DUMPER,(PVBOXVDBG_DUMP_INFO pInfo, BOOLEAN fBreak, void *pvDumper));
+typedef DECLCALLBACK(void) FNVBOXVDBG_CONTENTS_DUMPER(PVBOXVDBG_DUMP_INFO pInfo, BOOLEAN fBreak, void *pvDumper);
 typedef FNVBOXVDBG_CONTENTS_DUMPER *PFNVBOXVDBG_CONTENTS_DUMPER;
 
 static VOID vboxVDbgDoDumpSummary(const char * pPrefix, PVBOXVDBG_DUMP_INFO pInfo, const char * pSuffix)
@@ -141,7 +141,7 @@ static VOID vboxVDbgDoDumpSummary(const char * pPrefix, PVBOXVDBG_DUMP_INFO pInf
     IDirect3DResource9 *pD3DRc = pInfo->pD3DRc;
     char rectBuf[24];
     if (pInfo->pRect)
-        _snprintf(rectBuf, sizeof(rectBuf) / sizeof(rectBuf[0]), "(%ld:%ld);(%ld:%ld)",
+        _snprintf(rectBuf, sizeof(rectBuf) / sizeof(rectBuf[0]), "(%d:%d);(%d:%d)",
                 pInfo->pRect->left, pInfo->pRect->top,
                 pInfo->pRect->right, pInfo->pRect->bottom);
     else
@@ -587,7 +587,7 @@ void vboxVDbgDoPrintRect(const char * pPrefix, const RECT *pRect, const char * p
     vboxVDbgPrint(("%s left(%d), top(%d), right(%d), bottom(%d) %s", pPrefix, pRect->left, pRect->top, pRect->right, pRect->bottom, pSuffix));
 }
 
-static VOID CALLBACK vboxVDbgTimerCb(__in PVOID lpParameter, __in BOOLEAN TimerOrWaitFired) RT_NOTHROW_DEF
+static VOID CALLBACK vboxVDbgTimerCb(__in PVOID lpParameter, __in BOOLEAN TimerOrWaitFired)
 {
     RT_NOREF(lpParameter, TimerOrWaitFired);
     Assert(0);
@@ -687,7 +687,7 @@ static bool vboxVDbgIsExceptionIgnored(PEXCEPTION_RECORD pExceptionRecord)
     return false;
 }
 
-static LONG WINAPI vboxVDbgVectoredHandler(struct _EXCEPTION_POINTERS *pExceptionInfo) RT_NOTHROW_DEF
+LONG WINAPI vboxVDbgVectoredHandler(struct _EXCEPTION_POINTERS *pExceptionInfo)
 {
     static volatile bool g_fAllowIgnore = true; /* Might be changed in kernel debugger. */
 
@@ -720,7 +720,7 @@ static LONG WINAPI vboxVDbgVectoredHandler(struct _EXCEPTION_POINTERS *pExceptio
 void vboxVDbgVEHandlerRegister()
 {
     Assert(!g_VBoxWDbgVEHandler);
-    g_VBoxWDbgVEHandler = AddVectoredExceptionHandler(1, vboxVDbgVectoredHandler);
+    g_VBoxWDbgVEHandler = AddVectoredExceptionHandler(1,vboxVDbgVectoredHandler);
     Assert(g_VBoxWDbgVEHandler);
 
     g_hModPsapi = GetModuleHandleA("Psapi.dll"); /* Usually already loaded. */

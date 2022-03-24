@@ -1,10 +1,10 @@
-/* $Id: VBoxBs2Linker.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxBs2Linker.cpp $ */
 /** @file
  * VirtualBox Validation Kit - Boot Sector 2 "linker".
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
                     }
 
                     case 'V':
-                        printf("%s\n", "$Revision: 93115 $");
+                        printf("%s\n", "$Revision: 135976 $");
                         free(papszInputs);
                         return 0;
 

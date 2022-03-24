@@ -1,10 +1,10 @@
-/* $Id: NetIf-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NetIf-generic.cpp $ */
 /** @file
  * VirtualBox Main - Generic NetIf implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,14 +38,10 @@
 #include "HostNetworkInterfaceImpl.h"
 #include "ProgressImpl.h"
 #include "VirtualBoxImpl.h"
-#include "VBoxNls.h"
 #include "Global.h"
 #include "netif.h"
 
 #define VBOXNETADPCTL_NAME "VBoxNetAdpCtl"
-
-DECLARE_TRANSLATION_CONTEXT(NetIfGeneric);
-
 
 static int NetIfAdpCtl(const char * pcszIfName, const char *pszAddr, const char *pszOption, const char *pszMask)
 {
@@ -207,7 +203,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
     if (SUCCEEDED(hrc))
     {
         hrc = progress->init(pVirtualBox, host,
-                             NetIfGeneric::tr("Creating host only network interface"),
+                             "Creating host only network interface",
                              FALSE /* aCancelable */);
         if (SUCCEEDED(hrc))
         {
@@ -220,7 +216,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
                 progress->i_notifyComplete(E_FAIL,
                                            COM_IIDOF(IHostNetworkInterface),
                                            HostNetworkInterface::getStaticComponentName(),
-                                           NetIfGeneric::tr("Failed to get program path, vrc=%Rrc\n"), vrc);
+                                           "Failed to get program path, vrc=%Rrc\n", vrc);
                 return vrc;
             }
             strcat(szAdpCtl, "/" VBOXNETADPCTL_NAME " ");
@@ -269,8 +265,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
                             progress->i_notifyComplete(E_FAIL,
                                                        COM_IIDOF(IHostNetworkInterface),
                                                        HostNetworkInterface::getStaticComponentName(),
-                                                       NetIfGeneric::tr("Failed to get config info for %s (as reported by 'VBoxNetAdpCtl add')\n"),
-                                                       szBuf);
+                                                       "Failed to get config info for %s (as reported by '" VBOXNETADPCTL_NAME " add')\n", szBuf);
                         }
                         else
                         {
@@ -289,7 +284,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
                         progress->i_notifyComplete(E_FAIL,
                                                    COM_IIDOF(IHostNetworkInterface),
                                                    HostNetworkInterface::getStaticComponentName(),
-                                                   NetIfGeneric::tr("Failed to execute '%s' - exit status: %d"), szAdpCtl, vrc);
+                                                   "Failed to execute '%s' - exit status: %d", szAdpCtl, vrc);
                         vrc = VERR_INTERNAL_ERROR;
                     }
                 }
@@ -299,7 +294,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
                     progress->i_notifyComplete(E_FAIL,
                                                COM_IIDOF(IHostNetworkInterface),
                                                HostNetworkInterface::getStaticComponentName(),
-                                               NetIfGeneric::tr("Failed to execute '%s' (errno %d). Check permissions!"),
+                                               "Failed to execute '%s' (errno %d). Check permissions!",
                                                szAdpCtl, errno);
                     pclose(fp);
                     vrc = VERR_PERMISSION_DENIED;
@@ -311,7 +306,7 @@ int NetIfCreateHostOnlyNetworkInterface(VirtualBox *pVirtualBox,
                 progress->i_notifyComplete(E_FAIL,
                                            COM_IIDOF(IHostNetworkInterface),
                                            HostNetworkInterface::getStaticComponentName(),
-                                           NetIfGeneric::tr("Failed to execute '%s' (errno %d / %Rrc). Check permissions!"),
+                                           "Failed to execute '%s' (errno %d / %Rrc). Check permissions!",
                                            szAdpCtl, errno, vrc);
             }
             if (RT_SUCCESS(vrc))
@@ -356,7 +351,7 @@ int NetIfRemoveHostOnlyNetworkInterface(VirtualBox *pVirtualBox, const Guid &aId
             return VERR_INTERNAL_ERROR;
         Utf8Str strIfName(ifname);
 
-        hrc = progress->init(pVirtualBox, host, NetIfGeneric::tr("Removing host network interface"), FALSE /* aCancelable */);
+        hrc = progress->init(pVirtualBox, host, "Removing host network interface", FALSE /* aCancelable */);
         if (SUCCEEDED(hrc))
         {
             progress.queryInterfaceTo(aProgress);
@@ -365,7 +360,7 @@ int NetIfRemoveHostOnlyNetworkInterface(VirtualBox *pVirtualBox, const Guid &aId
                 progress->i_notifyComplete(E_FAIL,
                                            COM_IIDOF(IHostNetworkInterface),
                                            HostNetworkInterface::getStaticComponentName(),
-                                           NetIfGeneric::tr("Failed to execute 'VBoxNetAdpCtl %s remove' (%Rrc)"),
+                                           "Failed to execute '" VBOXNETADPCTL_NAME " %s remove' (%Rrc)",
                                            strIfName.c_str(), vrc);
             else
                 progress->i_notifyComplete(S_OK);

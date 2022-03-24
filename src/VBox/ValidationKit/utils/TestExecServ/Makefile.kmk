@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # VirtualBox Validation Kit - The Basic Remote Execution Service.
 #
 
 #
-# Copyright (C) 2010-2022 Oracle Corporation
+# Copyright (C) 2010-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -30,21 +30,15 @@ include $(KBUILD_PATH)/subheader.kmk
 
 PROGRAMS += TestExecService
 TestExecService_TEMPLATE = VBoxValidationKitR3
-ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-TestExecService_DEFS = \
-	KBUILD_TARGET="$(KBUILD_TARGET)" \
-	KBUILD_TARGET_ARCH="$(KBUILD_TARGET_ARCH)"
-else
 TestExecService_DEFS = \
 	KBUILD_TARGET=\"$(KBUILD_TARGET)\" \
 	KBUILD_TARGET_ARCH=\"$(KBUILD_TARGET_ARCH)\"
-endif
 TestExecService_SOURCES = \
 	TestExecService.cpp \
 	TestExecServiceTcp.cpp
 
 ifn1of ($(KBUILD_TARGET), os2)
-TestExecService_SOURCES += \
+ TestExecService_SOURCES += \
  	TestExecServiceSerial.cpp
 endif
 

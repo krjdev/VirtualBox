@@ -1,10 +1,10 @@
-/* $Id: DrvAcpiCpu.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvAcpiCpu.cpp $ */
 /** @file
  * DrvAcpiCpu - ACPI CPU dummy driver for hotplugging.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -47,7 +47,7 @@ static DECLCALLBACK(void *) drvACPICpuQueryInterface(PPDMIBASE pInterface, const
  */
 static DECLCALLBACK(int) drvACPICpuConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    RT_NOREF(pCfg, fFlags);
+    RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
@@ -59,7 +59,8 @@ static DECLCALLBACK(int) drvACPICpuConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "", "");
+    if (!CFGMR3AreValuesValid(pCfg, "\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
 
     /*
      * Check that no-one is attached to us.

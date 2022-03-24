@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-hostonlyif" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-13 21:47:36 +0100 (So, 13. Mär 2022) $</pubdate>
+    <pubdate>September 2019</pubdate>
     <title>VBoxManage hostonlyif</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-hostonlyif</refname>
     <refpurpose>manage host-only network interfaces</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>

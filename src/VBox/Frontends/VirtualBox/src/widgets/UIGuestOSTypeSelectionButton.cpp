@@ -1,10 +1,10 @@
-/* $Id: UIGuestOSTypeSelectionButton.cpp 94044 2022-03-01 14:56:01Z vboxsync $ */
+/* $Id: UIGuestOSTypeSelectionButton.cpp $ */
 /** @file
  * VBox Qt GUI - UIGuestOSTypeSelectionButton class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,6 @@
 /* GUI includes */
 #include "UICommon.h"
 #include "UIGuestOSTypeSelectionButton.h"
-#include "UIIconPool.h"
 
 
 UIGuestOSTypeSelectionButton::UIGuestOSTypeSelectionButton(QWidget *pParent)
@@ -41,13 +40,8 @@ UIGuestOSTypeSelectionButton::UIGuestOSTypeSelectionButton(QWidget *pParent)
      * every single menu activation ourself: */
     m_pSignalMapper = new QSignalMapper(this);
     if (m_pSignalMapper)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
-        connect(m_pSignalMapper, static_cast<void(QSignalMapper::*)(const QString &)>(&QSignalMapper::mappedString),
-                this, &UIGuestOSTypeSelectionButton::setOSTypeId);
-#else
         connect(m_pSignalMapper, static_cast<void(QSignalMapper::*)(const QString &)>(&QSignalMapper::mapped),
                 this, &UIGuestOSTypeSelectionButton::setOSTypeId);
-#endif
 
     /* Create main menu: */
     m_pMainMenu = new QMenu(pParent);
@@ -70,7 +64,7 @@ void UIGuestOSTypeSelectionButton::setOSTypeId(const QString &strOSTypeId)
 
 #ifndef VBOX_WS_MAC
     /* Looks ugly on the Mac: */
-    setIcon(generalIconPool().guestOSTypePixmapDefault(enmType.GetId()));
+    setIcon(uiCommon().vmGuestOSTypePixmapDefault(enmType.GetId()));
 #endif
 
     setText(enmType.GetDescription());
@@ -92,7 +86,7 @@ void UIGuestOSTypeSelectionButton::populateMenu()
         QMenu *pSubMenu = m_pMainMenu->addMenu(uiCommon().vmGuestOSFamilyDescription(strFamilyId));
         foreach (const CGuestOSType &comType, uiCommon().vmGuestOSTypeList(strFamilyId))
         {
-            QAction *pAction = pSubMenu->addAction(generalIconPool().guestOSTypePixmapDefault(comType.GetId()),
+            QAction *pAction = pSubMenu->addAction(uiCommon().vmGuestOSTypePixmapDefault(comType.GetId()),
                                                    comType.GetDescription());
             connect(pAction, &QAction::triggered,
                     m_pSignalMapper, static_cast<void(QSignalMapper::*)(void)>(&QSignalMapper::map));

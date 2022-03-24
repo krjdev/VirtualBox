@@ -1,10 +1,10 @@
-/** $Id: clipboard.cpp 93505 2022-01-31 16:38:49Z vboxsync $ */
+/** $Id: clipboard.cpp $ */
 /** @file
  * Guest Additions - X11 Shared Clipboard.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,6 @@
 
 #include "VBoxClient.h"
 
-#include "clipboard.h"
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
 # include "clipboard-fuse.h"
 #endif
@@ -50,38 +49,68 @@
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
 
-/** Only one context is supported at a time for now. */
-SHCLCONTEXT g_Ctx;
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
-SHCLFUSECTX g_FuseCtx;
-#endif
-
-
-static DECLCALLBACK(int) vbclOnRequestDataFromSourceCallback(PSHCLCONTEXT pCtx,
-                                                             SHCLFORMAT uFmt, void **ppv, uint32_t *pcb, void *pvUser)
+typedef struct _SHCLCTXFUSE
 {
-    RT_NOREF(pvUser);
+    RTTHREAD Thread;
+} SHCLCTXFUSE;
+#endif /* VBOX_WITH_SHARED_CLIPBOARD_FUSE */
 
-    LogFlowFunc(("pCtx=%p, uFmt=%#x\n", pCtx, uFmt));
+/**
+ * Global clipboard context information.
+ */
+struct SHCLCONTEXT
+{
+    /** Client command context */
+    VBGLR3SHCLCMDCTX CmdCtx;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    /** Associated transfer data. */
+    SHCLTRANSFERCTX  TransferCtx;
+# ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
+    SHCLCTXFUSE      FUSE;
+# endif
+#endif
+    /** X11 clipboard context. */
+    SHCLX11CTX       X11;
+};
+
+/** Only one client is supported. There seems to be no need for more clients. */
+static SHCLCONTEXT g_Ctx;
+
+
+/**
+ * Callback implementation for getting clipboard data from the host.
+ *
+ * @returns VBox status code. VERR_NO_DATA if no data available.
+ * @param   pCtx                Our context information.
+ * @param   Format              The format of the data being requested.
+ * @param   ppv                 On success and if pcb > 0, this will point to a buffer
+ *                              to be freed with RTMemFree containing the data read.
+ * @param   pcb                 On success, this contains the number of bytes of data returned.
+ */
+DECLCALLBACK(int) ShClX11RequestDataForX11Callback(PSHCLCONTEXT pCtx, SHCLFORMAT Format, void **ppv, uint32_t *pcb)
+{
+    RT_NOREF(pCtx);
+
+    LogFlowFunc(("Format=0x%x\n", Format));
 
     int rc = VINF_SUCCESS;
 
+    uint32_t cbRead = 0;
+
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
-    if (uFmt == VBOX_SHCL_FMT_URI_LIST)
+    if (Format == VBOX_SHCL_FMT_URI_LIST)
     {
         //rc = VbglR3ClipboardRootListRead()
-        rc = VERR_NO_DATA;
     }
     else
 #endif
     {
-        uint32_t cbRead = 0;
-
         uint32_t cbData = _4K; /** @todo Make this dynamic. */
         void    *pvData = RTMemAlloc(cbData);
         if (pvData)
         {
-            rc = VbglR3ClipboardReadDataEx(&pCtx->CmdCtx, uFmt, pvData, cbData, &cbRead);
+            rc = VbglR3ClipboardReadDataEx(&pCtx->CmdCtx, Format, pvData, cbData, &cbRead);
         }
         else
             rc = VERR_NO_MEMORY;
@@ -99,7 +128,7 @@ static DECLCALLBACK(int) vbclOnRequestDataFromSourceCallback(PSHCLCONTEXT pCtx,
             pvData = RTMemRealloc(pvData, cbRead);
             if (pvData)
             {
-                rc = VbglR3ClipboardReadDataEx(&pCtx->CmdCtx, uFmt, pvData, cbData, &cbRead);
+                rc = VbglR3ClipboardReadDataEx(&pCtx->CmdCtx, Format, pvData, cbData, &cbRead);
                 if (rc == VINF_BUFFER_OVERFLOW)
                     rc = VERR_BUFFER_OVERFLOW;
             }
@@ -127,9 +156,6 @@ static DECLCALLBACK(int) vbclOnRequestDataFromSourceCallback(PSHCLCONTEXT pCtx,
         }
     }
 
-    if (RT_FAILURE(rc))
-        LogRel(("Requesting data in format %#x from host failed with %Rrc\n", uFmt, rc));
-
     LogFlowFuncLeaveRC(rc);
     return rc;
 }
@@ -142,36 +168,49 @@ static DECLCALLBACK(int) vbclOnRequestDataFromSourceCallback(PSHCLCONTEXT pCtx,
 struct CLIPREADCBREQ
 {
     /** The data format that was requested. */
-    SHCLFORMAT uFmt;
+    SHCLFORMAT Format;
 };
 
-static DECLCALLBACK(int) vbclReportFormatsCallback(PSHCLCONTEXT pCtx, uint32_t fFormats, void *pvUser)
+/**
+ * Tell the host that new clipboard formats are available.
+ *
+ * @param   pCtx            Our context information.
+ * @param   fFormats        The formats to report.
+ */
+DECLCALLBACK(void) ShClX11ReportFormatsCallback(PSHCLCONTEXT pCtx, SHCLFORMATS fFormats)
 {
-    RT_NOREF(pvUser);
+    RT_NOREF(pCtx);
 
-    LogFlowFunc(("fFormats=%#x\n", fFormats));
+    LogFlowFunc(("Formats=0x%x\n", fFormats));
 
-    int rc = VbglR3ClipboardReportFormats(pCtx->CmdCtx.idClient, fFormats);
-    LogFlowFuncLeaveRC(rc);
-
-    return rc;
+    int rc2 = VbglR3ClipboardReportFormats(pCtx->CmdCtx.idClient, fFormats);
+    RT_NOREF(rc2);
+    LogFlowFuncLeaveRC(rc2);
 }
 
-static DECLCALLBACK(int) vbclOnSendDataToDestCallback(PSHCLCONTEXT pCtx, void *pv, uint32_t cb, void *pvUser)
+/**
+ * This is called by the backend to tell us that a request for data from
+ * X11 has completed.
+ *
+ * @param  pCtx                 Our context information.
+ * @param  rcCompletion         The completion status of the request.
+ * @param  pReq                 The request structure that we passed in when we started
+ *                              the request.  We RTMemFree() this in this function.
+ * @param  pv                   The clipboard data returned from X11 if the request succeeded (see @a rc).
+ * @param  cb                   The size of the data in @a pv.
+ */
+DECLCALLBACK(void) ShClX11RequestFromX11CompleteCallback(PSHCLCONTEXT pCtx,
+                                                         int rcCompletion, CLIPREADCBREQ *pReq, void *pv, uint32_t cb)
 {
-    PSHCLX11READDATAREQ pData = (PSHCLX11READDATAREQ)pvUser;
-    AssertPtrReturn(pData, VERR_INVALID_POINTER);
-
-    LogFlowFunc(("rcCompletion=%Rrc, Format=0x%x, pv=%p, cb=%RU32\n", pData->rcCompletion, pData->pReq->uFmt, pv, cb));
+    LogFlowFunc(("rcCompletion=%Rrc, Format=0x%x, pv=%p, cb=%RU32\n", rcCompletion, pReq->Format, pv, cb));
+    RT_NOREF(rcCompletion);
 
     Assert((cb == 0 && pv == NULL) || (cb != 0 && pv != NULL));
-    pData->rcCompletion = VbglR3ClipboardWriteDataEx(&pCtx->CmdCtx, pData->pReq->uFmt, pv, cb);
+    rcCompletion = VbglR3ClipboardWriteDataEx(&pCtx->CmdCtx, pReq->Format, pv, cb);
 
-    RTMemFree(pData->pReq);
+    RTMemFree(pReq);
 
-    LogFlowFuncLeaveRC(pData->rcCompletion);
-
-    return VINF_SUCCESS;
+    LogFlowFuncLeaveRC(rcCompletion);
 }
 
 /**
@@ -183,13 +222,7 @@ static int vboxClipboardConnect(void)
 {
     LogFlowFuncEnter();
 
-    SHCLCALLBACKS Callbacks;
-    RT_ZERO(Callbacks);
-    Callbacks.pfnReportFormats           = vbclReportFormatsCallback;
-    Callbacks.pfnOnRequestDataFromSource = vbclOnRequestDataFromSourceCallback;
-    Callbacks.pfnOnSendDataToDest        = vbclOnSendDataToDestCallback;
-
-    int rc = ShClX11Init(&g_Ctx.X11, &Callbacks, &g_Ctx, false /* fHeadless */);
+    int rc = ShClX11Init(&g_Ctx.X11, &g_Ctx, false /* fHeadless */);
     if (RT_SUCCESS(rc))
     {
         rc = ShClX11ThreadStart(&g_Ctx.X11, false /* grab */);
@@ -220,6 +253,8 @@ static int vboxClipboardConnect(void)
  */
 int vboxClipboardMain(void)
 {
+    LogRel(("Worker loop running\n"));
+
     int rc;
 
     PSHCLCONTEXT pCtx = &g_Ctx;
@@ -281,8 +316,8 @@ int vboxClipboardMain(void)
                     pReq = (CLIPREADCBREQ *)RTMemAllocZ(sizeof(CLIPREADCBREQ));
                     if (pReq)
                     {
-                        pReq->uFmt = pEvent->u.fReadData;
-                        ShClX11ReadDataFromX11(&g_Ctx.X11, pReq->uFmt, pReq);
+                        pReq->Format = pEvent->u.fReadData;
+                        ShClX11ReadDataFromX11(&g_Ctx.X11, pReq->Format, pReq);
                     }
                     else
                         rc = VERR_NO_MEMORY;
@@ -291,7 +326,7 @@ int vboxClipboardMain(void)
 
                 case VBGLR3CLIPBOARDEVENTTYPE_QUIT:
                 {
-                    VBClLogVerbose(2, "Host requested termination\n");
+                    LogRel2(("Host requested termination\n"));
                     fShutdown = true;
                     break;
                 }
@@ -328,15 +363,96 @@ int vboxClipboardMain(void)
             break;
     }
 
+    LogRel(("Worker loop ended\n"));
+
     LogFlowFuncLeaveRC(rc);
     return rc;
 }
 
-/**
- * @interface_method_impl{VBCLSERVICE,pfnInit}
- */
-static DECLCALLBACK(int) vbclShClInit(void)
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
+static DECLCALLBACK(int) vboxClipoardFUSEThread(RTTHREAD hThreadSelf, void *pvUser)
 {
+    RT_NOREF(hThreadSelf, pvUser);
+
+    VbglR3Init();
+
+    LogFlowFuncEnter();
+
+    RTThreadUserSignal(hThreadSelf);
+
+    SHCL_FUSE_OPTS Opts;
+    RT_ZERO(Opts);
+
+    Opts.fForeground     = true;
+    Opts.fSingleThreaded = false; /** @todo Do we want multithread here? */
+
+    int rc = RTPathTemp(Opts.szMountPoint, sizeof(Opts.szMountPoint));
+    if (RT_SUCCESS(rc))
+    {
+        rc = RTPathAppend(Opts.szMountPoint, sizeof(Opts.szMountPoint), "VBoxSharedClipboard");
+        if (RT_SUCCESS(rc))
+        {
+            rc = RTDirCreate(Opts.szMountPoint, 0700,
+                             RTDIRCREATE_FLAGS_NO_SYMLINKS);
+            if (rc == VERR_ALREADY_EXISTS)
+                rc = VINF_SUCCESS;
+        }
+    }
+
+    if (RT_SUCCESS(rc))
+    {
+        rc = ShClFuseMain(&Opts);
+    }
+    else
+        LogRel(("Error creating FUSE mount directory, rc=%Rrc\n", rc));
+
+    LogFlowFuncLeaveRC(rc);
+    return rc;
+}
+
+static int vboxClipboardFUSEStart()
+{
+    LogFlowFuncEnter();
+
+    PSHCLCONTEXT pCtx = &g_Ctx;
+
+    int rc = RTThreadCreate(&pCtx->FUSE.Thread, vboxClipoardFUSEThread, &pCtx->FUSE, 0,
+                            RTTHREADTYPE_IO, RTTHREADFLAGS_WAITABLE, "SHCLFUSE");
+    if (RT_SUCCESS(rc))
+        rc = RTThreadUserWait(pCtx->FUSE.Thread, 30 * 1000);
+
+    LogFlowFuncLeaveRC(rc);
+    return rc;
+}
+
+static int vboxClipboardFUSEStop()
+{
+    LogFlowFuncEnter();
+
+    PSHCLCONTEXT pCtx = &g_Ctx;
+
+    int rcThread;
+    int rc = RTThreadWait(pCtx->FUSE.Thread, 1000, &rcThread);
+
+    LogFlowFuncLeaveRC(rc);
+    return rc;
+}
+#endif /* VBOX_WITH_SHARED_CLIPBOARD_FUSE */
+
+static const char *getName()
+{
+    return "Shared Clipboard";
+}
+
+static const char *getPidFilePath()
+{
+    return ".vboxclient-clipboard.pid";
+}
+
+static int init(struct VBCLSERVICE **pSelf)
+{
+    RT_NOREF(pSelf);
+
     int rc;
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
@@ -349,35 +465,25 @@ static DECLCALLBACK(int) vbclShClInit(void)
     return rc;
 }
 
-/**
- * @interface_method_impl{VBCLSERVICE,pfnWorker}
- */
-static DECLCALLBACK(int) vbclShClWorker(bool volatile *pfShutdown)
+static int run(struct VBCLSERVICE **ppInterface, bool fDaemonised)
 {
-    RT_NOREF(pfShutdown);
+    RT_NOREF(ppInterface, fDaemonised);
 
     /* Initialise the guest library. */
     int rc = vboxClipboardConnect();
     if (RT_SUCCESS(rc))
     {
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
-        rc = VbClShClFUSEInit(&g_FuseCtx, &g_Ctx);
+        rc = vboxClipboardFUSEStart();
         if (RT_SUCCESS(rc))
         {
-            rc = VbClShClFUSEStart(&g_FuseCtx);
-            if (RT_SUCCESS(rc))
-            {
 #endif
-                /* Let the main thread know that it can continue spawning services. */
-                RTThreadUserSignal(RTThreadSelf());
-
-                rc = vboxClipboardMain();
+            rc = vboxClipboardMain();
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_FUSE
-                int rc2 = VbClShClFUSEStop(&g_FuseCtx);
-                if (RT_SUCCESS(rc))
-                    rc = rc2;
-            }
+            int rc2 = vboxClipboardFUSEStop();
+            if (RT_SUCCESS(rc))
+                rc = rc2;
         }
 #endif
     }
@@ -391,40 +497,36 @@ static DECLCALLBACK(int) vbclShClWorker(bool volatile *pfShutdown)
     return rc;
 }
 
-/**
- * @interface_method_impl{VBCLSERVICE,pfnStop}
- */
-static DECLCALLBACK(void) vbclShClStop(void)
+static void cleanup(struct VBCLSERVICE **ppInterface)
 {
-    /* Disconnect from the host service.
-     * This will also send a VBOX_SHCL_HOST_MSG_QUIT from the host so that we can break out from our message worker. */
-    VbglR3ClipboardDisconnect(g_Ctx.CmdCtx.idClient);
-    g_Ctx.CmdCtx.idClient = 0;
-}
+    RT_NOREF(ppInterface);
 
-/**
- * @interface_method_impl{VBCLSERVICE,pfnTerm}
- */
-static DECLCALLBACK(int) vbclShClTerm(void)
-{
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
     ShClTransferCtxDestroy(&g_Ctx.TransferCtx);
 #endif
-
-    return VINF_SUCCESS;
 }
 
-VBCLSERVICE g_SvcClipboard =
+struct VBCLSERVICE vbclClipboardInterface =
 {
-    "shcl",                      /* szName */
-    "Shared Clipboard",          /* pszDescription */
-    ".vboxclient-clipboard.pid", /* pszPidFilePath */
-    NULL,                        /* pszUsage */
-    NULL,                        /* pszOptions */
-    NULL,                        /* pfnOption */
-    vbclShClInit,                /* pfnInit */
-    vbclShClWorker,              /* pfnWorker */
-    vbclShClStop,                /* pfnStop*/
-    vbclShClTerm                 /* pfnTerm */
+    getName,
+    getPidFilePath,
+    init,
+    run,
+    cleanup
 };
 
+struct CLIPBOARDSERVICE
+{
+    struct VBCLSERVICE *pInterface;
+};
+
+struct VBCLSERVICE **VBClGetClipboardService(void)
+{
+    struct CLIPBOARDSERVICE *pService =
+        (struct CLIPBOARDSERVICE *)RTMemAlloc(sizeof(*pService));
+
+    if (!pService)
+        VBClLogFatalError("Out of memory\n");
+    pService->pInterface = &vbclClipboardInterface;
+    return &pService->pInterface;
+}

@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsProxy.h 94251 2022-03-15 17:55:39Z vboxsync $ */
+/* $Id: UIGlobalSettingsProxy.h $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsProxy class declaration.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,15 +23,16 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIGlobalSettingsProxy.gen.h"
 #include "VBoxUtils.h"
 
 /* Forward declarations: */
-class UIGlobalProxyFeaturesEditor;
 struct UIDataSettingsGlobalProxy;
 typedef UISettingsCache<UIDataSettingsGlobalProxy> UISettingsCacheGlobalProxy;
 
 /** Global settings: Proxy page. */
-class SHARED_LIBRARY_STUFF UIGlobalSettingsProxy : public UISettingsPageGlobal
+class SHARED_LIBRARY_STUFF UIGlobalSettingsProxy : public UISettingsPageGlobal,
+                                                   public Ui::UIGlobalSettingsProxy
 {
     Q_OBJECT;
 
@@ -44,48 +45,43 @@ public:
 
 protected:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+
+private slots:
+
+    /** Handles proxy toggling. */
+    void sltHandleProxyToggle();
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares wıdgets. */
-    void prepareWidgets();
-    /** Prepares connections. */
-    void prepareConnections();
     /** Cleanups all. */
     void cleanup();
 
-    /** Saves existing proxy data from cache. */
-    bool saveData();
+    /** Saves existing proxy data from the cache. */
+    bool saveProxyData();
 
     /** Holds the page data cache instance. */
     UISettingsCacheGlobalProxy *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the global proxy features editor instance. */
-        UIGlobalProxyFeaturesEditor *m_pEditorGlobalProxyFeatures;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_global_UIGlobalSettingsProxy_h */

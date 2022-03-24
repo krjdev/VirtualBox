@@ -1,4 +1,4 @@
-/* $Id: DrvTCP.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvTCP.cpp $ */
 /** @file
  * TCP socket driver implementing the IStream interface.
  */
@@ -6,7 +6,7 @@
 /*
  * Contributed by Alexey Eromenko (derived from DrvNamedPipe).
  *
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -528,7 +528,7 @@ static DECLCALLBACK(void) drvTCPDestruct(PPDMDRVINS pDrvIns)
         pThis->hPollSet = NIL_RTPOLLSET;
     }
 
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszLocation);
+    MMR3HeapFree(pThis->pszLocation);
     pThis->pszLocation = NULL;
 
     /*
@@ -554,8 +554,7 @@ static DECLCALLBACK(int) drvTCPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVTCP         pThis = PDMINS_2_DATA(pDrvIns, PDRVTCP);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVTCP pThis = PDMINS_2_DATA(pDrvIns, PDRVTCP);
 
     /*
      * Init the static parts.
@@ -589,11 +588,11 @@ static DECLCALLBACK(int) drvTCPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "Location|IsServer", "");
 
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"Location\" resulted in %Rrc"), rc);
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "IsServer", &pThis->fIsServer);
+    rc = CFGMR3QueryBool(pCfg, "IsServer", &pThis->fIsServer);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"IsServer\" resulted in %Rrc"), rc);

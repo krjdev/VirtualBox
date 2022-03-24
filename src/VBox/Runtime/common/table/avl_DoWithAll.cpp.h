@@ -1,10 +1,10 @@
-/* $Id: avl_DoWithAll.cpp.h 93690 2022-02-11 10:10:11Z vboxsync $ */
+/* $Id: avl_DoWithAll.cpp.h $ */
 /** @file
  * kAVLDoWithAll - Do with all nodes routine for AVL trees.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -71,8 +71,6 @@ KAVL_DECL(int) KAVL_FN(DoWithAll)(PPKAVLNODECORE ppTree, int fFromLeft, PKAVLCAL
             }
 
             /* center */
-            Assert(pNode->uchHeight == RT_MAX(AVL_HEIGHTOF(KAVL_GET_POINTER_NULL(&pNode->pLeft)),
-                                              AVL_HEIGHTOF(KAVL_GET_POINTER_NULL(&pNode->pRight))) + 1);
             rc = pfnCallBack(pNode, pvParam);
             if (rc != VINF_SUCCESS)
                 return rc;
@@ -113,8 +111,6 @@ KAVL_DECL(int) KAVL_FN(DoWithAll)(PPKAVLNODECORE ppTree, int fFromLeft, PKAVLCAL
             }
 
             /* center */
-            Assert(pNode->uchHeight == RT_MAX(AVL_HEIGHTOF(KAVL_GET_POINTER_NULL(&pNode->pLeft)),
-                                              AVL_HEIGHTOF(KAVL_GET_POINTER_NULL(&pNode->pRight))) + 1);
             rc = pfnCallBack(pNode, pvParam);
             if (rc != VINF_SUCCESS)
                 return rc;

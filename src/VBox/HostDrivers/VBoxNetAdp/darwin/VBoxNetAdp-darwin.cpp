@@ -1,10 +1,10 @@
-/* $Id: VBoxNetAdp-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetAdp-darwin.cpp $ */
 /** @file
  * VBoxNetAdp - Virtual Network Adapter Driver (Host), Darwin Specific Code.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -105,9 +105,9 @@ extern kern_return_t _start(struct kmod_info *pKModInfo, void *pvData);
 extern kern_return_t _stop(struct kmod_info *pKModInfo, void *pvData);
 
 KMOD_EXPLICIT_DECL(VBoxNetAdp, VBOX_VERSION_STRING, _start, _stop)
-DECL_HIDDEN_DATA(kmod_start_func_t *) _realmain = VBoxNetAdpDarwinStart;
-DECL_HIDDEN_DATA(kmod_stop_func_t  *) _antimain = VBoxNetAdpDarwinStop;
-DECL_HIDDEN_DATA(int)                 _kext_apple_cc = __APPLE_CC__;
+DECLHIDDEN(kmod_start_func_t *) _realmain = VBoxNetAdpDarwinStart;
+DECLHIDDEN(kmod_stop_func_t  *) _antimain = VBoxNetAdpDarwinStop;
+DECLHIDDEN(int)                 _kext_apple_cc = __APPLE_CC__;
 RT_C_DECLS_END
 
 /**

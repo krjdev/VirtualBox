@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,7 +60,6 @@
  */
 VBGLR3DECL(int) VbglR3HostVersionCheckForUpdate(HGCMCLIENTID idClient, bool *pfUpdate, char **ppszHostVersion, char **ppszGuestVersion)
 {
-#ifdef VBOX_WITH_GUEST_PROPS
     Assert(idClient > 0);
     AssertPtr(pfUpdate);
     AssertPtr(ppszHostVersion);
@@ -166,10 +165,6 @@ VBGLR3DECL(int) VbglR3HostVersionCheckForUpdate(HGCMCLIENTID idClient, bool *pfU
         }
     }
     return rc;
-#else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(idClient, pfUpdate, ppszHostVersion, ppszGuestVersion);
-    return VERR_NOT_SUPPORTED;
-#endif
 }
 
 
@@ -183,14 +178,9 @@ VBGLR3DECL(int) VbglR3HostVersionCheckForUpdate(HGCMCLIENTID idClient, bool *pfU
  */
 VBGLR3DECL(int) VbglR3HostVersionLastCheckedLoad(HGCMCLIENTID idClient, char **ppszVer)
 {
-#ifdef VBOX_WITH_GUEST_PROPS
     Assert(idClient > 0);
     AssertPtr(ppszVer);
     return VbglR3GuestPropReadValueAlloc(idClient, "/VirtualBox/GuestAdd/HostVerLastChecked", ppszVer);
-#else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(idClient, ppszVer);
-    return VERR_NOT_SUPPORTED;
-#endif
 }
 
 
@@ -204,13 +194,8 @@ VBGLR3DECL(int) VbglR3HostVersionLastCheckedLoad(HGCMCLIENTID idClient, char **p
  */
 VBGLR3DECL(int) VbglR3HostVersionLastCheckedStore(HGCMCLIENTID idClient, const char *pszVer)
 {
-#ifdef VBOX_WITH_GUEST_PROPS
     Assert(idClient > 0);
     AssertPtr(pszVer);
     return VbglR3GuestPropWriteValue(idClient, "/VirtualBox/GuestAdd/HostVerLastChecked", pszVer);
-#else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(idClient, pszVer);
-    return VERR_NOT_SUPPORTED;
-#endif
 }
 

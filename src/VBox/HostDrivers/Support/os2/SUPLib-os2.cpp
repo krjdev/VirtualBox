@@ -1,10 +1,10 @@
-/* $Id: SUPLib-os2.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLib-os2.cpp $ */
 /** @file
  * VirtualBox Support Library - OS/2 specific parts.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,7 +64,7 @@
 
 
 
-DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
+int suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, bool fUnrestricted, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
 {
     /*
      * Nothing to do if pre-inited.
@@ -100,12 +100,11 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
 
     pThis->hDevice = hDevice;
     pThis->fUnrestricted = true;
-    RT_NOREF(fFlags);
     return VINF_SUCCESS;
 }
 
 
-DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
+int suplibOsTerm(PSUPLIBDATA pThis)
 {
     /*
      * Check if we're inited at all.
@@ -123,21 +122,21 @@ DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
 
 #ifndef IN_SUP_HARDENED_R3
 
-DECLHIDDEN(int) suplibOsInstall(void)
+int suplibOsInstall(void)
 {
     /** @remark OS/2: Not supported */
     return VERR_NOT_SUPPORTED;
 }
 
 
-DECLHIDDEN(int) suplibOsUninstall(void)
+int suplibOsUninstall(void)
 {
     /** @remark OS/2: Not supported */
     return VERR_NOT_SUPPORTED;
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
+int suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
 {
     ULONG cbReturned = sizeof(SUPREQHDR);
     int rc = DosDevIOCtl((HFILE)pThis->hDevice, SUP_CTL_CATEGORY, uFunction,
@@ -149,7 +148,7 @@ DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvRe
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
+int suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
 {
     NOREF(idCpu);
     int32_t rcRet = VERR_INTERNAL_ERROR;
@@ -164,9 +163,9 @@ DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintpt
 }
 
 
-DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFlags, void **ppvPages)
+int suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, void **ppvPages)
 {
-    RT_NOREF(pThis, fFlags);
+    NOREF(pThis);
     *ppvPages = NULL;
     int rc = DosAllocMem(ppvPages, cPages << PAGE_SHIFT, PAG_READ | PAG_WRITE | PAG_EXECUTE | PAG_COMMIT | OBJ_ANY);
     if (rc == ERROR_INVALID_PARAMETER)
@@ -179,7 +178,7 @@ DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFl
 }
 
 
-DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
+int suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
 {
     NOREF(pThis);
     if (pvPages)

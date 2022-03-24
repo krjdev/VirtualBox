@@ -1,10 +1,10 @@
-/* $Id: bs3-c16-TrapRmV86Data.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-c16-TrapRmV86Data.c $ */
 /** @file
  * BS3Kit - Real mode and V86 trap data.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

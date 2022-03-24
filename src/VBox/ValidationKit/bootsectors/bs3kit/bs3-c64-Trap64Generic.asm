@@ -1,10 +1,10 @@
-; $Id: bs3-c64-Trap64Generic.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: bs3-c64-Trap64Generic.asm $
 ;; @file
 ; BS3Kit - Trap, 64-bit assembly handlers.
 ;
 
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;

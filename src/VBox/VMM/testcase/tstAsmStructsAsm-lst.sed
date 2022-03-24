@@ -1,10 +1,10 @@
-# $Id: tstAsmStructsAsm-lst.sed 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: tstAsmStructsAsm-lst.sed $
 ## @file
 # For testing assembly struct when using yasm.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,6 @@ s/^ *//g
 /^\.text$/d
 /^\.data$/d
 /^\.bss$/d
-/ *\.unnamed_padding\./d
 s/[[:space:]][[:space:]]*/ /g
 
 #
@@ -40,7 +39,6 @@ s/[[:space:]][[:space:]]*/ /g
 /^[[:alpha:]_][[:alnum:]_]*_size EQU \$ - .*$/b struct_equ
 /<gap>/b member
 /^\.[[:alpha:]_][[:alnum:]_.:]* res.*$/b member_two
-/^\.[[:alpha:]_][[:alnum:]_.:]* EQU .*$/b member_two
 /^\.[[:alpha:]_][[:alnum:]_.:]*:$/b member_alias
 b error
 b member_two
@@ -80,7 +78,6 @@ b end
 #
 :member_two
 s/[:]*  *res[bwdtq] .*$//
-s/[:]*  *EQU .*$//
 s/$/ /
 /^\.[[:alnum:]_.]* *$/!t error
 G

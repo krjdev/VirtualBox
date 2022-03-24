@@ -1,10 +1,10 @@
-/* $Id: http.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: http.h $ */
 /** @file
  * IPRT - Simple HTTP/HTTPS Client API.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,6 @@
 #endif
 
 #include <iprt/types.h>
-#include <iprt/http-common.h>
 
 RT_C_DECLS_BEGIN
 
@@ -206,6 +205,29 @@ RTR3DECL(void) RTHttpFreeResponse(void *pvResponse);
  * @param   pszDstFile      The destination file name.
  */
 RTR3DECL(int) RTHttpGetFile(RTHTTP hHttp, const char *pszUrl, const char *pszDstFile);
+
+/** HTTP methods. */
+typedef enum RTHTTPMETHOD
+{
+    RTHTTPMETHOD_INVALID = 0,
+    RTHTTPMETHOD_GET,
+    RTHTTPMETHOD_PUT,
+    RTHTTPMETHOD_POST,
+    RTHTTPMETHOD_PATCH,
+    RTHTTPMETHOD_DELETE,
+    RTHTTPMETHOD_HEAD,
+    RTHTTPMETHOD_OPTIONS,
+    RTHTTPMETHOD_TRACE,
+    RTHTTPMETHOD_END,
+    RTHTTPMETHOD_32BIT_HACK = 0x7fffffff
+} RTHTTPMETHOD;
+
+/**
+ * Returns the name of the HTTP method.
+ * @returns Read only string.
+ * @param   enmMethod       The HTTP method to name.
+ */
+RTR3DECL(const char *) RTHttpMethodName(RTHTTPMETHOD enmMethod);
 
 /**
  * Performs generic blocking HTTP request, optionally returning the body and headers.
@@ -487,13 +509,12 @@ RTR3DECL(bool) RTHttpGetVerifyPeer(RTHTTP hHttp);
  *
  * @param   hHttp           The HTTP client handle.
  * @param   pvUser          The user parameter specified when registering the callback.
- * @param   cbDownloadTotal The content-length value, if available.
+ * @param   cbDowloadTotal  The content-length value, if available.
  *                          Warning! Not entirely clear what it will be if
  *                                   unavailable, probably 0.
- * @param   cbDownloaded    How much was downloaded thus far.
+ * @param   cbDowloaded     How much was downloaded thus far.
  */
-typedef DECLCALLBACKTYPE(void, FNRTHTTPDOWNLDPROGRCALLBACK,(RTHTTP hHttp, void *pvUser, uint64_t cbDownloadTotal,
-                                                            uint64_t cbDownloaded));
+typedef DECLCALLBACK(void) FNRTHTTPDOWNLDPROGRCALLBACK(RTHTTP hHttp, void *pvUser, uint64_t cbDownloadTotal, uint64_t cbDownloaded);
 /** Pointer to a download progress callback. */
 typedef FNRTHTTPDOWNLDPROGRCALLBACK *PFNRTHTTPDOWNLDPROGRCALLBACK;
 
@@ -524,8 +545,8 @@ RTR3DECL(int) RTHttpSetDownloadProgressCallback(RTHTTP hHttp, PFNRTHTTPDOWNLDPRO
  *          like that, it is just a convenience provided by the caller.  The
  *          value is the sum of the previous @a cbBuf values.
  */
-typedef DECLCALLBACKTYPE(int, FNRTHTTPDOWNLOADCALLBACK,(RTHTTP hHttp, void const *pvBuf, size_t cbBuf, uint32_t uHttpStatus,
-                                                        uint64_t offContent, uint64_t cbContent, void *pvUser));
+typedef DECLCALLBACK(int) FNRTHTTPDOWNLOADCALLBACK(RTHTTP hHttp, void const *pvBuf, size_t cbBuf, uint32_t uHttpStatus,
+                                                   uint64_t offContent, uint64_t cbContent, void *pvUser);
 /** Pointer to a download data receiver callback. */
 typedef FNRTHTTPDOWNLOADCALLBACK *PFNRTHTTPDOWNLOADCALLBACK;
 
@@ -572,8 +593,8 @@ RTR3DECL(int) RTHttpSetDownloadCallback(RTHTTP hHttp, uint32_t fFlags, PFNRTHTTP
  *          like that, it is just a convenience provided by the caller.  The
  *          value is the sum of the previously returned @a *pcbActual values.
  */
-typedef DECLCALLBACKTYPE(int, FNRTHTTPUPLOADCALLBACK,(RTHTTP hHttp, void *pvBuf, size_t cbBuf, uint64_t offContent,
-                                                      size_t *pcbActual, void *pvUser));
+typedef DECLCALLBACK(int) FNRTHTTPUPLOADCALLBACK(RTHTTP hHttp, void *pvBuf, size_t cbBuf, uint64_t offContent,
+                                                 size_t *pcbActual, void *pvUser);
 /** Pointer to an upload data producer callback. */
 typedef FNRTHTTPUPLOADCALLBACK *PFNRTHTTPUPLOADCALLBACK;
 
@@ -609,8 +630,8 @@ RTR3DECL(int) RTHttpSetUploadCallback(RTHTTP hHttp, uint64_t cbContent, PFNRTHTT
  *              - ':http-status-line' -- the HTTP/{version} {status-code} stuff.
  *              - ':end-of-headers'   -- marks the end of header callbacks.
  */
-typedef DECLCALLBACKTYPE(int, FNRTHTTPHEADERCALLBACK,(RTHTTP hHttp, uint32_t uMatchWord, const char *pchField, size_t cchField,
-                                                      const char *pchValue, size_t cchValue, void *pvUser));
+typedef DECLCALLBACK(int) FNRTHTTPHEADERCALLBACK(RTHTTP hHttp, uint32_t uMatchWord, const char *pchField, size_t cchField,
+                                                 const char *pchValue, size_t cchValue, void *pvUser);
 /** Pointer to a header field consumer callback. */
 typedef FNRTHTTPHEADERCALLBACK *PFNRTHTTPHEADERCALLBACK;
 
@@ -696,14 +717,14 @@ RTR3DECL(int) RTHttpQueryProxyInfoForUrl(RTHTTP hHttp, const char *pszUrl, PRTHT
 RTR3DECL(int) RTHttpFreeProxyInfo(PRTHTTPPROXYINFO pProxyInfo);
 
 /** @name thin wrappers for setting one or a few related curl options
- * @remarks Temporary. Will not be included in the 7.0 release!
+ * @remarks Temporary. Will not be included in the 6.0 release!
  * @{ */
-typedef DECLCALLBACKTYPE_EX(size_t, RT_NOTHING, FNRTHTTPREADCALLBACKRAW,(void *pbDst, size_t cbItem, size_t cItems, void *pvUser));
+typedef size_t FNRTHTTPREADCALLBACKRAW(void *pbDst, size_t cbItem, size_t cItems, void *pvUser);
 typedef FNRTHTTPREADCALLBACKRAW *PFNRTHTTPREADCALLBACKRAW;
 #define RT_HTTP_READCALLBACK_ABORT 0x10000000 /* CURL_READFUNC_ABORT */
 RTR3DECL(int) RTHttpRawSetReadCallback(RTHTTP hHttp, PFNRTHTTPREADCALLBACKRAW pfnRead, void *pvUser);
 
-typedef DECLCALLBACKTYPE_EX(size_t, RT_NOTHING, FNRTHTTPWRITECALLBACKRAW,(char *pbSrc, size_t cbItem, size_t cItems, void *pvUser));
+typedef size_t FNRTHTTPWRITECALLBACKRAW(char *pbSrc, size_t cbItem, size_t cItems, void *pvUser);
 typedef FNRTHTTPWRITECALLBACKRAW *PFNRTHTTPWRITECALLBACKRAW;
 RTR3DECL(int) RTHttpRawSetWriteCallback(RTHTTP hHttp, PFNRTHTTPWRITECALLBACKRAW pfnWrite, void *pvUser);
 RTR3DECL(int) RTHttpRawSetWriteHeaderCallback(RTHTTP hHttp, PFNRTHTTPWRITECALLBACKRAW pfnWrite, void *pvUser);

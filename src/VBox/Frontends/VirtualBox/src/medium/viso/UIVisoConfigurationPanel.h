@@ -1,10 +1,10 @@
-/* $Id: UIVisoConfigurationPanel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVisoConfigurationPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVisoConfigurationPanel class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,6 +29,7 @@ class QComboBox;
 class QILabel;
 class QILineEdit;
 class QIToolButton;
+class UIVisoCreator;
 
 class UIVisoConfigurationPanel : public UIDialogPanel
 {
@@ -40,15 +41,16 @@ signals:
     void sigCustomVisoOptionsChanged(const QStringList &customVisoOptions);
 
 public:
-    UIVisoConfigurationPanel(QWidget *pParent = 0);
+    UIVisoConfigurationPanel(UIVisoCreator *pCreator, QWidget *pParent = 0);
     ~UIVisoConfigurationPanel();
-    virtual QString panelName() const RT_OVERRIDE;
+    virtual QString panelName() const /* override */;
     void setVisoName(const QString& strVisoName);
     void setVisoCustomOptions(const QStringList& visoCustomOptions);
 
 protected:
 
-    void retranslateUi() RT_OVERRIDE;
+    bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
+    void retranslateUi() /* override */;
 
 private slots:
 
@@ -61,6 +63,9 @@ private:
     void prepareConnections();
     void addCustomVisoOption();
     void emitCustomVisoOptions();
+
+    /** Holds the parent creator reference. */
+    UIVisoCreator *m_pCreator;
 
     QILabel      *m_pVisoNameLabel;
     QILabel      *m_pCustomOptionsLabel;

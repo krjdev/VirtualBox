@@ -1,10 +1,10 @@
-/* $Id: PerformanceDarwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PerformanceDarwin.cpp $ */
 /** @file
  * VBox Darwin-specific Performance Classes implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -121,8 +121,7 @@ int CollectorDarwin::getHostMemoryUsage(ULONG *total, ULONG *used, ULONG *availa
     if (RT_SUCCESS(rc))
     {
         *total = totalRAM;
-        cb /= 1024;
-        *available = cb < ~(ULONG)0 ? (ULONG)cb : ~(ULONG)0;
+        *available = cb / 1024;
         *used = *total - *available;
     }
     return rc;
@@ -131,16 +130,16 @@ int CollectorDarwin::getHostMemoryUsage(ULONG *total, ULONG *used, ULONG *availa
 static int getProcessInfo(RTPROCESS process, struct proc_taskinfo *tinfo)
 {
     Log7(("getProcessInfo() getting info for %d", process));
-    int cbRet = proc_pidinfo((pid_t)process, PROC_PIDTASKINFO, 0, tinfo, sizeof(*tinfo));
-    if (cbRet <= 0)
+    int nb = proc_pidinfo(process, PROC_PIDTASKINFO, 0,  tinfo, sizeof(*tinfo));
+    if (nb <= 0)
     {
-        int iErrNo = errno;
-        Log(("proc_pidinfo() -> %s", strerror(iErrNo)));
-        return RTErrConvertFromDarwin(iErrNo);
+        int rc = errno;
+        Log(("proc_pidinfo() -> %s", strerror(rc)));
+        return RTErrConvertFromDarwin(rc);
     }
-    if ((unsigned int)cbRet < sizeof(*tinfo))
+    else if ((unsigned int)nb < sizeof(*tinfo))
     {
-        Log(("proc_pidinfo() -> too few bytes %d", cbRet));
+        Log(("proc_pidinfo() -> too few bytes %d", nb));
         return VERR_INTERNAL_ERROR;
     }
     return VINF_SUCCESS;
@@ -171,8 +170,7 @@ int CollectorDarwin::getProcessMemoryUsage(RTPROCESS process, ULONG *used)
     int rc = getProcessInfo(process, &tinfo);
     if (RT_SUCCESS(rc))
     {
-        uint64_t cKbResident = tinfo.pti_resident_size / 1024;
-        *used = cKbResident < ~(ULONG)0 ? (ULONG)cKbResident : ~(ULONG)0;
+        *used = tinfo.pti_resident_size / 1024;
     }
     return rc;
 }

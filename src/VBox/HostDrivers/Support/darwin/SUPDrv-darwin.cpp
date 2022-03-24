@@ -1,10 +1,10 @@
-/* $Id: SUPDrv-darwin.cpp 93515 2022-01-31 22:17:19Z vboxsync $ */
+/* $Id: SUPDrv-darwin.cpp $ */
 /** @file
  * VirtualBox Support Driver - Darwin Specific Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,9 +66,7 @@
 #include <IOKit/IOUserClient.h>
 #include <IOKit/pwr_mgt/RootDomain.h>
 #include <IOKit/IODeviceTreeSupport.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 101100
-# include <IOKit/usb/IOUSBHIDDriver.h>
-#endif
+#include <IOKit/usb/IOUSBHIDDriver.h>
 #include <IOKit/bluetooth/IOBluetoothHIDDriver.h>
 #include <IOKit/bluetooth/IOBluetoothHIDDriverTypes.h>
 
@@ -200,9 +198,9 @@ extern kern_return_t _start(struct kmod_info *pKModInfo, void *pvData);
 extern kern_return_t _stop(struct kmod_info *pKModInfo, void *pvData);
 
 KMOD_EXPLICIT_DECL(VBoxDrv, VBOX_VERSION_STRING, _start, _stop)
-DECL_HIDDEN_DATA(kmod_start_func_t *) _realmain = VBoxDrvDarwinStart;
-DECL_HIDDEN_DATA(kmod_stop_func_t *)  _antimain = VBoxDrvDarwinStop;
-DECL_HIDDEN_DATA(int)                 _kext_apple_cc = __APPLE_CC__;
+DECLHIDDEN(kmod_start_func_t *) _realmain = VBoxDrvDarwinStart;
+DECLHIDDEN(kmod_stop_func_t *)  _antimain = VBoxDrvDarwinStop;
+DECLHIDDEN(int)                 _kext_apple_cc = __APPLE_CC__;
 RT_C_DECLS_END
 
 
@@ -955,13 +953,13 @@ DECLEXPORT(int) VBOXCALL SUPDrvDarwinIDC(uint32_t uReq, PSUPDRVIDCREQHDR pReq)
     /*
      * Some quick validations.
      */
-    if (RT_UNLIKELY(!RT_VALID_PTR(pReq)))
+    if (RT_UNLIKELY(!VALID_PTR(pReq)))
         return VERR_INVALID_POINTER;
 
     pSession = pReq->pSession;
     if (pSession)
     {
-        if (RT_UNLIKELY(!RT_VALID_PTR(pSession)))
+        if (RT_UNLIKELY(!VALID_PTR(pSession)))
             return VERR_INVALID_PARAMETER;
         if (RT_UNLIKELY(pSession->pDevExt != &g_DevExt))
             return VERR_INVALID_PARAMETER;
@@ -1294,7 +1292,7 @@ static DECLCALLBACK(int) supdrvDarwinLdrOpenVerifyCertificatCallback(PCRTCRX509C
 {
     RT_NOREF(pvUser); //PSUPDRVDEVEXT pDevExt = (PSUPDRVDEVEXT)pvUser;
 # ifdef DEBUG_bird
-    printf("supdrvDarwinLdrOpenVerifyCertificatCallback: pCert=%p hCertPaths=%p\n", (void *)pCert, (void *)hCertPaths);
+    printf("supdrvDarwinLdrOpenVerifyCertificatCallback: pCert=%p hCertPaths=%p\n", pCert, hCertPaths);
 # endif
 
 # if 0
@@ -1319,7 +1317,6 @@ static DECLCALLBACK(int) supdrvDarwinLdrOpenVerifyCertificatCallback(PCRTCRX509C
     {
         uint32_t cDevIdApp  = 0;
         uint32_t cDevIdKext = 0;
-        uint32_t cDevIdMacDev = 0;
         for (uint32_t i = 0; i < pCert->TbsCertificate.T3.Extensions.cItems; i++)
         {
             PCRTCRX509EXTENSION pExt = pCert->TbsCertificate.T3.Extensions.papItems[i];
@@ -1337,24 +1334,7 @@ static DECLCALLBACK(int) supdrvDarwinLdrOpenVerifyCertificatCallback(PCRTCRX509C
                     rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
                                        "Dev ID kext certificate extension is not flagged critical");
             }
-            else if (RTAsn1ObjId_CompareWithString(&pExt->ExtnId, RTCR_APPLE_CS_DEVID_MAC_SW_DEV_OID) == 0)
-            {
-                cDevIdMacDev++;
-                if (!pExt->Critical.fValue)
-                    rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
-                                       "Dev ID MAC SW dev certificate extension is not flagged critical");
-            }
         }
-# ifdef VBOX_WITH_DARWIN_R0_TEST_SIGN
-        /*
-         * Mac application software development certs do not have the usually required extensions.
-         */
-        if (cDevIdMacDev)
-        {
-            cDevIdApp++;
-            cDevIdKext++;
-        }
-# endif
         if (cDevIdApp == 0)
             rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
                                "Certificate is missing the 'Dev ID Application' extension");
@@ -1478,9 +1458,9 @@ int  VBOXCALL   supdrvOSLdrOpen(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage, c
                 }
             }
             else if (pErrInfo && RTErrInfoIsSet(&pErrInfo->Core))
-                printf("VBoxDrv: RTLdrVerifySignature(%s) failed: %d - %s\n", pszFilename, rc, pErrInfo->Core.pszMsg);
+                printf("VBoxDrv: RTLdrOpenInMemory(%s) failed: %d - %s\n", pszFilename, rc, pErrInfo->Core.pszMsg);
             else
-                printf("VBoxDrv: RTLdrVerifySignature(%s) failed: %d\n", pszFilename, rc);
+                printf("VBoxDrv: RTLdrOpenInMemory(%s) failed: %d\n", pszFilename, rc);
             RTLdrClose(hLdrMod);
         }
         else if (pErrInfo && RTErrInfoIsSet(&pErrInfo->Core))
@@ -1696,20 +1676,6 @@ void VBOXCALL   supdrvOSLdrNotifyOpened(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE p
 void VBOXCALL   supdrvOSLdrNotifyUnloaded(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
 {
     NOREF(pDevExt); NOREF(pImage);
-}
-
-
-void VBOXCALL   supdrvOSLdrRetainWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    RT_NOREF(pDevExt, pImage);
-    AssertFailed();
-}
-
-
-void VBOXCALL   supdrvOSLdrReleaseWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    RT_NOREF(pDevExt, pImage);
-    AssertFailed();
 }
 
 
@@ -1930,16 +1896,9 @@ static void supdrvDarwinResumeBluetoothKbd(void)
  */
 static void supdrvDarwinResumeBuiltinKbd(void)
 {
-    /** @todo macbook pro 16 w/ 10.15.5 as the "Apple Internal Keyboard /
-     *        Trackpad" hooked up to "HID Relay" / "AppleUserUSBHostHIDDevice"
-     *        and "AppleUserUSBHostHIDDevice" among other things, but not
-     *        "AppleUSBTCKeyboard". This change is probably older than 10.15,
-     *        given that IOUSBHIDDriver not is present in the 10.11 SDK. */
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 101100
     /*
      * AppleUSBTCKeyboard KEXT is responsible for built-in keyboard management.
-     * We resume keyboard by accessing to its IOService.
-     */
+     * We resume keyboard by accessing to its IOService. */
     OSDictionary *pDictionary = IOService::serviceMatching("AppleUSBTCKeyboard");
     if (pDictionary)
     {
@@ -1957,7 +1916,6 @@ static void supdrvDarwinResumeBuiltinKbd(void)
         }
         pDictionary->release();
     }
-#endif
 }
 
 
@@ -2007,7 +1965,7 @@ static bool vboxdrvDarwinCpuHasSMAP(void)
 {
     uint32_t uMaxId, uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uMaxId, &uEBX, &uECX, &uEDX);
-    if (   RTX86IsValidStdRange(uMaxId)
+    if (   ASMIsValidStdRange(uMaxId)
         && uMaxId >= 0x00000007)
     {
         ASMCpuId_Idx_ECX(0x00000007, 0, &uEAX, &uEBX, &uECX, &uEDX);

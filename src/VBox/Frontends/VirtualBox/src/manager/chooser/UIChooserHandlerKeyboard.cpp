@@ -1,10 +1,10 @@
-/* $Id: UIChooserHandlerKeyboard.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIChooserHandlerKeyboard.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserHandlerKeyboard class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -250,10 +250,10 @@ bool UIChooserHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
         case Qt::Key_F2:
         {
             /* If this item is of group type: */
-            if (model()->currentItem()->type() == UIChooserNodeType_Group)
+            if (model()->currentItem()->type() == UIChooserItemType_Group)
             {
-                /* Start editing selected group item name: */
-                model()->startEditingSelectedGroupItemName();
+                /* Start embedded editing of current-item: */
+                model()->startEditingGroupItemName();
                 /* Filter that event out: */
                 return true;
             }
@@ -264,11 +264,11 @@ bool UIChooserHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
         case Qt::Key_Enter:
         {
             /* If this item is of group or machine type: */
-            if (   model()->currentItem()->type() == UIChooserNodeType_Group
-                || model()->currentItem()->type() == UIChooserNodeType_Machine)
+            if (   model()->currentItem()->type() == UIChooserItemType_Group
+                || model()->currentItem()->type() == UIChooserItemType_Machine)
             {
-                /* Start or show selected items: */
-                model()->startOrShowSelectedItems();
+                /* Activate item: */
+                model()->activateMachineItem();
                 /* And filter out that event: */
                 return true;
             }
@@ -281,7 +281,7 @@ bool UIChooserHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
             if (UIChooserItem *pCurrentItem = model()->currentItem())
             {
                 /* Of the group type: */
-                if (pCurrentItem->type() == UIChooserNodeType_Group)
+                if (pCurrentItem->type() == UIChooserItemType_Group)
                 {
                     /* Toggle that group: */
                     UIChooserItemGroup *pGroupItem = pCurrentItem->toGroupItem();
@@ -304,9 +304,9 @@ bool UIChooserHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
         }
         default:
         {
-            /* Start lookup only for non-empty and printable strings: */
+            /* Start lookup: */
             const QString strText = pEvent->text();
-            if (!strText.isEmpty() && pEvent->modifiers() == Qt::NoModifier && pEvent->text().at(0).isPrint())
+            if (!strText.isEmpty())
                 model()->lookFor(strText);
             break;
         }
@@ -366,15 +366,15 @@ void UIChooserHandlerKeyboard::shift(UIItemShiftDirection enmDirection, UIItemSh
     UIChooserItem *pShiftedItem = 0;
     switch (pCurrentNode->type())
     {
-        case UIChooserNodeType_Group:
+        case UIChooserItemType_Group:
         {
-            UIChooserNodeGroup *pNewNode = new UIChooserNodeGroup(pParentNode, iNewCurrentNodePosition, pCurrentNode->toGroupNode());
+            UIChooserNodeGroup *pNewNode = new UIChooserNodeGroup(pParentNode, pCurrentNode->toGroupNode(), iNewCurrentNodePosition);
             pShiftedItem = new UIChooserItemGroup(pParentNode->item(), pNewNode);
             break;
         }
-        case UIChooserNodeType_Machine:
+        case UIChooserItemType_Machine:
         {
-            UIChooserNodeMachine *pNewNode = new UIChooserNodeMachine(pParentNode, iNewCurrentNodePosition, pCurrentNode->toMachineNode());
+            UIChooserNodeMachine *pNewNode = new UIChooserNodeMachine(pParentNode, pCurrentNode->toMachineNode(), iNewCurrentNodePosition);
             pShiftedItem = new UIChooserItemMachine(pParentNode->item(), pNewNode);
             break;
         }
@@ -390,5 +390,5 @@ void UIChooserHandlerKeyboard::shift(UIItemShiftDirection enmDirection, UIItemSh
     model()->updateNavigationItemList();
     model()->updateLayout();
     model()->setSelectedItem(pShiftedItem);
-    model()->saveGroups();
+    model()->saveGroupSettings();
 }

@@ -1,10 +1,10 @@
-/* $Id: bldprog-strtab-template.cpp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bldprog-strtab-template.cpp.h $ */
 /** @file
  * IPRT - Build Program - String Table Generator.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -76,7 +76,7 @@
 #ifdef BLDPROG_STRTAB_WITH_COMPRESSION
 # include <algorithm>
 # include <map>
-# include <iprt/sanitized/string>
+# include <string>
 # include <vector>
 
 typedef std::map<std::string, size_t> BLDPROGWORDFREQMAP;
@@ -139,8 +139,6 @@ typedef struct BLDPROGSTRTAB
 #ifdef BLDPROG_STRTAB_WITH_COMPRESSION
     /** The 127 words we've picked to be indexed by reference.  */
     BLDPROGSTRING       aCompDict[127];
-    /** The frequency of the 127 dictionary entries.  */
-    size_t              auCompDictFreq[127];
     /** Incoming strings pending compression. */
     PBLDPROGSTRING     *papPendingStrings;
     /** Current number of entries in papStrPending. */
@@ -419,26 +417,6 @@ static void BldProgStrTab_AddString(PBLDPROGSTRTAB pThis, PBLDPROGSTRING pStr)
 #endif
 }
 
-
-/**
- * Adds a string to the string table.
- *
- * @param   pThis   The strint table compiler instance.
- * @param   pStr    The string entry (uninitialized).
- * @param   psz     The string, will be duplicated if compression is enabled.
- */
-DECLINLINE(void) BldProgStrTab_AddStringDup(PBLDPROGSTRTAB pThis, PBLDPROGSTRING pStr, const char *psz)
-{
-#ifdef BLDPROG_STRTAB_WITH_COMPRESSION
-    pStr->pszString = strdup(psz);
-    if (!pStr->pszString)
-        abort();
-#else
-    pStr->pszString = (char *)psz;
-#endif
-    BldProgStrTab_AddString(pThis, pStr);
-}
-
 #ifdef BLDPROG_STRTAB_WITH_COMPRESSION
 
 /**
@@ -614,7 +592,6 @@ static bool bldProgStrTab_compressorDoStringCompression(PBLDPROGSTRTAB pThis, bo
          it != SortMap.end() && i < RT_ELEMENTS(pThis->aCompDict);
          ++it, i++)
     {
-        pThis->auCompDictFreq[i]      = it->m_pPair->second;
         pThis->aCompDict[i].cchString = it->m_pPair->first.length();
         pThis->aCompDict[i].pszString = (char *)malloc(pThis->aCompDict[i].cchString + 1);
         if (pThis->aCompDict[i].pszString)
@@ -758,8 +735,7 @@ static bool BldProgStrTab_CompileIt(PBLDPROGSTRTAB pThis, bool fVerbose)
 
     /*
      * Create papSortedStrings from the hash table.  The table is sorted by
-     * string length, with the longer strings first, so that we increase our
-     * chances of locating duplicate substrings.
+     * string length, with the longer strings first.
      */
     pThis->papSortedStrings = (PBLDPROGSTRING *)malloc(sizeof(pThis->papSortedStrings[0]) * pThis->cUniqueStrings);
     if (!pThis->papSortedStrings)
@@ -991,10 +967,7 @@ static void BldProgStrTab_WriteStringTable(PBLDPROGSTRTAB pThis, FILE *pOut,
         if (offEnd > off)
         {
             /* Comment with a uncompressed and more readable version of the string. */
-            if (off == pCur->offStrTab)
-                fprintf(pOut, "/* 0x%05x = \"", off);
-            else
-                fprintf(pOut, "/* 0X%05x = \"", off);
+            fprintf(pOut, off == pCur->offStrTab ? "/* 0x%05x = \"" : "/* 0X%05x = \"", off);
             BldProgStrTab_PrintCStringLitteral(pThis, pCur, pOut);
             fputs("\" */\n", pOut);
 
@@ -1035,9 +1008,8 @@ static void BldProgStrTab_WriteStringTable(PBLDPROGSTRTAB pThis, FILE *pOut,
             "{\n",
             pszBaseName, (unsigned)RT_ELEMENTS(pThis->aCompDict));
     for (unsigned i = 0; i < RT_ELEMENTS(pThis->aCompDict); i++)
-        fprintf(pOut, "    { %#08x, %#04x }, // %6lu - %s\n",
-                pThis->aCompDict[i].offStrTab, (unsigned)pThis->aCompDict[i].cchString,
-                (unsigned long)pThis->auCompDictFreq[i], pThis->aCompDict[i].pszString);
+        fprintf(pOut, "    { %#08x, %#04x }, // %s\n",
+                pThis->aCompDict[i].offStrTab, (unsigned)pThis->aCompDict[i].cchString, pThis->aCompDict[i].pszString);
     fprintf(pOut, "};\n\n");
 #endif
 

@@ -1,10 +1,10 @@
-/* $Id: GuestCtrlImpl.cpp 93166 2022-01-10 16:43:04Z vboxsync $ */
+/* $Id: GuestCtrlImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation: Guest
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -239,6 +239,45 @@ int Guest::i_dispatchToSession(PVBOXGUESTCTRLHOSTCBCTX pCtxCb, PVBOXGUESTCTRLHOS
 }
 
 /**
+ * Removes a guest control session from the internal list and destroys the session.
+ *
+ * @returns VBox status code.
+ * @param   uSessionID          ID of the guest control session to remove.
+ */
+int Guest::i_sessionRemove(uint32_t uSessionID)
+{
+    LogFlowThisFuncEnter();
+
+    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
+
+    int rc = VERR_NOT_FOUND;
+
+    LogFlowThisFunc(("Removing session (ID=%RU32) ...\n", uSessionID));
+
+    GuestSessions::iterator itSessions = mData.mGuestSessions.find(uSessionID);
+    if (itSessions == mData.mGuestSessions.end())
+        return VERR_NOT_FOUND;
+
+    /* Make sure to consume the pointer before the one of the
+     * iterator gets released. */
+    ComObjPtr<GuestSession> pSession = itSessions->second;
+
+    LogFlowThisFunc(("Removing session %RU32 (now total %ld sessions)\n",
+                     uSessionID, mData.mGuestSessions.size() ? mData.mGuestSessions.size() - 1 : 0));
+
+    rc = pSession->i_onRemove();
+    mData.mGuestSessions.erase(itSessions);
+
+    alock.release(); /* Release lock before firing off event. */
+
+    fireGuestSessionRegisteredEvent(mEventSource, pSession, false /* Unregistered */);
+    pSession.setNull();
+
+    LogFlowFuncLeaveRC(rc);
+    return rc;
+}
+
+/**
  * Creates a new guest session.
  * This will invoke VBoxService running on the guest creating a new (dedicated) guest session
  * On older Guest Additions this call has no effect on the guest, and only the credentials will be
@@ -249,8 +288,6 @@ int Guest::i_dispatchToSession(PVBOXGUESTCTRLHOSTCBCTX pCtxCb, PVBOXGUESTCTRLHOS
  * @param   guestCreds          Guest OS (user) credentials to use on the guest for creating the session.
  *                              The specified user must be able to logon to the guest and able to start new processes.
  * @param   pGuestSession       Where to store the created guest session on success.
- *
- * @note    Takes the write lock.
  */
 int Guest::i_sessionCreate(const GuestSessionStartupInfo &ssInfo,
                            const GuestCredentials &guestCreds, ComObjPtr<GuestSession> &pGuestSession)
@@ -321,7 +358,8 @@ int Guest::i_sessionCreate(const GuestSessionStartupInfo &ssInfo,
 
         alock.release(); /* Release lock before firing off event. */
 
-        ::FireGuestSessionRegisteredEvent(mEventSource, pGuestSession, true /* Registered */);
+        fireGuestSessionRegisteredEvent(mEventSource, pGuestSession,
+                                        true /* Registered */);
     }
     catch (int rc2)
     {
@@ -333,53 +371,10 @@ int Guest::i_sessionCreate(const GuestSessionStartupInfo &ssInfo,
 }
 
 /**
- * Destroys a given guest session and removes it from the internal list.
- *
- * @returns VBox status code.
- * @param   uSessionID          ID of the guest control session to destroy.
- *
- * @note    Takes the write lock.
- */
-int Guest::i_sessionDestroy(uint32_t uSessionID)
-{
-    LogFlowThisFuncEnter();
-
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    int rc = VERR_NOT_FOUND;
-
-    LogFlowThisFunc(("Destroying session (ID=%RU32) ...\n", uSessionID));
-
-    GuestSessions::iterator itSessions = mData.mGuestSessions.find(uSessionID);
-    if (itSessions == mData.mGuestSessions.end())
-        return VERR_NOT_FOUND;
-
-    /* Make sure to consume the pointer before the one of the
-     * iterator gets released. */
-    ComObjPtr<GuestSession> pSession = itSessions->second;
-
-    LogFlowThisFunc(("Removing session %RU32 (now total %ld sessions)\n",
-                     uSessionID, mData.mGuestSessions.size() ? mData.mGuestSessions.size() - 1 : 0));
-
-    rc = pSession->i_onRemove();
-    mData.mGuestSessions.erase(itSessions);
-
-    alock.release(); /* Release lock before firing off event. */
-
-    ::FireGuestSessionRegisteredEvent(mEventSource, pSession, false /* Unregistered */);
-    pSession.setNull();
-
-    LogFlowFuncLeaveRC(rc);
-    return rc;
-}
-
-/**
  * Returns whether a guest control session with a specific ID exists or not.
  *
  * @returns Returns \c true if the session exists, \c false if not.
  * @param   uSessionID          ID to check for.
- *
- * @note    No locking done, as inline function!
  */
 inline bool Guest::i_sessionExists(uint32_t uSessionID)
 {
@@ -494,99 +489,6 @@ HRESULT Guest::findSession(const com::Utf8Str &aSessionName, std::vector<ComPtr<
     return setErrorNoLog(VBOX_E_OBJECT_NOT_FOUND,
                          tr("Could not find sessions with name '%s'"),
                          aSessionName.c_str());
-#endif /* VBOX_WITH_GUEST_CONTROL */
-}
-
-HRESULT Guest::shutdown(const std::vector<GuestShutdownFlag_T> &aFlags)
-{
-#ifndef VBOX_WITH_GUEST_CONTROL
-    ReturnComNotImplemented();
-#else /* VBOX_WITH_GUEST_CONTROL */
-
-    /* Validate flags. */
-    uint32_t fFlags = GuestShutdownFlag_None;
-    if (aFlags.size())
-        for (size_t i = 0; i < aFlags.size(); ++i)
-            fFlags |= aFlags[i];
-
-    const uint32_t fValidFlags = GuestShutdownFlag_None
-                               | GuestShutdownFlag_PowerOff | GuestShutdownFlag_Reboot | GuestShutdownFlag_Force;
-    if (fFlags & ~fValidFlags)
-        return setError(E_INVALIDARG,tr("Unknown flags: flags value %#x, invalid: %#x"), fFlags, fFlags & ~fValidFlags);
-
-    if (   (fFlags & GuestShutdownFlag_PowerOff)
-        && (fFlags & GuestShutdownFlag_Reboot))
-        return setError(E_INVALIDARG, tr("Invalid combination of flags (%#x)"), fFlags);
-
-    Utf8Str strAction = (fFlags & GuestShutdownFlag_Reboot) ? tr("Rebooting") : tr("Shutting down");
-
-    /*
-     * Create an anonymous session. This is required to run shutting down / rebooting
-     * the guest with administrative rights.
-     */
-    GuestSessionStartupInfo startupInfo;
-    startupInfo.mName = (fFlags & GuestShutdownFlag_Reboot) ? tr("Rebooting guest") : tr("Shutting down guest");
-
-    GuestCredentials guestCreds;
-
-    HRESULT hrc = S_OK;
-
-    ComObjPtr<GuestSession> pSession;
-    int vrc = i_sessionCreate(startupInfo, guestCreds, pSession);
-    if (RT_SUCCESS(vrc))
-    {
-        Assert(!pSession.isNull());
-
-        int rcGuest = VERR_GSTCTL_GUEST_ERROR;
-        vrc = pSession->i_startSession(&rcGuest);
-        if (RT_SUCCESS(vrc))
-        {
-            vrc = pSession->i_shutdown(fFlags, &rcGuest);
-            if (RT_FAILURE(vrc))
-            {
-                switch (vrc)
-                {
-                    case VERR_NOT_SUPPORTED:
-                        hrc = setErrorBoth(VBOX_E_NOT_SUPPORTED, vrc,
-                                           tr("%s not supported by installed Guest Additions"), strAction.c_str());
-                        break;
-
-                    default:
-                    {
-                        if (vrc == VERR_GSTCTL_GUEST_ERROR)
-                            vrc = rcGuest;
-                        hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Error %s guest: %Rrc"), strAction.c_str(), vrc);
-                        break;
-                    }
-                }
-            }
-        }
-        else
-        {
-            if (vrc == VERR_GSTCTL_GUEST_ERROR)
-                vrc = rcGuest;
-            hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Could not open guest session: %Rrc"), vrc);
-        }
-    }
-    else
-    {
-        switch (vrc)
-        {
-            case VERR_MAX_PROCS_REACHED:
-                hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Maximum number of concurrent guest sessions (%d) reached"),
-                                  VBOX_GUESTCTRL_MAX_SESSIONS);
-                break;
-
-            /** @todo Add more errors here. */
-
-           default:
-                hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Could not create guest session: %Rrc"), vrc);
-                break;
-        }
-    }
-
-    LogFlowFunc(("Returning hrc=%Rhrc\n", hrc));
-    return hrc;
 #endif /* VBOX_WITH_GUEST_CONTROL */
 }
 

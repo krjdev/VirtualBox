@@ -1,11 +1,11 @@
-/* $Id: VBoxGuestInstallHelper.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestInstallHelper.cpp $ */
 /** @file
  * VBoxGuestInstallHelper - Various helper routines for Windows guest installer.
  *                          Works with NSIS 3.x.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -143,26 +143,24 @@ static void vboxPushRcAsString(int rc)
     TCHAR szErr[NSIS_MAX_STRLEN];
     if (RT_FAILURE(rc))
     {
-        static const char s_szPrefix[] = "Error: ";
-        AssertCompile(NSIS_MAX_STRLEN > sizeof(s_szPrefix) + 32);
-#ifdef UNICODE
-        char szTmp[80];
-        memcpy(szTmp, s_szPrefix, sizeof(s_szPrefix));
-        RTErrQueryDefine(rc, &szTmp[sizeof(s_szPrefix) - 1], sizeof(szTmp) - sizeof(s_szPrefix) - 1, false);
 
-        RT_ZERO(szErr);
-        PRTUTF16 pwszDst = szErr;
-        RTStrToUtf16Ex(szTmp, RTSTR_MAX, &pwszDst, RT_ELEMENTS(szErr), NULL);
+#ifdef UNICODE
+        TCHAR *pszErrAsString;
+        int rc2 = RTStrToUtf16(RTErrGetDefine(rc), &pszErrAsString);
+        if (RT_SUCCESS(rc2))
+        {
 #else
-        memcpy(szErr, s_szPrefix, sizeof(s_szPrefix));
-        RTErrQueryDefine(rc, &szErr[sizeof(s_szPrefix) - 1], sizeof(szErr) - sizeof(s_szPrefix) - 1, false);
+            TCHAR *pszErrAsString = RTErrGetDefine(rc);
+#endif
+            StringCchPrintf(szErr, sizeof(szErr), _T("Error: %s"), pszErrAsString);
+
+#ifdef UNICODE
+            RTUtf16Free(pszErrAsString);
+        }
 #endif
     }
     else
-    {
-        szErr[0] = '0';
-        szErr[1] = '\0';
-    }
+        StringCchPrintf(szErr, sizeof(szErr), _T("0"));
 
     pushstring(szErr);
 }
@@ -211,7 +209,7 @@ VBOXINSTALLHELPER_EXPORT FileGetArchitecture(HWND hwndParent, int string_size, T
     {
 #ifdef UNICODE
         char *pszFileUtf8;
-        rc = RTUtf16ToUtf8(szFile, &pszFileUtf8);
+        int rc = RTUtf16ToUtf8(szFile, &pszFileUtf8);
         if (RT_SUCCESS(rc))
         {
 #else

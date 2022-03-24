@@ -1,10 +1,10 @@
-/** $Id: VBoxClientInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/** $Id: VBoxClientInternal.h $ */
 /** @file
  * VBoxClient - common definitions, Darwin.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,13 +34,13 @@ typedef struct
      * Start service.
      * @returns VBox status code.
      */
-    DECLCALLBACKMEMBER(int, pfnStart,(void));
+    DECLCALLBACKMEMBER(int, pfnStart)(void);
 
     /**
      * Stop service.
      * @returns VBox status code.
      */
-    DECLCALLBACKMEMBER(int, pfnStop,(void));
+    DECLCALLBACKMEMBER(int, pfnStop)(void);
 
 } VBOXCLIENTSERVICE;
 

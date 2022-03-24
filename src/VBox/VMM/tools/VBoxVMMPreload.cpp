@@ -1,10 +1,10 @@
-/* $Id: VBoxVMMPreload.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVMMPreload.cpp $ */
 /** @file
  * VBoxVMMPreload - Preload VBox the ring-0 modules.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -216,9 +216,9 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
 int main(int argc, char **argv, char **envp)
 {
     int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
-    if (RT_SUCCESS(rc))
-        return TrustedMain(argc, argv, envp);
-    return RTMsgInitFailure(rc);
+    if (RT_FAILURE(rc))
+        return RTMsgInitFailure(rc);
+    return TrustedMain(argc, argv, envp);
 }
 #endif /* !VBOX_WITH_HARDENING */
 

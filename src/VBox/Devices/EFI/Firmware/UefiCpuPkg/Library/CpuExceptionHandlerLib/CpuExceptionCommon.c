@@ -14,7 +14,7 @@
 //
 // 1 means an error code will be pushed, otherwise 0
 //
-CONST UINT32 mErrorCodeFlag = 0x20227d00;
+CONST UINT32 mErrorCodeFlag = 0x00227d00;
 
 //
 // Define the maximum message length
@@ -44,15 +44,7 @@ CONST CHAR8 *mExceptionNameStr[] = {
   "#MC - Machine-Check",
   "#XM - SIMD floating-point",
   "#VE - Virtualization",
-  "#CP - Control Protection",
-  "Reserved",
-  "Reserved",
-  "Reserved",
-  "Reserved",
-  "Reserved",
-  "Reserved",
-  "Reserved",
-  "#VC - VMM Communication",
+  "#CP - Control Protection"
 };
 
 #define EXCEPTION_KNOWN_NAME_NUM  (sizeof (mExceptionNameStr) / sizeof (CHAR8 *))

@@ -1,4 +1,4 @@
-/* $Id: DevSmc.cpp 93944 2022-02-24 21:15:14Z vboxsync $ */
+/* $Id: DevSmc.cpp $ */
 /** @file
  * DevSmc - Apple System Management Controller.
  *
@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,11 +31,11 @@
 #include <VBox/err.h>
 #include <iprt/assert.h>
 #include <iprt/string.h>
-#if defined(IN_RING0) && (defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86))
+#ifdef IN_RING0
 # include <iprt/asm-amd64-x86.h>
 # include <iprt/once.h>
 #endif
-#if defined(RT_OS_DARWIN) && defined(IN_RING3) && !defined(VBOX_DEVICE_STRUCT_TESTCASE) /* drags in bad page size define */
+#if defined(RT_OS_DARWIN) && defined(IN_RING3)
 # include "IOKit/IOKitLib.h"
 #endif
 
@@ -263,8 +263,8 @@ typedef DEVSMC *PDEVSMC;
  * @param   pKeyDesc        Pointer to the key descriptor so that the getter can
  *                          service more than once key.
  */
-typedef DECLCALLBACKTYPE(uint8_t, FNDEVSMCKEYGETTER,(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd,
-                                                     struct DEVSMCKEYDESC const *pKeyDesc));
+typedef DECLCALLBACK(uint8_t) DEVSMCKEYGETTER(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd,
+                                              struct DEVSMCKEYDESC const *pKeyDesc);
 
 /**
  * Method for setting the key value.
@@ -276,8 +276,8 @@ typedef DECLCALLBACKTYPE(uint8_t, FNDEVSMCKEYGETTER,(PDEVSMC pThis, PDEVSMCCURKE
  * @param   pKeyDesc        Pointer to the key descriptor so that the getter can
  *                          service more than once key.
  */
-typedef DECLCALLBACKTYPE(uint8_t, FNDEVSMCKEYPUTTER,(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd,
-                                                     struct DEVSMCKEYDESC const *pKeyDesc));
+typedef DECLCALLBACK(uint8_t) DEVSMCKEYPUTTER(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd,
+                                              struct DEVSMCKEYDESC const *pKeyDesc);
 
 /**
  * Key descriptor.
@@ -288,10 +288,10 @@ typedef struct DEVSMCKEYDESC
     DEVSMC4CHID         Key;
     /** Type 4 character identifier.  0 means the getter will set it dynamically. */
     DEVSMC4CHID         Type;
-    /** Getter method, see FNDEVSMCKEYGETTER. */
-    FNDEVSMCKEYGETTER  *pfnGet;
-    /** Putter method, see FNDEVSMCKEYPUTTER. */
-    FNDEVSMCKEYPUTTER  *pfnPut;
+    /** Getter method, see DEVSMCKEYPUTTER. */
+    DEVSMCKEYGETTER    *pfnGet;
+    /** Putter method, see DEVSMCKEYPUTTER. */
+    DEVSMCKEYPUTTER    *pfnPut;
     /** The keyvalue size.  If 0 the pfnGet/pfnPut will define/check the size. */
     uint8_t             cbValue;
     /** Attributes.  0 means the getter will set it dynamically. */
@@ -304,20 +304,20 @@ typedef DEVSMCKEYDESC const *PCDEVSMCKEYDESC;
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static FNDEVSMCKEYGETTER scmKeyGetOSKs;
-static FNDEVSMCKEYGETTER scmKeyGetKeyCount;
-static FNDEVSMCKEYGETTER scmKeyGetRevision;
+static DEVSMCKEYGETTER scmKeyGetOSKs;
+static DEVSMCKEYGETTER scmKeyGetKeyCount;
+static DEVSMCKEYGETTER scmKeyGetRevision;
 #ifdef VBOX_WITH_SMC_2_x
-static FNDEVSMCKEYGETTER scmKeyGetDollarAddress;
-static FNDEVSMCKEYGETTER scmKeyGetDollarNumber;
-static FNDEVSMCKEYPUTTER scmKeyPutDollarNumber;
+static DEVSMCKEYGETTER scmKeyGetDollarAddress;
+static DEVSMCKEYGETTER scmKeyGetDollarNumber;
+static DEVSMCKEYPUTTER scmKeyPutDollarNumber;
 #endif
-static FNDEVSMCKEYGETTER scmKeyGetShutdownReason;
-static FNDEVSMCKEYPUTTER scmKeyPutShutdownReason;
-static FNDEVSMCKEYGETTER scmKeyGetNinjaTimerAction;
-static FNDEVSMCKEYPUTTER scmKeyPutNinjaTimerAction;
-static FNDEVSMCKEYGETTER scmKeyGetOne;
-static FNDEVSMCKEYGETTER scmKeyGetZero;
+static DEVSMCKEYGETTER scmKeyGetShutdownReason;
+static DEVSMCKEYPUTTER scmKeyPutShutdownReason;
+static DEVSMCKEYGETTER scmKeyGetNinjaTimerAction;
+static DEVSMCKEYPUTTER scmKeyPutNinjaTimerAction;
+static DEVSMCKEYGETTER scmKeyGetOne;
+static DEVSMCKEYGETTER scmKeyGetZero;
 
 
 /*********************************************************************************************************************************
@@ -351,8 +351,7 @@ static const DEVSMCKEYDESC g_aSmcKeys[] =
 /** @todo MSSP, NTOK and more. */
 };
 
-#if defined(IN_RING0) && (defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86))
-
+#ifdef IN_RING0
 /** Do once for the SMC ring-0 static data (g_abOsk0And1, g_fHaveOsk). */
 static RTONCE   g_SmcR0Once = RTONCE_INITIALIZER;
 /** Indicates whether we've successfully queried the OSK* keys. */
@@ -503,7 +502,7 @@ static DECLCALLBACK(int) devR0SmcReqHandler(PPDMDEVINS pDevIns, uint32_t uReq, u
     return rc;
 }
 
-#endif /* IN_RING0 && (AMD64 || X86) */
+#endif /* IN_RING0 */
 
 #if defined(IN_RING3) && defined(RT_OS_DARWIN)
 
@@ -577,8 +576,8 @@ static int getSmcKeyOs(char *pabKey, uint32_t cbKey)
 #endif /* IN_RING3 && RT_OS_DARWIN */
 
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, OSK0 and OSK1} */
-static DECLCALLBACK(uint8_t) scmKeyGetOSKs(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, OSK0 and OSK1} */
+static uint8_t scmKeyGetOSKs(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF1(bCmd);
     Assert(SMC4CH_EQ(&pKeyDesc->Key, "OSK0") || SMC4CH_EQ(&pKeyDesc->Key, "OSK1"));
@@ -590,8 +589,8 @@ static DECLCALLBACK(uint8_t) scmKeyGetOSKs(PDEVSMC pThis, PDEVSMCCURKEY pCurKey,
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, \#KEY} */
-static DECLCALLBACK(uint8_t) scmKeyGetKeyCount(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, \#KEY} */
+static uint8_t scmKeyGetKeyCount(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF3(pThis, bCmd, pKeyDesc);
     Assert(pKeyDesc == &g_aSmcKeys[SMC_KEYIDX_FIRST_ENUM]);
@@ -601,8 +600,8 @@ static DECLCALLBACK(uint8_t) scmKeyGetKeyCount(PDEVSMC pThis, PDEVSMCCURKEY pCur
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, REV - Source revision.} */
-static DECLCALLBACK(uint8_t) scmKeyGetRevision(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, REV - Source revision.} */
+static uint8_t scmKeyGetRevision(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF3(pThis, bCmd, pKeyDesc);
 #ifdef VBOX_WITH_SMC_2_x
@@ -625,8 +624,8 @@ static DECLCALLBACK(uint8_t) scmKeyGetRevision(PDEVSMC pThis, PDEVSMCCURKEY pCur
 
 #ifdef VBOX_WITH_SMC_2_x
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, $Adr - SMC address.} */
-static DECLCALLBACK(uint8_t) scmKeyGetDollarAddress(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, $Adr - SMC address.} */
+static uint8_t scmKeyGetDollarAddress(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF3(pThis, bCmd, pKeyDesc);
     pCurKey->Value.u32 = RT_H2BE_U32(SMC_PORT_FIRST);
@@ -634,16 +633,16 @@ static DECLCALLBACK(uint8_t) scmKeyGetDollarAddress(PDEVSMC pThis, PDEVSMCCURKEY
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, $Num - Some kind of number.} */
-static DECLCALLBACK(uint8_t) scmKeyGetDollarNumber(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, $Num - Some kind of number.} */
+static uint8_t scmKeyGetDollarNumber(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     pCurKey->Value.ab[0] = pThis->bDollaryNumber;
     return VINF_SUCCESS;
 }
 
-/** @callback_method_impl{FNDEVSMCKEYPUTTER, $Num - Some kind of number.} */
-static DECLCALLBACK(uint8_t) scmKeyPutDollarNumber(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYPUTTER, $Num - Some kind of number.} */
+static uint8_t scmKeyPutDollarNumber(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     Log(("scmKeyPutDollarNumber: %#x -> %#x\n", pThis->bDollaryNumber, pCurKey->Value.ab[0]));
@@ -653,8 +652,8 @@ static DECLCALLBACK(uint8_t) scmKeyPutDollarNumber(PDEVSMC pThis, PCDEVSMCCURKEY
 
 #endif /* VBOX_WITH_SMC_2_x */
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, MSSD - Machine Shutdown reason.} */
-static DECLCALLBACK(uint8_t) scmKeyGetShutdownReason(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, MSSD - Machine Shutdown reason.} */
+static uint8_t scmKeyGetShutdownReason(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     pCurKey->Value.ab[0] = pThis->bShutdownReason;
@@ -662,8 +661,8 @@ static DECLCALLBACK(uint8_t) scmKeyGetShutdownReason(PDEVSMC pThis, PDEVSMCCURKE
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYPUTTER, MSSD - Machine Shutdown reason.} */
-static DECLCALLBACK(uint8_t) scmKeyPutShutdownReason(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYPUTTER, MSSD - Machine Shutdown reason.} */
+static uint8_t scmKeyPutShutdownReason(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     Log(("scmKeyPutShutdownReason: %#x -> %#x\n", pThis->bShutdownReason, pCurKey->Value.ab[0]));
@@ -672,9 +671,8 @@ static DECLCALLBACK(uint8_t) scmKeyPutShutdownReason(PDEVSMC pThis, PCDEVSMCCURK
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, MSSD - Ninja timer action job.} */
-static DECLCALLBACK(uint8_t)
-scmKeyGetNinjaTimerAction(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, MSSD - Ninja timer action job.} */
+static uint8_t scmKeyGetNinjaTimerAction(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     pCurKey->Value.ab[0] = pThis->bNinjaActionTimerJob;
@@ -682,9 +680,8 @@ scmKeyGetNinjaTimerAction(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PC
 }
 
 
-/** @callback_method_impl{FNDEVSMCKEYPUTTER, NATJ - Ninja timer action job.} */
-static DECLCALLBACK(uint8_t)
-scmKeyPutNinjaTimerAction(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYPUTTER, NATJ - Ninja timer action job.} */
+static uint8_t scmKeyPutNinjaTimerAction(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(bCmd, pKeyDesc);
     Log(("scmKeyPutNinjaTimerAction: %#x -> %#x\n", pThis->bNinjaActionTimerJob, pCurKey->Value.ab[0]));
@@ -694,8 +691,8 @@ scmKeyPutNinjaTimerAction(PDEVSMC pThis, PCDEVSMCCURKEY pCurKey, uint8_t bCmd, P
 
 #ifdef VBOX_WITH_SMC_2_x
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, Generic one getter.} */
-static DECLCALLBACK(uint8_t) scmKeyGetOne(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, Generic one getter.} */
+static uint8_t scmKeyGetOne(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(pThis, bCmd);
     memset(&pCurKey->Value.ab[0], 0, pKeyDesc->cbValue);
@@ -705,8 +702,8 @@ static DECLCALLBACK(uint8_t) scmKeyGetOne(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, 
 
 #endif /* VBOX_WITH_SMC_2_x */
 
-/** @callback_method_impl{FNDEVSMCKEYGETTER, Generic zero getter.} */
-static DECLCALLBACK(uint8_t) scmKeyGetZero(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
+/** @callback_method_impl{DEVSMCKEYGETTER, Generic zero getter.} */
+static uint8_t scmKeyGetZero(PDEVSMC pThis, PDEVSMCCURKEY pCurKey, uint8_t bCmd, PCDEVSMCKEYDESC pKeyDesc)
 {
     RT_NOREF2(pThis, bCmd);
     memset(&pCurKey->Value.ab[0], 0, pKeyDesc->cbValue);
@@ -1569,11 +1566,7 @@ const PDMDEVREG g_DeviceSmc =
     /* .pfnConstruct = */           smcRZConstruct,
     /* .pfnDestruct = */            NULL,
     /* .pfnFinalDestruct = */       NULL,
-# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
     /* .pfnRequest = */             devR0SmcReqHandler,
-# else
-    /* .pfnRequest = */             NULL,
-# endif
     /* .pfnReserved0 = */           NULL,
     /* .pfnReserved1 = */           NULL,
     /* .pfnReserved2 = */           NULL,

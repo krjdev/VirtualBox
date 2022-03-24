@@ -1,11 +1,11 @@
-/* $Id: vbox-greeter.cpp 94184 2022-03-11 18:24:17Z vboxsync $ */
+/* $Id: vbox-greeter.cpp $ */
 /** @file
  * vbox-greeter - an own LightDM greeter module supporting auto-logons
  *                controlled by the host.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -327,7 +327,7 @@ static int vbox_wait_prop(uint32_t uClientID,
             rc = VbglR3GuestPropWait(uClientID, pszKey, pvBuf, cbBuf,
                                      0 /* Last timestamp; just wait for next event */, uTimeoutMS,
                                      &pszName, &pszValue, &u64TimestampOut,
-                                     &pszFlags, &cbBuf, NULL);
+                                     &pszFlags, &cbBuf);
         }
         else
             rc = VERR_NO_MEMORY;
@@ -934,9 +934,8 @@ static int vboxGreeterLogCreate(const char *pszLogFile)
 #if defined(RT_OS_WINDOWS) || defined(RT_OS_OS2)
     fFlags |= RTLOGFLAGS_USECRLF;
 #endif
-    int rc = RTLogCreateEx(&g_pLoggerRelease, "VBOXGREETER_RELEASE_LOG", fFlags, "all",
-                           RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX /*cMaxEntriesPerGroup*/,
-                           0 /*cBufDescs*/, NULL /*paBufDescs*/, RTLOGDEST_STDOUT,
+    int rc = RTLogCreateEx(&g_pLoggerRelease, fFlags, "all", "VBOXGREETER_RELEASE_LOG",
+                           RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX /*cMaxEntriesPerGroup*/, RTLOGDEST_STDOUT,
                            vboxGreeterLogHeaderFooter, g_cHistory, g_uHistoryFileSize, g_uHistoryFileTime,
                            NULL /*pErrInfo*/, pszLogFile);
     if (RT_SUCCESS(rc))

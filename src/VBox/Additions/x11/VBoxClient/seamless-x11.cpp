@@ -1,10 +1,10 @@
-/* $Id: seamless-x11.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: seamless-x11.cpp $ */
 /** @file
  * X11 Seamless mode.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,6 @@
 #include <iprt/errcore.h>
 #include <iprt/assert.h>
 #include <iprt/vector.h>
-#include <iprt/thread.h>
 #include <VBox/log.h>
 
 #include "seamless-x11.h"
@@ -70,11 +69,11 @@ static unsigned char *XXGetProperty (Display *aDpy, Window aWnd, Atom aPropType,
 }
 
 /**
- * Initialise the guest and ensure that it is capable of handling seamless mode
- *
- * @param  pHostCallback   host callback.
- * @returns true if it can handle seamless, false otherwise
- */
+  * Initialise the guest and ensure that it is capable of handling seamless mode
+  *
+  * @param  pHostCallback   host callback.
+  * @returns true if it can handle seamless, false otherwise
+  */
 int SeamlessX11::init(PFNSENDREGIONUPDATE pHostCallback)
 {
     int rc = VINF_SUCCESS;
@@ -95,36 +94,6 @@ int SeamlessX11::init(PFNSENDREGIONUPDATE pHostCallback)
     unmonitorClientList();
     LogRelFlowFuncLeaveRC(rc);
     return rc;
-}
-
-/**
- * Shutdown seamless event monitoring.
- */
-void SeamlessX11::uninit(void)
-{
-    if (mHostCallback)
-        stop();
-    mHostCallback = NULL;
-
-    /* Before closing a Display, make sure X11 is still running. The indicator
-     * that is when XOpenDisplay() returns non NULL. If it is not a
-     * case, XCloseDisplay() will hang on internal X11 mutex forever. */
-    Display *pDisplay = XOpenDisplay(NULL);
-    if (pDisplay)
-    {
-        XCloseDisplay(pDisplay);
-        if (mDisplay)
-        {
-            XCloseDisplay(mDisplay);
-            mDisplay = NULL;
-        }
-    }
-
-    if (mpRects)
-    {
-        RTMemFree(mpRects);
-        mpRects = NULL;
-    }
 }
 
 /**
@@ -343,20 +312,9 @@ void SeamlessX11::nextConfigurationEvent(void)
         mHostCallback(mpRects, mcRects);
     }
     mChanged = false;
-
-    if (XPending(mDisplay) > 0)
-    {
-        /* We execute this even when seamless is disabled, as it also waits for
-         * enable and disable notification. */
-        XNextEvent(mDisplay, &event);
-    } else
-    {
-        /* This function is called in a loop by upper layer. In order to
-         * prevent CPU spinning, sleep a bit before returning. */
-        RTThreadSleep(300 /* ms */);
-        return;
-    }
-
+    /* We execute this even when seamless is disabled, as it also waits for
+     * enable and disable notification. */
+    XNextEvent(mDisplay, &event);
     if (!mEnabled)
         return;
     switch (event.type)
@@ -471,7 +429,8 @@ size_t SeamlessX11::getRectCount(void)
 
 RTVEC_DECL(RectList, RTRECT)
 
-static DECLCALLBACK(int) getRectsCallback(VBoxGuestWinInfo *pInfo, struct RectList *pRects)
+DECLCALLBACK(int) getRectsCallback(VBoxGuestWinInfo *pInfo,
+                                   struct RectList *pRects)
 {
     if (pInfo->mhasShape)
     {
@@ -525,7 +484,8 @@ int SeamlessX11::updateRects(void)
         if (RT_FAILURE(rc))
             return rc;
     }
-    mGuestWindows.doWithAll((PFNVBOXGUESTWINCALLBACK)getRectsCallback, &rects);
+    mGuestWindows.doWithAll((PVBOXGUESTWINCALLBACK)getRectsCallback,
+                            &rects);
     if (mpRects)
         RTMemFree(mpRects);
     mcRects = RectListSize(&rects);
@@ -546,11 +506,7 @@ bool SeamlessX11::interruptEventWait(void)
 
     LogRelFlowFuncEnter();
     if (pDisplay == NULL)
-    {
-        VBClLogError("Failed to open X11 display\n");
-        return false;
-    }
-
+        VBClLogFatalError("Failed to open X11 display\n");
     /* Message contents set to zero. */
     XClientMessageEvent clientMessage = { ClientMessage, 0, 0, 0, 0, 0, 8 };
 

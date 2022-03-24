@@ -1,10 +1,10 @@
-/* $Id: RTTraceLogTool.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTTraceLogTool.cpp $ */
 /** @file
  * IPRT - Utility for reading/receiving and dissecting trace logs.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
                          , RTPathFilename(argv[0]));
                 return RTEXITCODE_SUCCESS;
             case 'V':
-                RTPrintf("$Revision: 93115 $\n");
+                RTPrintf("$Revision: 135976 $\n");
                 return RTEXITCODE_SUCCESS;
 
             case 'i':
@@ -291,13 +291,10 @@ int main(int argc, char **argv)
                                         case RTTRACELOGTYPE_INT64:
                                             RTMsgInfo("    %s: %lld\n", Val.pItemDesc->pszName, Val.u.i64);
                                             break;
-                                        case RTTRACELOGTYPE_RAWDATA:
-                                            RTMsgInfo("    %s:\n"
-                                                      "%.*Rhxd\n", Val.pItemDesc->pszName, Val.u.RawData.cb, Val.u.RawData.pb);
-                                            break;
                                         case RTTRACELOGTYPE_FLOAT32:
                                         case RTTRACELOGTYPE_FLOAT64:
-                                            RTMsgInfo("    %s: Float32 and Float64 data not supported yet\n", Val.pItemDesc->pszName);
+                                        case RTTRACELOGTYPE_RAWDATA:
+                                            RTMsgInfo("    %s: Float32, Float64 and raw data not supported yet\n", Val.pItemDesc->pszName);
                                             break;
                                         case RTTRACELOGTYPE_POINTER:
                                             RTMsgInfo("    %s: %#llx\n", Val.pItemDesc->pszName, Val.u.uPtr);

@@ -1,10 +1,10 @@
-/* $Id: UIInformationConfiguration.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIInformationConfiguration.h $ */
 /** @file
  * VBox Qt GUI - UIInformationConfiguration class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,32 +54,27 @@ public:
 
 protected:
 
-    void retranslateUi() RT_OVERRIDE;
+    void retranslateUi() /* override */;
 
 private slots:
 
     void sltMachineDataChanged();
-    void sltHandleTableContextMenuRequest(const QPoint &position);
-    void sltCopyTableToClipboard();
 
 private:
 
     void createTableItems();
     void prepareObjects();
     void insertTitleRow(const QString &strTitle, const QIcon &icon, const QFontMetrics &fontMetrics);
-    void insertInfoRows(const UITextTable &table, const QFontMetrics &fontMetrics, int &iMaxColumn1Length);
+    void insertInfoRows(const UITextTable &table, const QFontMetrics &fontMetrics,
+                        QTextDocument &textDocument, int &iMaxColumn1Length);
     void insertInfoRow(const QString strText1, const QString &strText2,
                        const QFontMetrics &fontMetrics, int &iMaxColumn1Length);
     void resetTable();
-    QString removeHtmlFromString(const QString &strOriginal);
-    QString tableData() const;
 
     CMachine m_machine;
     CConsole m_console;
     QVBoxLayout *m_pMainLayout;
     QTableWidget *m_pTableWidget;
-    QAction *m_pCopyWholeTableAction;
-
     const int m_iColumCount;
     const int m_iRowLeftMargin;
     const int m_iRowTopMargin;

@@ -1,10 +1,10 @@
-/* $Id: VBoxTray.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxTray.h $ */
 /** @file
  * VBoxTray - Guest Additions Tray, Internal Header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,7 +97,7 @@ typedef struct _VBOXSERVICEDESC
      * @param   ppInstance      Where to return the thread-specific instance data.
      * @todo r=bird: The pEnv type is WRONG!  Please check all your const pointers.
      */
-    DECLCALLBACKMEMBER(int, pfnInit,(const PVBOXSERVICEENV pEnv, void **ppInstance));
+    DECLCALLBACKMEMBER(int,  pfnInit)   (const PVBOXSERVICEENV pEnv, void **ppInstance);
 
     /** Called from the worker thread.
      *
@@ -107,19 +107,19 @@ typedef struct _VBOXSERVICEDESC
      * @param   pfShutdown      Pointer to a per service termination flag to check
      *                          before and after blocking.
      */
-    DECLCALLBACKMEMBER(int, pfnWorker,(void *pInstance, bool volatile *pfShutdown));
+    DECLCALLBACKMEMBER(int,  pfnWorker) (void *pInstance, bool volatile *pfShutdown);
 
     /**
      * Stops a service.
      */
-    DECLCALLBACKMEMBER(int, pfnStop,(void *pInstance));
+    DECLCALLBACKMEMBER(int,  pfnStop)   (void *pInstance);
 
     /**
      * Does termination cleanups.
      *
      * @remarks This may be called even if pfnInit hasn't been called!
      */
-    DECLCALLBACKMEMBER(void, pfnDestroy,(void *pInstance));
+    DECLCALLBACKMEMBER(void, pfnDestroy)(void *pInstance);
 } VBOXSERVICEDESC, *PVBOXSERVICEDESC;
 
 extern VBOXSERVICEDESC g_SvcDescDisplay;

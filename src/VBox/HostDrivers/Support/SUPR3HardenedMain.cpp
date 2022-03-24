@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedMain.cpp 93389 2022-01-20 22:52:34Z vboxsync $ */
+/* $Id: SUPR3HardenedMain.cpp $ */
 /** @file
  * VirtualBox Support Library - Hardened main().
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -484,12 +484,12 @@
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
 /** @see RTR3InitEx */
-typedef DECLCALLBACKTYPE(int, FNRTR3INITEX,(uint32_t iVersion, uint32_t fFlags, int cArgs,
-                                            char **papszArgs, const char *pszProgramPath));
+typedef DECLCALLBACK(int) FNRTR3INITEX(uint32_t iVersion, uint32_t fFlags, int cArgs,
+                                       char **papszArgs, const char *pszProgramPath);
 typedef FNRTR3INITEX *PFNRTR3INITEX;
 
 /** @see RTLogRelPrintf */
-typedef DECLCALLBACKTYPE(void, FNRTLOGRELPRINTF,(const char *pszFormat, ...));
+typedef DECLCALLBACK(void) FNRTLOGRELPRINTF(const char *pszFormat, ...);
 typedef FNRTLOGRELPRINTF *PFNRTLOGRELPRINTF;
 
 
@@ -549,7 +549,7 @@ static size_t           g_cchSupLibHardenedExecName;
 
 /** The program name. */
 static const char      *g_pszSupLibHardenedProgName;
-/** The flags passed to SUPR3HardenedMain - SUPSECMAIN_FLAGS_XXX. */
+/** The flags passed to SUPR3HardenedMain. */
 static uint32_t         g_fSupHardenedMain;
 
 #ifdef SUP_HARDENED_SUID
@@ -670,7 +670,7 @@ static int suplibHardenedStrCopyEx(char *pszDst, size_t cbDst, ...)
  *
  * @param   rcExit      The exit code.
  */
-DECLHIDDEN(DECL_NO_RETURN(void)) suplibHardenedExit(RTEXITCODE rcExit)
+DECLNORETURN(void) suplibHardenedExit(RTEXITCODE rcExit)
 {
     for (;;)
     {
@@ -1333,8 +1333,6 @@ static void supR3HardenedGetFullExePath(void)
     if (!cchImageName || cchImageName >= sizeof(g_szSupLibHardenedExePath))
         supR3HardenedFatal("supR3HardenedExecDir: _dyld_get_image_name(0) failed, cchImageName=%d\n", cchImageName);
     suplibHardenedMemCopy(g_szSupLibHardenedExePath, pszImageName, cchImageName + 1);
-    /** @todo abspath the string or this won't work:
-     * cd /Applications/VirtualBox.app/Contents/Resources/VirtualBoxVM.app/Contents/MacOS/ && ./VirtualBoxVM --startvm name */
 
 #elif defined(RT_OS_WINDOWS)
     char *pszDst = g_szSupLibHardenedExePath;
@@ -1428,6 +1426,7 @@ static bool supR3HardenedMainIsProcSelfExeAccssible(void)
 
 
 /**
+ * @copydoc RTPathExecDir
  * @remarks not quite like RTPathExecDir actually...
  */
 DECLHIDDEN(int) supR3HardenedPathAppBin(char *pszPath, size_t cchPath)
@@ -1475,7 +1474,7 @@ DECLHIDDEN(void) supR3HardenedOpenLog(int *pcArgs, char **papszArgs)
             /*
              * Drop the argument from the vector (has trailing NULL entry).
              */
-//            memmove(&papszArgs[iArg], &papszArgs[iArg + 1], (cArgs - iArg) * sizeof(papszArgs[0]));
+            memmove(&papszArgs[iArg], &papszArgs[iArg + 1], (cArgs - iArg) * sizeof(papszArgs[0]));
             *pcArgs -= 1;
             cArgs   -= 1;
 
@@ -1497,8 +1496,8 @@ DECLHIDDEN(void) supR3HardenedOpenLog(int *pcArgs, char **papszArgs)
                                       NULL);
                 if (RT_SUCCESS(rc))
                 {
-//                    SUP_DPRINTF(("Log file opened: " VBOX_VERSION_STRING "r%u g_hStartupLog=%p g_uNtVerCombined=%#x\n",
-//                                 VBOX_SVN_REV, g_hStartupLog, g_uNtVerCombined));
+                    SUP_DPRINTF(("Log file opened: " VBOX_VERSION_STRING "r%u g_hStartupLog=%p g_uNtVerCombined=%#x\n",
+                                 VBOX_SVN_REV, g_hStartupLog, g_uNtVerCombined));
 
                     /*
                      * If the path contains a drive volume, save it so we can
@@ -1506,7 +1505,7 @@ DECLHIDDEN(void) supR3HardenedOpenLog(int *pcArgs, char **papszArgs)
                      */
                     if (RT_C_IS_ALPHA(pszLogFile[0]) && pszLogFile[1] == ':')
                     {
-//                        RTUtf16CopyAscii(g_wszStartupLogVol, RT_ELEMENTS(g_wszStartupLogVol), "\\??\\");
+                        RTUtf16CopyAscii(g_wszStartupLogVol, RT_ELEMENTS(g_wszStartupLogVol), "\\??\\");
                         g_wszStartupLogVol[sizeof("\\??\\") - 1] = RT_C_TO_UPPER(pszLogFile[0]);
                         g_wszStartupLogVol[sizeof("\\??\\") + 0] = ':';
                         g_wszStartupLogVol[sizeof("\\??\\") + 1] = '\0';
@@ -1734,7 +1733,7 @@ DECL_NO_RETURN(DECLHIDDEN(void)) supR3HardenedFatalMsgV(const char *pszWhere, SU
                 /* We'll fork before we make the call because that way the session management
                    in main will see us exiting immediately (if it's involved with us) and possibly
                    get an error back to the API / user. */
-#if !defined(RT_OS_WINDOWS) && !defined(RT_OS_OS2) && /* @bugref{10170}: */ !defined(RT_OS_DARWIN)
+#if !defined(RT_OS_WINDOWS) && !defined(RT_OS_OS2)
                 int pid = fork();
                 if (pid <= 0)
 #endif
@@ -1863,16 +1862,8 @@ DECLHIDDEN(void) supR3HardenedMainOpenDevice(void)
 {
     RTERRINFOSTATIC ErrInfo;
     SUPINITOP       enmWhat = kSupInitOp_Driver;
-    uint32_t        fFlags  = SUPR3INIT_F_UNRESTRICTED;
-    if (g_fSupHardenedMain & SUPSECMAIN_FLAGS_DRIVERLESS)
-        fFlags |= SUPR3INIT_F_DRIVERLESS;
-    if (g_fSupHardenedMain & SUPSECMAIN_FLAGS_DRIVERLESS_IEM_ALLOWED)
-        fFlags |= SUPR3INIT_F_DRIVERLESS_IEM_ALLOWED;
-#ifdef VBOX_WITH_DRIVERLESS_NEM_FALLBACK
-    if (g_fSupHardenedMain & SUPSECMAIN_FLAGS_DRIVERLESS_NEM_FALLBACK)
-        fFlags |= SUPR3INIT_F_DRIVERLESS_NEM_FALLBACK;
-#endif
-    int rc = suplibOsInit(&g_SupPreInitData.Data, false /*fPreInit*/, fFlags, &enmWhat, RTErrInfoInitStatic(&ErrInfo));
+    int rc = suplibOsInit(&g_SupPreInitData.Data, false /*fPreInit*/, true /*fUnrestricted*/,
+                          &enmWhat, RTErrInfoInitStatic(&ErrInfo));
     if (RT_SUCCESS(rc))
         return;
 
@@ -2341,36 +2332,17 @@ static void supR3HardenedMainInitRuntime(uint32_t fFlags)
     if (RT_FAILURE(rc))
         supR3HardenedFatalMsg("supR3HardenedMainInitRuntime", kSupInitOp_IPRT, rc,
                               "supR3PreInit failed with rc=%d", rc);
-
-    /* Get the executable path for the IPRT init on linux if /proc/self/exe isn't accessible. */
     const char *pszExePath = NULL;
 #ifdef RT_OS_LINUX
     if (!supR3HardenedMainIsProcSelfExeAccssible())
         pszExePath = g_szSupLibHardenedExePath;
 #endif
-
-    /* Assemble the IPRT init flags. We could probably just pass RTR3INIT_FLAGS_TRY_SUPLIB
-       here and be done with it, but it's not too much hazzle to convert fFlags 1:1. */
-    uint32_t fRtInit = 0;
-    if (!(fFlags & SUPSECMAIN_FLAGS_DONT_OPEN_DEV))
-    {
-        if (fFlags & SUPSECMAIN_FLAGS_DRIVERLESS)
-            fRtInit |= (SUPR3INIT_F_DRIVERLESS              << RTR3INIT_FLAGS_SUPLIB_SHIFT) | RTR3INIT_FLAGS_TRY_SUPLIB;
-        if (fFlags & SUPSECMAIN_FLAGS_DRIVERLESS_IEM_ALLOWED)
-            fRtInit |= (SUPR3INIT_F_DRIVERLESS_IEM_ALLOWED  << RTR3INIT_FLAGS_SUPLIB_SHIFT) | RTR3INIT_FLAGS_TRY_SUPLIB;
-#ifdef VBOX_WITH_DRIVERLESS_NEM_FALLBACK
-        if (fFlags & SUPSECMAIN_FLAGS_DRIVERLESS_NEM_FALLBACK)
-            fRtInit |= (SUPR3INIT_F_DRIVERLESS_NEM_FALLBACK << RTR3INIT_FLAGS_SUPLIB_SHIFT) | RTR3INIT_FLAGS_TRY_SUPLIB;
-#endif
-        if (!(fRtInit & RTR3INIT_FLAGS_TRY_SUPLIB))
-            fRtInit |= RTR3INIT_FLAGS_SUPLIB;
-    }
-
-    /* Now do the IPRT init. */
-    rc = pfnRTInitEx(RTR3INIT_VER_CUR, fRtInit, 0 /*cArgs*/, NULL /*papszArgs*/, pszExePath);
+    rc = pfnRTInitEx(RTR3INIT_VER_1,
+                     fFlags & SUPSECMAIN_FLAGS_DONT_OPEN_DEV ? 0 : RTR3INIT_FLAGS_SUPLIB,
+                     0 /*cArgs*/, NULL /*papszArgs*/, pszExePath);
     if (RT_FAILURE(rc))
         supR3HardenedFatalMsg("supR3HardenedMainInitRuntime", kSupInitOp_IPRT, rc,
-                              "RTR3InitEx failed with rc=%d (fRtFlags=%#x)", rc, fRtInit);
+                              "RTR3InitEx failed with rc=%d", rc);
 
 #if defined(RT_OS_WINDOWS)
     /*

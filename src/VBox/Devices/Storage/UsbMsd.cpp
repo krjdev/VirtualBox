@@ -1,10 +1,10 @@
-/* $Id: UsbMsd.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UsbMsd.cpp $ */
 /** @file
  * UsbMSD - USB Mass Storage Device Emulation.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1258,7 +1258,7 @@ static bool usbMsdAllAsyncIOIsFinished(PPDMUSBINS pUsbIns)
 {
     PUSBMSD pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
 
-    if (   RT_VALID_PTR(pThis->pReq)
+    if (   VALID_PTR(pThis->pReq)
         && pThis->pReq->enmState == USBMSDREQSTATE_EXECUTING)
         return false;
 
@@ -1347,11 +1347,10 @@ static DECLCALLBACK(int) usbMsdLoadPrep(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM)
 static DECLCALLBACK(int) usbMsdLiveExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM, uint32_t uPass)
 {
     RT_NOREF(uPass);
-    PUSBMSD     pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
-    PCPDMUSBHLP pHlp  = pUsbIns->pHlpR3;
+    PUSBMSD pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
 
     /* config. */
-    pHlp->pfnSSMPutBool(pSSM, pThis->Lun0.pIBase != NULL);
+    SSMR3PutBool(pSSM, pThis->Lun0.pIBase != NULL);
     return VINF_SSM_DONT_CALL_AGAIN;
 }
 
@@ -1360,37 +1359,37 @@ static DECLCALLBACK(int) usbMsdLiveExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM, uin
  */
 static DECLCALLBACK(int) usbMsdSaveExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM)
 {
-    PUSBMSD     pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
-    PCPDMUSBHLP pHlp  = pUsbIns->pHlpR3;
+    PUSBMSD pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
+    int rc;
 
     /* The config */
-    int rc = usbMsdLiveExec(pUsbIns, pSSM, SSM_PASS_FINAL);
+    rc = usbMsdLiveExec(pUsbIns, pSSM, SSM_PASS_FINAL);
     AssertRCReturn(rc, rc);
 
-    pHlp->pfnSSMPutU8(pSSM, pThis->bConfigurationValue);
-    pHlp->pfnSSMPutBool(pSSM, pThis->aEps[0].fHalted);
-    pHlp->pfnSSMPutBool(pSSM, pThis->aEps[1].fHalted);
-    pHlp->pfnSSMPutBool(pSSM, pThis->aEps[2].fHalted);
-    pHlp->pfnSSMPutBool(pSSM, pThis->pReq != NULL);
+    SSMR3PutU8(pSSM, pThis->bConfigurationValue);
+    SSMR3PutBool(pSSM, pThis->aEps[0].fHalted);
+    SSMR3PutBool(pSSM, pThis->aEps[1].fHalted);
+    SSMR3PutBool(pSSM, pThis->aEps[2].fHalted);
+    SSMR3PutBool(pSSM, pThis->pReq != NULL);
 
     if (pThis->pReq)
     {
         PUSBMSDREQ pReq = pThis->pReq;
 
-        pHlp->pfnSSMPutU32(pSSM, pReq->enmState);
-        pHlp->pfnSSMPutU32(pSSM, pReq->cbBuf);
+        SSMR3PutU32(pSSM, pReq->enmState);
+        SSMR3PutU32(pSSM, pReq->cbBuf);
         if (pReq->cbBuf)
         {
             AssertPtr(pReq->pbBuf);
-            pHlp->pfnSSMPutMem(pSSM, pReq->pbBuf, pReq->cbBuf);
+            SSMR3PutMem(pSSM, pReq->pbBuf, pReq->cbBuf);
         }
 
-        pHlp->pfnSSMPutU32(pSSM, pReq->offBuf);
-        pHlp->pfnSSMPutMem(pSSM, &pReq->Cbw, sizeof(pReq->Cbw));
-        pHlp->pfnSSMPutU8(pSSM, pReq->iScsiReqStatus);
+        SSMR3PutU32(pSSM, pReq->offBuf);
+        SSMR3PutMem(pSSM, &pReq->Cbw, sizeof(pReq->Cbw));
+        SSMR3PutU8(pSSM, pReq->iScsiReqStatus);
     }
 
-    return pHlp->pfnSSMPutU32(pSSM, UINT32_MAX); /* sanity/terminator */
+    return SSMR3PutU32(pSSM, UINT32_MAX); /* sanity/terminator */
 }
 
 /**
@@ -1398,32 +1397,33 @@ static DECLCALLBACK(int) usbMsdSaveExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM)
  */
 static DECLCALLBACK(int) usbMsdLoadExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass)
 {
-    PUSBMSD     pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
-    PCPDMUSBHLP pHlp  = pUsbIns->pHlpR3;
+    PUSBMSD pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
+    uint32_t u32;
+    int rc;
 
     if (uVersion > USB_MSD_SAVED_STATE_VERSION)
         return VERR_SSM_UNSUPPORTED_DATA_UNIT_VERSION;
 
     /* Verify config. */
     bool fInUse;
-    int rc = pHlp->pfnSSMGetBool(pSSM, &fInUse);
+    rc = SSMR3GetBool(pSSM, &fInUse);
     AssertRCReturn(rc, rc);
     if (fInUse != (pThis->Lun0.pIBase != NULL))
-        return pHlp->pfnSSMSetCfgError(pSSM, RT_SRC_POS,
-                                       N_("The %s VM is missing a USB mass storage device. Please make sure the source and target VMs have compatible storage configurations"),
-                                       fInUse ? "target" : "source");
+        return SSMR3SetCfgError(pSSM, RT_SRC_POS,
+                                N_("The %s VM is missing a USB mass storage device. Please make sure the source and target VMs have compatible storage configurations"),
+                                fInUse ? "target" : "source");
 
     if (uPass == SSM_PASS_FINAL)
     {
         /* Restore data. */
         Assert(!pThis->pReq);
 
-        pHlp->pfnSSMGetU8(pSSM, &pThis->bConfigurationValue);
-        pHlp->pfnSSMGetBool(pSSM, &pThis->aEps[0].fHalted);
-        pHlp->pfnSSMGetBool(pSSM, &pThis->aEps[1].fHalted);
-        pHlp->pfnSSMGetBool(pSSM, &pThis->aEps[2].fHalted);
+        SSMR3GetU8(pSSM, &pThis->bConfigurationValue);
+        SSMR3GetBool(pSSM, &pThis->aEps[0].fHalted);
+        SSMR3GetBool(pSSM, &pThis->aEps[1].fHalted);
+        SSMR3GetBool(pSSM, &pThis->aEps[2].fHalted);
         bool fReqAlloc = false;
-        rc = pHlp->pfnSSMGetBool(pSSM, &fReqAlloc);
+        rc = SSMR3GetBool(pSSM, &fReqAlloc);
         AssertRCReturn(rc, rc);
         if (fReqAlloc)
         {
@@ -1432,10 +1432,10 @@ static DECLCALLBACK(int) usbMsdLoadExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM, uin
             pThis->pReq = pReq;
 
             AssertCompile(sizeof(pReq->enmState) == sizeof(uint32_t));
-            pHlp->pfnSSMGetU32(pSSM, (uint32_t *)&pReq->enmState);
+            SSMR3GetU32(pSSM, (uint32_t *)&pReq->enmState);
 
             uint32_t cbBuf = 0;
-            rc = pHlp->pfnSSMGetU32(pSSM, &cbBuf);
+            rc = SSMR3GetU32(pSSM, &cbBuf);
             AssertRCReturn(rc, rc);
             if (cbBuf)
             {
@@ -1443,31 +1443,30 @@ static DECLCALLBACK(int) usbMsdLoadExec(PPDMUSBINS pUsbIns, PSSMHANDLE pSSM, uin
                 {
                     AssertPtr(pReq->pbBuf);
                     Assert(cbBuf == pReq->cbBuf);
-                    pHlp->pfnSSMGetMem(pSSM, pReq->pbBuf, pReq->cbBuf);
+                    SSMR3GetMem(pSSM, pReq->pbBuf, pReq->cbBuf);
                 }
                 else
                     return VERR_NO_MEMORY;
             }
 
-            pHlp->pfnSSMGetU32(pSSM, &pReq->offBuf);
-            pHlp->pfnSSMGetMem(pSSM, &pReq->Cbw, sizeof(pReq->Cbw));
+            SSMR3GetU32(pSSM, &pReq->offBuf);
+            SSMR3GetMem(pSSM, &pReq->Cbw, sizeof(pReq->Cbw));
 
             if (uVersion > USB_MSD_SAVED_STATE_VERSION_PRE_CLEANUP)
-                rc = pHlp->pfnSSMGetU8(pSSM, &pReq->iScsiReqStatus);
+                rc = SSMR3GetU8(pSSM, &pReq->iScsiReqStatus);
             else
             {
                 int32_t iScsiReqStatus;
 
                 /* Skip old fields which are unused now or can be determined from the CBW. */
-                pHlp->pfnSSMSkip(pSSM, 4 * 4 + 64);
-                rc = pHlp->pfnSSMGetS32(pSSM, &iScsiReqStatus);
+                SSMR3Skip(pSSM, 4 * 4 + 64);
+                rc = SSMR3GetS32(pSSM, &iScsiReqStatus);
                 pReq->iScsiReqStatus = (uint8_t)iScsiReqStatus;
             }
             AssertRCReturn(rc, rc);
         }
 
-        uint32_t u32;
-        rc = pHlp->pfnSSMGetU32(pSSM, &u32);
+        rc = SSMR3GetU32(pSSM, &u32);
         AssertRCReturn(rc, rc);
         AssertMsgReturn(u32 == UINT32_MAX, ("%#x\n", u32), VERR_SSM_DATA_UNIT_FORMAT_CHANGED);
     }
@@ -2255,9 +2254,7 @@ static DECLCALLBACK(int) usbMsdConstruct(PPDMUSBINS pUsbIns, int iInstance, PCFG
 {
     RT_NOREF(pCfgGlobal);
     PDMUSB_CHECK_VERSIONS_RETURN(pUsbIns);
-    PUSBMSD     pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
-    PCPDMUSBHLP pHlp  = pUsbIns->pHlpR3;
-
+    PUSBMSD pThis = PDMINS_2_DATA(pUsbIns, PUSBMSD);
     Log(("usbMsdConstruct/#%u:\n", iInstance));
 
     /*
@@ -2290,7 +2287,7 @@ static DECLCALLBACK(int) usbMsdConstruct(PPDMUSBINS pUsbIns, int iInstance, PCFG
     /*
      * Validate and read the configuration.
      */
-    rc = pHlp->pfnCFGMValidateConfig(pCfg, "/", "", "", "UsbMsd", iInstance);
+    rc = CFGMR3ValidateConfig(pCfg, "/", "", "", "UsbMsd", iInstance);
     if (RT_FAILURE(rc))
         return rc;
 

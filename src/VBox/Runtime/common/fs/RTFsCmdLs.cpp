@@ -1,10 +1,10 @@
-/* $Id: RTFsCmdLs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTFsCmdLs.cpp $ */
 /** @file
  * IPRT - /bin/ls like utility for testing the VFS code.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1391,6 +1391,7 @@ static RTEXITCODE rtCmdLsProcessArgument(PRTCMDLSOPTS pOpts, const char *pszArg)
  */
 RTR3DECL(RTEXITCODE) RTFsCmdLs(unsigned cArgs, char **papszArgs)
 {
+
     /*
      * Parse the command line.
      */
@@ -1817,26 +1818,11 @@ RTR3DECL(RTEXITCODE) RTFsCmdLs(unsigned cArgs, char **papszArgs)
                 break;
 
             case '?':
-            {
-                RTPrintf("Usage: to be written\n"
-                         "Options dump:\n");
+                RTPrintf("Usage: to be written\nOpts.on dump:\n");
                 for (unsigned i = 0; i < RT_ELEMENTS(s_aOptions); i++)
-                    if (s_aOptions[i].iShort < 127 && s_aOptions[i].iShort >= 0x20)
-                        RTPrintf(" -%c,%s\n", s_aOptions[i].iShort, s_aOptions[i].pszLong);
-                    else
-                        RTPrintf(" %s\n", s_aOptions[i].pszLong);
-#ifdef RT_OS_WINDOWS
-                const char *pszProgNm = RTPathFilename(papszArgs[0]);
-                RTPrintf("\n"
-                         "The path prefix '\\\\:iprtnt:\\' can be used to access the NT namespace.\n"
-                         "To list devices:              %s -la \\\\:iprtnt:\\Device\n"
-                         "To list win32 devices:        %s -la \\\\:iprtnt:\\GLOBAL??\n"
-                         "To list the root (hack/bug):  %s -la \\\\:iprtnt:\\\n",
-                         pszProgNm, pszProgNm, pszProgNm);
-#endif
+                    RTPrintf(" -%c,%s\n", s_aOptions[i].iShort, s_aOptions[i].pszLong);
                 Assert(!Opts.papCollections);
                 return RTEXITCODE_SUCCESS;
-            }
 
             case 'V':
                 RTPrintf("%sr%d\n", RTBldCfgVersion(), RTBldCfgRevision());

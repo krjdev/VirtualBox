@@ -1,10 +1,10 @@
-/* $Id: initterm-gc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: initterm-gc.cpp $ */
 /** @file
  * IPRT - Init Raw-mode Context.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,7 +45,7 @@
 /**
  * Program start nanosecond TS.
  */
-DECL_HIDDEN_DATA(uint64_t) g_u64ProgramStartNanoTS;
+uint64_t    g_u64ProgramStartNanoTS;
 
 
 /**

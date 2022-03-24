@@ -1,10 +1,10 @@
-/* $Id: DrvACPI.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvACPI.cpp $ */
 /** @file
  * DrvACPI - ACPI Host Driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -974,7 +974,7 @@ static DECLCALLBACK(void) drvACPIDestruct(PPDMDRVINS pDrvIns)
  */
 static DECLCALLBACK(int) drvACPIConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    RT_NOREF(pCfg, fFlags);
+    RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
     PDRVACPI pThis = PDMINS_2_DATA(pDrvIns, PDRVACPI);
     int rc = VINF_SUCCESS;
@@ -995,7 +995,8 @@ static DECLCALLBACK(int) drvACPIConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, ui
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "", "");
+    if (!CFGMR3AreValuesValid(pCfg, "\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
 
     /*
      * Check that no-one is attached to us.

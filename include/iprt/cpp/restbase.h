@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -212,7 +212,7 @@ public:
      * @param   a_ppInstance Where to return the deserialized instance.
      *                       May return an object on failure.
      */
-    typedef DECLCALLBACKTYPE(int, FNDESERIALIZEINSTANCEFROMJSON,(RTCRestJsonCursor const &a_rCursor, RTCRestObjectBase **a_ppInstance));
+    typedef DECLCALLBACK(int) FNDESERIALIZEINSTANCEFROMJSON(RTCRestJsonCursor const &a_rCursor, RTCRestObjectBase **a_ppInstance);
     /** Pointer to a FNDESERIALIZEINSTANCEFROMJSON function. */
     typedef FNDESERIALIZEINSTANCEFROMJSON *PFNDESERIALIZEINSTANCEFROMJSON;
 

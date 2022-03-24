@@ -32,11 +32,7 @@
 
 #include "initguid.h"
 #ifdef VBOX
-# ifdef _MSC_VER
-#  include <iprt/win/objbase.h>
-# else
-#  include <objbase.h>
-# endif
+# include <iprt/win/objbase.h>
 # include <wine/wined3d.h>
 # ifdef _MSC_VER
 #  include <iprt/win/windows.h>
@@ -59,18 +55,16 @@
 //#include "wine/library.h"
 
 #ifdef VBOX_WITH_WDDM
-# include <VBoxDispMpLogger.h>
-# include <iprt/errcore.h>
+#include <VBoxDispMpLogger.h>
+#include <iprt/errcore.h>
 #else
-# include <iprt/log.h>
+#include <iprt/log.h>
 #endif
-#include <iprt/asm.h>
 
 #if VBOX_WITH_VMSVGA
 /* WINE defines this as inline in its headers, directly accessing a memory location */
 #ifndef RT_OS_WINDOWS
 #define GetCurrentThreadId() (1)
-#define GetCurrentProcessId() (1)
 #endif
 #endif
 
@@ -78,7 +72,7 @@ static const char * const debug_classes[] = { "fixme", "err", "warn", "trace" };
 
 #define MAX_DEBUG_OPTIONS 256
 
-typedef DECLCALLBACKTYPE(void, FNVBOXWINELOGBACKDOOR,(char* pcszStr));
+typedef DECLCALLBACK(void) FNVBOXWINELOGBACKDOOR(char* pcszStr);
 typedef FNVBOXWINELOGBACKDOOR *PFNVBOXWINELOGBACKDOOR;
 static PFNVBOXWINELOGBACKDOOR vbox_log_backdoor = NULL;
 static unsigned char default_flags = (1 << __WINE_DBCL_ERR) | (1 << __WINE_DBCL_FIXME) | (1 << __WINE_DBCL_WARN);
@@ -325,7 +319,7 @@ int wine_dbg_log( enum __wine_debug_class cls, struct __wine_debug_channel *chan
     return ret;
 }
 
-#ifndef VBOX //!defined(VBOX_WITH_VMSVGA) || defined(RT_OS_WINDOWS)
+#if !defined(VBOX_WITH_VMSVGA) || defined(RT_OS_WINDOWS)
 int interlocked_xchg_add( int *dest, int incr )
 {
     return InterlockedExchangeAdd((LONG *)dest, incr);
@@ -341,12 +335,7 @@ static char *get_temp_buffer( size_t size )
     char *ret;
     int idx;
 
-#ifndef VBOX
     idx = interlocked_xchg_add( &pos, 1 ) % (sizeof(list)/sizeof(list[0]));
-#else
-    idx = ASMAtomicIncS32(&pos) - 1;
-    idx %= RT_ELEMENTS(list);
-#endif
     if ((ret = realloc( list[idx], size ))) list[idx] = ret;
     return ret;
 }

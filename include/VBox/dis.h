@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -484,21 +484,14 @@ typedef DISOPPARAM *PDISOPPARAM;
 typedef const DISOPPARAM *PCDISOPPARAM;
 
 
-#if (defined(RT_ARCH_X86) || defined(RT_ARCH_AMD64)) && defined(DIS_CORE_ONLY)
-# define DISOPCODE_BITFIELD(a_cBits) : a_cBits
-#else
-# define DISOPCODE_BITFIELD(a_cBits)
-#endif
-
 /**
  * Opcode descriptor.
  */
-#if !defined(DIS_CORE_ONLY) || defined(DOXYGEN_RUNNING)
 typedef struct DISOPCODE
 {
-# define DISOPCODE_FORMAT  0
-    /** Mnemonic and operand formatting. */
+#ifndef DIS_CORE_ONLY
     const char  *pszOpcode;
+#endif
     /** Parameter \#1 parser index. */
     uint8_t     idxParse1;
     /** Parameter \#2 parser index. */
@@ -523,40 +516,6 @@ typedef struct DISOPCODE
     /** Operand type flags, DISOPTYPE_XXX. */
     uint32_t    fOpType;
 } DISOPCODE;
-#else
-# pragma pack(1)
-typedef struct DISOPCODE
-{
-#if 1 /*!defined(RT_ARCH_X86) && !defined(RT_ARCH_AMD64) - probably not worth it for ~4K, costs 2-3% speed. */
-    /* 16 bytes (trick is to make sure the bitfields doesn't cross dwords): */
-# define DISOPCODE_FORMAT  16
-    uint32_t    fOpType;
-    uint16_t    uOpcode;
-    uint8_t     idxParse1;
-    uint8_t     idxParse2;
-    uint32_t    fParam1   : 12; /* 1st dword: 12+12+8 = 0x20 (32) */
-    uint32_t    fParam2   : 12;
-    uint32_t    idxParse3 : 8;
-    uint32_t    fParam3   : 12; /* 2nd dword: 12+12+8 = 0x20 (32) */
-    uint32_t    fParam4   : 12;
-    uint32_t    idxParse4 : 8;
-#else /* 15 bytes: */
-# define DISOPCODE_FORMAT  15
-    uint64_t    uOpcode   : 10; /* 1st qword: 10+12+12+12+6+6+6 = 0x40 (64) */
-    uint64_t    idxParse1 : 6;
-    uint64_t    idxParse2 : 6;
-    uint64_t    idxParse3 : 6;
-    uint64_t    fParam1   : 12;
-    uint64_t    fParam2   : 12;
-    uint64_t    fParam3   : 12;
-    uint32_t    fOpType;
-    uint16_t    fParam4;
-    uint8_t     idxParse4;
-#endif
-} DISOPCODE;
-# pragma pack()
-AssertCompile(sizeof(DISOPCODE) == DISOPCODE_FORMAT);
-#endif
 /** Pointer to const opcode. */
 typedef const struct DISOPCODE *PCDISOPCODE;
 
@@ -579,7 +538,7 @@ typedef const struct DISOPCODE *PCDISOPCODE;
  * @param   cbMinRead       The minimum number of bytes to read.
  * @param   cbMaxRead       The maximum number of bytes that may be read.
  */
-typedef DECLCALLBACKTYPE(int, FNDISREADBYTES,(PDISSTATE pDis, uint8_t offInstr, uint8_t cbMinRead, uint8_t cbMaxRead));
+typedef DECLCALLBACK(int) FNDISREADBYTES(PDISSTATE pDis, uint8_t offInstr, uint8_t cbMinRead, uint8_t cbMaxRead);
 /** Pointer to a opcode byte reader. */
 typedef FNDISREADBYTES *PFNDISREADBYTES;
 
@@ -710,7 +669,7 @@ DISDECL(int) DISInstrWithPrefetchedBytes(RTUINTPTR uInstrAddr, DISCPUMODE enmCpu
                                          PFNDISREADBYTES pfnReadBytes, void *pvUser,
                                          PDISSTATE pDis, uint32_t *pcbInstr);
 
-DISDECL(uint8_t)    DISGetParamSize(PCDISSTATE pDis, PCDISOPPARAM pParam);
+DISDECL(int)        DISGetParamSize(PCDISSTATE pDis, PCDISOPPARAM pParam);
 DISDECL(DISSELREG)  DISDetectSegReg(PCDISSTATE pDis, PCDISOPPARAM pParam);
 DISDECL(uint8_t)    DISQuerySegPrefixByte(PCDISSTATE pDis);
 
@@ -742,11 +701,6 @@ typedef struct
         uint16_t    val16;
         uint32_t    val32;
         uint64_t    val64;
-
-        int8_t      i8;
-        int16_t     i16;
-        int32_t     i32;
-        int64_t     i64;
 
         struct
         {
@@ -810,8 +764,7 @@ DISDECL(int) DISPtrReg64(PCPUMCTXCORE pCtx, unsigned reg64, uint64_t **ppReg);
  *                      symbol to the specified address is returned.
  * @param   pvUser      The user argument.
  */
-typedef DECLCALLBACKTYPE(int, FNDISGETSYMBOL,(PCDISSTATE pDis, uint32_t u32Sel, RTUINTPTR uAddress, char *pszBuf, size_t cchBuf,
-                                              RTINTPTR *poff, void *pvUser));
+typedef DECLCALLBACK(int) FNDISGETSYMBOL(PCDISSTATE pDis, uint32_t u32Sel, RTUINTPTR uAddress, char *pszBuf, size_t cchBuf, RTINTPTR *poff, void *pvUser);
 /** Pointer to a FNDISGETSYMBOL(). */
 typedef FNDISGETSYMBOL *PFNDISGETSYMBOL;
 

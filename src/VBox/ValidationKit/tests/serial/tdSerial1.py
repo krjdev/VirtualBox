@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: tdSerial1.py 94127 2022-03-08 14:44:28Z vboxsync $
+# $Id: tdSerial1.py $
 
 """
 VirtualBox Validation Kit - Serial port testing #1.
@@ -8,7 +8,7 @@ VirtualBox Validation Kit - Serial port testing #1.
 
 __copyright__ = \
 """
-Copyright (C) 2018-2022 Oracle Corporation
+Copyright (C) 2018-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94127 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.
@@ -229,18 +229,19 @@ class tdSerial1(vbox.TestDriver):
             # Open serial port and verify
             cLast = 0;
             try:
-                with open(self.sLocation, 'rb') as oFile:
-                    sFmt = '=I';
-                    cBytes = 4;
-                    for i in xrange(1048576 // 4):
-                        _ = i;
-                        sData = oFile.read(cBytes);
-                        tupUnpacked = struct.unpack(sFmt, sData);
-                        cLast = cLast + 1;
-                        if tupUnpacked[0] != cLast:
-                            reporter.testFailure('Corruption detected, expected counter value %s, got %s'
-                                                 % (cLast + 1, tupUnpacked[0],));
-                            break;
+                oFile = open(self.sLocation, 'rb');
+                sFmt = '=I';
+                cBytes = 4;
+                for i in xrange(1048576 // 4):
+                    _ = i;
+                    sData = oFile.read(cBytes);
+                    tupUnpacked = struct.unpack(sFmt, sData);
+                    cLast = cLast + 1;
+                    if tupUnpacked[0] != cLast:
+                        reporter.testFailure('Corruption detected, expected counter value %s, got %s'
+                                             % (cLast + 1, tupUnpacked[0]));
+                        break;
+                oFile.close();
             except:
                 reporter.logXcpt();
                 reporter.testFailure('Verifying the written data failed');

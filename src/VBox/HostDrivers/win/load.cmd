@@ -1,11 +1,11 @@
 @echo off
-rem $Id: load.cmd 93239 2022-01-14 19:15:41Z vboxsync $
+rem $Id: load.cmd $
 rem rem @file
 rem Windows NT batch script for loading the support driver.
 rem
 
 rem
-rem Copyright (C) 2009-2022 Oracle Corporation
+rem Copyright (C) 2009-2020 Oracle Corporation
 rem
 rem This file is part of VirtualBox Open Source Edition (OSE), as
 rem available from http://www.virtualbox.org. This file is free software;
@@ -50,7 +50,7 @@ if not exist "%MY_ALTDIR%" mkdir "%MY_ALTDIR%"
 rem
 rem Display device states.
 rem
-for %%i in (VBoxNetAdp VBoxNetAdp6 VBoxNetFlt VBoxNetLwf VBoxUSBMon VBoxUSB VBoxSup) do (
+for %%i in (VBoxNetAdp VBoxNetAdp6 VBoxNetFlt VBoxNetLwf VBoxUSBMon VBoxUSB VBoxDrv) do (
     set type=
     for /f "usebackq tokens=*" %%f in (`sc query %%i`) do (set xxx=%%f&&if "!xxx:~0,5!" =="STATE" set type=!xxx!)
     for /f "usebackq tokens=2 delims=:" %%f in ('!type!') do set type=%%f
@@ -87,7 +87,7 @@ echo **
 echo ** Copying drivers into %MY_ALTDIR%...
 echo **
 set MY_FAILED=no
-for %%i in (VBoxSup.sys VBoxSup.inf VBoxSup.cat) do if exist "%MY_DIR%\%%i" (copy "%MY_DIR%\%%i" "%MY_ALTDIR%\%%i" || set MY_FAILED=yes)
+for %%i in (VBoxDrv.sys VBoxDrv.inf VBoxDrv.cat) do if exist "%MY_DIR%\%%i" (copy "%MY_DIR%\%%i" "%MY_ALTDIR%\%%i" || set MY_FAILED=yes)
 if "%MY_FAILED%" == "yes" goto end
 
 rem

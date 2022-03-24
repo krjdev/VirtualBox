@@ -1,10 +1,10 @@
-# $Id: setup-routines.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: setup-routines.sh $
 ## @file
 # VirtualBox Validation Kit - TestBoxScript Service Setup on Solaris.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -53,28 +53,12 @@ fi
 #
 # Solaris variables.
 #
+MY_SVC_TMP="/tmp/testboxscript.xml"
 MY_SVC_FMRI="svc:/system/virtualbox/testboxscript"
 MY_SVCCFG="/usr/sbin/svccfg"
 MY_SVCADM="/usr/sbin/svcadm"
-MY_CHGRP="/usr/bin/chgrp"
 MY_TR="/usr/bin/tr"
 MY_TAB=`printf "\t"`
-
-if test "${MY_SOLARIS_VER}" -lt 11; then
-    # solaris 10 service import
-    MY_SVC="/tmp/testboxscript.xml"
-else
-    # use propper manifest directory
-    # /lib/svc/manifest/system for solaris 11 and higher for testboxscript.xml file
-
-    # Since sol 11.4 the solaris testboxscript service
-    # generates Warnings in /var/svc/log/system-manifest-import:default.log
-    # -------- Warning!!
-    # Configuring services...
-    # * Warning!! Importing Zone access service  ...FAILED.
-
-    MY_SVC="/lib/svc/manifest/system/testboxscript.xml"
-fi
 if test "${MY_SOLARIS_VER}" -lt 11; then ## No gsed on S10?? ARG!
     MY_SED="/usr/xpg4/bin/sed"
 else
@@ -217,7 +201,7 @@ os_install_service() {
     common_compile_testboxscript_command_line
 
     # Create the service xml config file.
-    cat > "${MY_SVC}" <<EOF
+    cat > "${MY_SVC_TMP}" <<EOF
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type='manifest' name='export'>
@@ -248,13 +232,13 @@ os_install_service() {
         </dependency>
 EOF
     if [ "`uname -r`" = "5.10" ]; then # Seems to be gone in S11?
-        cat >> "${MY_SVC}" <<EOF
+        cat >> "${MY_SVC_TMP}" <<EOF
             <dependency name='filesystem-volfs'  grouping='require_all' restart_on='none' type='service'>
             <service_fmri value='svc:/system/filesystem/volfs:default' />
         </dependency>
 EOF
     fi
-    cat >> "${MY_SVC}" <<EOF
+    cat >> "${MY_SVC_TMP}" <<EOF
         <!-- start + stop methods -->
         <exec_method type='method' name='start' exec='${MY_SCREEN} -S testboxscript -d -m ${MY_ARGV}'
             timeout_seconds='30'>
@@ -283,25 +267,12 @@ EOF
 </service_bundle>
 EOF
 
-    if test "${MY_SOLARIS_VER}" -lt 11; then
-      # Install the service, replacing old stuff.
-      if "${MY_SVCCFG}" "export" "${MY_SVC_FMRI}" > /dev/null 2>&1; then
+    # Install the service, replacing old stuff.
+    if "${MY_SVCCFG}" "export" "${MY_SVC_FMRI}" > /dev/null 2>&1; then
         "${MY_SVCCFG}" "delete" "${MY_SVC_FMRI}"
-      fi
-      "${MY_SVCCFG}" "import" "${MY_SVC}"
-
-      # only for solaris version less than 11
-      rm -f "${MY_SVC}"
-    else
-      "${MY_CHGRP}" "sys" "${MY_SVC}"
-      "${MY_SVCADM}" "restart" "manifest-import"
-
-      # Do not remove the xml file in Solaris versions 11 and higher.
-      # The service will be removed automatically, if the command
-      # svcadm restart manifest-import
-      # will be executed
-
     fi
+    "${MY_SVCCFG}" "import" "${MY_SVC_TMP}"
+    rm -f "${MY_SVC_TMP}"
     return 0;
 }
 

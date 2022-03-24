@@ -1,4 +1,4 @@
-/* $Id: BIOSSettingsImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: BIOSSettingsImpl.h $ */
 
 /** @file
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ class ATL_NO_VTABLE BIOSSettings :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(BIOSSettings)
+    DECLARE_EMPTY_CTOR_DTOR(BIOSSettings)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -56,6 +56,9 @@ public:
     void i_commit();
     void i_copyFrom(BIOSSettings *aThat);
     void i_applyDefaults(GuestOSType *aOsType);
+
+    com::Utf8Str i_getNonVolatileStorageFile();
+    void i_updateNonVolatileStorageFile(const com::Utf8Str &aNonVolatileStorageFile);
 
 private:
 
@@ -80,6 +83,7 @@ private:
     HRESULT setTimeOffset(LONG64 offset);
     HRESULT getPXEDebugEnabled(BOOL *enabled);
     HRESULT setPXEDebugEnabled(BOOL enable);
+    HRESULT getNonVolatileStorageFile(com::Utf8Str &aNonVolatileStorageFile);
     HRESULT getSMBIOSUuidLittleEndian(BOOL *enabled);
     HRESULT setSMBIOSUuidLittleEndian(BOOL enable);
 

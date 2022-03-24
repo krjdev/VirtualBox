@@ -1,10 +1,10 @@
-/* $Id: VBoxUSB-solaris.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxUSB-solaris.c $ */
 /** @file
  * VirtualBox USB Client Driver, Solaris Hosts.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1357,13 +1357,13 @@ LOCAL int vboxUsbSolarisProcessIOCtl(int iFunction, void *pvState, int Mode, PVB
 
 #define CHECKRET_MIN_SIZE(mnemonic, cbMin) \
     do { \
-        if (RT_UNLIKELY(cbData < (cbMin))) \
+        if (cbData < (cbMin)) \
         { \
             LogRel((DEVICE_NAME ": vboxUsbSolarisProcessIOCtl: " mnemonic ": cbData=%#zx (%zu) min is %#zx (%zu)\n", \
                  cbData, cbData, (size_t)(cbMin), (size_t)(cbMin))); \
             return VERR_BUFFER_OVERFLOW; \
         } \
-        if (RT_UNLIKELY((cbMin) != 0 && !RT_VALID_PTR(pvBuf))) \
+        if ((cbMin) != 0 && !VALID_PTR(pvBuf)) \
         { \
             LogRel((DEVICE_NAME ": vboxUsbSolarisProcessIOCtl: " mnemonic ": Invalid pointer %p\n", pvBuf)); \
             return VERR_INVALID_PARAMETER; \

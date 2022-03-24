@@ -1,10 +1,10 @@
-/* $Id: lock.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: lock.h $ */
 /** @file
  * Lock.h - Haiku, private locking internals.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,7 +21,7 @@
  * VirtualBox Guest Additions for Haiku.
  *
  * Copyright 2008-2010, Ingo Weinhold, ingo_weinhold@gmx.de.
- * Copyright 2002-2009, Axel DÃ¶rfler, axeld@pinc-software.de.
+ * Copyright 2002-2009, Axel Dörfler, axeld@pinc-software.de.
  * Copyright 2001-2002, Travis Geiselbrecht. All rights reserved.
  * Distributed under the terms of the MIT License.
  */

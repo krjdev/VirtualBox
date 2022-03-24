@@ -1,10 +1,10 @@
-# $Id: backport-common.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: backport-common.sh $
 ## @file
 # Common backport script bits.
 #
 
 #
-# Copyright (C) 2020-2022 Oracle Corporation
+# Copyright (C) 2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -99,8 +99,6 @@ MY_REVISIONS=
 MY_REVISION_COUNT=0
 MY_EXTRA_ARGS=
 MY_DEBUG=
-MY_FORCE=
-MY_SHOW_DIFF=
 
 while test $# -ge 1;
 do
@@ -155,18 +153,6 @@ do
             MY_FIRST_REV=1
             ;;
 
-        --force)
-            MY_FORCE=1
-            ;;
-
-        --update-first|--update|-u)
-            MY_UPDATE_FIRST=1
-            ;;
-
-        --show-diff)
-            MY_SHOW_DIFF=1
-            ;;
-
         --extra)
             if test $# -eq 0; then
                 echo "error: missing --extra argument." 1>&2
@@ -182,8 +168,7 @@ do
 
         # usage
         --h*|-h*|-?|--?)
-            echo "usage: $0 [--trunk-dir <dir>] [--branch <ver>] [--branch-dir <dir>] [--extra <svn-arg>] \\"
-            echo "                   [--first-rev] [--update-first] rev1 [rev2..[revN]]]"
+            echo "usage: $0 [--trunk-dir <dir>] [--branch <ver>] [--branch-dir <dir>] [--extra <svn-arg>] [--first-rev] rev1 [rev2..[revN]]]"
             echo ""
             echo "Options:"
             echo "  --trunk-dir <dir>"
@@ -192,16 +177,8 @@ do
             echo "    The backport destination directory. default: script location"
             echo "  --branch <ver>"
             echo "    The name of the branch being backported to. default: auto"
-            echo "  --debug"
-            echo "    Enables verbose output."
             echo "  --first-rev, --first, -1"
             echo "    Merge only: Check that the branch does not have any pending changes."
-            echo "  --force"
-            echo "    Forces backporting, regardless of ancestry. Use with caution!"
-            echo "  --show-diff"
-            echo "    Shows unified diff before backporting."
-            echo "  --update-first, --update, -u"
-            echo "    Merge only: Update the branch before merging."
             echo "  --extra <svn-arg>"
             echo "    Additional arguments to specify to SVN."
             echo ""
@@ -253,3 +230,4 @@ if test -z "${MY_REVISIONS}" -a "${MY_SCRIPT_NAME}" '!=' "backport-commit.sh"; t
     echo "error: No revisions specified" 1>&2;
     exit 2;
 fi
+

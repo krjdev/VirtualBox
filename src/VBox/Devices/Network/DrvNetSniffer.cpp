@@ -1,10 +1,10 @@
-/* $Id: DrvNetSniffer.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvNetSniffer.cpp $ */
 /** @file
  * DrvNetSniffer - Network sniffer filter driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -373,11 +373,9 @@ static DECLCALLBACK(void) drvNetSnifferDestruct(PPDMDRVINS pDrvIns)
  */
 static DECLCALLBACK(int) drvNetSnifferConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVNETSNIFFER  pThis = PDMINS_2_DATA(pDrvIns, PDRVNETSNIFFER);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    PDRVNETSNIFFER pThis = PDMINS_2_DATA(pDrvIns, PDRVNETSNIFFER);
     LogFlow(("drvNetSnifferConstruct:\n"));
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
      * Init the static parts.
@@ -416,15 +414,16 @@ static DECLCALLBACK(int) drvNetSnifferConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pC
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "File", "");
+    if (!CFGMR3AreValuesValid(pCfg, "File\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
 
-    if (pHlp->pfnCFGMGetFirstChild(pCfg))
+    if (CFGMR3GetFirstChild(pCfg))
         LogRel(("NetSniffer: Found child config entries -- are you trying to redirect ports?\n"));
 
     /*
      * Get the filename.
      */
-    rc = pHlp->pfnCFGMQueryString(pCfg, "File", pThis->szFilename, sizeof(pThis->szFilename));
+    rc = CFGMR3QueryString(pCfg, "File", pThis->szFilename, sizeof(pThis->szFilename));
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
     {
         if (pDrvIns->iInstance > 0)

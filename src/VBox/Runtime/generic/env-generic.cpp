@@ -1,10 +1,10 @@
-/* $Id: env-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: env-generic.cpp $ */
 /** @file
  * IPRT - Environment, Generic.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -120,7 +120,7 @@ typedef struct RTENVINTERNAL
     char      **papszEnvOtherCP;
 
     /** The compare function we're using. */
-    DECLCALLBACKMEMBER(int, pfnCompare,(const char *psz1, const char *psz2, size_t cchMax));
+    DECLCALLBACKMEMBER(int, pfnCompare)(const char *psz1, const char *psz2, size_t cchMax);
 } RTENVINTERNAL, *PRTENVINTERNAL;
 
 

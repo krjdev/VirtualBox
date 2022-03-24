@@ -3,7 +3,7 @@
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,7 @@ BEGINCODE
 ; @returns al Current *pu8 value
 ; @param   rcx  pu8    Pointer to the 8-bit variable to update.
 ; @param   dl   u8     The 8-bit value to assign to *pu8.
-RT_BEGINPROC ASMAtomicXchgU8
+BEGINPROC_EXPORTED ASMAtomicXchgU8
         xchg    [rcx], dl
         movzx   eax, dl
         ret

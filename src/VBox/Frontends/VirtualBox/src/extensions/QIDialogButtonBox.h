@@ -1,10 +1,10 @@
-/* $Id: QIDialogButtonBox.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIDialogButtonBox.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIDialogButtonBox class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -70,7 +70,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Returns button layout. */
     QBoxLayout *boxLayout() const;

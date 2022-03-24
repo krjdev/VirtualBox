@@ -1,9 +1,9 @@
-; $Id: VBoxRTImp-gcc.def 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: VBoxRTImp-gcc.def $
 ;; @file
 ; VirtualBox Runtime DLL - Stable C++ Interface Definition file, 64-bit Visual C++.
 
 ;
-; Copyright (C) 2018-2022 Oracle Corporation
+; Copyright (C) 2018-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -278,8 +278,6 @@ EXPORTS
     _ZN20RTCRestClientApiBase18reinitHttpInstanceEv
     _ZN20RTCRestClientApiBase18setServerAuthorityEPKc
     _ZN20RTCRestClientApiBase6doCallERK24RTCRestClientRequestBase12RTHTTPMETHODP25RTCRestClientResponseBasePKcj
-    _ZN20RTCRestClientApiBase9setCAFileEPKc
-    _ZN20RTCRestClientApiBase9setCAFileERK9RTCString
     _ZN20RTCRestClientApiBase9xmitReadyEP14RTHTTPINTERNALRK9RTCString12RTHTTPMETHODS4_j
     _ZN20RTCRestClientApiBaseC2Ev
     _ZN20RTCRestClientApiBaseD0Ev
@@ -396,6 +394,8 @@ EXPORTS
     _ZN25RTCRestClientResponseBase29deserializeBodyFromJsonCursorERK17RTCRestJsonCursor
     _ZN25RTCRestClientResponseBase5resetEv
     _ZN25RTCRestClientResponseBase8addErrorEiPKcz
+    _ZN25RTCRestClientResponseBaseC1ERKS_
+    _ZN25RTCRestClientResponseBaseC1Ev
     _ZN25RTCRestClientResponseBaseC2ERKS_
     _ZN25RTCRestClientResponseBaseC2Ev
     _ZN25RTCRestClientResponseBaseD0Ev

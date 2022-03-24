@@ -1,10 +1,10 @@
-/* $Id: VBoxAutostart-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxAutostart-win.cpp $ */
 /** @file
  * VirtualBox Autostart Service - Windows Specific Code.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,13 +38,11 @@
 #include <VBox/log.h>
 #include <VBox/version.h>
 
-#include <iprt/dir.h>
 #include <iprt/env.h>
 #include <iprt/errcore.h>
 #include <iprt/getopt.h>
 #include <iprt/initterm.h>
 #include <iprt/mem.h>
-#include <iprt/message.h>
 #include <iprt/process.h>
 #include <iprt/path.h>
 #include <iprt/semaphore.h>
@@ -81,11 +79,6 @@ static uint32_t volatile g_u32SupSvcWinStatus = SERVICE_STOPPED;
 static RTSEMEVENTMULTI g_hSupSvcWinEvent = NIL_RTSEMEVENTMULTI;
 /** The service name is used for send to service main. */
 static com::Bstr g_bstrServiceName;
-
-/** Logging parameters. */
-static uint32_t      g_cHistory = 10;                   /* Enable log rotation, 10 files. */
-static uint32_t      g_uHistoryFileTime = 0;            /* No time limit, it's very low volume. */
-static uint64_t      g_uHistoryFileSize = 100 * _1M;    /* Max 100MB per file. */
 
 
 /*********************************************************************************************************************************
@@ -257,9 +250,6 @@ DECLHIDDEN(HRESULT) showProgress(ComPtr<IProgress> progress)
 
 DECLHIDDEN(void) autostartSvcOsLogStr(const char *pszMsg, AUTOSTARTLOGTYPE enmLogType)
 {
-    /* write it to the release log too */
-    LogRel(("%s", pszMsg));
-
     HANDLE hEventLog = RegisterEventSourceA(NULL /* local computer */, "VBoxAutostartSvc");
     AssertReturnVoid(hEventLog != NULL);
     WORD wType = 0;
@@ -636,7 +626,6 @@ static RTEXITCODE autostartSvcWinCreate(int argc, char **argv)
             com::Bstr bstrCmdLine(sCmdLine);
             com::Bstr bstrUserFullName(sUserFullName);
             com::Bstr bstrPwd(strPwd);
-            com::Bstr bstrDependencies("Winmgmt\0RpcSs\0\0");
 
             SC_HANDLE hSvc = CreateServiceW(hSCM,                            /* hSCManager */
                                             bstrServiceName.raw(),           /* lpServiceName */
@@ -648,7 +637,7 @@ static RTEXITCODE autostartSvcWinCreate(int argc, char **argv)
                                             bstrCmdLine.raw(),               /* lpBinaryPathName */
                                             NULL,                            /* lpLoadOrderGroup */
                                             NULL,                            /* lpdwTagId */
-                                            bstrDependencies.raw(),          /* lpDependencies */
+                                            NULL,                            /* lpDependencies */
                                             bstrUserFullName.raw(),          /* lpServiceStartName (NULL => LocalSystem) */
                                             bstrPwd.raw());                  /* lpPassword */
             if (hSvc)
@@ -705,9 +694,7 @@ static bool autostartSvcWinSetServiceStatus(DWORD dwStatus, int iWaitHint, DWORD
             SvcStatus.dwControlsAccepted = 0;
             break;
         default:
-            SvcStatus.dwControlsAccepted
-                = SERVICE_ACCEPT_STOP
-                | SERVICE_ACCEPT_SHUTDOWN;
+            SvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
             break;
     }
 
@@ -738,13 +725,8 @@ static bool autostartSvcWinSetServiceStatus(DWORD dwStatus, int iWaitHint, DWORD
  * @param   pvContext       The context pointer registered with the handler.
  *                          Currently not used.
  */
-static DWORD WINAPI
-autostartSvcWinServiceCtrlHandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID pvEventData, LPVOID pvContext) RT_NOTHROW_DEF
+static DWORD WINAPI autostartSvcWinServiceCtrlHandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID pvEventData, LPVOID pvContext)
 {
-    RT_NOREF(dwEventType);
-    RT_NOREF(pvEventData);
-    RT_NOREF(pvContext);
-
     LogFlow(("autostartSvcWinServiceCtrlHandlerEx: dwControl=%#x dwEventType=%#x pvEventData=%p\n",
              dwControl, dwEventType, pvEventData));
 
@@ -761,19 +743,12 @@ autostartSvcWinServiceCtrlHandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID p
         /*
          * Request to stop the service.
          */
-        case SERVICE_CONTROL_SHUTDOWN:
         case SERVICE_CONTROL_STOP:
         {
-            if (dwControl == SERVICE_CONTROL_SHUTDOWN)
-                LogRel(("SERVICE_CONTROL_SHUTDOWN\n"));
-            else
-                LogRel(("SERVICE_CONTROL_STOP\n"));
-
             /*
              * Check if the real services can be stopped and then tell them to stop.
              */
             autostartSvcWinSetServiceStatus(SERVICE_STOP_PENDING, 3000, NO_ERROR);
-
             /*
              * Notify the main thread that we're done, it will wait for the
              * VMs to stop, and set the windows service status to SERVICE_STOPPED
@@ -786,17 +761,28 @@ autostartSvcWinServiceCtrlHandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID p
             return NO_ERROR;
         }
 
+        case SERVICE_CONTROL_PAUSE:
+        case SERVICE_CONTROL_CONTINUE:
+        case SERVICE_CONTROL_SHUTDOWN:
+        case SERVICE_CONTROL_PARAMCHANGE:
+        case SERVICE_CONTROL_NETBINDADD:
+        case SERVICE_CONTROL_NETBINDREMOVE:
+        case SERVICE_CONTROL_NETBINDENABLE:
+        case SERVICE_CONTROL_NETBINDDISABLE:
+        case SERVICE_CONTROL_DEVICEEVENT:
+        case SERVICE_CONTROL_HARDWAREPROFILECHANGE:
+        case SERVICE_CONTROL_POWEREVENT:
+        case SERVICE_CONTROL_SESSIONCHANGE:
+#ifdef SERVICE_CONTROL_PRESHUTDOWN /* vista */
+        case SERVICE_CONTROL_PRESHUTDOWN:
+#endif
         default:
-            /*
-             * We only expect to receive controls we explicitly listed
-             * in SERVICE_STATUS::dwControlsAccepted.  Logged in hex
-             * b/c WinSvc.h defines them in hex
-             */
-            LogRel(("Unexpected service control message 0x%RX64\n",
-                    (uint64_t)dwControl));
             return ERROR_CALL_NOT_IMPLEMENTED;
     }
 
+    NOREF(dwEventType);
+    NOREF(pvEventData);
+    NOREF(pvContext);
     /* not reached */
 }
 
@@ -848,7 +834,7 @@ static RTEXITCODE autostartStartVMs()
         PCFGAST pNode = pCfgAst->u.Compound.apAstNodes[i];
         com::Utf8Str sDomain;
         com::Utf8Str sUserTmp;
-        rc = autostartGetDomainAndUser(pNode->pszKey, sDomain, sUserTmp);
+        int rc = autostartGetDomainAndUser(pNode->pszKey, sDomain, sUserTmp);
         if (RT_FAILURE(rc))
             continue;
         com::Utf8StrFmt sDomainUser("%s\\%s", sDomain.c_str(), sUserTmp.c_str());
@@ -888,12 +874,12 @@ static RTEXITCODE autostartStartVMs()
         return autostartSvcLogError("User is not allowed to autostart VMs.\n");
     }
 
-    RTEXITCODE rcExit = autostartStartMain(pCfgAstUser);
+    RTEXITCODE ec = autostartStartMain(pCfgAstUser);
     autostartConfigAstDestroy(pCfgAst);
-    if (rcExit != RTEXITCODE_SUCCESS)
+    if (ec != RTEXITCODE_SUCCESS)
         autostartSvcLogError("Starting VMs failed\n");
 
-    return rcExit;
+    return ec;
 }
 
 /**
@@ -907,16 +893,8 @@ static RTEXITCODE autostartStartVMs()
  */
 static VOID WINAPI autostartSvcWinServiceMain(DWORD cArgs, LPWSTR *papwszArgs)
 {
-    RT_NOREF(cArgs, papwszArgs);
+    RT_NOREF(papwszArgs);
     LogFlowFuncEnter();
-
-    /* Give this thread a name in the logs. */
-    RTThreadAdopt(RTTHREADTYPE_DEFAULT, 0, "service", NULL);
-
-#if 0
-    for (size_t i = 0; i < cArgs; ++i)
-        LogRel(("arg[%zu] = %ls\n", i, papwszArgs[i]));
-#endif
 
     /*
      * Register the control handler function for the service and report to SCM.
@@ -928,46 +906,53 @@ static VOID WINAPI autostartSvcWinServiceMain(DWORD cArgs, LPWSTR *papwszArgs)
         DWORD err = ERROR_GEN_FAILURE;
         if (autostartSvcWinSetServiceStatus(SERVICE_START_PENDING, 3000, NO_ERROR))
         {
-            /*
-             * Create the event semaphore we'll be waiting on and
-             * then instantiate the actual services.
-             */
-            int rc = RTSemEventMultiCreate(&g_hSupSvcWinEvent);
-            if (RT_SUCCESS(rc))
+            if (cArgs == 1)
             {
                 /*
-                 * Update the status and enter the work loop.
+                 * Create the event semaphore we'll be waiting on and
+                 * then instantiate the actual services.
                  */
-                if (autostartSvcWinSetServiceStatus(SERVICE_RUNNING, 0, 0))
+                int rc = RTSemEventMultiCreate(&g_hSupSvcWinEvent);
+                if (RT_SUCCESS(rc))
                 {
-                    LogFlow(("autostartSvcWinServiceMain: calling autostartStartVMs\n"));
-
-                    /* check if we should stopped already, e.g. windows shutdown */
-                    rc = RTSemEventMultiWait(g_hSupSvcWinEvent, 1);
-                    if (RT_FAILURE(rc))
+                    /*
+                     * Update the status and enter the work loop.
+                     */
+                    if (autostartSvcWinSetServiceStatus(SERVICE_RUNNING, 0, 0))
                     {
-                        /* No one signaled us to stop */
+                        LogFlow(("autostartSvcWinServiceMain: calling autostartStartVMs\n"));
                         RTEXITCODE ec = autostartStartVMs();
                         if (ec == RTEXITCODE_SUCCESS)
                         {
-                            LogFlow(("autostartSvcWinServiceMain: done starting VMs\n"));
+                            LogFlow(("autostartSvcWinServiceMain: done string VMs\n"));
                             err = NO_ERROR;
+                            rc = RTSemEventMultiWait(g_hSupSvcWinEvent, RT_INDEFINITE_WAIT);
+                            if (RT_SUCCESS(rc))
+                            {
+                                LogFlow(("autostartSvcWinServiceMain: woke up\n"));
+                                /** @todo Autostop part. */
+                                err = NO_ERROR;
+                            }
+                            else
+                                autostartSvcLogError("RTSemEventWait failed, rc=%Rrc", rc);
                         }
-                        /* No reason to keep started. Shutdown the service*/
+
+                        autostartShutdown();
                     }
-                    autostartShutdown();
+                    else
+                    {
+                        err = GetLastError();
+                        autostartSvcLogError("SetServiceStatus failed, err=%u", err);
+                    }
+
+                    RTSemEventMultiDestroy(g_hSupSvcWinEvent);
+                    g_hSupSvcWinEvent = NIL_RTSEMEVENTMULTI;
                 }
                 else
-                {
-                    err = GetLastError();
-                    autostartSvcLogError("SetServiceStatus failed, err=%u", err);
-                }
-
-                RTSemEventMultiDestroy(g_hSupSvcWinEvent);
-                g_hSupSvcWinEvent = NIL_RTSEMEVENTMULTI;
+                    autostartSvcLogError("RTSemEventMultiCreate failed, rc=%Rrc", rc);
             }
             else
-                autostartSvcLogError("RTSemEventMultiCreate failed, rc=%Rrc", rc);
+                autostartSvcLogTooManyArgsError("main", cArgs, NULL, 0);
         }
         else
         {
@@ -992,73 +977,12 @@ static VOID WINAPI autostartSvcWinServiceMain(DWORD cArgs, LPWSTR *papwszArgs)
  */
 static int autostartSvcWinRunIt(int argc, char **argv)
 {
-    int rc;
-
     LogFlowFuncEnter();
 
     /*
-     * Init com here for first main thread initialization.
-     * Service main function called in another thread
-     * created by service manager.
+     * Initialize release logging.
      */
-    HRESULT hrc = com::Initialize();
-# ifdef VBOX_WITH_XPCOM
-    if (hrc == NS_ERROR_FILE_ACCESS_DENIED)
-    {
-        char szHome[RTPATH_MAX] = "";
-        com::GetVBoxUserHomeDirectory(szHome, sizeof(szHome));
-        return RTMsgErrorExit(RTEXITCODE_FAILURE,
-               "Failed to initialize COM because the global settings directory '%s' is not accessible!", szHome);
-    }
-# endif
-    if (FAILED(hrc))
-        return RTMsgErrorExit(RTEXITCODE_FAILURE, "Failed to initialize COM (%Rhrc)!", hrc);
-
-    /*
-     * Initialize release logging, do this early.  This means command
-     * line options (like --logfile &c) can't be introduced to affect
-     * the log file parameters, but the user can't change them easily
-     * anyway and is better off using environment variables.
-     */
-    do
-    {
-        char szLogFile[RTPATH_MAX];
-        rc = com::GetVBoxUserHomeDirectory(szLogFile, sizeof(szLogFile),
-                                           /* :fCreateDir */ false);
-        if (RT_FAILURE(rc))
-        {
-            autostartSvcLogError("Failed to get VirtualBox user home directory: %Rrc\n", rc);
-            break;
-        }
-
-        if (!RTDirExists(szLogFile)) /* vbox user home dir */
-        {
-            autostartSvcLogError("%s doesn't exist\n", szLogFile);
-            break;
-        }
-
-        rc = RTPathAppend(szLogFile, sizeof(szLogFile), "VBoxAutostart.log");
-        if (RT_FAILURE(rc))
-        {
-            autostartSvcLogError("Failed to construct release log file name: %Rrc\n", rc);
-            break;
-        }
-
-        rc = com::VBoxLogRelCreate("Autostart",
-                                   szLogFile,
-                                     RTLOGFLAGS_PREFIX_THREAD
-                                   | RTLOGFLAGS_PREFIX_TIME_PROG,
-                                   "all",
-                                   "VBOXAUTOSTART_RELEASE_LOG",
-                                   RTLOGDEST_FILE,
-                                   UINT32_MAX /* cMaxEntriesPerGroup */,
-                                   g_cHistory,
-                                   g_uHistoryFileTime,
-                                   g_uHistoryFileSize,
-                                   NULL);
-        if (RT_FAILURE(rc))
-            autostartSvcLogError("Failed to create release log file: %Rrc\n", rc);
-    } while (0);
+    /** @todo release logging of the system-wide service. */
 
     /*
      * Parse the arguments.
@@ -1089,13 +1013,8 @@ static int autostartSvcWinRunIt(int argc, char **argv)
                     return RTEXITCODE_FAILURE;
                 }
                 break;
-
             default:
-                /**
-                 * @todo autostartSvcLogGetOptError is useless as it
-                 * is, should be change after RTGetOptPrintError.
-                 */
-                return autostartSvcLogError("RTGetOpt: %Rrc\n", ch);
+                return autostartSvcDisplayGetOptError("runit", ch, &Value);
         }
     }
 
@@ -1104,8 +1023,6 @@ static int autostartSvcWinRunIt(int argc, char **argv)
         autostartSvcLogError("runit failed, service name is missing");
         return RTEXITCODE_FAILURE;
     }
-
-    LogRel(("Starting service %ls\n", g_bstrServiceName.raw()));
 
     /*
      * Register the service with the service control manager
@@ -1132,9 +1049,6 @@ static int autostartSvcWinRunIt(int argc, char **argv)
             autostartSvcLogError("StartServiceCtrlDispatcher failed, err=%u", err);
             break;
     }
-
-    com::Shutdown();
-
     return RTEXITCODE_FAILURE;
 }
 
@@ -1229,6 +1143,8 @@ int main(int argc, char **argv)
         autostartSvcLogError("RTR3InitExe failed with rc=%Rrc", rc);
         return RTEXITCODE_FAILURE;
     }
+
+    RTThreadSleep(10 * 1000);
 
     /*
      * Parse the initial arguments to determine the desired action.

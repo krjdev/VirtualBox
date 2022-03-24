@@ -1,10 +1,10 @@
-/* $Id: VBoxVideoIPRT.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVideoIPRT.h $ */
 /** @file
  * VirtualBox Video driver, common code - iprt and VirtualBox macros and definitions.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,7 +42,7 @@
 #include <iprt/stdint.h>
 #include <iprt/types.h>
 
-#if !defined VBOX_XPDM_MINIPORT && !defined RT_OS_OS2 && (defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86))
+#if !defined VBOX_XPDM_MINIPORT && !defined RT_OS_OS2
 # include <iprt/asm-amd64-x86.h>
 #endif
 

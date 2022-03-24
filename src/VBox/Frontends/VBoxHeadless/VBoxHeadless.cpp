@@ -1,10 +1,10 @@
-/* $Id: VBoxHeadless.cpp 93460 2022-01-27 16:50:15Z vboxsync $ */
+/* $Id: VBoxHeadless.cpp $ */
 /** @file
  * VBoxHeadless - The VirtualBox Headless frontend for running VMs on servers.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,7 +42,7 @@ using namespace com;
 #include <iprt/ldr.h>
 #include <iprt/getopt.h>
 #include <iprt/env.h>
-#include <iprt/errcore.h>
+#include <VBox/err.h>
 #include <VBoxVideo.h>
 
 #ifdef VBOX_WITH_RECORDING
@@ -665,7 +665,7 @@ static const char * const ctrl_event_names[] = {
 
 
 BOOL WINAPI
-ConsoleCtrlHandler(DWORD dwCtrlType) RT_NOTHROW_DEF
+ConsoleCtrlHandler(DWORD dwCtrlType) /* RT_NOTHROW_DEF */
 {
     const char *signame;
     char namebuf[48];
@@ -798,6 +798,10 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
     const char *vrdeEnabled = NULL;
     unsigned cVRDEProperties = 0;
     const char *aVRDEProperties[16];
+    unsigned fRawR0 = ~0U;
+    unsigned fRawR3 = ~0U;
+    unsigned fPATM  = ~0U;
+    unsigned fCSAM  = ~0U;
     unsigned fPaused = 0;
 #ifdef VBOX_WITH_RECORDING
     bool fRecordEnabled = false;
@@ -823,7 +827,15 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
 
     enum eHeadlessOptions
     {
-        OPT_SETTINGSPW = 0x100,
+        OPT_RAW_R0 = 0x100,
+        OPT_NO_RAW_R0,
+        OPT_RAW_R3,
+        OPT_NO_RAW_R3,
+        OPT_PATM,
+        OPT_NO_PATM,
+        OPT_CSAM,
+        OPT_NO_CSAM,
+        OPT_SETTINGSPW,
         OPT_SETTINGSPW_FILE,
         OPT_COMMENT,
         OPT_PAUSED
@@ -843,6 +855,22 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         { "--vrde", 'v', RTGETOPT_REQ_STRING },
         { "-vrdeproperty", 'e', RTGETOPT_REQ_STRING },
         { "--vrdeproperty", 'e', RTGETOPT_REQ_STRING },
+        { "-rawr0", OPT_RAW_R0, 0 },
+        { "--rawr0", OPT_RAW_R0, 0 },
+        { "-norawr0", OPT_NO_RAW_R0, 0 },
+        { "--norawr0", OPT_NO_RAW_R0, 0 },
+        { "-rawr3", OPT_RAW_R3, 0 },
+        { "--rawr3", OPT_RAW_R3, 0 },
+        { "-norawr3", OPT_NO_RAW_R3, 0 },
+        { "--norawr3", OPT_NO_RAW_R3, 0 },
+        { "-patm", OPT_PATM, 0 },
+        { "--patm", OPT_PATM, 0 },
+        { "-nopatm", OPT_NO_PATM, 0 },
+        { "--nopatm", OPT_NO_PATM, 0 },
+        { "-csam", OPT_CSAM, 0 },
+        { "--csam", OPT_CSAM, 0 },
+        { "-nocsam", OPT_NO_CSAM, 0 },
+        { "--nocsam", OPT_NO_CSAM, 0 },
         { "--settingspw", OPT_SETTINGSPW, RTGETOPT_REQ_STRING },
         { "--settingspwfile", OPT_SETTINGSPW_FILE, RTGETOPT_REQ_STRING },
 #ifdef VBOX_WITH_RECORDING
@@ -891,6 +919,30 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
                     aVRDEProperties[cVRDEProperties++] = ValueUnion.psz;
                 else
                      RTPrintf("Warning: too many VRDE properties. Ignored: '%s'\n", ValueUnion.psz);
+                break;
+            case OPT_RAW_R0:
+                fRawR0 = true;
+                break;
+            case OPT_NO_RAW_R0:
+                fRawR0 = false;
+                break;
+            case OPT_RAW_R3:
+                fRawR3 = true;
+                break;
+            case OPT_NO_RAW_R3:
+                fRawR3 = false;
+                break;
+            case OPT_PATM:
+                fPATM = true;
+                break;
+            case OPT_NO_PATM:
+                fPATM = false;
+                break;
+            case OPT_CSAM:
+                fCSAM = true;
+                break;
+            case OPT_NO_CSAM:
+                fCSAM = false;
                 break;
             case OPT_SETTINGSPW:
                 pcszSettingsPw = ValueUnion.psz;
@@ -1111,13 +1163,50 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         }
 #endif /* defined(VBOX_WITH_RECORDING) */
 
-#if 0
         /* get the machine debugger (isn't necessarily available) */
         ComPtr <IMachineDebugger> machineDebugger;
         console->COMGETTER(Debugger)(machineDebugger.asOutParam());
         if (machineDebugger)
+        {
             Log(("Machine debugger available!\n"));
-#endif
+        }
+
+        if (fRawR0 != ~0U)
+        {
+            if (!machineDebugger)
+            {
+                RTPrintf("Error: No debugger object; -%srawr0 cannot be executed!\n", fRawR0 ? "" : "no");
+                break;
+            }
+            machineDebugger->COMSETTER(RecompileSupervisor)(!fRawR0);
+        }
+        if (fRawR3 != ~0U)
+        {
+            if (!machineDebugger)
+            {
+                RTPrintf("Error: No debugger object; -%srawr3 cannot be executed!\n", fRawR3 ? "" : "no");
+                break;
+            }
+            machineDebugger->COMSETTER(RecompileUser)(!fRawR3);
+        }
+        if (fPATM != ~0U)
+        {
+            if (!machineDebugger)
+            {
+                RTPrintf("Error: No debugger object; -%spatm cannot be executed!\n", fPATM ? "" : "no");
+                break;
+            }
+            machineDebugger->COMSETTER(PATMEnabled)(fPATM);
+        }
+        if (fCSAM != ~0U)
+        {
+            if (!machineDebugger)
+            {
+                RTPrintf("Error: No debugger object; -%scsam cannot be executed!\n", fCSAM ? "" : "no");
+                break;
+            }
+            machineDebugger->COMSETTER(CSAMEnabled)(fCSAM);
+        }
 
         /* initialize global references */
         gConsole = console;
@@ -1276,8 +1365,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         sigaction(SIGINT,  &sa, NULL);
         sigaction(SIGTERM, &sa, NULL);
         sigaction(SIGUSR1, &sa, NULL);
-        /* Don't touch SIGUSR2 as IPRT could be using it for RTThreadPoke(). */
-
+        sigaction(SIGUSR2, &sa, NULL);
 #else /* RT_OS_WINDOWS */
         /*
          * Register windows console signal handler to react to Ctrl-C,
@@ -1492,10 +1580,24 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
  */
 int main(int argc, char **argv, char **envp)
 {
-    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
-    if (RT_SUCCESS(rc))
-        return TrustedMain(argc, argv, envp);
-    RTPrintf("VBoxHeadless: Runtime initialization failed: %Rrc - %Rrf\n", rc, rc);
-    return RTEXITCODE_FAILURE;
+    // initialize VBox Runtime
+    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
+    if (RT_FAILURE(rc))
+    {
+        RTPrintf("VBoxHeadless: Runtime Error:\n"
+                 " %Rrc -- %Rrf\n", rc, rc);
+        switch (rc)
+        {
+            case VERR_VM_DRIVER_NOT_INSTALLED:
+                RTPrintf("Cannot access the kernel driver. Make sure the kernel module has been \n"
+                        "loaded successfully. Aborting ...\n");
+                break;
+            default:
+                break;
+        }
+        return 1;
+    }
+
+    return TrustedMain(argc, argv, envp);
 }
 #endif /* !VBOX_WITH_HARDENING */

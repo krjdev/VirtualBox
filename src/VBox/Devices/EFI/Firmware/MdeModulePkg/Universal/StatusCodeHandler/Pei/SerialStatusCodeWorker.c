@@ -134,7 +134,7 @@ SerialStatusCodeReportWorker (
     CharCount = AsciiSPrint (
                   Buffer,
                   sizeof (Buffer),
-                  "%a",
+                  "%a\n\r",
                   ((EFI_STATUS_CODE_STRING_DATA *) Data)->String.Ascii
                   );
   } else {

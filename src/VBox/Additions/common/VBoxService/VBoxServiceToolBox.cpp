@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceToolBox.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxServiceToolBox.cpp $ */
 /** @file
  * VBoxServiceToolbox - Internal (BusyBox-like) toolbox.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1600,7 +1600,7 @@ static RTEXITCODE vgsvcToolboxStat(int argc, char **argv)
             }
             else
                 rc2 = vgsvcToolboxPrintFsInfo(ValueUnion.psz, strlen(ValueUnion.psz), fOutputFlags, NULL, &IdCache, &objInfo);
-
+            /** @todo r=bird: You're checking rc not rc2 here...   */
             if (RT_SUCCESS(rc))
                 rc = rc2;
             /* Do not break here -- process every element in the list
@@ -1713,19 +1713,18 @@ bool VGSvcToolboxMain(int argc, char **argv, RTEXITCODE *prcExit)
          */
         if (argc < 2 || strcmp(argv[1], "--use-toolbox"))
         {
-            /* We must match vgsvcGstCtrlProcessCreateProcess here and claim
-               everything starting with "vbox_". */
-            if (!RTStrStartsWith(pszTool, "vbox_"))
-                return false;
-            RTMsgError("Unknown tool: %s\n", pszTool);
-            *prcExit = RTEXITCODE_SYNTAX;
-            return true;
+            /** @todo must check for 'vbox_' and fail with a complaint that the tool does
+             *        not exist, because vgsvcGstCtrlProcessResolveExecutable will send
+             *        us anything with 'vbox_' as a prefix and no absolute path.  So,
+             *        handing non-existing vbox_xxx tools to the regular VBoxService main
+             *        routine is inconsistent and bound to cause trouble. */
+            return false;
         }
 
         /* No tool specified? Show toolbox help. */
         if (argc < 3)
         {
-            RTMsgError("No tool following --use-toolbox\n");
+            vgsvcToolboxShowUsage();
             *prcExit = RTEXITCODE_SYNTAX;
             return true;
         }
@@ -1736,20 +1735,18 @@ bool VGSvcToolboxMain(int argc, char **argv, RTEXITCODE *prcExit)
         pTool = vgsvcToolboxLookUp(pszTool);
         if (!pTool)
         {
-            *prcExit = RTEXITCODE_SUCCESS;
-            if (   !strcmp(pszTool, "-V")
-                || !strcmp(pszTool, "version"))
-                vgsvcToolboxShowVersion();
-            else if (   !strcmp(pszTool, "help")
-                     || !strcmp(pszTool, "--help")
-                     || !strcmp(pszTool, "-h"))
-                vgsvcToolboxShowUsage();
-            else
-            {
-                RTMsgError("Unknown tool: %s\n", pszTool);
-                *prcExit = RTEXITCODE_SYNTAX;
-            }
-            return true;
+           *prcExit = RTEXITCODE_SUCCESS;
+           if (!strcmp(pszTool, "-V"))
+           {
+               vgsvcToolboxShowVersion();
+               return true;
+           }
+           if (   strcmp(pszTool, "help")
+               && strcmp(pszTool, "--help")
+               && strcmp(pszTool, "-h"))
+               *prcExit = RTEXITCODE_SYNTAX;
+           vgsvcToolboxShowUsage();
+           return true;
         }
     }
 

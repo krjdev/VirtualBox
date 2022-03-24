@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93265 2022-01-17 10:51:43Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Makefile for the Windows guest display driver.
 #
 
 #
-# Copyright (C) 2011-2022 Oracle Corporation
+# Copyright (C) 2011-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -40,10 +40,7 @@ ifdef VBOX_WITH_VIDEOHWACCEL
  VBoxDisp_DEFS        += VBOX_WITH_VIDEOHWACCEL
 endif
 #VBoxDisp_DEFS         += VBOX_VBVA_ADJUST_RECT
-VBoxDisp_INCS          = \
-	../../../include \
-	.. \
-	$(VBOX_GRAPHICS_INCS)
+VBoxDisp_INCS          = ../../../include .. $(VBOX_GRAPHICS_INCS)
 VBoxDisp_LDFLAGS.x86   = /Entry:DrvEnableDriver@12
 VBoxDisp_LDFLAGS.amd64 = /Entry:DrvEnableDriver
 VBoxDisp_SOURCES     = \
@@ -70,16 +67,10 @@ ifdef VBOX_WITH_VIDEOHWACCEL
  	xpdm/VBoxDispVHWA.cpp \
  	xpdm/VBoxDispDDrawVHWA.cpp
 endif
-
-
 VBoxDisp_LIBS = \
+	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/win32k.lib \
 	$(VBOX_LIB_IPRT_GUEST_R0_NT4) \
-	$(VBOX_PATH_ADDITIONS_LIB)/HGSMIGuestR0Lib$(VBOX_SUFF_LIB) \
-	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/win32k.lib # Linker needs newer win32k.lib (for x86 at least); incompatible loadcfg.obj in the WDK 7.1 one.
-ifneq ($(VBOX_VCC_CC_GUARD_CF),)
- VBoxDisp_LIBS += \
- 	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/BufferOverflowGDI.lib # for ___security_cookie
-endif
+	$(VBOX_PATH_ADDITIONS_LIB)/HGSMIGuestR0Lib$(VBOX_SUFF_LIB)
 VBoxDisp_USES.win += vboximportchecker
 VBoxDisp_VBOX_IMPORT_CHECKER.win.x86 = nt4/r0
 VBoxDisp_VBOX_IMPORT_CHECKER.win.amd64 = xp64/r0
@@ -204,7 +195,7 @@ DumpD3DCaps9_LIBS     = d3d9.lib
 DumpD3DCaps9_LDFLAGS.win = /SUBSYSTEM:CONSOLE
 
 PROGRAMS += D3DFeatureLevel
-D3DFeatureLevel_TEMPLATE = VBOXR3STATIC
+D3DFeatureLevel_TEMPLATE = VBOXR3EXE
 D3DFeatureLevel_SDKS     = ReorderCompilerIncs $(VBOX_WINDDK_GST_WLH)
 D3DFeatureLevel_SOURCES  = \
 	wddm/dbg/D3DFeatureLevel.cpp

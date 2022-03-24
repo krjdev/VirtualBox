@@ -7,7 +7,7 @@
 
   Tpm2ExecutePendingTpmRequest() will receive untrusted input and do validation.
 
-Copyright (c) 2013 - 2020, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -1194,7 +1194,7 @@ Tcg2PhysicalPresenceLibSubmitRequestToPreOSFunction (
                     &Flags
                     );
     if (EFI_ERROR (Status)) {
-      Flags.PPFlags = PcdGet32(PcdTcg2PhysicalPresenceFlags);
+      Flags.PPFlags = TCG2_BIOS_TPM_MANAGEMENT_FLAG_DEFAULT | TCG2_BIOS_STORAGE_MANAGEMENT_FLAG_DEFAULT;
     }
     return Tcg2PpVendorLibSubmitRequestToPreOSFunction (OperationRequest, Flags.PPFlags, RequestParameter);
   }
@@ -1228,7 +1228,7 @@ Tcg2PhysicalPresenceLibGetManagementFlags (
                   &PpiFlags
                   );
   if (EFI_ERROR (Status)) {
-    PpiFlags.PPFlags = PcdGet32(PcdTcg2PhysicalPresenceFlags);
+    PpiFlags.PPFlags = TCG2_BIOS_TPM_MANAGEMENT_FLAG_DEFAULT | TCG2_BIOS_STORAGE_MANAGEMENT_FLAG_DEFAULT;
   }
   return PpiFlags.PPFlags;
 }

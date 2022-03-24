@@ -1,10 +1,10 @@
-/* $Id: semeventmulti-r0drv-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semeventmulti-r0drv-darwin.cpp $ */
 /** @file
  * IPRT - Multiple Release Event Semaphores, Ring-0 Driver, Darwin.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -446,12 +446,5 @@ RTDECL(uint32_t) RTSemEventMultiGetResolution(void)
     uint64_t cNs;
     absolutetime_to_nanoseconds(1, &cNs);
     return (uint32_t)cNs ? (uint32_t)cNs : 0;
-}
-
-
-RTR0DECL(bool) RTSemEventMultiIsSignalSafe(void)
-{
-    /** @todo check the code...   */
-    return false;
 }
 

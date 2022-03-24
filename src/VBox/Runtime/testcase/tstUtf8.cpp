@@ -1,10 +1,10 @@
-/* $Id: tstUtf8.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstUtf8.cpp $ */
 /** @file
  * IPRT Testcase - UTF-8 and UTF-16 string conversions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -98,35 +98,24 @@ static void test1(RTTEST hTest)
         rc = RTStrUtf8ToCurrentCP(&pszCurrent, pszUtf8);
         if (rc == VINF_SUCCESS)
         {
-            RTStrFree(pszUtf8);
             rc = RTStrCurrentCPToUtf8(&pszUtf8, pszCurrent);
             if (rc == VINF_SUCCESS)
                 RTTestPassed(hTest, "Random UTF-16 -> UTF-8 -> Current -> UTF-8 successful.\n");
             else
                 RTTestFailed(hTest, "%d: The third part of random UTF-16 -> UTF-8 -> Current -> UTF-8 failed with return value %Rrc.",
                              __LINE__, rc);
-            if (RT_SUCCESS(rc))
-                RTStrFree(pszUtf8);
-            RTStrFree(pszCurrent);
         }
+        else if (rc == VERR_NO_TRANSLATION)
+            RTTestPassed(hTest, "The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 returned VERR_NO_TRANSLATION.  This is probably as it should be.\n");
+        else if (rc == VWRN_NO_TRANSLATION)
+            RTTestPassed(hTest, "The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 returned VWRN_NO_TRANSLATION.  This is probably as it should be.\n");
         else
-        {
-            if (rc == VERR_NO_TRANSLATION)
-                RTTestPassed(hTest, "The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 returned VERR_NO_TRANSLATION.  This is probably as it should be.\n");
-            else if (rc == VWRN_NO_TRANSLATION)
-                RTTestPassed(hTest, "The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 returned VWRN_NO_TRANSLATION.  This is probably as it should be.\n");
-            else
-                RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 failed with return value %Rrc.",
-                             __LINE__, rc);
-            if (RT_SUCCESS(rc))
-                RTStrFree(pszCurrent);
-            RTStrFree(pszUtf8);
-        }
+            RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> Current -> UTF-8 failed with return value %Rrc.",
+                         __LINE__, rc);
     }
     else
         RTTestFailed(hTest, "%d: The first part of random UTF-16 -> UTF-8 -> Current -> UTF-8 failed with return value %Rrc.",
                      __LINE__, rc);
-    RTMemFree(pwszRand);
 
     /*
      * Generate a new random string.
@@ -152,17 +141,14 @@ static void test1(RTTEST hTest)
                 RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> UTF-16 failed.", __LINE__);
                 RTTestPrintf(hTest, RTTESTLVL_FAILURE, "First differing character is at position %d and has the value %x.\n", i, pwsz[i]);
             }
-            RTUtf16Free(pwsz);
         }
         else
             RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> UTF-16 failed with return value %Rrc.",
                          __LINE__, rc);
-        RTStrFree(pszUtf8);
     }
     else
         RTTestFailed(hTest, "%d: The first part of random UTF-16 -> UTF-8 -> UTF-16 failed with return value %Rrc.",
                      __LINE__, rc);
-    RTMemFree(pwszRand);
 
     /*
      * Generate yet another random string and convert it to a buffer.
@@ -191,14 +177,12 @@ static void test1(RTTEST hTest)
                 RTTestFailed(hTest, "%d: Incorrect conversion of UTF-16 -> fixed length UTF-8 -> UTF-16.\n", __LINE__);
                 RTTestPrintf(hTest, RTTESTLVL_FAILURE, "First differing character is at position %d and has the value %x.\n", i, pwsz[i]);
             }
-            RTUtf16Free(pwsz);
         }
         else
             RTTestFailed(hTest, "%d: The second part of random UTF-16 -> fixed length UTF-8 -> UTF-16 failed with return value %Rrc.\n", __LINE__, rc);
     }
     else
         RTTestFailed(hTest, "%d: The first part of random UTF-16 -> fixed length UTF-8 -> UTF-16 failed with return value %Rrc.\n", __LINE__, rc);
-    RTMemFree(pwszRand);
 
     /*
      * And again.
@@ -230,13 +214,10 @@ static void test1(RTTEST hTest)
         }
         else
             RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> fixed length UTF-16 failed with return value %Rrc.\n", __LINE__, rc);
-        RTStrFree(pszUtf8);
     }
     else
         RTTestFailed(hTest, "%d: The first part of random UTF-16 -> UTF-8 -> fixed length UTF-16 failed with return value %Rrc.\n",
                      __LINE__, rc);
-    RTMemFree(pwszRand);
-
     pwszRand = (PRTUTF16)RTMemAlloc(31 * sizeof(*pwsz));
     for (int i = 0; i < 30; i++)
         pwszRand[i] = GetRandUtf16();
@@ -248,7 +229,6 @@ static void test1(RTTEST hTest)
     else
         RTTestFailed(hTest, "%d: Random UTF-16 -> fixed length UTF-8 with too small buffer returned value %d instead of VERR_BUFFER_OVERFLOW.\n",
                      __LINE__, rc);
-    RTMemFree(pwszRand);
 
     /*
      * last time...
@@ -268,12 +248,11 @@ static void test1(RTTEST hTest)
         else
             RTTestFailed(hTest, "%d: The second part of random UTF-16 -> UTF-8 -> fixed length UTF-16 with too short buffer returned value %Rrc instead of VERR_BUFFER_OVERFLOW.\n",
                          __LINE__, rc);
-        RTStrFree(pszUtf8);
     }
     else
         RTTestFailed(hTest, "%d:The first part of random UTF-16 -> UTF-8 -> fixed length UTF-16 failed with return value %Rrc.\n",
                      __LINE__, rc);
-    RTMemFree(pwszRand);
+
 
     RTTestSubDone(hTest);
 }
@@ -515,7 +494,6 @@ void test2(RTTEST hTest)
             RTTestFailed(hTest, "UTF-8 -> Code Points failed, rc=%Rrc.\n", rc);
 
         /** @todo RTCpsToUtf8 or something. */
-        RTUniFree(paCps);
     }
     else
         RTTestFailed(hTest, "UTF-8 -> Code Points failed, rc=%Rrc.\n", rc);
@@ -1066,45 +1044,6 @@ static void testStrEnd(RTTEST hTest)
     for (size_t i = 0; i < _1M; i++)
         RTTESTI_CHECK(RTStrEnd(s_szEmpty, ~i) == &s_szEmpty[0]);
 
-    /* Check the implementation won't ever overshoot the '\0' in the input in
-       anyway that may lead to a SIGSEV. (VC++ 14.1 does this) */
-    size_t const cchStr = 1023;
-    char *pszStr = (char *)RTTestGuardedAllocTail(hTest, cchStr + 1);
-    memset(pszStr, ' ', cchStr);
-    char * const pszStrEnd = &pszStr[cchStr];
-    *pszStrEnd = '\0';
-    RTTEST_CHECK_RETV(hTest, strlen(pszStr) == cchStr);
-
-    for (size_t off = 0; off <= cchStr; off++)
-    {
-        RTTEST_CHECK(hTest, RTStrEnd(&pszStr[off], cchStr + 1 - off) == pszStrEnd);
-        RTTEST_CHECK(hTest, RTStrEnd(&pszStr[off], RTSTR_MAX) == pszStrEnd);
-
-        RTTEST_CHECK(hTest, memchr(&pszStr[off], '\0', cchStr + 1 - off) == pszStrEnd);
-        RTTEST_CHECK(hTest, strchr(&pszStr[off], '\0') == pszStrEnd);
-        RTTEST_CHECK(hTest, strchr(&pszStr[off], '?') == NULL);
-
-        size_t cchMax = 0;
-        for (; cchMax <= cchStr - off; cchMax++)
-        {
-            const char *pszRet = RTStrEnd(&pszStr[off], cchMax);
-            if (pszRet != NULL)
-            {
-                RTTestFailed(hTest, "off=%zu cchMax=%zu: %p, expected NULL\n", off, cchMax, pszRet);
-                break;
-            }
-        }
-        for (; cchMax <= _8K; cchMax++)
-        {
-            const char *pszRet = RTStrEnd(&pszStr[off], cchMax);
-            if (pszRet != pszStrEnd)
-            {
-                RTTestFailed(hTest, "off=%zu cchMax=%zu: off by %p\n", off, cchMax, pszRet);
-                break;
-            }
-        }
-    }
-    RTTestGuardedFree(hTest, pszStr);
 }
 
 
@@ -1484,10 +1423,9 @@ static void testNoTransation(RTTEST hTest)
     rc = RTStrUtf8ToCurrentCP(&pszOut, pszTest1);
     if (rc == VINF_SUCCESS)
     {
+        RTTESTI_CHECK(!strcmp(pszOut, pszTest1));
         RTTestIPrintf(RTTESTLVL_ALWAYS, "CurrentCP is UTF-8 or similar (LC_ALL=%s LANG=%s LC_CTYPE=%s)\n",
                       RTEnvGet("LC_ALL"), RTEnvGet("LANG"), RTEnvGet("LC_CTYPE"));
-        if (strcmp(pszOut, pszTest1))
-            RTTestFailed(hTest, "mismatch\nutf8: %.*Rhxs\n got: %.*Rhxs\n", strlen(pszTest1), pszTest1, strlen(pszOut), pszOut);
         RTStrFree(pszOut);
     }
     else

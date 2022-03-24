@@ -1290,7 +1290,7 @@ SdPeimExecTrb (
   BlkCount = 0;
   if (Trb->Mode != SdNoData) {
     //
-    // Calculate Block Count.
+    // Calcuate Block Count.
     //
     BlkCount = (UINT16)(Trb->DataLen / Trb->BlockSize);
   }
@@ -2494,7 +2494,7 @@ SdPeimSendTuningBlk (
 }
 
 /**
-  Tuning the sampling point of SDR104 or SDR50 bus speed mode.
+  Tunning the sampling point of SDR104 or SDR50 bus speed mode.
 
   Command SD_SEND_TUNING_BLOCK may be sent up to 40 times until the host finishes the
   tuning procedure.
@@ -2702,7 +2702,7 @@ SdPeimSetBusMode (
     return EFI_DEVICE_ERROR;
   }
   //
-  // Set to High Speed timing
+  // Set to Hight Speed timing
   //
   if (AccessMode == 1) {
     HostCtrl1 = BIT2;

@@ -1,10 +1,10 @@
-/* $Id: VBoxControl.cpp 94184 2022-03-11 18:24:17Z vboxsync $ */
+/* $Id: VBoxControl.cpp $ */
 /** @file
  * VBoxControl - Guest Additions Command Line Management Interface.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -577,7 +577,7 @@ static BOOL ResizeDisplayDevice(ULONG Id, DWORD Width, DWORD Height, DWORD BitsP
             paDeviceModes[i].dmFields |= DM_BITSPERPEL;
             paDeviceModes[i].dmBitsPerPel = BitsPerPixel;
         }
-        Log(("calling pfnChangeDisplaySettingsEx %p\n", RT_CB_LOG_CAST(g_pfnChangeDisplaySettingsExA)));
+        Log(("calling pfnChangeDisplaySettingsEx %p\n", g_pfnChangeDisplaySettingsExA));
         g_pfnChangeDisplaySettingsExA((LPSTR)paDisplayDevices[i].DeviceName,
                                       &paDeviceModes[i], NULL, CDS_NORESET | CDS_UPDATEREGISTRY, NULL);
         Log(("ChangeDisplaySettingsEx position err %d\n", GetLastError()));
@@ -621,8 +621,7 @@ static DECLCALLBACK(RTEXITCODE) handleSetVideoMode(int argc, char *argv[])
         g_pfnEnumDisplaySettingsA     = (decltype(g_pfnEnumDisplaySettingsA))    GetProcAddress(hmodUser, "EnumDisplaySettingsA");
 
         Log(("VBoxService: g_pfnChangeDisplaySettingsExA=%p g_pfnChangeDisplaySettingsA=%p g_pfnEnumDisplaySettingsA=%p\n",
-             RT_CB_LOG_CAST(g_pfnChangeDisplaySettingsExA), RT_CB_LOG_CAST(g_pfnChangeDisplaySettingsA),
-             RT_CB_LOG_CAST(g_pfnEnumDisplaySettingsA)));
+             g_pfnChangeDisplaySettingsExA, g_pfnChangeDisplaySettingsA, g_pfnEnumDisplaySettingsA));
 
         if (   g_pfnChangeDisplaySettingsExA
             && g_pfnChangeDisplaySettingsA
@@ -945,7 +944,7 @@ struct
     DWORD xres;
     DWORD yres;
     DWORD bpp;
-} customModes[MAX_CUSTOM_MODES] = {{0}};
+} customModes[MAX_CUSTOM_MODES] = {0};
 
 void getCustomModes(HKEY hkeyVideo)
 {
@@ -1514,7 +1513,6 @@ static RTEXITCODE waitGuestProperty(int argc, char **argv)
     char *pszValue = NULL;
     uint64_t u64TimestampOut = 0;
     char *pszFlags = NULL;
-    bool fWasDeleted = false;
     /* The buffer for storing the data and its initial size.  We leave a bit
      * of space here in case the maximum values are raised. */
     void *pvBuf = NULL;
@@ -1538,7 +1536,7 @@ static RTEXITCODE waitGuestProperty(int argc, char **argv)
             rc = VbglR3GuestPropWait(u32ClientId, pszPatterns, pvBuf, cbBuf,
                                      u64TimestampIn, u32Timeout,
                                      &pszName, &pszValue, &u64TimestampOut,
-                                     &pszFlags, &cbBuf, &fWasDeleted);
+                                     &pszFlags, &cbBuf);
         }
         if (VERR_BUFFER_OVERFLOW == rc)
             /* Leave a bit of extra space to be safe */
@@ -1562,17 +1560,10 @@ static RTEXITCODE waitGuestProperty(int argc, char **argv)
         RTPrintf("Internal error: unable to determine the size of the data!\n");
     else if (RT_SUCCESS(rc))
     {
-        if (fWasDeleted)
-        {
-            RTPrintf("Property %s was deleted\n", pszName);
-        }
-        else
-        {
-            RTPrintf("Name: %s\n", pszName);
-            RTPrintf("Value: %s\n", pszValue);
-            RTPrintf("Timestamp: %lld ns\n", u64TimestampOut);
-            RTPrintf("Flags: %s\n", pszFlags);
-        }
+        RTPrintf("Name: %s\n", pszName);
+        RTPrintf("Value: %s\n", pszValue);
+        RTPrintf("Timestamp: %lld ns\n", u64TimestampOut);
+        RTPrintf("Flags: %s\n", pszFlags);
     }
 
     if (u32ClientId != 0)
@@ -2031,7 +2022,7 @@ static DECLCALLBACK(RTEXITCODE) handleUnzip(int argc, char *argv[])
 
 
 /** command handler type */
-typedef DECLCALLBACKTYPE(RTEXITCODE, FNVBOXCTRLCMDHANDLER,(int argc, char *argv[]));
+typedef DECLCALLBACK(RTEXITCODE) FNVBOXCTRLCMDHANDLER(int argc, char *argv[]);
 typedef FNVBOXCTRLCMDHANDLER *PFNVBOXCTRLCMDHANDLER;
 
 /** The table of all registered command handlers. */

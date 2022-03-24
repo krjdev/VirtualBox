@@ -1,10 +1,10 @@
-/* $Id: GIMInternal.h 93650 2022-02-08 10:43:53Z vboxsync $ */
+/* $Id: GIMInternal.h $ */
 /** @file
  * GIM - Internal header file.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,6 +50,8 @@ typedef struct GIM
 
     /** Physical access handler type for semi-read-only MMIO2 memory. Lazy creation. */
     PGMPHYSHANDLERTYPE              hSemiReadOnlyMmio2Handler;
+    /** Alignment padding. */
+    uint32_t                        u32Padding;
 
     /** Pointer to the GIM device - R3 ptr. */
     R3PTRTYPE(PPDMDEVINS)            pDevInsR3;
@@ -97,7 +99,7 @@ typedef GIMCPU *PGIMCPU;
  *
  * @param   pVM             The cross context VM structure.
  */
-typedef DECLCALLBACKTYPE(void, FNGIMDEBUGBUFREADCOMPLETED,(PVM pVM));
+typedef DECLCALLBACK(void) FNGIMDEBUGBUFREADCOMPLETED(PVM pVM);
 /** Pointer to GIM debug buffer read completion callback. */
 typedef FNGIMDEBUGBUFREADCOMPLETED *PFNGIMDEBUGBUFREADCOMPLETED;
 

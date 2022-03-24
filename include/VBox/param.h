@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,23 +38,6 @@
 /** @defgroup   grp_vbox_param  VBox Parameter Definition
  * @{
  */
-
-/** The guest page size (x86). */
-#define GUEST_PAGE_SIZE             0x1000
-/** The guest page offset mask (x86).
- * @note If one-complementing this, always put a typecast after the operator! */
-#define GUEST_PAGE_OFFSET_MASK      0xfff
-/** The guest page shift (x86). */
-#define GUEST_PAGE_SHIFT            12
-
-/** Host page size. */
-#define HOST_PAGE_SIZE              PAGE_SIZE
-/** Host page offset mask.
- * @note If one-complementing this, always put a typecast after the operator! */
-#define HOST_PAGE_OFFSET_MASK       PAGE_OFFSET_MASK
-/** Host page shift. */
-#define HOST_PAGE_SHIFT             PAGE_SHIFT
-
 
 /** The maximum number of pages that can be allocated and mapped
  * by various MM, PGM and SUP APIs. */
@@ -119,15 +102,6 @@
 /** The maximum 32-bit MMIO BAR size. */
 #define MM_MMIO_32_MAX              _2G
 
-/** @} */
-
-/** @defgroup   grp_vbox_param_pdm  Pluggable Device Manager Parameters
- * @{
- */
-/** Max number of network shaper groups. */
-#define PDM_NET_SHAPER_MAX_GROUPS   32
-/** Max length of a network shaper group name (excluding terminator). */
-#define PDM_NET_SHAPER_MAX_NAME_LEN 63
 /** @} */
 
 

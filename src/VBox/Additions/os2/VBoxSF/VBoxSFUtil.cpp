@@ -1,4 +1,4 @@
-/** $Id: VBoxSFUtil.cpp 79110 2019-06-13 00:17:25Z vboxsync $ */
+/** $Id: VBoxSFUtil.cpp $ */
 /** @file
  * VBoxSF - OS/2 Shared Folders, Utility for attaching and testing.
  */

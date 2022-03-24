@@ -75,7 +75,7 @@ EFI_STATUS
   );
 
 /**
-  Activate all of the application processors.
+  Activate all of the application proessors.
 
   @param[in] PeiServices          An indirect pointer to the PEI Services Table
                                   published by the PEI Foundation.

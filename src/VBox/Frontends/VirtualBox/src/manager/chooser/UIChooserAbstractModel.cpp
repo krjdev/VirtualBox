@@ -1,10 +1,10 @@
-/* $Id: UIChooserAbstractModel.cpp 94086 2022-03-04 13:47:01Z vboxsync $ */
+/* $Id: UIChooserAbstractModel.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserAbstractModel class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -15,11 +15,6 @@
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
 
-/* Qt includes: */
-#include <QRegExp>
-#include <QRegularExpression>
-#include <QThread>
-
 /* GUI includes: */
 #include "UICommon.h"
 #include "UIChooser.h"
@@ -28,350 +23,35 @@
 #include "UIChooserNodeGroup.h"
 #include "UIChooserNodeGlobal.h"
 #include "UIChooserNodeMachine.h"
-#include "UICloudNetworkingStuff.h"
 #include "UIExtraDataManager.h"
 #include "UIMessageCenter.h"
-#include "UINotificationCenter.h"
-#include "UIProgressTaskReadCloudMachineList.h"
 #include "UIVirtualBoxEventHandler.h"
-#include "UIVirtualMachineItemCloud.h"
+#include "UIVirtualMachineItem.h"
+#ifdef VBOX_GUI_WITH_CLOUD_VMS
+# include "UICloudMachine.h"
+# include "UITaskCloudAcquireInstances.h"
+# include "UIThreadPool.h"
+# include "UIVirtualMachineItemCloud.h"
+#endif
 
 /* COM includes: */
-#include "CCloudMachine.h"
-#include "CCloudProfile.h"
-#include "CCloudProvider.h"
 #include "CMachine.h"
+#ifdef VBOX_GUI_WITH_CLOUD_VMS
+# include "CCloudClient.h"
+# include "CCloudProfile.h"
+# include "CCloudProvider.h"
+# include "CCloudProviderManager.h"
+#endif
 
 /* Type defs: */
 typedef QSet<QString> UIStringSet;
-
-
-/** QThread subclass allowing to save group settings asynchronously. */
-class UIThreadGroupSettingsSave : public QThread
-{
-    Q_OBJECT;
-
-signals:
-
-    /** Notifies about machine with certain @a uMachineId to be reloaded. */
-    void sigReload(const QUuid &uMachineId);
-
-    /** Notifies about task is complete. */
-    void sigComplete();
-
-public:
-
-    /** Returns group settings saving thread instance. */
-    static UIThreadGroupSettingsSave *instance();
-    /** Prepares group settings saving thread instance. */
-    static void prepare();
-    /** Cleanups group settings saving thread instance. */
-    static void cleanup();
-
-    /** Configures @a group settings saving thread with corresponding @a pListener.
-      * @param  oldLists  Brings the old settings list to be compared.
-      * @param  newLists  Brings the new settings list to be saved. */
-    void configure(QObject *pParent,
-                   const QMap<QString, QStringList> &oldLists,
-                   const QMap<QString, QStringList> &newLists);
-
-protected:
-
-    /** Constructs group settings saving thread. */
-    UIThreadGroupSettingsSave();
-    /** Destructs group settings saving thread. */
-    virtual ~UIThreadGroupSettingsSave() RT_OVERRIDE;
-
-    /** Contains a thread task to be executed. */
-    virtual void run() RT_OVERRIDE;
-
-    /** Holds the singleton instance. */
-    static UIThreadGroupSettingsSave *s_pInstance;
-
-    /** Holds the map of group settings to be compared. */
-    QMap<QString, QStringList> m_oldLists;
-    /** Holds the map of group settings to be saved. */
-    QMap<QString, QStringList> m_newLists;
-};
-
-
-/** QThread subclass allowing to save group definitions asynchronously. */
-class UIThreadGroupDefinitionsSave : public QThread
-{
-    Q_OBJECT;
-
-signals:
-
-    /** Notifies about task is complete. */
-    void sigComplete();
-
-public:
-
-    /** Returns group definitions saving thread instance. */
-    static UIThreadGroupDefinitionsSave *instance();
-    /** Prepares group definitions saving thread instance. */
-    static void prepare();
-    /** Cleanups group definitions saving thread instance. */
-    static void cleanup();
-
-    /** Configures group definitions saving thread with corresponding @a pListener.
-      * @param  lists  Brings definitions lists to be saved. */
-    void configure(QObject *pListener,
-                   const QMap<QString, QStringList> &lists);
-
-protected:
-
-    /** Constructs group definitions saving thread. */
-    UIThreadGroupDefinitionsSave();
-    /** Destructs group definitions saving thread. */
-    virtual ~UIThreadGroupDefinitionsSave() RT_OVERRIDE;
-
-    /** Contains a thread task to be executed. */
-    virtual void run() RT_OVERRIDE;
-
-    /** Holds the singleton instance. */
-    static UIThreadGroupDefinitionsSave *s_pInstance;
-
-    /** Holds the map of group definitions to be saved. */
-    QMap<QString, QStringList>  m_lists;
-};
-
-
-/*********************************************************************************************************************************
-*   Class UIThreadGroupSettingsSave implementation.                                                                              *
-*********************************************************************************************************************************/
-
-/* static */
-UIThreadGroupSettingsSave *UIThreadGroupSettingsSave::s_pInstance = 0;
-
-/* static */
-UIThreadGroupSettingsSave *UIThreadGroupSettingsSave::instance()
-{
-    return s_pInstance;
-}
-
-/* static */
-void UIThreadGroupSettingsSave::prepare()
-{
-    /* Make sure instance is not prepared: */
-    if (s_pInstance)
-        return;
-
-    /* Crate instance: */
-    new UIThreadGroupSettingsSave;
-}
-
-/* static */
-void UIThreadGroupSettingsSave::cleanup()
-{
-    /* Make sure instance is prepared: */
-    if (!s_pInstance)
-        return;
-
-    /* Delete instance: */
-    delete s_pInstance;
-}
-
-void UIThreadGroupSettingsSave::configure(QObject *pParent,
-                                          const QMap<QString, QStringList> &oldLists,
-                                          const QMap<QString, QStringList> &newLists)
-{
-    m_oldLists = oldLists;
-    m_newLists = newLists;
-    UIChooserAbstractModel *pChooserAbstractModel = qobject_cast<UIChooserAbstractModel*>(pParent);
-    AssertPtrReturnVoid(pChooserAbstractModel);
-    {
-        connect(this, &UIThreadGroupSettingsSave::sigComplete,
-                pChooserAbstractModel, &UIChooserAbstractModel::sltGroupSettingsSaveComplete);
-    }
-}
-
-UIThreadGroupSettingsSave::UIThreadGroupSettingsSave()
-{
-    /* Assign instance: */
-    s_pInstance = this;
-}
-
-UIThreadGroupSettingsSave::~UIThreadGroupSettingsSave()
-{
-    /* Make sure thread work is complete: */
-    wait();
-
-    /* Erase instance: */
-    s_pInstance = 0;
-}
-
-void UIThreadGroupSettingsSave::run()
-{
-    /* COM prepare: */
-    COMBase::InitializeCOM(false);
-
-    /* For every particular machine ID: */
-    foreach (const QString &strId, m_newLists.keys())
-    {
-        /* Get new group list/set: */
-        const QStringList &newGroupList = m_newLists.value(strId);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        const UIStringSet newGroupSet(newGroupList.begin(), newGroupList.end());
-#else
-        const UIStringSet &newGroupSet = UIStringSet::fromList(newGroupList);
-#endif
-        /* Get old group list/set: */
-        const QStringList &oldGroupList = m_oldLists.value(strId);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        const UIStringSet oldGroupSet(oldGroupList.begin(), oldGroupList.end());
-#else
-        const UIStringSet &oldGroupSet = UIStringSet::fromList(oldGroupList);
-#endif
-        /* Make sure group set changed: */
-        if (newGroupSet == oldGroupSet)
-            continue;
-
-        /* The next steps are subsequent.
-         * Every of them is mandatory in order to continue
-         * with common cleanup in case of failure.
-         * We have to simulate a try-catch block. */
-        CSession comSession;
-        CMachine comMachine;
-        do
-        {
-            /* 1. Open session: */
-            comSession = uiCommon().openSession(QUuid(strId));
-            if (comSession.isNull())
-                break;
-
-            /* 2. Get session machine: */
-            comMachine = comSession.GetMachine();
-            if (comMachine.isNull())
-                break;
-
-            /* 3. Set new groups: */
-            comMachine.SetGroups(newGroupList.toVector());
-            if (!comMachine.isOk())
-            {
-                msgCenter().cannotSetGroups(comMachine);
-                break;
-            }
-
-            /* 4. Save settings: */
-            comMachine.SaveSettings();
-            if (!comMachine.isOk())
-            {
-                msgCenter().cannotSaveMachineSettings(comMachine);
-                break;
-            }
-        } while (0);
-
-        /* Cleanup if necessary: */
-        if (comMachine.isNull() || !comMachine.isOk())
-            emit sigReload(QUuid(strId));
-        if (!comSession.isNull())
-            comSession.UnlockMachine();
-    }
-
-    /* Notify listeners about completeness: */
-    emit sigComplete();
-
-    /* COM cleanup: */
-    COMBase::CleanupCOM();
-}
-
-
-/*********************************************************************************************************************************
-*   Class UIThreadGroupDefinitionsSave implementation.                                                                           *
-*********************************************************************************************************************************/
-
-/* static */
-UIThreadGroupDefinitionsSave *UIThreadGroupDefinitionsSave::s_pInstance = 0;
-
-/* static */
-UIThreadGroupDefinitionsSave *UIThreadGroupDefinitionsSave::instance()
-{
-    return s_pInstance;
-}
-
-/* static */
-void UIThreadGroupDefinitionsSave::prepare()
-{
-    /* Make sure instance is not prepared: */
-    if (s_pInstance)
-        return;
-
-    /* Crate instance: */
-    new UIThreadGroupDefinitionsSave;
-}
-
-/* static */
-void UIThreadGroupDefinitionsSave::cleanup()
-{
-    /* Make sure instance is prepared: */
-    if (!s_pInstance)
-        return;
-
-    /* Delete instance: */
-    delete s_pInstance;
-}
-
-void UIThreadGroupDefinitionsSave::configure(QObject *pParent,
-                                             const QMap<QString, QStringList> &groups)
-{
-    m_lists = groups;
-    UIChooserAbstractModel *pChooserAbstractModel = qobject_cast<UIChooserAbstractModel*>(pParent);
-    AssertPtrReturnVoid(pChooserAbstractModel);
-    {
-        connect(this, &UIThreadGroupDefinitionsSave::sigComplete,
-                pChooserAbstractModel, &UIChooserAbstractModel::sltGroupDefinitionsSaveComplete);
-    }
-}
-
-UIThreadGroupDefinitionsSave::UIThreadGroupDefinitionsSave()
-{
-    /* Assign instance: */
-    s_pInstance = this;
-}
-
-UIThreadGroupDefinitionsSave::~UIThreadGroupDefinitionsSave()
-{
-    /* Make sure thread work is complete: */
-    wait();
-
-    /* Erase instance: */
-    s_pInstance = 0;
-}
-
-void UIThreadGroupDefinitionsSave::run()
-{
-    /* COM prepare: */
-    COMBase::InitializeCOM(false);
-
-    /* Acquire a list of known group definition keys: */
-    QStringList knownKeys = gEDataManager->knownMachineGroupDefinitionKeys();
-    /* For every group definition to be saved: */
-    foreach (const QString &strId, m_lists.keys())
-    {
-        /* Save definition only if there is a change: */
-        if (gEDataManager->machineGroupDefinitions(strId) != m_lists.value(strId))
-            gEDataManager->setMachineGroupDefinitions(strId, m_lists.value(strId));
-        /* Remove it from known keys: */
-        knownKeys.removeAll(strId);
-    }
-    /* Wipe out rest of known group definitions: */
-    foreach (const QString strId, knownKeys)
-        gEDataManager->setMachineGroupDefinitions(strId, QStringList());
-
-    /* Notify listeners about completeness: */
-    emit sigComplete();
-
-    /* COM cleanup: */
-    COMBase::CleanupCOM();
-}
 
 
 /*********************************************************************************************************************************
 *   Class UIChooserAbstractModel implementation.                                                                                 *
 *********************************************************************************************************************************/
 
-UIChooserAbstractModel::UIChooserAbstractModel(UIChooser *pParent)
+UIChooserAbstractModel:: UIChooserAbstractModel(UIChooser *pParent)
     : QObject(pParent)
     , m_pParent(pParent)
     , m_pInvisibleRootNode(0)
@@ -379,43 +59,33 @@ UIChooserAbstractModel::UIChooserAbstractModel(UIChooser *pParent)
     prepare();
 }
 
-UIChooserAbstractModel::~UIChooserAbstractModel()
-{
-    cleanup();
-}
-
 void UIChooserAbstractModel::init()
 {
-    /* Create invisible root group node: */
-    m_pInvisibleRootNode = new UIChooserNodeGroup(0 /* parent */,
-                                                  0 /* position */,
-                                                  QUuid() /* id */,
-                                                  QString() /* name */,
-                                                  UIChooserNodeGroupType_Local,
-                                                  true /* opened */);
-    if (invisibleRoot())
-    {
-        /* Link root to this model: */
-        invisibleRoot()->setModel(this);
-
-        /* Create global node: */
-        new UIChooserNodeGlobal(invisibleRoot() /* parent */,
-                                0 /* position */,
-                                shouldGlobalNodeBeFavorite(invisibleRoot()),
-                                QString() /* tip */);
-
-        /* Reload local tree: */
-        reloadLocalTree();
-        /* Reload cloud tree: */
-        reloadCloudTree();
-    }
+    /* Load tree: */
+    loadTree();
 }
 
 void UIChooserAbstractModel::deinit()
 {
+    // WORKAROUND:
+    // Currently we are not saving group descriptors
+    // (which reflecting group toggle-state) on-the-fly,
+    // so for now we are additionally save group orders
+    // when exiting application:
+    saveGroupOrders();
+
     /* Make sure all saving steps complete: */
-    makeSureGroupSettingsSaveIsFinished();
     makeSureGroupDefinitionsSaveIsFinished();
+    makeSureGroupOrdersSaveIsFinished();
+
+    /* Delete tree: */
+    delete m_pInvisibleRootNode;
+    m_pInvisibleRootNode = 0;
+}
+
+UIChooserNode *UIChooserAbstractModel::invisibleRoot() const
+{
+    return m_pInvisibleRootNode;
 }
 
 void UIChooserAbstractModel::wipeOutEmptyGroups()
@@ -423,36 +93,12 @@ void UIChooserAbstractModel::wipeOutEmptyGroups()
     wipeOutEmptyGroupsStartingFrom(invisibleRoot());
 }
 
-QStringList UIChooserAbstractModel::possibleGroupNodeNamesForMachineNodeToMove(const QUuid &uId)
-{
-    /* Search for all the machine nodes with passed ID: */
-    QList<UIChooserNode*> machineNodes;
-    invisibleRoot()->searchForNodes(uId.toString(),
-                                    UIChooserItemSearchFlag_Machine | UIChooserItemSearchFlag_ExactId,
-                                    machineNodes);
-
-    /* Return group nodes starting from root one: */
-    return gatherPossibleGroupNodeNames(invisibleRoot(), machineNodes);
-}
-
-QStringList UIChooserAbstractModel::possibleGroupNodeNamesForGroupNodeToMove(const QString &strFullName)
-{
-    /* Search for all the group nodes with passed full-name: */
-    QList<UIChooserNode*> groupNodes;
-    invisibleRoot()->searchForNodes(strFullName,
-                                    UIChooserItemSearchFlag_LocalGroup | UIChooserItemSearchFlag_FullName,
-                                    groupNodes);
-
-    /* Return group nodes starting from root one: */
-    return gatherPossibleGroupNodeNames(invisibleRoot(), groupNodes);
-}
-
 /* static */
 QString UIChooserAbstractModel::uniqueGroupName(UIChooserNode *pRoot)
 {
     /* Enumerate all the group names: */
     QStringList groupNames;
-    foreach (UIChooserNode *pNode, pRoot->nodes(UIChooserNodeType_Group))
+    foreach (UIChooserNode *pNode, pRoot->nodes(UIChooserItemType_Group))
         groupNames << pNode->name();
 
     /* Prepare reg-exp: */
@@ -479,7 +125,7 @@ QString UIChooserAbstractModel::uniqueGroupName(UIChooserNode *pRoot)
     return strResult;
 }
 
-void UIChooserAbstractModel::performSearch(const QString &strSearchTerm, int iSearchFlags)
+void UIChooserAbstractModel::performSearch(const QString &strSearchTerm, int iItemSearchFlags)
 {
     /* Make sure invisible root exists: */
     AssertPtrReturnVoid(invisibleRoot());
@@ -496,12 +142,13 @@ void UIChooserAbstractModel::performSearch(const QString &strSearchTerm, int iSe
         return;
 
     /* Search for all the nodes matching required condition: */
-    invisibleRoot()->searchForNodes(strSearchTerm, iSearchFlags, m_searchResults);
+    invisibleRoot()->searchForNodes(strSearchTerm, iItemSearchFlags, m_searchResults);
 
     /* Assign/reset the disabled flag for required nodes: */
     foreach (UIChooserNode *pNode, nodes)
     {
-        AssertPtrReturnVoid(pNode);
+        if (!pNode)
+            continue;
         pNode->setDisabled(!m_searchResults.contains(pNode));
     }
 }
@@ -514,21 +161,22 @@ QList<UIChooserNode*> UIChooserAbstractModel::resetSearch()
     /* Make sure invisible root exists: */
     AssertPtrReturn(invisibleRoot(), nodes);
 
-    /* Calling UIChooserNode::searchForNodes with an empty search term
+    /* Calling UIChooserNode::searchForNodes with an empty search string
      * returns a list all nodes (of the whole tree) of the required type: */
     invisibleRoot()->searchForNodes(QString(), UIChooserItemSearchFlag_Machine, nodes);
 
     /* Reset the disabled flag of the nodes first: */
     foreach (UIChooserNode *pNode, nodes)
     {
-        AssertPtrReturn(pNode, nodes);
+        if (!pNode)
+            continue;
         pNode->setDisabled(false);
     }
 
     /* Reset the search result related data: */
     m_searchResults.clear();
 
-    /* Return nodes: */
+    /* Return  nodes: */
     return nodes;
 }
 
@@ -537,164 +185,30 @@ QList<UIChooserNode*> UIChooserAbstractModel::searchResult() const
     return m_searchResults;
 }
 
-void UIChooserAbstractModel::saveGroups()
+void UIChooserAbstractModel::saveGroupSettings()
 {
-    emit sigSaveSettings();
+    emit sigStartGroupSaving();
 }
 
 bool UIChooserAbstractModel::isGroupSavingInProgress() const
 {
-    return    UIThreadGroupSettingsSave::instance()
-           || UIThreadGroupDefinitionsSave::instance();
+    return    UIThreadGroupDefinitionSave::instance()
+           || UIThreadGroupOrderSave::instance();
 }
 
-/* static */
-QString UIChooserAbstractModel::toOldStyleUuid(const QUuid &uId)
-{
-    return uId.toString().remove(QRegularExpression("[{}]"));
-}
-
-/* static */
-QString UIChooserAbstractModel::prefixToString(UIChooserNodeDataPrefixType enmType)
-{
-    switch (enmType)
-    {
-        /* Global nodes: */
-        case UIChooserNodeDataPrefixType_Global:   return "n";
-        /* Machine nodes: */
-        case UIChooserNodeDataPrefixType_Machine:  return "m";
-        /* Group nodes: */
-        case UIChooserNodeDataPrefixType_Local:    return "g";
-        case UIChooserNodeDataPrefixType_Provider: return "p";
-        case UIChooserNodeDataPrefixType_Profile:  return "a";
-    }
-    return QString();
-}
-
-/* static */
-QString UIChooserAbstractModel::optionToString(UIChooserNodeDataOptionType enmType)
-{
-    switch (enmType)
-    {
-        /* Global nodes: */
-        case UIChooserNodeDataOptionType_GlobalFavorite: return "f";
-        /* Group nodes: */
-        case UIChooserNodeDataOptionType_GroupOpened:    return "o";
-    }
-    return QString();
-}
-
-/* static */
-QString UIChooserAbstractModel::valueToString(UIChooserNodeDataValueType enmType)
-{
-    switch (enmType)
-    {
-        /* Global nodes: */
-        case UIChooserNodeDataValueType_GlobalDefault: return "GLOBAL";
-    }
-    return QString();
-}
-
-void UIChooserAbstractModel::insertCloudEntityKey(const UICloudEntityKey &key)
-{
-//    printf("Cloud entity with key %s being updated..\n", key.toString().toUtf8().constData());
-    m_cloudEntityKeysBeingUpdated.insert(key);
-    emit sigCloudUpdateStateChanged();
-}
-
-void UIChooserAbstractModel::removeCloudEntityKey(const UICloudEntityKey &key)
-{
-//    printf("Cloud entity with key %s is updated!\n", key.toString().toUtf8().constData());
-    m_cloudEntityKeysBeingUpdated.remove(key);
-    emit sigCloudUpdateStateChanged();
-}
-
-bool UIChooserAbstractModel::containsCloudEntityKey(const UICloudEntityKey &key) const
-{
-    return m_cloudEntityKeysBeingUpdated.contains(key);
-}
-
-bool UIChooserAbstractModel::isCloudProfileUpdateInProgress() const
-{
-    /* Compose RE for profile: */
-    QRegExp re("^/[^/]+/[^/]+$");
-    /* Check whether keys match profile RE: */
-    foreach (const UICloudEntityKey &key, m_cloudEntityKeysBeingUpdated)
-    {
-        const int iIndex = re.indexIn(key.toString());
-        if (iIndex != -1)
-            return true;
-    }
-    /* False by default: */
-    return false;
-}
-
-void UIChooserAbstractModel::sltHandleCloudMachineRefreshStarted()
-{
-    /* Acquire sender: */
-    UIVirtualMachineItem *pCache = qobject_cast<UIVirtualMachineItem*>(sender());
-    AssertPtrReturnVoid(pCache);
-
-    /* Acquire sender's ID: */
-    const QUuid uId = pCache->id();
-
-    /* Search for a first machine node with passed ID: */
-    UIChooserNode *pMachineNode = searchMachineNode(invisibleRoot(), uId);
-
-    /* Insert cloud machine key into a list of keys currently being updated: */
-    const UICloudEntityKey guiCloudMachineKey = UICloudEntityKey(pMachineNode->parentNode()->parentNode()->name(),
-                                                                 pMachineNode->parentNode()->name(),
-                                                                 pMachineNode->toMachineNode()->id());
-    insertCloudEntityKey(guiCloudMachineKey);
-}
-
-void UIChooserAbstractModel::sltHandleCloudMachineRefreshFinished()
-{
-    /* Acquire sender: */
-    UIVirtualMachineItem *pCache = qobject_cast<UIVirtualMachineItem*>(sender());
-    AssertPtrReturnVoid(pCache);
-
-    /* Acquire sender's ID: */
-    const QUuid uId = pCache->id();
-
-    /* Search for a first machine node with passed ID: */
-    UIChooserNode *pMachineNode = searchMachineNode(invisibleRoot(), uId);
-
-    /* Remove cloud machine key from the list of keys currently being updated: */
-    const UICloudEntityKey guiCloudMachineKey = UICloudEntityKey(pMachineNode->parentNode()->parentNode()->name(),
-                                                                 pMachineNode->parentNode()->name(),
-                                                                 pMachineNode->toMachineNode()->id());
-    removeCloudEntityKey(guiCloudMachineKey);
-
-    /* Notify listeners: */
-    emit sigCloudMachineStateChange(uId);
-}
-
-void UIChooserAbstractModel::sltGroupSettingsSaveComplete()
-{
-    makeSureGroupSettingsSaveIsFinished();
-    emit sigGroupSavingStateChanged();
-}
-
-void UIChooserAbstractModel::sltGroupDefinitionsSaveComplete()
-{
-    makeSureGroupDefinitionsSaveIsFinished();
-    emit sigGroupSavingStateChanged();
-}
-
-void UIChooserAbstractModel::sltLocalMachineStateChanged(const QUuid &uMachineId, const KMachineState)
+void UIChooserAbstractModel::sltMachineStateChanged(const QUuid &uMachineId, const KMachineState)
 {
     /* Update machine-nodes with passed id: */
     invisibleRoot()->updateAllNodes(uMachineId);
 }
 
-void UIChooserAbstractModel::sltLocalMachineDataChanged(const QUuid &uMachineId)
+void UIChooserAbstractModel::sltMachineDataChanged(const QUuid &uMachineId)
 {
     /* Update machine-nodes with passed id: */
     invisibleRoot()->updateAllNodes(uMachineId);
 }
 
-void UIChooserAbstractModel::sltLocalMachineRegistrationChanged(const QUuid &uMachineId, const bool fRegistered)
+void UIChooserAbstractModel::sltMachineRegistered(const QUuid &uMachineId, const bool fRegistered)
 {
     /* Existing VM unregistered? */
     if (!fRegistered)
@@ -712,8 +226,7 @@ void UIChooserAbstractModel::sltLocalMachineRegistrationChanged(const QUuid &uMa
         {
             /* Add new machine-item: */
             const CMachine comMachine = uiCommon().virtualBox().FindMachine(uMachineId.toString());
-            if (comMachine.isNotNull())
-                addLocalMachineIntoTheTree(comMachine, true /* make it visible */);
+            addMachineIntoTheTree(comMachine, true /* make it visible */);
         }
     }
 }
@@ -730,15 +243,6 @@ void UIChooserAbstractModel::sltSnapshotChanged(const QUuid &uMachineId, const Q
     invisibleRoot()->updateAllNodes(uMachineId);
 }
 
-void UIChooserAbstractModel::sltHandleCloudProviderUninstall(const QUuid &uProviderId)
-{
-    /* First of all, stop all cloud updates: */
-    stopCloudUpdates();
-
-    /* Search and delete corresponding cloud provider node if present: */
-    delete searchProviderNode(uProviderId);
-}
-
 void UIChooserAbstractModel::sltReloadMachine(const QUuid &uMachineId)
 {
     /* Remove machine-items with passed id: */
@@ -751,234 +255,76 @@ void UIChooserAbstractModel::sltReloadMachine(const QUuid &uMachineId)
     {
         /* Add new machine-item: */
         const CMachine comMachine = uiCommon().virtualBox().FindMachine(uMachineId.toString());
-        addLocalMachineIntoTheTree(comMachine, true /* make it visible */);
+        addMachineIntoTheTree(comMachine, true /* make it visible */);
     }
 }
 
-void UIChooserAbstractModel::sltCommitData()
+void UIChooserAbstractModel::sltStartGroupSaving()
 {
-    /* Finally, stop all cloud updates: */
-    stopCloudUpdates(true /* forced? */);
-}
-
-void UIChooserAbstractModel::sltDetachCOM()
-{
-    /* Delete tree: */
-    delete m_pInvisibleRootNode;
-    m_pInvisibleRootNode = 0;
-}
-
-void UIChooserAbstractModel::sltCloudMachineUnregistered(const QString &strProviderShortName,
-                                                         const QString &strProfileName,
-                                                         const QUuid &uId)
-{
-    /* Search for profile node: */
-    UIChooserNode *pProfileNode = searchProfileNode(strProviderShortName, strProfileName);
-    if (!pProfileNode)
-        return;
-
-    /* Remove machine-item with passed uId: */
-    pProfileNode->removeAllNodes(uId);
-
-    /* If there are no items left => add fake cloud VM node: */
-    if (pProfileNode->nodes(UIChooserNodeType_Machine).isEmpty())
-        createCloudMachineNode(pProfileNode, UIFakeCloudVirtualMachineItemState_Done);
-}
-
-void UIChooserAbstractModel::sltCloudMachinesUnregistered(const QString &strProviderShortName,
-                                                          const QString &strProfileName,
-                                                          const QList<QUuid> &ids)
-{
-    /* Search for profile node: */
-    UIChooserNode *pProfileNode = searchProfileNode(strProviderShortName, strProfileName);
-    if (!pProfileNode)
-        return;
-
-    /* Remove machine-items with passed id: */
-    foreach (const QUuid &uId, ids)
-        pProfileNode->removeAllNodes(uId);
-
-    /* If there are no items left => add fake cloud VM node: */
-    if (pProfileNode->nodes(UIChooserNodeType_Machine).isEmpty())
-        createCloudMachineNode(pProfileNode, UIFakeCloudVirtualMachineItemState_Done);
-}
-
-void UIChooserAbstractModel::sltCloudMachineRegistered(const QString &strProviderShortName,
-                                                       const QString &strProfileName,
-                                                       const CCloudMachine &comMachine)
-{
-    /* Search for profile node: */
-    UIChooserNode *pProfileNode = searchProfileNode(strProviderShortName, strProfileName);
-    if (!pProfileNode)
-        return;
-
-    /* Compose corresponding group path: */
-    const QString strGroup = QString("/%1/%2").arg(strProviderShortName, strProfileName);
-    /* Make sure there is no VM with such ID already: */
-    QUuid uId;
-    if (!cloudMachineId(comMachine, uId))
-        return;
-    if (checkIfNodeContainChildWithId(pProfileNode, uId))
-        return;
-    /* Add new machine-item: */
-    addCloudMachineIntoTheTree(strGroup, comMachine, true /* make it visible? */);
-
-    /* Delete fake node if present: */
-    delete searchFakeNode(pProfileNode);
-}
-
-void UIChooserAbstractModel::sltCloudMachinesRegistered(const QString &strProviderShortName,
-                                                        const QString &strProfileName,
-                                                        const QVector<CCloudMachine> &machines)
-{
-    /* Search for profile node: */
-    UIChooserNode *pProfileNode = searchProfileNode(strProviderShortName, strProfileName);
-    if (!pProfileNode)
-        return;
-
-    /* Compose corresponding group path: */
-    const QString strGroup = QString("/%1/%2").arg(strProviderShortName, strProfileName);
-    foreach (const CCloudMachine &comMachine, machines)
-    {
-        /* Make sure there is no VM with such ID already: */
-        QUuid uId;
-        if (!cloudMachineId(comMachine, uId))
-            continue;
-        if (checkIfNodeContainChildWithId(pProfileNode, uId))
-            continue;
-        /* Add new machine-item: */
-        addCloudMachineIntoTheTree(strGroup, comMachine, false /* make it visible? */);
-    }
-
-    /* Delete fake node if present: */
-    delete searchFakeNode(pProfileNode);
-}
-
-void UIChooserAbstractModel::sltHandleReadCloudMachineListTaskComplete()
-{
-    /* Parse task result: */
-    UIProgressTaskReadCloudMachineList *pSender = qobject_cast<UIProgressTaskReadCloudMachineList*>(sender());
-    AssertPtrReturnVoid(pSender);
-    const UICloudEntityKey guiCloudProfileKey = pSender->cloudProfileKey();
-    const QVector<CCloudMachine> machines = pSender->machines();
-    const QString strErrorMessage = pSender->errorMessage();
-
-    /* Delete task: */
-    delete pSender;
-
-    /* Check whether this task was expected: */
-    if (!containsCloudEntityKey(guiCloudProfileKey))
-        return;
-
-    /* Search for provider node separately, it can be removed already: */
-    UIChooserNode *pProviderNode = searchProviderNode(guiCloudProfileKey.m_strProviderShortName);
-    if (pProviderNode)
-    {
-        /* Search for profile node separately, it can be hidden at all: */
-        UIChooserNode *pProfileNode = searchProfileNode(pProviderNode, guiCloudProfileKey.m_strProfileName);
-        if (pProfileNode)
-        {
-            /* Compose old set of machine IDs: */
-            QSet<QUuid> oldIDs;
-            foreach (UIChooserNode *pNode, pProfileNode->nodes(UIChooserNodeType_Machine))
-            {
-                AssertPtrReturnVoid(pNode);
-                UIChooserNodeMachine *pNodeMachine = pNode->toMachineNode();
-                AssertPtrReturnVoid(pNodeMachine);
-                if (pNodeMachine->cacheType() != UIVirtualMachineItemType_CloudReal)
-                    continue;
-                oldIDs << pNodeMachine->id();
-            }
-            /* Compose new set of machine IDs and map of machines: */
-            QSet<QUuid> newIDs;
-            QMap<QUuid, CCloudMachine> newMachines;
-            foreach (const CCloudMachine &comMachine, machines)
-            {
-                QUuid uId;
-                AssertReturnVoid(cloudMachineId(comMachine, uId));
-                newMachines[uId] = comMachine;
-                newIDs << uId;
-            }
-
-            /* Calculate set of unregistered/registered IDs: */
-            const QSet<QUuid> unregisteredIDs = oldIDs - newIDs;
-            const QSet<QUuid> registeredIDs = newIDs - oldIDs;
-            QVector<CCloudMachine> registeredMachines;
-            foreach (const QUuid &uId, registeredIDs)
-                registeredMachines << newMachines.value(uId);
-
-            /* Remove unregistered cloud VM nodes: */
-            if (!unregisteredIDs.isEmpty())
-            {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-                QList<QUuid> listUnregisteredIDs(unregisteredIDs.begin(), unregisteredIDs.end());
-#else
-                QList<QUuid> listUnregisteredIDs = unregisteredIDs.toList();
-#endif
-                sltCloudMachinesUnregistered(guiCloudProfileKey.m_strProviderShortName,
-                                             guiCloudProfileKey.m_strProfileName,
-                                             listUnregisteredIDs);
-            }
-            /* Add registered cloud VM nodes: */
-            if (!registeredMachines.isEmpty())
-                sltCloudMachinesRegistered(guiCloudProfileKey.m_strProviderShortName,
-                                           guiCloudProfileKey.m_strProfileName,
-                                           registeredMachines);
-            /* If we changed nothing and have nothing currently: */
-            if (unregisteredIDs.isEmpty() && newIDs.isEmpty())
-            {
-                /* We should update at least fake cloud machine node: */
-                UIChooserNode *pFakeNode = searchFakeNode(pProfileNode);
-                AssertPtrReturnVoid(pFakeNode);
-                UIVirtualMachineItemCloud *pFakeMachineItem = pFakeNode->toMachineNode()->cache()->toCloud();
-                AssertPtrReturnVoid(pFakeMachineItem);
-                pFakeMachineItem->setFakeCloudItemState(UIFakeCloudVirtualMachineItemState_Done);
-                pFakeMachineItem->setFakeCloudItemErrorMessage(strErrorMessage);
-                if (pFakeNode->item())
-                    pFakeNode->item()->updateItem();
-            }
-        }
-    }
-
-    /* Remove cloud entity key from the list of keys currently being updated: */
-    removeCloudEntityKey(guiCloudProfileKey);
-}
-
-void UIChooserAbstractModel::sltHandleCloudProfileManagerCumulativeChange()
-{
-    /* Reload cloud tree: */
-    reloadCloudTree();
-}
-
-void UIChooserAbstractModel::createReadCloudMachineListTask(const UICloudEntityKey &guiCloudProfileKey, bool fWithRefresh)
-{
-    /* Do not create task if already registered: */
-    if (containsCloudEntityKey(guiCloudProfileKey))
-        return;
-
-    /* Create task: */
-    UIProgressTaskReadCloudMachineList *pTask = new UIProgressTaskReadCloudMachineList(this,
-                                                                                       guiCloudProfileKey,
-                                                                                       fWithRefresh);
-    if (pTask)
-    {
-        /* It's easy to find child by name later: */
-        pTask->setObjectName(guiCloudProfileKey.toString());
-
-        /* Insert cloud profile key into a list of keys currently being updated: */
-        insertCloudEntityKey(guiCloudProfileKey);
-
-        /* Connect and start it finally: */
-        connect(pTask, &UIProgressTaskReadCloudMachineList::sigProgressFinished,
-                this, &UIChooserAbstractModel::sltHandleReadCloudMachineListTaskComplete);
-        pTask->start();
-    }
-}
-
-void UIChooserAbstractModel::sltSaveSettings()
-{
-    saveGroupSettings();
     saveGroupDefinitions();
+    saveGroupOrders();
+}
+
+#ifdef VBOX_GUI_WITH_CLOUD_VMS
+void UIChooserAbstractModel::sltHandleCloudAcquireInstancesTaskComplete(UITask *pTask)
+{
+    /* Skip unrelated tasks: */
+    if (!pTask || pTask->type() != UITask::Type_CloudAcquireInstances)
+        return;
+
+    /* Cast task to corresponding sub-class: */
+    UITaskCloudAcquireInstances *pAcquiringTask = static_cast<UITaskCloudAcquireInstances*>(pTask);
+
+    /* Acquire parent node we referencing: */
+    UIChooserNode *pParentNode = pAcquiringTask->parentNode();
+    AssertPtrReturnVoid(pParentNode);
+
+    /* This node always have 1st child: */
+    AssertReturnVoid(pParentNode->hasNodes());
+    UIChooserNode *pFirstChildNode = pParentNode->nodes().at(0);
+    AssertPtrReturnVoid(pFirstChildNode);
+
+    /* Which is machine node of course: */
+    UIChooserNodeMachine *pFirstChildNodeMachine = pFirstChildNode->toMachineNode();
+    AssertPtrReturnVoid(pFirstChildNodeMachine);
+
+    /* Which has cache of fake cloud item type: */
+    AssertPtrReturnVoid(pFirstChildNodeMachine->cache());
+    AssertReturnVoid(pFirstChildNodeMachine->cache()->itemType() == UIVirtualMachineItem::ItemType_CloudFake);
+    UIVirtualMachineItemCloud *pFakeCloudMachineItem = pFirstChildNodeMachine->cache()->toCloud();
+    AssertPtrReturnVoid(pFakeCloudMachineItem);
+
+    /* So that we could update this fake cloud item with new state and recache it: */
+    pFakeCloudMachineItem->setFakeCloudItemState(UIVirtualMachineItemCloud::FakeCloudItemState_Done);
+    pFakeCloudMachineItem->recache();
+
+    /* Add real cloud VM items: */
+    int iPosition = 1; /* we've got item with index 0 already, the "Empty" one .. */
+    foreach (const UICloudMachine &guiCloudMachine, pAcquiringTask->result())
+        new UIChooserNodeMachine(pParentNode,
+                                 false /* favorite */,
+                                 iPosition++ /* position */,
+                                 guiCloudMachine);
+}
+#endif /* VBOX_GUI_WITH_CLOUD_VMS */
+
+void UIChooserAbstractModel::sltHandleCloudMachineStateChange()
+{
+    UIVirtualMachineItem *pCache = qobject_cast<UIVirtualMachineItem*>(sender());
+    AssertPtrReturnVoid(pCache);
+    sigCloudMachineStateChange(pCache->id());
+}
+
+void UIChooserAbstractModel::sltGroupDefinitionsSaveComplete()
+{
+    makeSureGroupDefinitionsSaveIsFinished();
+    emit sigGroupSavingStateChanged();
+}
+
+void UIChooserAbstractModel::sltGroupOrdersSaveComplete()
+{
+    makeSureGroupOrdersSaveIsFinished();
+    emit sigGroupSavingStateChanged();
 }
 
 void UIChooserAbstractModel::prepare()
@@ -988,23 +334,17 @@ void UIChooserAbstractModel::prepare()
 
 void UIChooserAbstractModel::prepareConnections()
 {
-    /* UICommon connections: */
-    connect(&uiCommon(), &UICommon::sigAskToCommitData,
-            this, &UIChooserAbstractModel::sltCommitData);
-    connect(&uiCommon(), &UICommon::sigAskToDetachCOM,
-            this, &UIChooserAbstractModel::sltDetachCOM);
-    connect(&uiCommon(), &UICommon::sigCloudMachineUnregistered,
-            this, &UIChooserAbstractModel::sltCloudMachineUnregistered);
-    connect(&uiCommon(), &UICommon::sigCloudMachineRegistered,
-            this, &UIChooserAbstractModel::sltCloudMachineRegistered);
+    /* Setup parent connections: */
+    connect(this, &UIChooserAbstractModel::sigGroupSavingStateChanged,
+            m_pParent, &UIChooser::sigGroupSavingStateChanged);
 
-    /* Global connections: */
+    /* Setup global connections: */
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigMachineStateChange,
-            this, &UIChooserAbstractModel::sltLocalMachineStateChanged);
+            this, &UIChooserAbstractModel::sltMachineStateChanged);
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigMachineDataChange,
-            this, &UIChooserAbstractModel::sltLocalMachineDataChanged);
+            this, &UIChooserAbstractModel::sltMachineDataChanged);
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigMachineRegistered,
-            this, &UIChooserAbstractModel::sltLocalMachineRegistrationChanged);
+            this, &UIChooserAbstractModel::sltMachineRegistered);
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigSessionStateChange,
             this, &UIChooserAbstractModel::sltSessionStateChanged);
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigSnapshotTake,
@@ -1015,260 +355,190 @@ void UIChooserAbstractModel::prepareConnections()
             this, &UIChooserAbstractModel::sltSnapshotChanged);
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigSnapshotRestore,
             this, &UIChooserAbstractModel::sltSnapshotChanged);
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProviderListChanged,
-            this, &UIChooserAbstractModel::sltHandleCloudProfileManagerCumulativeChange);
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProfileRegistered,
-            this, &UIChooserAbstractModel::sltHandleCloudProfileManagerCumulativeChange);
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProfileChanged,
-            this, &UIChooserAbstractModel::sltHandleCloudProfileManagerCumulativeChange);
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProviderUninstall,
-            this, &UIChooserAbstractModel::sltHandleCloudProviderUninstall);
 
-    /* Settings saving connections: */
-    connect(this, &UIChooserAbstractModel::sigSaveSettings,
-            this, &UIChooserAbstractModel::sltSaveSettings,
+    /* Setup group saving connections: */
+    connect(this, &UIChooserAbstractModel::sigStartGroupSaving,
+            this, &UIChooserAbstractModel::sltStartGroupSaving,
             Qt::QueuedConnection);
-
-    /* Extra-data connections: */
-    connect(gEDataManager, &UIExtraDataManager::sigCloudProfileManagerRestrictionChange,
-            this, &UIChooserAbstractModel::sltHandleCloudProfileManagerCumulativeChange);
 }
 
-void UIChooserAbstractModel::cleanupConnections()
+void UIChooserAbstractModel::loadTree()
 {
-    /* Group saving connections: */
-    disconnect(this, &UIChooserAbstractModel::sigSaveSettings,
-               this, &UIChooserAbstractModel::sltSaveSettings);
-}
-
-void UIChooserAbstractModel::cleanup()
-{
-    cleanupConnections();
-}
-
-void UIChooserAbstractModel::reloadLocalTree()
-{
-    LogRelFlow(("UIChooserAbstractModel: Loading local VMs...\n"));
-
-    /* Acquire VBox: */
-    const CVirtualBox comVBox = uiCommon().virtualBox();
-
-    /* Acquire existing local machines: */
-    const QVector<CMachine> machines = comVBox.GetMachines();
-    /* Show error message if necessary: */
-    if (!comVBox.isOk())
-        UINotificationMessage::cannotAcquireVirtualBoxParameter(comVBox);
-    else
+    /* Create invisible root group node: */
+    m_pInvisibleRootNode = new UIChooserNodeGroup(0 /* parent */,
+                                                  false /* favorite */,
+                                                  0 /* position */,
+                                                  QString() /* name */,
+                                                  true /* opened */);
+    if (invisibleRoot())
     {
-        /* Iterate through existing machines: */
-        foreach (const CMachine &comMachine, machines)
-        {
-            /* Skip if we have nothing to populate (wtf happened?): */
-            if (comMachine.isNull())
-                continue;
+        /* Link root to this model: */
+        m_pInvisibleRootNode->setModel(this);
 
-            /* Get machine ID: */
+        /* Create global node: */
+        new UIChooserNodeGlobal(m_pInvisibleRootNode,
+                                isGlobalNodeFavorite(m_pInvisibleRootNode),
+                                0 /* position */,
+                                QString() /* tip */);
+
+        /* Add all the approved machine nodes into the tree: */
+        LogRelFlow(("UIChooserModel: Loading VMs...\n"));
+        foreach (const CMachine &comMachine, uiCommon().virtualBox().GetMachines())
+        {
             const QUuid uMachineID = comMachine.GetId();
-            /* Show error message if necessary: */
-            if (!comMachine.isOk())
-            {
-                UINotificationMessage::cannotAcquireMachineParameter(comMachine);
-                continue;
-            }
-
-            /* Skip if we have nothing to show (wtf happened?): */
-            if (uMachineID.isNull())
-                continue;
-
-            /* Skip if machine is restricted from being shown: */
-            if (!gEDataManager->showMachineInVirtualBoxManagerChooser(uMachineID))
-                continue;
-
-            /* Add machine into tree: */
-            addLocalMachineIntoTheTree(comMachine);
+            if (!uMachineID.isNull() && gEDataManager->showMachineInVirtualBoxManagerChooser(uMachineID))
+                addMachineIntoTheTree(comMachine);
         }
-    }
+        LogRelFlow(("UIChooserModel: VMs loaded.\n"));
 
-    LogRelFlow(("UIChooserAbstractModel: Local VMs loaded.\n"));
-}
-
-void UIChooserAbstractModel::reloadCloudTree()
-{
-    LogRelFlow(("UIChooserAbstractModel: Loading cloud providers/profiles...\n"));
-
-    /* Wipe out existing cloud providers first.
-     * This is quite rude, in future we need to reimplement it more wise.. */
-    foreach (UIChooserNode *pNode, invisibleRoot()->nodes(UIChooserNodeType_Group))
-    {
-        AssertPtrReturnVoid(pNode);
-        UIChooserNodeGroup *pGroupNode = pNode->toGroupNode();
-        AssertPtrReturnVoid(pGroupNode);
-        if (pGroupNode->groupType() == UIChooserNodeGroupType_Provider)
-            delete pNode;
-    }
-
-    /* Acquire Cloud Profile Manager restrictions: */
-    const QStringList restrictions = gEDataManager->cloudProfileManagerRestrictions();
-
-    /* Iterate through existing providers: */
-    foreach (CCloudProvider comCloudProvider, listCloudProviders())
-    {
-        /* Skip if we have nothing to populate: */
-        if (comCloudProvider.isNull())
-            continue;
-
-        /* Acquire provider id: */
-        QUuid uProviderId;
-        if (!cloudProviderId(comCloudProvider, uProviderId))
-            continue;
-
-        /* Acquire provider short name: */
-        QString strProviderShortName;
-        if (!cloudProviderShortName(comCloudProvider, strProviderShortName))
-            continue;
-
-        /* Make sure this provider isn't restricted: */
-        const QString strProviderPath = QString("/%1").arg(strProviderShortName);
-        if (restrictions.contains(strProviderPath))
-            continue;
-
-        /* Acquire list of profiles: */
-        const QVector<CCloudProfile> profiles = listCloudProfiles(comCloudProvider);
-        if (profiles.isEmpty())
-            continue;
-
-        /* Add provider group node: */
-        UIChooserNodeGroup *pProviderNode =
-            new UIChooserNodeGroup(invisibleRoot() /* parent */,
-                                   getDesiredNodePosition(invisibleRoot(),
-                                                          UIChooserNodeDataPrefixType_Provider,
-                                                          strProviderShortName),
-                                   uProviderId,
-                                   strProviderShortName,
-                                   UIChooserNodeGroupType_Provider,
-                                   shouldGroupNodeBeOpened(invisibleRoot(),
-                                                           UIChooserNodeDataPrefixType_Provider,
-                                                           strProviderShortName));
-
-        /* Iterate through provider's profiles: */
-        foreach (CCloudProfile comCloudProfile, profiles)
+#ifdef VBOX_GUI_WITH_CLOUD_VMS
+        /* Add cloud provider groups: */
+        LogRelFlow(("UIChooserModel: Loading cloud providers...\n"));
+        /* Acquire VBox: */
+        CVirtualBox comVBox = uiCommon().virtualBox();
+        /* Acquire Cloud Provider Manager: */
+        CCloudProviderManager comCloudProviderManager = comVBox.GetCloudProviderManager();
+        /* Show error message if necessary: */
+        if (!comVBox.isOk())
+            msgCenter().cannotAcquireCloudProviderManager(comVBox);
+        else
         {
-            /* Skip if we have nothing to populate: */
-            if (comCloudProfile.isNull())
-                continue;
+            /* Acquire existing providers: */
+            const QVector<CCloudProvider> providers = comCloudProviderManager.GetProviders();
+            /* Show error message if necessary: */
+            if (!comCloudProviderManager.isOk())
+                msgCenter().cannotAcquireCloudProviderManagerParameter(comCloudProviderManager);
+            else
+            {
+                /* Iterate through existing providers: */
+                foreach (CCloudProvider comCloudProvider, providers)
+                {
+                    /* Skip if we have nothing to populate (file missing?): */
+                    if (comCloudProvider.isNull())
+                        continue;
+                    /* Skip if we have nothing to populate (profiles missing?): */
+                    const QVector<QString> profileNames = comCloudProvider.GetProfileNames();
+                    if (profileNames.isEmpty())
+                        continue;
 
-            /* Acquire profile name: */
-            QString strProfileName;
-            if (!cloudProfileName(comCloudProfile, strProfileName))
-                continue;
+                    /* Get provider name: */
+                    const QString strProviderName = comCloudProvider.GetShortName();
+                    /* Show error message if necessary: */
+                    if (!comCloudProvider.isOk())
+                        msgCenter().cannotAcquireCloudProviderParameter(comCloudProvider);
+                    else
+                    {
+                        /* Add provider group node: */
+                        UIChooserNodeGroup *pProviderNode =
+                            new UIChooserNodeGroup(m_pInvisibleRootNode,
+                                                   false /* favorite */,
+                                                   getDesiredNodePosition(m_pInvisibleRootNode,
+                                                                          UIChooserItemType_Group,
+                                                                          strProviderName),
+                                                   strProviderName,
+                                                   true /* opened */);
 
-            /* Make sure this profile isn't restricted: */
-            const QString strProfilePath = QString("/%1/%2").arg(strProviderShortName, strProfileName);
-            if (restrictions.contains(strProfilePath))
-                continue;
+                        /* Iterate through existing profile names: */
+                        foreach (const QString &strProfileName, profileNames)
+                        {
+                            /* Skip if we have nothing to show (wtf happened?): */
+                            if (strProfileName.isEmpty())
+                                continue;
 
-            /* Add profile sub-group node: */
-            UIChooserNodeGroup *pProfileNode =
-                new UIChooserNodeGroup(pProviderNode /* parent */,
-                                       getDesiredNodePosition(pProviderNode,
-                                                              UIChooserNodeDataPrefixType_Profile,
-                                                              strProfileName),
-                                       QUuid() /* id */,
-                                       strProfileName,
-                                       UIChooserNodeGroupType_Profile,
-                                       shouldGroupNodeBeOpened(pProviderNode,
-                                                               UIChooserNodeDataPrefixType_Profile,
-                                                               strProfileName));
+                            /* Acquire Cloud Profile: */
+                            CCloudProfile comCloudProfile = comCloudProvider.GetProfileByName(strProfileName);
+                            /* Show error message if necessary: */
+                            if (!comCloudProvider.isOk())
+                                msgCenter().cannotFindCloudProfile(comCloudProvider, strProfileName);
+                            else
+                            {
+                                /* Create Cloud Client: */
+                                CCloudClient comCloudClient = comCloudProfile.CreateCloudClient();
+                                /* Show error message if necessary: */
+                                if (!comCloudProfile.isOk())
+                                    msgCenter().cannotCreateCloudClient(comCloudProfile);
+                                else
+                                {
+                                    /* Add profile sub-group node: */
+                                    UIChooserNodeGroup *pProfileNode =
+                                        new UIChooserNodeGroup(pProviderNode,
+                                                               false /* favorite */,
+                                                               getDesiredNodePosition(pProviderNode,
+                                                                                      UIChooserItemType_Group,
+                                                                                      strProfileName),
+                                                               strProfileName,
+                                                               true /* opened */);
+                                    /* Add fake cloud VM item: */
+                                    new UIChooserNodeMachine(pProfileNode,
+                                                             false /* favorite */,
+                                                             0 /* position */);
 
-            /* Add fake cloud VM item: */
-            createCloudMachineNode(pProfileNode, UIFakeCloudVirtualMachineItemState_Loading);
-
-            /* Create read cloud machine list task: */
-            const UICloudEntityKey guiCloudProfileKey = UICloudEntityKey(strProviderShortName, strProfileName);
-            createReadCloudMachineListTask(guiCloudProfileKey, true /* with refresh? */);
+                                    /* Create cloud acquire isntances task: */
+                                    UITaskCloudAcquireInstances *pTask = new UITaskCloudAcquireInstances(comCloudClient,
+                                                                                                         pProfileNode);
+                                    if (pTask)
+                                    {
+                                        connect(pTask, &UITask::sigComplete,
+                                                this, &UIChooserAbstractModel::sltHandleCloudAcquireInstancesTaskComplete);
+                                        uiCommon().threadPool()->enqueueTask(pTask);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        LogRelFlow(("UIChooserModel: Cloud providers loaded.\n"));
+#endif /* VBOX_GUI_WITH_CLOUD_VMS */
     }
-
-    LogRelFlow(("UIChooserAbstractModel: Cloud providers/profiles loaded.\n"));
 }
 
-void UIChooserAbstractModel::addLocalMachineIntoTheTree(const CMachine &comMachine,
-                                                        bool fMakeItVisible /* = false */)
+void UIChooserAbstractModel::addMachineIntoTheTree(const CMachine &comMachine, bool fMakeItVisible /* = false */)
 {
     /* Make sure passed VM is not NULL: */
     if (comMachine.isNull())
-        LogRelFlow(("UIChooserModel: ERROR: Passed local VM is NULL!\n"));
+        LogRelFlow(("UIChooserModel: ERROR: Passed VM is NULL!\n"));
     AssertReturnVoid(!comMachine.isNull());
 
     /* Which VM we are loading: */
-    const QUuid uId = comMachine.GetId();
-    LogRelFlow(("UIChooserModel: Loading local VM with ID={%s}...\n",
-                toOldStyleUuid(uId).toUtf8().constData()));
-
+    LogRelFlow(("UIChooserModel: Loading VM with ID={%s}...\n", toOldStyleUuid(comMachine.GetId()).toUtf8().constData()));
     /* Is that machine accessible? */
     if (comMachine.GetAccessible())
     {
-        /* Acquire VM name: */
+        /* VM is accessible: */
         const QString strName = comMachine.GetName();
-        LogRelFlow(("UIChooserModel:  Local VM {%s} is accessible.\n", strName.toUtf8().constData()));
+        LogRelFlow(("UIChooserModel:  VM {%s} is accessible.\n", strName.toUtf8().constData()));
         /* Which groups passed machine attached to? */
         const QVector<QString> groups = comMachine.GetGroups();
         const QStringList groupList = groups.toList();
         const QString strGroups = groupList.join(", ");
-        LogRelFlow(("UIChooserModel:  Local VM {%s} has groups: {%s}.\n",
-                    strName.toUtf8().constData(), strGroups.toUtf8().constData()));
+        LogRelFlow(("UIChooserModel:  VM {%s} has groups: {%s}.\n", strName.toUtf8().constData(),
+                                                                    strGroups.toUtf8().constData()));
         foreach (QString strGroup, groups)
         {
             /* Remove last '/' if any: */
             if (strGroup.right(1) == "/")
                 strGroup.truncate(strGroup.size() - 1);
             /* Create machine-item with found group-item as parent: */
-            LogRelFlow(("UIChooserModel:   Creating node for local VM {%s} in group {%s}.\n",
-                        strName.toUtf8().constData(), strGroup.toUtf8().constData()));
-            createLocalMachineNode(getLocalGroupNode(strGroup, invisibleRoot(), fMakeItVisible), comMachine);
+            LogRelFlow(("UIChooserModel:   Creating item for VM {%s} in group {%s}.\n", strName.toUtf8().constData(),
+                                                                                        strGroup.toUtf8().constData()));
+            createMachineNode(getGroupNode(strGroup, invisibleRoot(), fMakeItVisible), comMachine);
         }
-        /* Update group settings: */
-        m_groups[toOldStyleUuid(uId)] = groupList;
+        /* Update group definitions: */
+        m_groups[toOldStyleUuid(comMachine.GetId())] = groupList;
     }
     /* Inaccessible machine: */
     else
     {
         /* VM is accessible: */
-        LogRelFlow(("UIChooserModel:  Local VM {%s} is inaccessible.\n",
-                    toOldStyleUuid(uId).toUtf8().constData()));
+        LogRelFlow(("UIChooserModel:  VM {%s} is inaccessible.\n", toOldStyleUuid(comMachine.GetId()).toUtf8().constData()));
         /* Create machine-item with main-root group-item as parent: */
-        createLocalMachineNode(invisibleRoot(), comMachine);
+        createMachineNode(invisibleRoot(), comMachine);
     }
 }
 
-void UIChooserAbstractModel::addCloudMachineIntoTheTree(const QString &strGroup,
-                                                        const CCloudMachine &comMachine,
-                                                        bool fMakeItVisible /* = false */)
-{
-    /* Make sure passed VM is not NULL: */
-    if (comMachine.isNull())
-        LogRelFlow(("UIChooserModel: ERROR: Passed cloud VM is NULL!\n"));
-    AssertReturnVoid(!comMachine.isNull());
-
-    /* Which VM we are loading: */
-    const QUuid uId = comMachine.GetId();
-    LogRelFlow(("UIChooserModel: Loading cloud VM with ID={%s}...\n",
-                toOldStyleUuid(uId).toUtf8().constData()));
-
-    /* Acquire VM name: */
-    QString strName = comMachine.GetName();
-    if (strName.isEmpty())
-        strName = uId.toString();
-    LogRelFlow(("UIChooserModel:  Creating node for cloud VM {%s} in group {%s}.\n",
-                strName.toUtf8().constData(), strGroup.toUtf8().constData()));
-    /* Create machine-item with found group-item as parent: */
-    createCloudMachineNode(getCloudGroupNode(strGroup, invisibleRoot(), fMakeItVisible), comMachine);
-    /* Update group settings: */
-    const QStringList groupList(strGroup);
-    m_groups[toOldStyleUuid(uId)] = groupList;
-}
-
-UIChooserNode *UIChooserAbstractModel::getLocalGroupNode(const QString &strName, UIChooserNode *pParentNode, bool fAllGroupsOpened)
+UIChooserNode *UIChooserAbstractModel::getGroupNode(const QString &strName, UIChooserNode *pParentNode, bool fAllGroupsOpened)
 {
     /* Check passed stuff: */
     if (pParentNode->name() == strName)
@@ -1286,15 +556,11 @@ UIChooserNode *UIChooserAbstractModel::getLocalGroupNode(const QString &strName,
         /* Make sure first-suffix is NOT empty: */
         AssertMsg(!strFirstSuffix.isEmpty(), ("Invalid group name!"));
         /* Trying to get group node among our children: */
-        foreach (UIChooserNode *pNode, pParentNode->nodes(UIChooserNodeType_Group))
+        foreach (UIChooserNode *pGroupNode, pParentNode->nodes(UIChooserItemType_Group))
         {
-            AssertPtrReturn(pNode, 0);
-            UIChooserNodeGroup *pGroupNode = pNode->toGroupNode();
-            AssertPtrReturn(pGroupNode, 0);
-            if (   pGroupNode->groupType() == UIChooserNodeGroupType_Local
-                && pNode->name() == strSecondSubName)
+            if (pGroupNode->name() == strSecondSubName)
             {
-                UIChooserNode *pFoundNode = getLocalGroupNode(strFirstSuffix, pNode, fAllGroupsOpened);
+                UIChooserNode *pFoundNode = getGroupNode(strFirstSuffix, pGroupNode, fAllGroupsOpened);
                 if (UIChooserNodeGroup *pFoundGroupNode = pFoundNode->toGroupNode())
                     if (fAllGroupsOpened && pFoundGroupNode->isClosed())
                         pFoundGroupNode->open();
@@ -1306,71 +572,23 @@ UIChooserNode *UIChooserAbstractModel::getLocalGroupNode(const QString &strName,
     /* Found nothing? Creating: */
     UIChooserNodeGroup *pNewGroupNode =
         new UIChooserNodeGroup(pParentNode,
-                               getDesiredNodePosition(pParentNode,
-                                                      UIChooserNodeDataPrefixType_Local,
-                                                      strSecondSubName),
-                               QUuid() /* id */,
+                               false /* favorite */,
+                               getDesiredNodePosition(pParentNode, UIChooserItemType_Group, strSecondSubName),
                                strSecondSubName,
-                               UIChooserNodeGroupType_Local,
-                               fAllGroupsOpened || shouldGroupNodeBeOpened(pParentNode,
-                                                                           UIChooserNodeDataPrefixType_Local,
-                                                                           strSecondSubName));
-    return strSecondSuffix.isEmpty() ? pNewGroupNode : getLocalGroupNode(strFirstSuffix, pNewGroupNode, fAllGroupsOpened);
+                               fAllGroupsOpened || shouldGroupNodeBeOpened(pParentNode, strSecondSubName));
+    return strSecondSuffix.isEmpty() ? pNewGroupNode : getGroupNode(strFirstSuffix, pNewGroupNode, fAllGroupsOpened);
 }
 
-UIChooserNode *UIChooserAbstractModel::getCloudGroupNode(const QString &strName, UIChooserNode *pParentNode, bool fAllGroupsOpened)
-{
-    /* Check passed stuff: */
-    if (pParentNode->name() == strName)
-        return pParentNode;
-
-    /* Prepare variables: */
-    const QString strFirstSubName = strName.section('/', 0, 0);
-    const QString strFirstSuffix = strName.section('/', 1, -1);
-    const QString strSecondSubName = strFirstSuffix.section('/', 0, 0);
-
-    /* Passed group name equal to first sub-name: */
-    if (pParentNode->name() == strFirstSubName)
-    {
-        /* Make sure first-suffix is NOT empty: */
-        AssertMsg(!strFirstSuffix.isEmpty(), ("Invalid group name!"));
-        /* Trying to get group node among our children: */
-        foreach (UIChooserNode *pNode, pParentNode->nodes(UIChooserNodeType_Group))
-        {
-            AssertPtrReturn(pNode, 0);
-            UIChooserNodeGroup *pGroupNode = pNode->toGroupNode();
-            AssertPtrReturn(pGroupNode, 0);
-            if (   (   pGroupNode->groupType() == UIChooserNodeGroupType_Provider
-                    || pGroupNode->groupType() == UIChooserNodeGroupType_Profile)
-                && pNode->name() == strSecondSubName)
-            {
-                UIChooserNode *pFoundNode = getCloudGroupNode(strFirstSuffix, pNode, fAllGroupsOpened);
-                if (UIChooserNodeGroup *pFoundGroupNode = pFoundNode->toGroupNode())
-                    if (fAllGroupsOpened && pFoundGroupNode->isClosed())
-                        pFoundGroupNode->open();
-                return pFoundNode;
-            }
-        }
-    }
-
-    /* Found nothing? Returning parent: */
-    AssertFailedReturn(pParentNode);
-}
-
-bool UIChooserAbstractModel::shouldGroupNodeBeOpened(UIChooserNode *pParentNode,
-                                                     UIChooserNodeDataPrefixType enmDataType,
-                                                     const QString &strName) const
+bool UIChooserAbstractModel::shouldGroupNodeBeOpened(UIChooserNode *pParentNode, const QString &strName)
 {
     /* Read group definitions: */
-    const QStringList definitions = gEDataManager->machineGroupDefinitions(pParentNode->fullName());
+    const QStringList definitions = gEDataManager->selectorWindowGroupsDefinitions(pParentNode->fullName());
     /* Return 'false' if no definitions found: */
     if (definitions.isEmpty())
         return false;
 
     /* Prepare required group definition reg-exp: */
-    const QString strNodePrefix = prefixToString(enmDataType);
-    const QString strNodeOptionOpened = optionToString(UIChooserNodeDataOptionType_GroupOpened);
-    const QString strDefinitionTemplate = QString("%1(\\S)*=%2").arg(strNodePrefix, strName);
+    const QString strDefinitionTemplate = QString("g(\\S)*=%1").arg(strName);
     const QRegExp definitionRegExp(strDefinitionTemplate);
     /* For each the group definition: */
     foreach (const QString &strDefinition, definitions)
@@ -1380,38 +598,7 @@ bool UIChooserAbstractModel::shouldGroupNodeBeOpened(UIChooserNode *pParentNode,
         {
             /* Get group descriptor: */
             const QString strDescriptor(definitionRegExp.cap(1));
-            if (strDescriptor.contains(strNodeOptionOpened))
-                return true;
-        }
-    }
-
-    /* Return 'false' by default: */
-    return false;
-}
-
-bool UIChooserAbstractModel::shouldGlobalNodeBeFavorite(UIChooserNode *pParentNode) const
-{
-    /* Read group definitions: */
-    const QStringList definitions = gEDataManager->machineGroupDefinitions(pParentNode->fullName());
-    /* Return 'false' if no definitions found: */
-    if (definitions.isEmpty())
-        return false;
-
-    /* Prepare required group definition reg-exp: */
-    const QString strNodePrefix = prefixToString(UIChooserNodeDataPrefixType_Global);
-    const QString strNodeOptionFavorite = optionToString(UIChooserNodeDataOptionType_GlobalFavorite);
-    const QString strNodeValueDefault = valueToString(UIChooserNodeDataValueType_GlobalDefault);
-    const QString strDefinitionTemplate = QString("%1(\\S)*=%2").arg(strNodePrefix, strNodeValueDefault);
-    const QRegExp definitionRegExp(strDefinitionTemplate);
-    /* For each the group definition: */
-    foreach (const QString &strDefinition, definitions)
-    {
-        /* Check if this is required definition: */
-        if (definitionRegExp.indexIn(strDefinition) == 0)
-        {
-            /* Get group descriptor: */
-            const QString strDescriptor(definitionRegExp.cap(1));
-            if (strDescriptor.contains(strNodeOptionFavorite))
+            if (strDescriptor.contains('o'))
                 return true;
         }
     }
@@ -1422,81 +609,77 @@ bool UIChooserAbstractModel::shouldGlobalNodeBeFavorite(UIChooserNode *pParentNo
 
 void UIChooserAbstractModel::wipeOutEmptyGroupsStartingFrom(UIChooserNode *pParent)
 {
-    /* Cleanup all the group children recursively first: */
-    foreach (UIChooserNode *pNode, pParent->nodes(UIChooserNodeType_Group))
+    /* Cleanup all the group-items recursively first: */
+    foreach (UIChooserNode *pNode, pParent->nodes(UIChooserItemType_Group))
         wipeOutEmptyGroupsStartingFrom(pNode);
-    /* If parent isn't root and has no nodes: */
-    if (!pParent->isRoot() && !pParent->hasNodes())
+    /* If parent has no nodes: */
+    if (!pParent->hasNodes())
     {
-        /* Delete parent node and item: */
-        delete pParent;
+        /* If that is non-root item: */
+        if (!pParent->isRoot())
+        {
+            /* Delete parent node and item: */
+            delete pParent;
+        }
     }
 }
 
-int UIChooserAbstractModel::getDesiredNodePosition(UIChooserNode *pParentNode,
-                                                   UIChooserNodeDataPrefixType enmDataType,
-                                                   const QString &strName)
+bool UIChooserAbstractModel::isGlobalNodeFavorite(UIChooserNode *pParentNode) const
+{
+    /* Read group definitions: */
+    const QStringList definitions = gEDataManager->selectorWindowGroupsDefinitions(pParentNode->fullName());
+    /* Return 'false' if no definitions found: */
+    if (definitions.isEmpty())
+        return false;
+
+    /* Prepare required group definition reg-exp: */
+    const QString strDefinitionTemplate = QString("n(\\S)*=GLOBAL");
+    const QRegExp definitionRegExp = QRegExp(strDefinitionTemplate);
+    /* For each the group definition: */
+    foreach (const QString &strDefinition, definitions)
+    {
+        /* Check if this is required definition: */
+        if (definitionRegExp.indexIn(strDefinition) == 0)
+        {
+            /* Get group descriptor: */
+            const QString strDescriptor(definitionRegExp.cap(1));
+            if (strDescriptor.contains('f'))
+                return true;
+        }
+    }
+
+    /* Return 'false' by default: */
+    return false;
+}
+
+int UIChooserAbstractModel::getDesiredNodePosition(UIChooserNode *pParentNode, UIChooserItemType enmType, const QString &strName)
 {
     /* End of list (by default)? */
     int iNewNodeDesiredPosition = -1;
     /* Which position should be new node placed by definitions: */
-    const int iNewNodeDefinitionPosition = getDefinedNodePosition(pParentNode, enmDataType, strName);
+    int iNewNodeDefinitionPosition = getDefinedNodePosition(pParentNode, enmType, strName);
 
-    /* If some position defined: */
+    /* If some position wanted: */
     if (iNewNodeDefinitionPosition != -1)
     {
         /* Start of list if some definition present: */
         iNewNodeDesiredPosition = 0;
         /* We have to check all the existing node positions: */
-        UIChooserNodeType enmType = UIChooserNodeType_Any;
-        switch (enmDataType)
-        {
-            case UIChooserNodeDataPrefixType_Global:   enmType = UIChooserNodeType_Global; break;
-            case UIChooserNodeDataPrefixType_Machine:  enmType = UIChooserNodeType_Machine; break;
-            case UIChooserNodeDataPrefixType_Local:
-            case UIChooserNodeDataPrefixType_Provider:
-            case UIChooserNodeDataPrefixType_Profile:  enmType = UIChooserNodeType_Group; break;
-        }
-        const QList<UIChooserNode*> nodes = pParentNode->nodes(enmType);
+        QList<UIChooserNode*> nodes = pParentNode->nodes(enmType);
         for (int i = nodes.size() - 1; i >= 0; --i)
         {
             /* Get current node: */
-            UIChooserNode *pNode = nodes.at(i);
-            AssertPtrReturn(pNode, iNewNodeDesiredPosition);
+            UIChooserNode *pNode = nodes[i];
             /* Which position should be current node placed by definitions? */
-            UIChooserNodeDataPrefixType enmNodeDataType = UIChooserNodeDataPrefixType_Global;
-            QString strDefinitionName;
-            switch (pNode->type())
-            {
-                case UIChooserNodeType_Machine:
-                {
-                    enmNodeDataType = UIChooserNodeDataPrefixType_Machine;
-                    strDefinitionName = toOldStyleUuid(pNode->toMachineNode()->id());
-                    break;
-                }
-                case UIChooserNodeType_Group:
-                {
-                    /* Cast to group node: */
-                    UIChooserNodeGroup *pGroupNode = pNode->toGroupNode();
-                    AssertPtrReturn(pGroupNode, iNewNodeDesiredPosition);
-                    switch (pGroupNode->groupType())
-                    {
-                        case UIChooserNodeGroupType_Local:    enmNodeDataType = UIChooserNodeDataPrefixType_Local; break;
-                        case UIChooserNodeGroupType_Provider: enmNodeDataType = UIChooserNodeDataPrefixType_Provider; break;
-                        case UIChooserNodeGroupType_Profile:  enmNodeDataType = UIChooserNodeDataPrefixType_Profile; break;
-                        default: break;
-                    }
-                    strDefinitionName = pNode->name();
-                    break;
-                }
-                default:
-                    break;
-            }
-            /* If some position defined: */
-            const int iNodeDefinitionPosition = getDefinedNodePosition(pParentNode, enmNodeDataType, strDefinitionName);
+            QString strDefinitionName = pNode->type() == UIChooserItemType_Group ? pNode->name() :
+                                        pNode->type() == UIChooserItemType_Machine ? toOldStyleUuid(pNode->toMachineNode()->cache()->id()) :
+                                        QString();
+            AssertMsg(!strDefinitionName.isEmpty(), ("Wrong definition name!"));
+            int iNodeDefinitionPosition = getDefinedNodePosition(pParentNode, enmType, strDefinitionName);
+            /* If some position wanted: */
             if (iNodeDefinitionPosition != -1)
             {
-                AssertReturn(iNodeDefinitionPosition != iNewNodeDefinitionPosition, iNewNodeDesiredPosition);
+                AssertMsg(iNodeDefinitionPosition != iNewNodeDefinitionPosition, ("Incorrect definitions!"));
                 if (iNodeDefinitionPosition < iNewNodeDefinitionPosition)
                 {
                     iNewNodeDesiredPosition = i + 1;
@@ -1510,10 +693,10 @@ int UIChooserAbstractModel::getDesiredNodePosition(UIChooserNode *pParentNode,
     return iNewNodeDesiredPosition;
 }
 
-int UIChooserAbstractModel::getDefinedNodePosition(UIChooserNode *pParentNode, UIChooserNodeDataPrefixType enmDataType, const QString &strName)
+int UIChooserAbstractModel::getDefinedNodePosition(UIChooserNode *pParentNode, UIChooserItemType enmType, const QString &strName)
 {
     /* Read group definitions: */
-    const QStringList definitions = gEDataManager->machineGroupDefinitions(pParentNode->fullName());
+    const QStringList definitions = gEDataManager->selectorWindowGroupsDefinitions(pParentNode->fullName());
     /* Return 'false' if no definitions found: */
     if (definitions.isEmpty())
         return -1;
@@ -1521,38 +704,17 @@ int UIChooserAbstractModel::getDefinedNodePosition(UIChooserNode *pParentNode, U
     /* Prepare definition reg-exp: */
     QString strDefinitionTemplateShort;
     QString strDefinitionTemplateFull;
-    const QString strNodePrefixLocal = prefixToString(UIChooserNodeDataPrefixType_Local);
-    const QString strNodePrefixProvider = prefixToString(UIChooserNodeDataPrefixType_Provider);
-    const QString strNodePrefixProfile = prefixToString(UIChooserNodeDataPrefixType_Profile);
-    const QString strNodePrefixMachine = prefixToString(UIChooserNodeDataPrefixType_Machine);
-    switch (enmDataType)
+    switch (enmType)
     {
-        case UIChooserNodeDataPrefixType_Local:
-        {
-            strDefinitionTemplateShort = QString("^[%1%2%3](\\S)*=").arg(strNodePrefixLocal, strNodePrefixProvider, strNodePrefixProfile);
-            strDefinitionTemplateFull = QString("^%1(\\S)*=%2$").arg(strNodePrefixLocal, strName);
+        case UIChooserItemType_Group:
+            strDefinitionTemplateShort = QString("^g(\\S)*=");
+            strDefinitionTemplateFull = QString("^g(\\S)*=%1$").arg(strName);
             break;
-        }
-        case UIChooserNodeDataPrefixType_Provider:
-        {
-            strDefinitionTemplateShort = QString("^[%1%2%3](\\S)*=").arg(strNodePrefixLocal, strNodePrefixProvider, strNodePrefixProfile);
-            strDefinitionTemplateFull = QString("^%1(\\S)*=%2$").arg(strNodePrefixProvider, strName);
+        case UIChooserItemType_Machine:
+            strDefinitionTemplateShort = QString("^m=");
+            strDefinitionTemplateFull = QString("^m=%1$").arg(strName);
             break;
-        }
-        case UIChooserNodeDataPrefixType_Profile:
-        {
-            strDefinitionTemplateShort = QString("^[%1%2%3](\\S)*=").arg(strNodePrefixLocal, strNodePrefixProvider, strNodePrefixProfile);
-            strDefinitionTemplateFull = QString("^%1(\\S)*=%2$").arg(strNodePrefixProfile, strName);
-            break;
-        }
-        case UIChooserNodeDataPrefixType_Machine:
-        {
-            strDefinitionTemplateShort = QString("^%1=").arg(strNodePrefixMachine);
-            strDefinitionTemplateFull = QString("^%1=%2$").arg(strNodePrefixMachine, strName);
-            break;
-        }
-        default:
-            return -1;
+        default: return -1;
     }
     QRegExp definitionRegExpShort(strDefinitionTemplateShort);
     QRegExp definitionRegExpFull(strDefinitionTemplateFull);
@@ -1575,124 +737,19 @@ int UIChooserAbstractModel::getDefinedNodePosition(UIChooserNode *pParentNode, U
     return -1;
 }
 
-void UIChooserAbstractModel::createLocalMachineNode(UIChooserNode *pParentNode, const CMachine &comMachine)
+void UIChooserAbstractModel::createMachineNode(UIChooserNode *pParentNode, const CMachine &comMachine)
 {
+    /* Create machine node: */
     new UIChooserNodeMachine(pParentNode,
-                             getDesiredNodePosition(pParentNode,
-                                                    UIChooserNodeDataPrefixType_Machine,
-                                                    toOldStyleUuid(comMachine.GetId())),
+                             false /* favorite */,
+                             getDesiredNodePosition(pParentNode, UIChooserItemType_Machine, toOldStyleUuid(comMachine.GetId())),
                              comMachine);
-}
-
-void UIChooserAbstractModel::createCloudMachineNode(UIChooserNode *pParentNode, UIFakeCloudVirtualMachineItemState enmState)
-{
-    new UIChooserNodeMachine(pParentNode,
-                             0 /* position */,
-                             enmState);
-}
-
-void UIChooserAbstractModel::createCloudMachineNode(UIChooserNode *pParentNode, const CCloudMachine &comMachine)
-{
-    UIChooserNodeMachine *pNode = new UIChooserNodeMachine(pParentNode,
-                                                           getDesiredNodePosition(pParentNode,
-                                                                                  UIChooserNodeDataPrefixType_Machine,
-                                                                                  toOldStyleUuid(comMachine.GetId())),
-                                                           comMachine);
-    /* Request for async node update if necessary: */
-    if (!comMachine.GetAccessible())
-    {
-        AssertReturnVoid(pNode && pNode->cacheType() == UIVirtualMachineItemType_CloudReal);
-        pNode->cache()->toCloud()->updateInfoAsync(false /* delayed? */);
-    }
-}
-
-QStringList UIChooserAbstractModel::gatherPossibleGroupNodeNames(UIChooserNode *pCurrentNode, QList<UIChooserNode*> exceptions) const
-{
-    /* Prepare result: */
-    QStringList result;
-
-    /* Walk through all the children and make sure there are no exceptions: */
-    bool fAddCurrent = true;
-    foreach (UIChooserNode *pChild, pCurrentNode->nodes(UIChooserNodeType_Any))
-    {
-        AssertPtrReturn(pChild, result);
-        if (exceptions.contains(pChild))
-            fAddCurrent = false;
-        else
-        {
-            if (pChild->type() == UIChooserNodeType_Group)
-            {
-                UIChooserNodeGroup *pChildGroup = pChild->toGroupNode();
-                AssertPtrReturn(pChildGroup, result);
-                if (pChildGroup->groupType() == UIChooserNodeGroupType_Local)
-                    result << gatherPossibleGroupNodeNames(pChild, exceptions);
-            }
-        }
-    }
-
-    /* Add current item if not overridden: */
-    if (fAddCurrent)
-        result.prepend(pCurrentNode->fullName());
-
-    /* Return result: */
-    return result;
-}
-
-bool UIChooserAbstractModel::checkIfNodeContainChildWithId(UIChooserNode *pParentNode, const QUuid &uId) const
-{
-    /* Check parent-node type: */
-    AssertPtrReturn(pParentNode, false);
-    switch (pParentNode->type())
-    {
-        case UIChooserNodeType_Machine:
-        {
-            /* Check if pParentNode has the passed uId itself: */
-            UIChooserNodeMachine *pMachineNode = pParentNode->toMachineNode();
-            AssertPtrReturn(pMachineNode, false);
-            if (pMachineNode->id() == uId)
-                return true;
-            break;
-        }
-        case UIChooserNodeType_Group:
-        {
-            /* Recursively iterate through children: */
-            foreach (UIChooserNode *pChildNode, pParentNode->nodes())
-                if (checkIfNodeContainChildWithId(pChildNode, uId))
-                    return true;
-            break;
-        }
-        default:
-            break;
-    }
-
-    /* False by default: */
-    return false;
-}
-
-void UIChooserAbstractModel::saveGroupSettings()
-{
-    /* Make sure there is no group settings saving activity: */
-    if (UIThreadGroupSettingsSave::instance())
-        return;
-
-    /* Prepare full group map: */
-    QMap<QString, QStringList> groups;
-    gatherGroupSettings(groups, invisibleRoot());
-
-    /* Save information in other thread: */
-    UIThreadGroupSettingsSave::prepare();
-    emit sigGroupSavingStateChanged();
-    connect(UIThreadGroupSettingsSave::instance(), &UIThreadGroupSettingsSave::sigReload,
-            this, &UIChooserAbstractModel::sltReloadMachine);
-    UIThreadGroupSettingsSave::instance()->configure(this, m_groups, groups);
-    UIThreadGroupSettingsSave::instance()->start();
-    m_groups = groups;
 }
 
 void UIChooserAbstractModel::saveGroupDefinitions()
 {
-    /* Make sure there is no group definitions save activity: */
-    if (UIThreadGroupDefinitionsSave::instance())
+    /* Make sure there is no group save activity: */
+    if (UIThreadGroupDefinitionSave::instance())
         return;
 
     /* Prepare full group map: */
@@ -1700,195 +757,300 @@ void UIChooserAbstractModel::saveGroupDefinitions()
     gatherGroupDefinitions(groups, invisibleRoot());
 
     /* Save information in other thread: */
-    UIThreadGroupDefinitionsSave::prepare();
+    UIThreadGroupDefinitionSave::prepare();
     emit sigGroupSavingStateChanged();
-    UIThreadGroupDefinitionsSave::instance()->configure(this, groups);
-    UIThreadGroupDefinitionsSave::instance()->start();
+    connect(UIThreadGroupDefinitionSave::instance(), &UIThreadGroupDefinitionSave::sigReload,
+            this, &UIChooserAbstractModel::sltReloadMachine);
+    UIThreadGroupDefinitionSave::instance()->configure(this, m_groups, groups);
+    UIThreadGroupDefinitionSave::instance()->start();
+    m_groups = groups;
 }
 
-void UIChooserAbstractModel::gatherGroupSettings(QMap<QString, QStringList> &settings,
-                                                 UIChooserNode *pParentGroup)
+void UIChooserAbstractModel::saveGroupOrders()
 {
-    /* Iterate over all the machine-nodes: */
-    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserNodeType_Machine))
-    {
-        /* Make sure it's really machine node: */
-        AssertPtrReturnVoid(pNode);
-        UIChooserNodeMachine *pMachineNode = pNode->toMachineNode();
-        AssertPtrReturnVoid(pMachineNode);
-        /* Make sure it's local machine node exactly and it's accessible: */
-        if (   pMachineNode->cacheType() == UIVirtualMachineItemType_Local
-            && pMachineNode->accessible())
-            settings[toOldStyleUuid(pMachineNode->id())] << pParentGroup->fullName();
-    }
-    /* Iterate over all the group-nodes: */
-    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserNodeType_Group))
-        gatherGroupSettings(settings, pNode);
+    /* Make sure there is no group save activity: */
+    if (UIThreadGroupOrderSave::instance())
+        return;
+
+    /* Prepare full group map: */
+    QMap<QString, QStringList> groups;
+    gatherGroupOrders(groups, invisibleRoot());
+
+    /* Save information in other thread: */
+    UIThreadGroupOrderSave::prepare();
+    emit sigGroupSavingStateChanged();
+    UIThreadGroupOrderSave::instance()->configure(this, groups);
+    UIThreadGroupOrderSave::instance()->start();
 }
 
 void UIChooserAbstractModel::gatherGroupDefinitions(QMap<QString, QStringList> &definitions,
                                                     UIChooserNode *pParentGroup)
 {
+    /* Iterate over all the machine-nodes: */
+    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserItemType_Machine))
+        if (UIChooserNodeMachine *pMachineNode = pNode->toMachineNode())
+            if (   pMachineNode->cache()->itemType() == UIVirtualMachineItem::ItemType_Local
+                && pMachineNode->cache()->accessible())
+                definitions[toOldStyleUuid(pMachineNode->cache()->id())] << pParentGroup->fullName();
+    /* Iterate over all the group-nodes: */
+    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserItemType_Group))
+        gatherGroupDefinitions(definitions, pNode);
+}
+
+void UIChooserAbstractModel::gatherGroupOrders(QMap<QString, QStringList> &orders,
+                                               UIChooserNode *pParentGroup)
+{
     /* Prepare extra-data key for current group: */
     const QString strExtraDataKey = pParentGroup->fullName();
     /* Iterate over all the global-nodes: */
-    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserNodeType_Global))
+    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserItemType_Global))
     {
-        /* Append node definition: */
-        AssertPtrReturnVoid(pNode);
-        definitions[strExtraDataKey] << pNode->definition(true /* full */);
+        const QString strGlobalDescriptor(pNode->isFavorite() ? "nf" : "n");
+        orders[strExtraDataKey] << QString("%1=GLOBAL").arg(strGlobalDescriptor);
     }
     /* Iterate over all the group-nodes: */
-    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserNodeType_Group))
+    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserItemType_Group))
     {
-        /* Append node definition: */
-        AssertPtrReturnVoid(pNode);
-        definitions[strExtraDataKey] << pNode->definition(true /* full */);
-        /* Go recursively through children: */
-        gatherGroupDefinitions(definitions, pNode);
+        const QString strGroupDescriptor(pNode->toGroupNode()->isOpened() ? "go" : "gc");
+        orders[strExtraDataKey] << QString("%1=%2").arg(strGroupDescriptor, pNode->name());
+        gatherGroupOrders(orders, pNode);
     }
     /* Iterate over all the machine-nodes: */
-    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserNodeType_Machine))
-    {
-        /* Make sure it's really machine node: */
-        AssertPtrReturnVoid(pNode);
-        UIChooserNodeMachine *pMachineNode = pNode->toMachineNode();
-        AssertPtrReturnVoid(pMachineNode);
-        /* Append node definition, make sure it's local or real cloud machine node only: */
-        if (   pMachineNode->cacheType() == UIVirtualMachineItemType_Local
-            || pMachineNode->cacheType() == UIVirtualMachineItemType_CloudReal)
-            definitions[strExtraDataKey] << pNode->definition(true /* full */);
-    }
-}
-
-void UIChooserAbstractModel::makeSureGroupSettingsSaveIsFinished()
-{
-    /* Cleanup if necessary: */
-    if (UIThreadGroupSettingsSave::instance())
-        UIThreadGroupSettingsSave::cleanup();
+    foreach (UIChooserNode *pNode, pParentGroup->nodes(UIChooserItemType_Machine))
+        if (UIChooserNodeMachine *pMachineNode = pNode->toMachineNode())
+            if (pMachineNode->cache()->itemType() == UIVirtualMachineItem::ItemType_Local)
+                orders[strExtraDataKey] << QString("m=%1").arg(toOldStyleUuid(pMachineNode->cache()->id()));
 }
 
 void UIChooserAbstractModel::makeSureGroupDefinitionsSaveIsFinished()
 {
     /* Cleanup if necessary: */
-    if (UIThreadGroupDefinitionsSave::instance())
-        UIThreadGroupDefinitionsSave::cleanup();
+    if (UIThreadGroupDefinitionSave::instance())
+        UIThreadGroupDefinitionSave::cleanup();
 }
 
-UIChooserNode *UIChooserAbstractModel::searchProviderNode(const QUuid &uProviderId)
+void UIChooserAbstractModel::makeSureGroupOrdersSaveIsFinished()
 {
-    /* Search for a list of nodes matching passed name: */
-    QList<UIChooserNode*> providerNodes;
-    invisibleRoot()->searchForNodes(uProviderId.toString(),
-                                    UIChooserItemSearchFlag_CloudProvider | UIChooserItemSearchFlag_ExactId,
-                                    providerNodes);
-
-    /* Return 1st node if any: */
-    return providerNodes.value(0);
+    /* Cleanup if necessary: */
+    if (UIThreadGroupOrderSave::instance())
+        UIThreadGroupOrderSave::cleanup();
 }
 
-UIChooserNode *UIChooserAbstractModel::searchProviderNode(const QString &strProviderShortName)
+/* static */
+QString UIChooserAbstractModel::toOldStyleUuid(const QUuid &uId)
 {
-    /* Search for a list of nodes matching passed name: */
-    QList<UIChooserNode*> providerNodes;
-    invisibleRoot()->searchForNodes(strProviderShortName,
-                                    UIChooserItemSearchFlag_CloudProvider | UIChooserItemSearchFlag_ExactName,
-                                    providerNodes);
-
-    /* Return 1st node if any: */
-    return providerNodes.value(0);
+    return uId.toString().remove(QRegExp("[{}]"));
 }
 
-UIChooserNode *UIChooserAbstractModel::searchProfileNode(UIChooserNode *pProviderNode, const QString &strProfileName)
+
+/*********************************************************************************************************************************
+*   Class UIThreadGroupDefinitionSave implementation.                                                                            *
+*********************************************************************************************************************************/
+
+/* static */
+UIThreadGroupDefinitionSave *UIThreadGroupDefinitionSave::s_pInstance = 0;
+
+/* static */
+UIThreadGroupDefinitionSave *UIThreadGroupDefinitionSave::instance()
 {
-    AssertPtrReturn(pProviderNode, 0);
-
-    /* Search for a list of nodes matching passed name: */
-    QList<UIChooserNode*> profileNodes;
-    pProviderNode->searchForNodes(strProfileName,
-                                  UIChooserItemSearchFlag_CloudProfile | UIChooserItemSearchFlag_ExactName,
-                                  profileNodes);
-
-    /* Return 1st node if any: */
-    return profileNodes.value(0);
+    return s_pInstance;
 }
 
-UIChooserNode *UIChooserAbstractModel::searchProfileNode(const QString &strProviderShortName, const QString &strProfileName)
+/* static */
+void UIThreadGroupDefinitionSave::prepare()
 {
-    /* Wrap method above: */
-    return searchProfileNode(searchProviderNode(strProviderShortName), strProfileName);
+    /* Make sure instance not prepared: */
+    if (s_pInstance)
+        return;
+
+    /* Crate instance: */
+    new UIThreadGroupDefinitionSave;
 }
 
-UIChooserNode *UIChooserAbstractModel::searchMachineNode(UIChooserNode *pProfileNode, const QUuid &uMachineId)
+/* static */
+void UIThreadGroupDefinitionSave::cleanup()
 {
-    AssertPtrReturn(pProfileNode, 0);
+    /* Make sure instance prepared: */
+    if (!s_pInstance)
+        return;
 
-    /* Search for a list of nodes matching passed ID: */
-    QList<UIChooserNode*> machineNodes;
-    pProfileNode->searchForNodes(uMachineId.toString(),
-                                 UIChooserItemSearchFlag_Machine | UIChooserItemSearchFlag_ExactId,
-                                 machineNodes);
-
-    /* Return 1st node if any: */
-    return machineNodes.value(0);
+    /* Crate instance: */
+    delete s_pInstance;
 }
 
-UIChooserNode *UIChooserAbstractModel::searchMachineNode(const QString &strProviderShortName, const QString &strProfileName, const QUuid &uMachineId)
+void UIThreadGroupDefinitionSave::configure(QObject *pParent,
+                                            const QMap<QString, QStringList> &oldLists,
+                                            const QMap<QString, QStringList> &newLists)
 {
-    /* Wrap method above: */
-    return searchMachineNode(searchProfileNode(strProviderShortName, strProfileName), uMachineId);
-}
-
-UIChooserNode *UIChooserAbstractModel::searchFakeNode(UIChooserNode *pProfileNode)
-{
-    /* Wrap method above: */
-    return searchMachineNode(pProfileNode, QUuid());
-}
-
-UIChooserNode *UIChooserAbstractModel::searchFakeNode(const QString &strProviderShortName, const QString &strProfileName)
-{
-    /* Wrap method above: */
-    return searchMachineNode(strProviderShortName, strProfileName, QUuid());
-}
-
-void UIChooserAbstractModel::stopCloudUpdates(bool fForced /* = false */)
-{
-    /* Stop all cloud entity updates currently being performed: */
-    foreach (const UICloudEntityKey &key, m_cloudEntityKeysBeingUpdated)
+    m_oldLists = oldLists;
+    m_newLists = newLists;
+    UIChooserAbstractModel* pChooserAbstractModel = qobject_cast<UIChooserAbstractModel*>(pParent);
+    AssertPtrReturnVoid(pChooserAbstractModel);
     {
-        /* For profiles: */
-        if (key.m_uMachineId.isNull())
-        {
-            /* Search task child by key: */
-            UIProgressTaskReadCloudMachineList *pTask = findChild<UIProgressTaskReadCloudMachineList*>(key.toString());
-            AssertPtrReturnVoid(pTask);
+        connect(this, &UIThreadGroupDefinitionSave::sigComplete,
+                pChooserAbstractModel, &UIChooserAbstractModel::sltGroupDefinitionsSaveComplete);
+    }
+}
 
-            /* Wait for cloud profile refresh task to complete,
-             * then delete the task itself manually: */
-            if (!fForced)
-                pTask->cancel();
-            delete pTask;
-        }
-        /* For machines: */
-        else
-        {
-            /* Search machine node: */
-            UIChooserNode *pNode = searchMachineNode(key.m_strProviderShortName, key.m_strProfileName, key.m_uMachineId);
-            AssertPtrReturnVoid(pNode);
-            /* Acquire cloud machine item: */
-            UIVirtualMachineItemCloud *pCloudMachineItem = pNode->toMachineNode()->cache()->toCloud();
-            AssertPtrReturnVoid(pCloudMachineItem);
+UIThreadGroupDefinitionSave::UIThreadGroupDefinitionSave()
+{
+    /* Assign instance: */
+    s_pInstance = this;
+}
 
-            /* Wait for cloud machine refresh task to complete,
-             * task itself will be deleted with the machine-node: */
-            pCloudMachineItem->waitForAsyncInfoUpdateFinished();
-        }
+UIThreadGroupDefinitionSave::~UIThreadGroupDefinitionSave()
+{
+    /* Wait: */
+    wait();
+
+    /* Erase instance: */
+    s_pInstance = 0;
+}
+
+void UIThreadGroupDefinitionSave::run()
+{
+    /* COM prepare: */
+    COMBase::InitializeCOM(false);
+
+    /* For every particular machine ID: */
+    foreach (const QString &strId, m_newLists.keys())
+    {
+        /* Get new group list/set: */
+        const QStringList &newGroupList = m_newLists.value(strId);
+        const UIStringSet &newGroupSet = UIStringSet::fromList(newGroupList);
+        /* Get old group list/set: */
+        const QStringList &oldGroupList = m_oldLists.value(strId);
+        const UIStringSet &oldGroupSet = UIStringSet::fromList(oldGroupList);
+        /* Make sure group set changed: */
+        if (newGroupSet == oldGroupSet)
+            continue;
+
+        /* The next steps are subsequent.
+         * Every of them is mandatory in order to continue
+         * with common cleanup in case of failure.
+         * We have to simulate a try-catch block. */
+        CSession session;
+        CMachine machine;
+        do
+        {
+            /* 1. Open session: */
+            session = uiCommon().openSession(QUuid(strId));
+            if (session.isNull())
+                break;
+
+            /* 2. Get session machine: */
+            machine = session.GetMachine();
+            if (machine.isNull())
+                break;
+
+            /* 3. Set new groups: */
+            machine.SetGroups(newGroupList.toVector());
+            if (!machine.isOk())
+            {
+                msgCenter().cannotSetGroups(machine);
+                break;
+            }
+
+            /* 4. Save settings: */
+            machine.SaveSettings();
+            if (!machine.isOk())
+            {
+                msgCenter().cannotSaveMachineSettings(machine);
+                break;
+            }
+        } while (0);
+
+        /* Cleanup if necessary: */
+        if (machine.isNull() || !machine.isOk())
+            emit sigReload(QUuid(strId));
+        if (!session.isNull())
+            session.UnlockMachine();
     }
 
-    /* We haven't let tasks to unregister themselves
-     * so we have to cleanup task set ourselves: */
-    m_cloudEntityKeysBeingUpdated.clear();
+    /* Notify listeners about completeness: */
+    emit sigComplete();
+
+    /* COM cleanup: */
+    COMBase::CleanupCOM();
 }
 
 
-#include "UIChooserAbstractModel.moc"
+/*********************************************************************************************************************************
+*   Class UIThreadGroupOrderSave implementation.                                                                                 *
+*********************************************************************************************************************************/
+
+/* static */
+UIThreadGroupOrderSave *UIThreadGroupOrderSave::s_pInstance = 0;
+
+/* static */
+UIThreadGroupOrderSave *UIThreadGroupOrderSave::instance()
+{
+    return s_pInstance;
+}
+
+/* static */
+void UIThreadGroupOrderSave::prepare()
+{
+    /* Make sure instance not prepared: */
+    if (s_pInstance)
+        return;
+
+    /* Crate instance: */
+    new UIThreadGroupOrderSave;
+}
+
+/* static */
+void UIThreadGroupOrderSave::cleanup()
+{
+    /* Make sure instance prepared: */
+    if (!s_pInstance)
+        return;
+
+    /* Crate instance: */
+    delete s_pInstance;
+}
+
+void UIThreadGroupOrderSave::configure(QObject *pParent,
+                                       const QMap<QString, QStringList> &groups)
+{
+    m_groups = groups;
+    UIChooserAbstractModel *pChooserAbstractModel = qobject_cast<UIChooserAbstractModel*>(pParent);
+    AssertPtrReturnVoid(pChooserAbstractModel);
+    {
+        connect(this, &UIThreadGroupOrderSave::sigComplete,
+                pChooserAbstractModel, &UIChooserAbstractModel::sltGroupOrdersSaveComplete);
+    }
+}
+
+UIThreadGroupOrderSave::UIThreadGroupOrderSave()
+{
+    /* Assign instance: */
+    s_pInstance = this;
+}
+
+UIThreadGroupOrderSave::~UIThreadGroupOrderSave()
+{
+    /* Wait: */
+    wait();
+
+    /* Erase instance: */
+    s_pInstance = 0;
+}
+
+void UIThreadGroupOrderSave::run()
+{
+    /* COM prepare: */
+    COMBase::InitializeCOM(false);
+
+    /* Clear all the extra-data records related to group definitions: */
+    gEDataManager->clearSelectorWindowGroupsDefinitions();
+    /* For every particular group definition: */
+    foreach (const QString &strId, m_groups.keys())
+        gEDataManager->setSelectorWindowGroupsDefinitions(strId, m_groups[strId]);
+
+    /* Notify listeners about completeness: */
+    emit sigComplete();
+
+    /* COM cleanup: */
+    COMBase::CleanupCOM();
+}

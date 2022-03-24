@@ -656,7 +656,7 @@ UsbHcAllocateAlignedPages (
                       PciIo,
                       AllocateAnyPages,
                       EfiBootServicesData,
-                      RealPages,
+                      Pages,
                       &Memory,
                       0
                       );

@@ -1,10 +1,10 @@
-/* $Id: UIWizardCloneVM.h 93659 2022-02-08 14:53:08Z vboxsync $ */
+/* $Id: UIWizardCloneVM.h $ */
 /** @file
  * VBox Qt GUI - UIWizardCloneVM class declaration.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,76 +22,60 @@
 #endif
 
 /* GUI includes: */
-#include "UINativeWizard.h"
-#include "UIWizardCloneVMEditors.h"
+#include "UIWizard.h"
 
 /* COM includes: */
+#include "COMEnums.h"
 #include "CMachine.h"
 #include "CSnapshot.h"
 
-/** Clone Virtual Machine wizard: */
-class UIWizardCloneVM : public UINativeWizard
+/* Clone VM wizard: */
+class UIWizardCloneVM : public UIWizard
 {
     Q_OBJECT;
 
 public:
 
+    /* Page IDs: */
+    enum
+    {
+        Page1,
+        Page2,
+        Page3
+    };
+
+    /* Page IDs: */
+    enum
+    {
+        PageExpert
+    };
+
+    /* Constructor: */
     UIWizardCloneVM(QWidget *pParent, const CMachine &machine,
-                    const QString &strGroup, CSnapshot snapshot = CSnapshot(), const QString &strHelpHashtag = QString());
-    void setCloneModePageVisible(bool fIsFullClone);
-    bool isCloneModePageVisible() const;
-    /** Clone VM stuff. */
-    bool cloneVM();
-    bool machineHasSnapshot() const;
-
-    /** @name Parameter setter/getters
-      * @{ */
-        void setCloneName(const QString &strCloneName);
-        const QString &cloneName() const;
-
-        void setCloneFilePath(const QString &strCloneFilePath);
-        const QString &cloneFilePath() const;
-
-        MACAddressClonePolicy macAddressClonePolicy() const;
-        void setMacAddressPolicy(MACAddressClonePolicy enmMACAddressClonePolicy);
-
-        bool keepDiskNames() const;
-        void setKeepDiskNames(bool fKeepDiskNames);
-
-        bool keepHardwareUUIDs() const;
-        void setKeepHardwareUUIDs(bool fKeepHardwareUUIDs);
-
-        bool linkedClone() const;
-        void setLinkedClone(bool fLinkedClone);
-
-        KCloneMode cloneMode() const;
-        void setCloneMode(KCloneMode enmCloneMode);
-    /** @} */
+                    const QString &strGroup, CSnapshot snapshot = CSnapshot());
 
 protected:
 
-    virtual void populatePages() /* final override */;
+    /* CLone VM stuff: */
+    bool cloneVM();
+
+    /* Who will be able to clone virtual-machine: */
+    friend class UIWizardCloneVMPageBasic2;
+    friend class UIWizardCloneVMPageBasic3;
+    friend class UIWizardCloneVMPageExpert;
 
 private:
 
+    /* Translation stuff: */
     void retranslateUi();
+
+    /* Pages related stuff: */
     void prepare();
 
+    /* Variables: */
     CMachine  m_machine;
     CSnapshot m_snapshot;
     QString   m_strGroup;
-    int m_iCloneModePageIndex;
-
-    /** @name Parameters needed during machine cloning
-      * @{ */
-        QString m_strCloneName;
-        QString m_strCloneFilePath;
-        MACAddressClonePolicy m_enmMACAddressClonePolicy;
-        bool m_fKeepDiskNames;
-        bool m_fKeepHardwareUUIDs;
-        bool m_fLinkedClone;
-        KCloneMode m_enmCloneMode;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_wizards_clonevm_UIWizardCloneVM_h */

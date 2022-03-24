@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: db.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: db.py $
 
 """
 Test Manager - Database Interface.
@@ -7,7 +7,7 @@ Test Manager - Database Interface.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -74,7 +74,7 @@ def dbTimestampToDatetime(oValue):
     if isinstance(oValue, datetime.datetime):
         return oValue;
     if utils.isString(oValue):
-        return utils.parseIsoTimestamp(oValue);
+        raise Exception('TODO');
     return oValue.pydatetime();
 
 def dbTimestampToZuluDatetime(oValue):
@@ -103,31 +103,12 @@ def dbTimestampPythonNow():
     """
     return dbTimestampToZuluDatetime(datetime.datetime.utcnow());
 
-def dbOneTickIntervalString():
-    """
-    Returns the interval string for one tick.
-
-    Mogrify the return value into the SQL:
-        "... %s::INTERVAL ..."
-    or
-        "INTERVAL %s"
-    The completed SQL will contain the necessary ticks.
-    """
-    return '1 microsecond';
-
 def dbTimestampMinusOneTick(oValue):
     """
     Returns a new timestamp that's one tick before the given one.
     """
     oValue = dbTimestampToZuluDatetime(oValue);
     return oValue - datetime.timedelta(microseconds = 1);
-
-def dbTimestampPlusOneTick(oValue):
-    """
-    Returns a new timestamp that's one tick after the given one.
-    """
-    oValue = dbTimestampToZuluDatetime(oValue);
-    return oValue + datetime.timedelta(microseconds = 1);
 
 def isDbInterval(oValue):
     """
@@ -641,10 +622,10 @@ class TMDatabaseConnection(object):
         for aEntry in self._aoTraceBack:
             iEntry += 1;
             sDebug += ' <tr>\n' \
-                      '  <td>%s</td>\n' \
-                      '  <td>%s</td>\n' \
-                      '  <td>%s</td>\n' \
-                      '  <td>%s</td>\n' \
+                      '  <td align="right">%s</td>\n' \
+                      '  <td align="right">%s</td>\n' \
+                      '  <td align="right">%s</td>\n' \
+                      '  <td align="right">%s</td>\n' \
                       '  <td><pre>%s</pre></td>\n' \
                       '  <td>%s</td>\n' \
                       ' </tr>\n' \

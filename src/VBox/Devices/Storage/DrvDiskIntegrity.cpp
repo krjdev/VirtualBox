@@ -1,10 +1,10 @@
-/* $Id: DrvDiskIntegrity.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvDiskIntegrity.cpp $ */
 /** @file
  * VBox storage devices: Disk integrity check.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1806,81 +1806,80 @@ static DECLCALLBACK(void) drvdiskintDestruct(PPDMDRVINS pDrvIns)
  */
 static DECLCALLBACK(int) drvdiskintConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVDISKINTEGRITY   pThis = PDMINS_2_DATA(pDrvIns, PDRVDISKINTEGRITY);
-    PCPDMDRVHLPR3       pHlp  = pDrvIns->pHlpR3;
-
+    int rc = VINF_SUCCESS;
+    PDRVDISKINTEGRITY pThis = PDMINS_2_DATA(pDrvIns, PDRVDISKINTEGRITY);
     LogFlow(("drvdiskintConstruct: iInstance=%d\n", pDrvIns->iInstance));
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
      * Validate configuration.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns,  "CheckConsistency"
-                                            "|TraceRequests"
-                                            "|CheckIntervalMs"
-                                            "|ExpireIntervalMs"
-                                            "|CheckDoubleCompletions"
-                                            "|HistorySize"
-                                            "|IoLogType"
-                                            "|IoLogFile"
-                                            "|IoLogAddress"
-                                            "|IoLogPort"
-                                            "|IoLogData"
-                                            "|PrepopulateRamDisk"
-                                            "|ReadAfterWrite"
-                                            "|RecordWriteBeforeCompletion"
-                                            "|ValidateMemoryBuffers",
-                                            "");
+    if (!CFGMR3AreValuesValid(pCfg, "CheckConsistency\0"
+                                    "TraceRequests\0"
+                                    "CheckIntervalMs\0"
+                                    "ExpireIntervalMs\0"
+                                    "CheckDoubleCompletions\0"
+                                    "HistorySize\0"
+                                    "IoLogType\0"
+                                    "IoLogFile\0"
+                                    "IoLogAddress\0"
+                                    "IoLogPort\0"
+                                    "IoLogData\0"
+                                    "PrepopulateRamDisk\0"
+                                    "ReadAfterWrite\0"
+                                    "RecordWriteBeforeCompletion\0"
+                                    "ValidateMemoryBuffers\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
 
-    int rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "CheckConsistency", &pThis->fCheckConsistency, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "CheckConsistency", &pThis->fCheckConsistency, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "TraceRequests", &pThis->fTraceRequests, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "TraceRequests", &pThis->fTraceRequests, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryU32Def(pCfg, "CheckIntervalMs", &pThis->uCheckIntervalMs, 5000); /* 5 seconds */
+    rc = CFGMR3QueryU32Def(pCfg, "CheckIntervalMs", &pThis->uCheckIntervalMs, 5000); /* 5 seconds */
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryU32Def(pCfg, "ExpireIntervalMs", &pThis->uExpireIntervalMs, 20000); /* 20 seconds */
+    rc = CFGMR3QueryU32Def(pCfg, "ExpireIntervalMs", &pThis->uExpireIntervalMs, 20000); /* 20 seconds */
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "CheckDoubleCompletions", &pThis->fCheckDoubleCompletion, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "CheckDoubleCompletions", &pThis->fCheckDoubleCompletion, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryU32Def(pCfg, "HistorySize", &pThis->cEntries, 512);
+    rc = CFGMR3QueryU32Def(pCfg, "HistorySize", &pThis->cEntries, 512);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "PrepopulateRamDisk", &pThis->fPrepopulateRamDisk, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "PrepopulateRamDisk", &pThis->fPrepopulateRamDisk, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "ReadAfterWrite", &pThis->fReadAfterWrite, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "ReadAfterWrite", &pThis->fReadAfterWrite, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "RecordWriteBeforeCompletion", &pThis->fRecordWriteBeforeCompletion, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "RecordWriteBeforeCompletion", &pThis->fRecordWriteBeforeCompletion, false);
     AssertRC(rc);
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "ValidateMemoryBuffers", &pThis->fValidateMemBufs, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "ValidateMemoryBuffers", &pThis->fValidateMemBufs, false);
     AssertRC(rc);
 
     bool fIoLogData = false;
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "IoLogData", &fIoLogData, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "IoLogData", &fIoLogData, false);
     AssertRC(rc);
 
     char *pszIoLogType = NULL;
     char *pszIoLogFilename = NULL;
     char *pszAddress = NULL;
     uint32_t uPort = 0;
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "IoLogType", &pszIoLogType);
+    rc = CFGMR3QueryStringAlloc(pCfg, "IoLogType", &pszIoLogType);
     if (RT_SUCCESS(rc))
     {
         if (!RTStrICmp(pszIoLogType, "File"))
         {
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "IoLogFile", &pszIoLogFilename);
+            rc = CFGMR3QueryStringAlloc(pCfg, "IoLogFile", &pszIoLogFilename);
             AssertRC(rc);
         }
         else if (!RTStrICmp(pszIoLogType, "Server"))
         {
-            rc = pHlp->pfnCFGMQueryStringAllocDef(pCfg, "IoLogAddress", &pszAddress, NULL);
+            rc = CFGMR3QueryStringAllocDef(pCfg, "IoLogAddress", &pszAddress, NULL);
             AssertRC(rc);
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "IoLogPort", &uPort, 4000);
+            rc = CFGMR3QueryU32Def(pCfg, "IoLogPort", &uPort, 4000);
             AssertRC(rc);
         }
         else if (!RTStrICmp(pszIoLogType, "Client"))
         {
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "IoLogAddress", &pszAddress);
+            rc = CFGMR3QueryStringAlloc(pCfg, "IoLogAddress", &pszAddress);
             AssertRC(rc);
-            rc = pHlp->pfnCFGMQueryU32Def(pCfg, "IoLogPort", &uPort, 4000);
+            rc = CFGMR3QueryU32Def(pCfg, "IoLogPort", &uPort, 4000);
             AssertRC(rc);
         }
         else
@@ -2036,23 +2035,23 @@ static DECLCALLBACK(int) drvdiskintConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
         if (!RTStrICmp(pszIoLogType, "File"))
         {
             rc = RTTraceLogWrCreateFile(&pThis->hIoLogger, NULL, pszIoLogFilename);
-            PDMDrvHlpMMHeapFree(pDrvIns, pszIoLogFilename);
+            MMR3HeapFree(pszIoLogFilename);
         }
         else if (!RTStrICmp(pszIoLogType, "Server"))
         {
             rc = RTTraceLogWrCreateTcpServer(&pThis->hIoLogger, NULL, pszAddress, uPort);
             if (pszAddress)
-                PDMDrvHlpMMHeapFree(pDrvIns, pszAddress);
+                MMR3HeapFree(pszAddress);
         }
         else if (!RTStrICmp(pszIoLogType, "Client"))
         {
             rc = RTTraceLogWrCreateTcpClient(&pThis->hIoLogger, NULL, pszAddress, uPort);
-            PDMDrvHlpMMHeapFree(pDrvIns, pszAddress);
+            MMR3HeapFree(pszAddress);
         }
         else
             AssertMsgFailed(("Invalid I/O log type given: %s\n", pszIoLogType));
 
-        PDMDrvHlpMMHeapFree(pDrvIns, pszIoLogType);
+        MMR3HeapFree(pszIoLogType);
     }
 
     /* Read in all data before the start if requested. */

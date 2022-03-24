@@ -1,10 +1,10 @@
-/* $Id: VMMGuruMeditation.cpp 93901 2022-02-23 15:35:26Z vboxsync $ */
+/* $Id: VMMGuruMeditation.cpp $ */
 /** @file
  * VMM - The Virtual Machine Monitor, Guru Meditation Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -200,7 +200,7 @@ static void vmmR3FatalDumpInfoHlpInit(PVMMR3FATALDUMPINFOHLP pHlp)
 
     pHlp->Core.pfnPrintf      = vmmR3FatalDumpInfoHlp_pfnPrintf;
     pHlp->Core.pfnPrintfV     = vmmR3FatalDumpInfoHlp_pfnPrintfV;
-    pHlp->Core.pfnGetOptError = DBGFR3InfoGenericGetOptError;
+    pHlp->Core.pfnGetOptError = DBGFR3InfoGenricGetOptError;
 
     /*
      * The loggers.
@@ -217,25 +217,27 @@ static void vmmR3FatalDumpInfoHlpInit(PVMMR3FATALDUMPINFOHLP pHlp)
 
     if (pHlp->pRelLogger)
     {
-        pHlp->fRelLoggerFlags = RTLogGetFlags(pHlp->pRelLogger);
-        RTLogChangeFlags(pHlp->pRelLogger, RTLOGFLAGS_BUFFERED, RTLOGFLAGS_DISABLED);
+        pHlp->fRelLoggerFlags = pHlp->pRelLogger->fFlags;
+        pHlp->pRelLogger->fFlags &= ~RTLOGFLAGS_DISABLED;
+        pHlp->pRelLogger->fFlags |= RTLOGFLAGS_BUFFERED;
     }
 
     if (pHlp->pLogger)
     {
-        pHlp->fLoggerFlags     = RTLogGetFlags(pHlp->pLogger);
-        pHlp->fLoggerDestFlags = RTLogGetDestinations(pHlp->pLogger);
-        RTLogChangeFlags(pHlp->pLogger, RTLOGFLAGS_BUFFERED, RTLOGFLAGS_DISABLED);
+        pHlp->fLoggerFlags     = pHlp->pLogger->fFlags;
+        pHlp->fLoggerDestFlags = pHlp->pLogger->fDestFlags;
+        pHlp->pLogger->fFlags     &= ~RTLOGFLAGS_DISABLED;
+        pHlp->pLogger->fFlags     |= RTLOGFLAGS_BUFFERED;
 #ifndef DEBUG_sandervl
-        RTLogChangeDestinations(pHlp->pLogger, RTLOGDEST_DEBUGGER, 0);
+        pHlp->pLogger->fDestFlags |= RTLOGDEST_DEBUGGER;
 #endif
     }
 
     /*
      * Check if we need write to stderr.
      */
-    pHlp->fStdErr = (!pHlp->pRelLogger || !(RTLogGetDestinations(pHlp->pRelLogger) & (RTLOGDEST_STDOUT | RTLOGDEST_STDERR)))
-                 && (!pHlp->pLogger    || !(RTLogGetDestinations(pHlp->pLogger)    & (RTLOGDEST_STDOUT | RTLOGDEST_STDERR)));
+    pHlp->fStdErr = (!pHlp->pRelLogger || !(pHlp->pRelLogger->fDestFlags & (RTLOGDEST_STDOUT | RTLOGDEST_STDERR)))
+                 && (!pHlp->pLogger    || !(pHlp->pLogger->fDestFlags    & (RTLOGDEST_STDOUT | RTLOGDEST_STDERR)));
 #ifdef DEBUG_sandervl
     pHlp->fStdErr = false; /* takes too long to display here */
 #endif
@@ -260,33 +262,18 @@ static void vmmR3FatalDumpInfoHlpDelete(PVMMR3FATALDUMPINFOHLP pHlp)
     if (pHlp->pRelLogger)
     {
         RTLogFlush(pHlp->pRelLogger);
-        RTLogChangeFlags(pHlp->pRelLogger,
-                         pHlp->fRelLoggerFlags & RTLOGFLAGS_DISABLED,
-                         pHlp->fRelLoggerFlags & RTLOGFLAGS_BUFFERED);
+        pHlp->pRelLogger->fFlags = pHlp->fRelLoggerFlags;
     }
 
     if (pHlp->pLogger)
     {
         RTLogFlush(pHlp->pLogger);
-        RTLogChangeFlags(pHlp->pLogger,
-                         pHlp->fLoggerFlags & RTLOGFLAGS_DISABLED,
-                         pHlp->fLoggerFlags & RTLOGFLAGS_BUFFERED);
-        RTLogChangeDestinations(pHlp->pLogger, 0, pHlp->fLoggerDestFlags & RTLOGDEST_DEBUGGER);
+        pHlp->pLogger->fFlags     = pHlp->fLoggerFlags;
+        pHlp->pLogger->fDestFlags = pHlp->fLoggerDestFlags;
     }
 
     if (pHlp->fStdErr)
         vmmR3FatalDumpInfoHlpFlushStdErr(pHlp);
-}
-
-
-/**
- * @callback_method_impl{FNVMMEMTRENDEZVOUS}
- */
-static DECLCALLBACK(VBOXSTRICTRC) vmmR3FatalDumpRendezvousDoneCallback(PVM pVM, PVMCPU pVCpu, void *pvUser)
-{
-    VM_FF_CLEAR(pVM, VM_FF_CHECK_VM_STATE);
-    RT_NOREF(pVCpu, pvUser);
-    return VINF_SUCCESS;
 }
 
 
@@ -361,12 +348,16 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
         case VINF_EM_DBG_HYPER_STEPPED:
         case VINF_EM_TRIPLE_FAULT:
         case VERR_VMM_HYPER_CR3_MISMATCH:
+        case VERR_VMM_SET_JMP_ERROR:
+        case VERR_VMM_SET_JMP_ABORTED_RESUME:
+        case VERR_VMM_SET_JMP_STACK_OVERFLOW:
         case VERR_VMM_LONG_JMP_ERROR:
         {
             /*
              * Active trap? This is only of partial interest when in hardware
              * assisted virtualization mode, thus the different messages.
              */
+            uint32_t        uEIP       = 0; //CPUMGetHyperEIP(pVCpu);
             TRPMEVENT       enmType;
             uint8_t         u8TrapNo   =       0xce;
             uint32_t        uErrorCode = 0xdeadface;
@@ -374,7 +365,18 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
             uint8_t         cbInstr    = UINT8_MAX;
             bool            fIcebp     = false;
             int rc2 = TRPMQueryTrapAll(pVCpu, &u8TrapNo, &enmType, &uErrorCode, &uCR2, &cbInstr, &fIcebp);
-            if (RT_SUCCESS(rc2))
+            if (VM_IS_RAW_MODE_ENABLED(pVM))
+            {
+                if (RT_SUCCESS(rc2))
+                    pHlp->pfnPrintf(pHlp,
+                                    "!! TRAP=%02x ERRCD=%RX32 CR2=%RGv EIP=%RX32 Type=%d cbInstr=%02x fIcebp=%RTbool\n",
+                                    u8TrapNo, uErrorCode, uCR2, uEIP, enmType, cbInstr, fIcebp);
+                else
+                    pHlp->pfnPrintf(pHlp,
+                                    "!! EIP=%RX32 NOTRAP\n",
+                                    uEIP);
+            }
+            else if (RT_SUCCESS(rc2))
                 pHlp->pfnPrintf(pHlp,
                                 "!! ACTIVE TRAP=%02x ERRCD=%RX32 CR2=%RGv PC=%RGr Type=%d cbInstr=%02x fIcebp=%RTbool (Guest!)\n",
                                 u8TrapNo, uErrorCode, uCR2, CPUMGetGuestRIP(pVCpu), enmType, cbInstr, fIcebp);
@@ -382,39 +384,54 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
             /*
              * Dump the relevant hypervisor registers and stack.
              */
-            if (rcErr == VERR_VMM_RING0_ASSERTION)
+            if (   rcErr == VERR_VMM_RING0_ASSERTION /* fInRing3Call has already been cleared here. */
+                || pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call)
             {
                 /* Dump the jmpbuf.  */
                 pHlp->pfnPrintf(pHlp,
                                 "!!\n"
-                                "!! AssertJmpBuf:\n"
+                                "!! CallRing3JmpBuf:\n"
                                 "!!\n");
                 pHlp->pfnPrintf(pHlp,
-                                "UnwindSp=%RHv UnwindRetSp=%RHv UnwindBp=%RHv UnwindPc=%RHv\n",
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindSp,
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp,
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindBp,
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindPc);
+                                "SavedEsp=%RHv SavedEbp=%RHv SpResume=%RHv SpCheck=%RHv\n",
+                                pVCpu->vmm.s.CallRing3JmpBufR0.SavedEsp,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.SpResume,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.SpCheck);
                 pHlp->pfnPrintf(pHlp,
-                                "UnwindRetPcValue=%RHv UnwindRetPcLocation=%RHv\n",
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindRetPcValue,
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindRetPcLocation);
+                                "pvSavedStack=%RHv cbSavedStack=%#x  fInRing3Call=%RTbool\n",
+                                pVCpu->vmm.s.CallRing3JmpBufR0.pvSavedStack,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.cbSavedStack,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call);
+                pHlp->pfnPrintf(pHlp,
+                                "cbUsedMax=%#x cbUsedAvg=%#x cbUsedTotal=%#llx cUsedTotal=%#llx\n",
+                                pVCpu->vmm.s.CallRing3JmpBufR0.cbUsedMax,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.cbUsedAvg,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.cbUsedTotal,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.cUsedTotal);
                 pHlp->pfnPrintf(pHlp,
                                 "pfn=%RHv pvUser1=%RHv pvUser2=%RHv\n",
-                                pVCpu->vmm.s.AssertJmpBuf.pfn,
-                                pVCpu->vmm.s.AssertJmpBuf.pvUser1,
-                                pVCpu->vmm.s.AssertJmpBuf.pvUser2);
+                                pVCpu->vmm.s.CallRing3JmpBufR0.pfn,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.pvUser1,
+                                pVCpu->vmm.s.CallRing3JmpBufR0.pvUser2);
 
                 /* Dump the resume register frame on the stack. */
-                PRTHCUINTPTR const pBP = (PRTHCUINTPTR)&pVCpu->vmm.s.abAssertStack[  pVCpu->vmm.s.AssertJmpBuf.UnwindBp
-                                                                                   - pVCpu->vmm.s.AssertJmpBuf.UnwindSp];
+                PRTHCUINTPTR pBP;
+#ifdef VMM_R0_SWITCH_STACK
+                pBP = (PRTHCUINTPTR)&pVCpu->vmm.s.pbEMTStackR3[  pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp
+                                                               - MMHyperCCToR0(pVM, pVCpu->vmm.s.pbEMTStackR3)];
+#else
+                pBP = (PRTHCUINTPTR)&pVCpu->vmm.s.pbEMTStackR3[  pVCpu->vmm.s.CallRing3JmpBufR0.cbSavedStack
+                                                               - pVCpu->vmm.s.CallRing3JmpBufR0.SpCheck
+                                                               + pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp];
+#endif
 #if HC_ARCH_BITS == 32
                 pHlp->pfnPrintf(pHlp,
                                 "eax=volatile ebx=%08x ecx=volatile edx=volatile esi=%08x edi=%08x\n"
                                 "eip=%08x esp=%08x ebp=%08x efl=%08x\n"
                                 ,
                                 pBP[-3], pBP[-2], pBP[-1],
-                                pBP[1], pVCpu->vmm.s.AssertJmpBuf.SavedEbp - 8, pBP[0], pBP[-4]);
+                                pBP[1], pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp - 8, pBP[0], pBP[-4]);
 #else
 # ifdef RT_OS_WINDOWS
                 pHlp->pfnPrintf(pHlp,
@@ -428,7 +445,7 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                                 pBP[-6], pBP[-5],
                                 pBP[-4], pBP[-3],
                                 pBP[-2], pBP[-1],
-                                pBP[1], pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp, pBP[0], pBP[-8]);
+                                pBP[1], pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp - 16, pBP[0], pBP[-8]);
 # else
                 pHlp->pfnPrintf(pHlp,
                                 "rax=volatile         rbx=%016RX64 rcx=volatile         rdx=volatile\n"
@@ -440,7 +457,7 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                                 pBP[-5],
                                 pBP[-4], pBP[-3],
                                 pBP[-2], pBP[-1],
-                                pBP[1], pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp, pBP[0], pBP[-6]);
+                                pBP[1], pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp - 16, pBP[0], pBP[-6]);
 # endif
 #endif
 
@@ -448,9 +465,9 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                 DBGFADDRESS AddrPc, AddrBp, AddrSp;
                 PCDBGFSTACKFRAME pFirstFrame;
                 rc2 = DBGFR3StackWalkBeginEx(pVM->pUVM, pVCpu->idCpu, DBGFCODETYPE_RING0,
-                                             DBGFR3AddrFromHostR0(&AddrBp, pVCpu->vmm.s.AssertJmpBuf.UnwindBp),
-                                             DBGFR3AddrFromHostR0(&AddrSp, pVCpu->vmm.s.AssertJmpBuf.UnwindSp),
-                                             DBGFR3AddrFromHostR0(&AddrPc, pVCpu->vmm.s.AssertJmpBuf.UnwindPc),
+                                             DBGFR3AddrFromHostR0(&AddrBp, pVCpu->vmm.s.CallRing3JmpBufR0.SavedEbp),
+                                             DBGFR3AddrFromHostR0(&AddrSp, pVCpu->vmm.s.CallRing3JmpBufR0.SpResume),
+                                             DBGFR3AddrFromHostR0(&AddrPc, pVCpu->vmm.s.CallRing3JmpBufR0.SavedEipForUnwind),
                                              RTDBGRETURNTYPE_INVALID, &pFirstFrame);
                 if (RT_SUCCESS(rc2))
                 {
@@ -517,29 +534,36 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                 }
 
                 /* Symbols on the stack. */
-                uint32_t const          cbRawStack = RT_MIN(pVCpu->vmm.s.AssertJmpBuf.cbStackValid, sizeof(pVCpu->vmm.s.abAssertStack));
-                uintptr_t const * const pauAddr    = (uintptr_t const *)&pVCpu->vmm.s.abAssertStack[0];
-                uint32_t const          iEnd       = cbRawStack / sizeof(uintptr_t);
-                uint32_t                iAddr      = 0;
+#ifdef VMM_R0_SWITCH_STACK
+                uint32_t const   iLast   = VMM_STACK_SIZE / sizeof(uintptr_t);
+                uint32_t         iAddr   = (uint32_t)(  pVCpu->vmm.s.CallRing3JmpBufR0.SavedEsp
+                                                      - MMHyperCCToR0(pVM, pVCpu->vmm.s.pbEMTStackR3)) / sizeof(uintptr_t);
+                if (iAddr > iLast)
+                    iAddr = 0;
+#else
+                uint32_t const   iLast   = RT_MIN(pVCpu->vmm.s.CallRing3JmpBufR0.cbSavedStack, VMM_STACK_SIZE)
+                                         / sizeof(uintptr_t);
+                uint32_t         iAddr   = 0;
+#endif
                 pHlp->pfnPrintf(pHlp,
                                 "!!\n"
-                                "!! Addresses on the stack (iAddr=%#x, iEnd=%#x)\n"
+                                "!! Addresses on the stack (iAddr=%#x, iLast=%#x)\n"
                                 "!!\n",
-                                iAddr, iEnd);
-                while (iAddr < iEnd)
+                                iAddr, iLast);
+                uintptr_t const *paAddr  = (uintptr_t const *)pVCpu->vmm.s.pbEMTStackR3;
+                while (iAddr < iLast)
                 {
-                    uintptr_t const uAddr = pauAddr[iAddr];
+                    uintptr_t const uAddr = paAddr[iAddr];
                     if (uAddr > X86_PAGE_SIZE)
                     {
                         DBGFADDRESS  Addr;
                         DBGFR3AddrFromFlat(pVM->pUVM, &Addr, uAddr);
-                        RTGCINTPTR   offDisp     = 0;
-                        RTGCINTPTR   offLineDisp = 0;
-                        PRTDBGSYMBOL pSym        = DBGFR3AsSymbolByAddrA(pVM->pUVM, DBGF_AS_R0, &Addr,
-                                                                           RTDBGSYMADDR_FLAGS_LESS_OR_EQUAL
-                                                                         | RTDBGSYMADDR_FLAGS_SKIP_ABS_IN_DEFERRED,
-                                                                         &offDisp, NULL);
-                        PRTDBGLINE   pLine       = DBGFR3AsLineByAddrA(pVM->pUVM, DBGF_AS_R0, &Addr, &offLineDisp, NULL);
+                        RTGCINTPTR   offDisp = 0;
+                        PRTDBGSYMBOL pSym  = DBGFR3AsSymbolByAddrA(pVM->pUVM, DBGF_AS_R0, &Addr,
+                                                                   RTDBGSYMADDR_FLAGS_LESS_OR_EQUAL | RTDBGSYMADDR_FLAGS_SKIP_ABS_IN_DEFERRED,
+                                                                   &offDisp, NULL);
+                        RTGCINTPTR   offLineDisp;
+                        PRTDBGLINE   pLine = DBGFR3AsLineByAddrA(pVM->pUVM, DBGF_AS_R0, &Addr, &offLineDisp, NULL);
                         if (pLine || pSym)
                         {
                             pHlp->pfnPrintf(pHlp, "%#06x: %p =>", iAddr * sizeof(uintptr_t), uAddr);
@@ -561,13 +585,15 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                 pHlp->pfnPrintf(pHlp,
                                 "!!\n"
                                 "!! Raw stack (mind the direction).\n"
-                                "!! pbEMTStackR0=%RHv cbRawStack=%#x\n"
+                                "!! pbEMTStackR0=%RHv pbEMTStackBottomR0=%RHv VMM_STACK_SIZE=%#x\n"
                                 "!! pbEmtStackR3=%p\n"
                                 "!!\n"
                                 "%.*Rhxd\n",
-                                pVCpu->vmm.s.AssertJmpBuf.UnwindSp, cbRawStack,
-                                &pVCpu->vmm.s.abAssertStack[0],
-                                cbRawStack, &pVCpu->vmm.s.abAssertStack[0]);
+                                MMHyperCCToR0(pVM, pVCpu->vmm.s.pbEMTStackR3),
+                                MMHyperCCToR0(pVM, pVCpu->vmm.s.pbEMTStackR3) + VMM_STACK_SIZE,
+                                VMM_STACK_SIZE,
+                                pVCpu->vmm.s.pbEMTStackR3,
+                                VMM_STACK_SIZE, pVCpu->vmm.s.pbEMTStackR3);
             }
             else
             {
@@ -681,11 +707,5 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
      * Delete the output instance (flushing and restoring of flags).
      */
     vmmR3FatalDumpInfoHlpDelete(&Hlp);
-
-    /*
-     * Rendezvous with the other EMTs and clear the VM_FF_CHECK_VM_STATE so we can
-     * stop burning CPU cycles.
-     */
-    VMMR3EmtRendezvous(pVM, VMMEMTRENDEZVOUS_FLAGS_TYPE_ONCE, vmmR3FatalDumpRendezvousDoneCallback, NULL);
 }
 

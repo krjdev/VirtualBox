@@ -1,10 +1,10 @@
-/* $Id: PCIDeviceAttachmentImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PCIDeviceAttachmentImpl.cpp $ */
 /** @file
  * PCI attachment information implmentation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -93,17 +93,15 @@ HRESULT PCIDeviceAttachment::initCopy(IMachine *aParent, PCIDeviceAttachment *aT
 HRESULT PCIDeviceAttachment::i_loadSettings(IMachine *aParent,
                                             const settings::HostPCIDeviceAttachment &hpda)
 {
-    /** @todo r=bird: Inconsistent signed/unsigned crap. */
-    return init(aParent, hpda.strDeviceName, (LONG)hpda.uHostAddress, (LONG)hpda.uGuestAddress, TRUE);
+    return init(aParent, hpda.strDeviceName, hpda.uHostAddress, hpda.uGuestAddress, TRUE);
 }
 
 
 HRESULT PCIDeviceAttachment::i_saveSettings(settings::HostPCIDeviceAttachment &data)
 {
     Assert(m);
-    /** @todo r=bird: Inconsistent signed/unsigned crap. */
-    data.uHostAddress  = (uint32_t)m->HostAddress;
-    data.uGuestAddress = (uint32_t)m->GuestAddress;
+    data.uHostAddress = m->HostAddress;
+    data.uGuestAddress = m->GuestAddress;
     data.strDeviceName = m->DevName;
 
     return S_OK;

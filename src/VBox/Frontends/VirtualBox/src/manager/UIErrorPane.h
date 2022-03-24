@@ -1,10 +1,10 @@
-/* $Id: UIErrorPane.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIErrorPane.h $ */
 /** @file
  * VBox Qt GUI - UIErrorPane class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,27 +24,45 @@
 /* Qt includes: */
 #include <QWidget>
 
-/* Forward declarations: */
-class QTextBrowser;
+/* GUI includes: */
+#include "QIWithRetranslateUI.h"
 
-/** QWidget subclass representing error pane reflecting
-  * information about currently chosen inaccessible VM. */
-class UIErrorPane : public QWidget
+/* Forward declarations: */
+class QAction;
+class QString;
+class QTextBrowser;
+class QToolButton;
+
+
+/** QWidget subclass representing error pane reflecting information
+  * about currently chosen inaccessible VM and allowing to operate over it. */
+class UIErrorPane : public QIWithRetranslateUI<QWidget>
 {
     Q_OBJECT;
 
 public:
 
-    /** Constructs error pane passing @a pParent to the base-class. */
-    UIErrorPane(QWidget *pParent = 0);
+    /** Constructs error pane passing @a pParent to the base-class.
+      * @param  pRefreshAction  Brings the refresh action reference. */
+    UIErrorPane(QAction *pRefreshAction = 0, QWidget *pParent = 0);
 
     /** Defines error @a strDetails. */
     void setErrorDetails(const QString &strDetails);
+
+protected:
+
+    /** Handles translation event. */
+    virtual void retranslateUi() /* override */;
 
 private:
 
     /** Prepares all. */
     void prepare();
+
+    /** Holds the Refresh action refrence. */
+    QAction     *m_pActionRefresh;
+    /** Holds the VM refresh button instance. */
+    QToolButton *m_pButtonRefresh;
 
     /** Holds the text-browser instance. */
     QTextBrowser *m_pBrowserDetails;

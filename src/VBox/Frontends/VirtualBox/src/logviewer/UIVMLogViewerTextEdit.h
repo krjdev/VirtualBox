@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerTextEdit.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMLogViewerTextEdit.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,7 +53,6 @@ public:
     void clearScrollBarMarkingsVector();
 
     void scrollToLine(int lineNumber);
-    void scrollToEnd();
     void setBookmarkLineSet(const QSet<int>& lineSet);
     void setShownTextIsFiltered(bool warning);
 
@@ -71,11 +70,11 @@ public:
 
 protected:
 
-    virtual void contextMenuEvent(QContextMenuEvent *pEvent) RT_OVERRIDE;
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
-    virtual void mouseMoveEvent(QMouseEvent *pEvent) RT_OVERRIDE;
-    virtual void leaveEvent(QEvent * pEvent) RT_OVERRIDE;
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void contextMenuEvent(QContextMenuEvent *pEvent) /* override */;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
+    virtual void mouseMoveEvent(QMouseEvent *pEvent) /* override */;
+    virtual void leaveEvent(QEvent * pEvent) /* override */;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

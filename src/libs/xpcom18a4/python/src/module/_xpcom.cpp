@@ -83,12 +83,8 @@ extern PYXPCOM_EXPORT void PyXPCOM_InterpreterState_Ensure();
 #  define MANGLE_MODULE_NAME(a_szName)  a_szName RT_XSTR(MODULE_NAME_SUFFIX)
 #  define MANGLE_MODULE_INIT(a_Name)    RT_CONCAT(a_Name, MODULE_NAME_SUFFIX)
 # endif
-# if defined(VBOX_PYXPCOM_VERSIONED) && !defined(VBOX_PYXPCOM_MAJOR_VERSIONED)
-#  if   PY_VERSION_HEX >= 0x030a0000 && PY_VERSION_HEX < 0x030b0000
-#   define MODULE_NAME    MANGLE_MODULE_NAME("VBoxPython3_10")
-#   define initVBoxPython MANGLE_MODULE_INIT(PyInit_VBoxPython3_10)
-
-#  elif   PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
+# ifdef VBOX_PYXPCOM_VERSIONED
+#  if   PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
 #   define MODULE_NAME    MANGLE_MODULE_NAME("VBoxPython3_9")
 #   define initVBoxPython MANGLE_MODULE_INIT(PyInit_VBoxPython3_9)
 
@@ -139,18 +135,11 @@ extern PYXPCOM_EXPORT void PyXPCOM_InterpreterState_Ensure();
 #   error "Fix module versioning. This Python version is not recognized."
 #  endif
 # else
-#  if PY_MAJOR_VERSION <= 2 && defined(VBOX_PYXPCOM_MAJOR_VERSIONED)
-#   define MODULE_NAME 	  MANGLE_MODULE_NAME("VBoxPython2")
-#   define initVBoxPython MANGLE_MODULE_INIT(initVBoxPython2)
-#  elif PY_MAJOR_VERSION <= 2
-#   define MODULE_NAME 	  MANGLE_MODULE_NAME("VBoxPython")
-#   define initVBoxPython MANGLE_MODULE_INIT(initVBoxPython)
-#  elif defined(Py_LIMITED_API) || defined(VBOX_PYXPCOM_MAJOR_VERSIONED)
-#   define MODULE_NAME 	  MANGLE_MODULE_NAME("VBoxPython3")
-#   define initVBoxPython MANGLE_MODULE_INIT(PyInit_VBoxPython3)
+#  define MODULE_NAME 	  MANGLE_MODULE_NAME("VBoxPython")
+#  if PY_MAJOR_VERSION <= 2
+#   define initVBoxPython  MANGLE_MODULE_INIT(initVBoxPython)
 #  else
-#   define MODULE_NAME 	  MANGLE_MODULE_NAME("VBoxPython")
-#   define initVBoxPython MANGLE_MODULE_INIT(PyInit_VBoxPython)
+#   define initVBoxPython  MANGLE_MODULE_INIT(PyInit_VBoxPython)
 #  endif
 # endif
 #else
@@ -285,7 +274,7 @@ PyXPCOMMethod_XPTC_InvokeByIndex(PyObject *self, PyObject *args)
 	if (!Py_nsISupports::Check(obIS)) {
 		return PyErr_Format(PyExc_TypeError,
 		                    "First param must be a native nsISupports wrapper (got %s)",
-				    PyXPCOM_ObTypeName(obIS));
+		                    obIS->ob_type->tp_name);
 	}
 	// Ack!  We must ask for the "native" interface supported by
 	// the object, not specifically nsISupports, else we may not
@@ -511,7 +500,7 @@ PyXPCOMMethod_GetVariantValue(PyObject *self, PyObject *args)
 				PR_FALSE))
 		return PyErr_Format(PyExc_ValueError,
 				    "Object is not an nsIVariant (got %s)",
-				    PyXPCOM_ObTypeName(ob));
+				    ob->ob_type->tp_name);
 
 	Py_nsISupports *parent = nsnull;
 	if (obParent && obParent != Py_None) {
@@ -823,11 +812,7 @@ init_xpcom() {
 		return NULL;
 #endif
 	}
-#ifndef Py_LIMITED_API
 	PyDict_SetItemString(dict, "IIDType", (PyObject *)&Py_nsIID::type);
-#else
-	PyDict_SetItemString(dict, "IIDType", (PyObject *)Py_nsIID::GetTypeObject());
-#endif
 
 	REGISTER_IID(nsISupports);
 	REGISTER_IID(nsISupportsCString);

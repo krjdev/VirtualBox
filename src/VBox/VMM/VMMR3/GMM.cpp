@@ -1,10 +1,10 @@
-/* $Id: GMM.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GMM.cpp $ */
 /** @file
  * GMM - Global Memory Manager, ring-3 request wrappers.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,19 +39,15 @@
 GMMR3DECL(int)  GMMR3InitialReservation(PVM pVM, uint64_t cBasePages, uint32_t cShadowPages, uint32_t cFixedPages,
                                         GMMOCPOLICY enmPolicy, GMMPRIORITY enmPriority)
 {
-    if (!SUPR3IsDriverless())
-    {
-        GMMINITIALRESERVATIONREQ Req;
-        Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
-        Req.Hdr.cbReq = sizeof(Req);
-        Req.cBasePages = cBasePages;
-        Req.cShadowPages = cShadowPages;
-        Req.cFixedPages = cFixedPages;
-        Req.enmPolicy = enmPolicy;
-        Req.enmPriority = enmPriority;
-        return VMMR3CallR0(pVM, VMMR0_DO_GMM_INITIAL_RESERVATION, 0, &Req.Hdr);
-    }
-    return VINF_SUCCESS;
+    GMMINITIALRESERVATIONREQ Req;
+    Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
+    Req.Hdr.cbReq = sizeof(Req);
+    Req.cBasePages = cBasePages;
+    Req.cShadowPages = cShadowPages;
+    Req.cFixedPages = cFixedPages;
+    Req.enmPolicy = enmPolicy;
+    Req.enmPriority = enmPriority;
+    return VMMR3CallR0(pVM, VMMR0_DO_GMM_INITIAL_RESERVATION, 0, &Req.Hdr);
 }
 
 
@@ -60,17 +56,13 @@ GMMR3DECL(int)  GMMR3InitialReservation(PVM pVM, uint64_t cBasePages, uint32_t c
  */
 GMMR3DECL(int)  GMMR3UpdateReservation(PVM pVM, uint64_t cBasePages, uint32_t cShadowPages, uint32_t cFixedPages)
 {
-    if (!SUPR3IsDriverless())
-    {
-        GMMUPDATERESERVATIONREQ Req;
-        Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
-        Req.Hdr.cbReq = sizeof(Req);
-        Req.cBasePages = cBasePages;
-        Req.cShadowPages = cShadowPages;
-        Req.cFixedPages = cFixedPages;
-        return VMMR3CallR0(pVM, VMMR0_DO_GMM_UPDATE_RESERVATION, 0, &Req.Hdr);
-    }
-    return VINF_SUCCESS;
+    GMMUPDATERESERVATIONREQ Req;
+    Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
+    Req.Hdr.cbReq = sizeof(Req);
+    Req.cBasePages = cBasePages;
+    Req.cShadowPages = cShadowPages;
+    Req.cFixedPages = cFixedPages;
+    return VMMR3CallR0(pVM, VMMR0_DO_GMM_UPDATE_RESERVATION, 0, &Req.Hdr);
 }
 
 
@@ -111,17 +103,38 @@ GMMR3DECL(int) GMMR3AllocatePagesPrepare(PVM pVM, PGMMALLOCATEPAGESREQ *ppReq, u
  */
 GMMR3DECL(int) GMMR3AllocatePagesPerform(PVM pVM, PGMMALLOCATEPAGESREQ pReq)
 {
-    int rc = VMMR3CallR0(pVM, VMMR0_DO_GMM_ALLOCATE_PAGES, 0, &pReq->Hdr);
-    if (RT_SUCCESS(rc))
+    for (unsigned i = 0; ; i++)
     {
+        int rc = VMMR3CallR0(pVM, VMMR0_DO_GMM_ALLOCATE_PAGES, 0, &pReq->Hdr);
+        if (RT_SUCCESS(rc))
+        {
 #ifdef LOG_ENABLED
-        for (uint32_t iPage = 0; iPage < pReq->cPages; iPage++)
-            Log3(("GMMR3AllocatePagesPerform: idPage=%#x HCPhys=%RHp fZeroed=%d\n",
-                  pReq->aPages[iPage].idPage, pReq->aPages[iPage].HCPhysGCPhys, pReq->aPages[iPage].fZeroed));
+            for (uint32_t iPage = 0; iPage < pReq->cPages; iPage++)
+                Log3(("GMMR3AllocatePagesPerform: idPage=%#x HCPhys=%RHp\n",
+                      pReq->aPages[iPage].idPage, pReq->aPages[iPage].HCPhysGCPhys));
 #endif
-        return rc;
+            return rc;
+        }
+        if (rc != VERR_GMM_SEED_ME)
+            return VMSetError(pVM, rc, RT_SRC_POS,
+                              N_("GMMR0AllocatePages failed to allocate %u pages"),
+                              pReq->cPages);
+        Assert(i < pReq->cPages);
+
+        /*
+         * Seed another chunk.
+         */
+        void *pvChunk;
+        rc = SUPR3PageAlloc(GMM_CHUNK_SIZE >> PAGE_SHIFT, &pvChunk);
+        if (RT_FAILURE(rc))
+            return VMSetError(pVM, rc, RT_SRC_POS,
+                              N_("Out of memory (SUPR3PageAlloc) seeding a %u pages allocation request"),
+                              pReq->cPages);
+
+        rc = VMMR3CallR0(pVM, VMMR0_DO_GMM_SEED_CHUNK, (uintptr_t)pvChunk, NULL);
+        if (RT_FAILURE(rc))
+            return VMSetError(pVM, rc, RT_SRC_POS, N_("GMM seeding failed"));
     }
-    return VMSetError(pVM, rc, RT_SRC_POS, N_("GMMR0AllocatePages failed to allocate %u pages"), pReq->cPages);
 }
 
 
@@ -265,31 +278,18 @@ GMMR3DECL(void) GMMR3FreeAllocatedPages(PVM pVM, GMMALLOCATEPAGESREQ const *pAll
  */
 GMMR3DECL(int)  GMMR3BalloonedPages(PVM pVM, GMMBALLOONACTION enmAction, uint32_t cBalloonedPages)
 {
-    int rc;
-    if (!SUPR3IsDriverless())
-    {
-        GMMBALLOONEDPAGESREQ Req;
-        Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
-        Req.Hdr.cbReq = sizeof(Req);
-        Req.enmAction = enmAction;
-        Req.cBalloonedPages = cBalloonedPages;
+    GMMBALLOONEDPAGESREQ Req;
+    Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
+    Req.Hdr.cbReq = sizeof(Req);
+    Req.enmAction = enmAction;
+    Req.cBalloonedPages = cBalloonedPages;
 
-        rc = VMMR3CallR0(pVM, VMMR0_DO_GMM_BALLOONED_PAGES, 0, &Req.Hdr);
-    }
-    /*
-     * Ignore reset and fail all other requests.
-     */
-    else if (enmAction == GMMBALLOONACTION_RESET && cBalloonedPages == 0)
-        rc = VINF_SUCCESS;
-    else
-        rc = VERR_SUP_DRIVERLESS;
-    return rc;
+    return VMMR3CallR0(pVM, VMMR0_DO_GMM_BALLOONED_PAGES, 0, &Req.Hdr);
 }
 
 
 /**
- * @note Caller does the driverless check.
- * @see  GMMR0QueryVMMMemoryStatsReq
+ * @see GMMR0QueryVMMMemoryStatsReq
  */
 GMMR3DECL(int)  GMMR3QueryHypervisorMemoryStats(PVM pVM, uint64_t *pcTotalAllocPages, uint64_t *pcTotalFreePages, uint64_t *pcTotalBalloonPages, uint64_t *puTotalBalloonSize)
 {
@@ -378,6 +378,15 @@ GMMR3DECL(int)  GMMR3FreeLargePage(PVM pVM,  uint32_t idPage)
 
 
 /**
+ * @see GMMR0SeedChunk
+ */
+GMMR3DECL(int)  GMMR3SeedChunk(PVM pVM, RTR3PTR pvR3)
+{
+    return VMMR3CallR0(pVM, VMMR0_DO_GMM_SEED_CHUNK, (uintptr_t)pvR3, NULL);
+}
+
+
+/**
  * @see GMMR0RegisterSharedModule
  */
 GMMR3DECL(int) GMMR3RegisterSharedModule(PVM pVM, PGMMREGISTERSHAREDMODULEREQ pReq)
@@ -407,9 +416,7 @@ GMMR3DECL(int) GMMR3UnregisterSharedModule(PVM pVM, PGMMUNREGISTERSHAREDMODULERE
  */
 GMMR3DECL(int) GMMR3ResetSharedModules(PVM pVM)
 {
-    if (!SUPR3IsDriverless())
-        return VMMR3CallR0(pVM, VMMR0_DO_GMM_RESET_SHARED_MODULES, 0, NULL);
-    return VINF_SUCCESS;
+    return VMMR3CallR0(pVM, VMMR0_DO_GMM_RESET_SHARED_MODULES, 0, NULL);
 }
 
 

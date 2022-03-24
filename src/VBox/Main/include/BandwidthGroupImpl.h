@@ -1,11 +1,11 @@
-/* $Id: BandwidthGroupImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: BandwidthGroupImpl.h $ */
 /** @file
  *
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,7 +32,7 @@ class ATL_NO_VTABLE BandwidthGroup :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(BandwidthGroup)
+    DECLARE_EMPTY_CTOR_DTOR(BandwidthGroup)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -56,7 +56,7 @@ public:
     ComObjPtr<BandwidthGroup> i_getPeer() { return m->pPeer; }
     const Utf8Str &i_getName() const { return m->bd->mData.strName; }
     BandwidthGroupType_T i_getType() const { return m->bd->mData.enmType; }
-    LONG64 i_getMaxBytesPerSec() const { return (LONG64)m->bd->mData.cMaxBytesPerSec; }
+    LONG64 i_getMaxBytesPerSec() const { return m->bd->mData.cMaxBytesPerSec; }
     ULONG i_getReferences() const { return m->bd->cReferences; }
 
 private:

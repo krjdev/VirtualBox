@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -76,9 +76,6 @@ typedef SUPSEMEVENTMULTI                           *PSUPSEMEVENTMULTI;
 /** Nil multiple release event semaphore handle. */
 #define NIL_SUPSEMEVENTMULTI                        ((SUPSEMEVENTMULTI)0)
 
-
-/** Pointer to a ring-3 VMM API vtable. */
-typedef R3PTRTYPE(const struct VMMR3VTABLE *) PCVMMR3VTABLE;
 
 /** Pointer to a VM. */
 typedef struct VM                  *PVM;
@@ -446,13 +443,6 @@ typedef union PDMCRITSECTRW *PPDMCRITSECTRW;
 /** Pointer to a const PDM read/write critical section. */
 typedef union PDMCRITSECTRW const *PCPDMCRITSECTRW;
 
-/** PDM queue handle. */
-typedef uint64_t PDMQUEUEHANDLE;
-/** Pointer to a PDM queue handle. */
-typedef PDMQUEUEHANDLE *PPDMQUEUEHANDLE;
-/** NIL PDM queue handle. */
-#define NIL_PDMQUEUEHANDLE ((PDMQUEUEHANDLE)UINT64_MAX)
-
 /** R3 pointer to a timer. */
 typedef R3PTRTYPE(struct TMTIMER *) PTMTIMERR3;
 /** Pointer to a R3 pointer to a timer. */
@@ -507,48 +497,6 @@ typedef struct CPUMSELREG *PCPUMSELREGHID;
  * @deprecated Replaced by PCCPUMSELREG  */
 typedef const struct CPUMSELREG *PCCPUMSELREGHID;
 
-/** A cross context DBGF tracer event source handle. */
-typedef uint64_t                DBGFTRACEREVTSRC;
-/** Pointer to a cross context DBGF tracer event source handle. */
-typedef DBGFTRACEREVTSRC        *PDBGFTRACEREVTSRC;
-/** A NIL DBGF tracer event source handle. */
-#define NIL_DBGFTRACEREVTSRC    ((uint64_t)UINT64_MAX)
-
-/** Pointer to a DBGF tracer instance for the current context. */
-#ifdef IN_RING3
-typedef struct DBGFTRACERINSR3 *PDBGFTRACERINSCC;
-#elif defined(IN_RING0) || defined(DOXYGEN_RUNNING)
-typedef struct DBGFTRACERINSR0 *PDBGFTRACERINSCC;
-#else
-typedef struct DBGFTRACERINSRC *PDBGFTRACERINSCC;
-#endif
-/** Pointer to a pointer a DBGF tracer instance for the current context. */
-typedef PDBGFTRACERINSCC *PPDBGFTRACERINSCC;
-/** R3 pointer to a DBGF tracer instance. */
-typedef R3PTRTYPE(struct DBGFTRACERINSR3 *) PDBGFTRACERINSR3;
-/** R0 pointer to a DBGF tracer instance. */
-typedef R0PTRTYPE(struct DBGFTRACERINSR0 *) PDBGFTRACERINSR0;
-/** RC pointer to a DBGF tracer instance. */
-typedef RCPTRTYPE(struct DBGFTRACERINSRC *) PDBGFTRACERINSRC;
-
-/** A cross context DBGF breakpoint owner handle. */
-typedef uint32_t                DBGFBPOWNER;
-/** Pointer to a cross context DBGF breakpoint owner handle. */
-typedef DBGFBPOWNER            *PDBGFBPOWNER;
-/** A NIL DBGF breakpoint owner handle. */
-#define NIL_DBGFBPOWNER         ((uint32_t)UINT32_MAX)
-
-/** A cross context DBGF breakpoint handle. */
-typedef uint32_t                DBGFBP;
-/** Pointer to a cross context DBGF breakpoint handle. */
-typedef DBGFBP                 *PDBGFBP;
-/** A NIL DBGF breakpoint handle. */
-#define NIL_DBGFBP              ((uint32_t)UINT32_MAX)
-
-/** A sample report handle. */
-typedef struct DBGFSAMPLEREPORTINT *DBGFSAMPLEREPORT;
-/** Pointer to a sample report handle. */
-typedef DBGFSAMPLEREPORT       *PDBGFSAMPLEREPORT;
 /** @} */
 
 
@@ -1135,7 +1083,7 @@ typedef enum PGMROMPROT
  */
 typedef struct PGMPAGEMAPLOCK
 {
-#if defined(IN_RC)
+#if defined(IN_RC) || defined(VBOX_WITH_2X_4GB_ADDR_SPACE_IN_R0)
     /** The locked page. */
     void       *pvPage;
     /** Pointer to the CPU that made the mapping.
@@ -1227,25 +1175,6 @@ typedef struct VMMDEVSHAREDREGIONDESC
     uint32_t            cbRegion;
     uint32_t            u32Alignment;
 } VMMDEVSHAREDREGIONDESC;
-
-
-/**
- * A PCI bus:device:function (BDF) identifier.
- *
- * All 16 bits of a BDF are valid according to the PCI spec. We need one extra bit
- * to determine whether the BDF is valid in interfaces where the BDF may be
- * optional.
- */
-typedef uint32_t PCIBDF;
-/** PCIBDF flag: Invalid. */
-#define PCI_BDF_F_INVALID           RT_BIT(31)
-/** Nil PCIBDF value. */
-#define NIL_PCIBDF                  PCI_BDF_F_INVALID
-
-/** Pointer to an MSI message struct. */
-typedef struct MSIMSG *PMSIMSG;
-/** Pointer to a const MSI message struct. */
-typedef const struct MSIMSG *PCMSIMSG;
 
 
 /** @} */

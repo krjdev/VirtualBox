@@ -423,15 +423,14 @@ XhcClearOpRegBit (
   Wait the operation register's bit as specified by Bit
   to become set (or clear).
 
-  @param  Xhc                    The XHCI Instance.
-  @param  Offset                 The offset of the operation register.
-  @param  Bit                    The bit of the register to wait for.
-  @param  WaitToSet              Wait the bit to set or clear.
-  @param  Timeout                The time to wait before abort (in millisecond, ms).
+  @param  Xhc          The XHCI Instance.
+  @param  Offset       The offset of the operation register.
+  @param  Bit          The bit of the register to wait for.
+  @param  WaitToSet    Wait the bit to set or clear.
+  @param  Timeout      The time to wait before abort (in millisecond, ms).
 
-  @retval EFI_SUCCESS            The bit successfully changed by host controller.
-  @retval EFI_TIMEOUT            The time out occurred.
-  @retval EFI_OUT_OF_RESOURCES   Memory for the timer event could not be allocated.
+  @retval EFI_SUCCESS  The bit successfully changed by host controller.
+  @retval EFI_TIMEOUT  The time out occurred.
 
 **/
 EFI_STATUS
@@ -443,52 +442,20 @@ XhcWaitOpRegBit (
   IN UINT32               Timeout
   )
 {
-  EFI_STATUS Status;
-  EFI_EVENT  TimeoutEvent;
+  UINT32                  Index;
+  UINT64                  Loop;
 
-  TimeoutEvent = NULL;
+  Loop   = Timeout * XHC_1_MILLISECOND;
 
-  if (Timeout == 0) {
-    return EFI_TIMEOUT;
-  }
-
-  Status = gBS->CreateEvent (
-                  EVT_TIMER,
-                  TPL_CALLBACK,
-                  NULL,
-                  NULL,
-                  &TimeoutEvent
-                  );
-
-  if (EFI_ERROR(Status)) {
-    goto DONE;
-  }
-
-  Status = gBS->SetTimer (TimeoutEvent,
-                          TimerRelative,
-                          EFI_TIMER_PERIOD_MILLISECONDS(Timeout));
-
-  if (EFI_ERROR(Status)) {
-    goto DONE;
-  }
-
-  do {
+  for (Index = 0; Index < Loop; Index++) {
     if (XHC_REG_BIT_IS_SET (Xhc, Offset, Bit) == WaitToSet) {
-      Status = EFI_SUCCESS;
-      goto DONE;
+      return EFI_SUCCESS;
     }
 
     gBS->Stall (XHC_1_MICROSECOND);
-  } while (EFI_ERROR(gBS->CheckEvent (TimeoutEvent)));
-
-  Status = EFI_TIMEOUT;
-
-DONE:
-  if (TimeoutEvent != NULL) {
-    gBS->CloseEvent (TimeoutEvent);
   }
 
-  return Status;
+  return EFI_TIMEOUT;
 }
 
 /**

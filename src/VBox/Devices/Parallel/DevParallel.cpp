@@ -1,4 +1,4 @@
-/* $Id: DevParallel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevParallel.cpp $ */
 /** @file
  * DevParallel - Parallel (Port) Device Emulation.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -303,12 +303,9 @@ static DECLCALLBACK(int) parallelR3NotifyInterrupt(PPDMIHOSTPARALLELPORT pInterf
     PPDMDEVINS      pDevIns = pThisCC->pDevIns;
     PPARALLELPORT   pThis   = PDMDEVINS_2_DATA(pDevIns, PPARALLELPORT);
 
-    int rc = PDMDevHlpCritSectEnter(pDevIns, pDevIns->pCritSectRoR3, VINF_SUCCESS);
-    AssertRCReturn(rc, rc);
-
+    PDMCritSectEnter(pDevIns->pCritSectRoR3, VINF_SUCCESS);
     parallelR3IrqSet(pDevIns, pThis);
-
-    PDMDevHlpCritSectLeave(pDevIns, pDevIns->pCritSectRoR3);
+    PDMCritSectLeave(pDevIns->pCritSectRoR3);
 
     return VINF_SUCCESS;
 }

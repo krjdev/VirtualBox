@@ -1,10 +1,10 @@
-/* $Id: vboxext.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vboxext.h $ */
 /** @file
  * VBox extension to Wine D3D
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,15 +58,15 @@ HRESULT VBoxExtWndCreate(DWORD width, DWORD height, HWND *phWnd, HDC *phDC);
 
 
 /* hashmap */
-typedef DECLCALLBACKTYPE(uint32_t, FNVBOXEXT_HASHMAP_HASH,(void *pvKey));
+typedef DECLCALLBACK(uint32_t) FNVBOXEXT_HASHMAP_HASH(void *pvKey);
 typedef FNVBOXEXT_HASHMAP_HASH *PFNVBOXEXT_HASHMAP_HASH;
 
-typedef DECLCALLBACKTYPE(bool, FNVBOXEXT_HASHMAP_EQUAL,(void *pvKey1, void *pvKey2));
+typedef DECLCALLBACK(bool) FNVBOXEXT_HASHMAP_EQUAL(void *pvKey1, void *pvKey2);
 typedef FNVBOXEXT_HASHMAP_EQUAL *PFNVBOXEXT_HASHMAP_EQUAL;
 
 struct VBOXEXT_HASHMAP;
 struct VBOXEXT_HASHMAP_ENTRY;
-typedef DECLCALLBACKTYPE(bool, FNVBOXEXT_HASHMAP_VISITOR,(struct VBOXEXT_HASHMAP *pMap, void *pvKey, struct VBOXEXT_HASHMAP_ENTRY *pValue, void *pvVisitor));
+typedef DECLCALLBACK(bool) FNVBOXEXT_HASHMAP_VISITOR(struct VBOXEXT_HASHMAP *pMap, void *pvKey, struct VBOXEXT_HASHMAP_ENTRY *pValue, void *pvVisitor);
 typedef FNVBOXEXT_HASHMAP_VISITOR *PFNVBOXEXT_HASHMAP_VISITOR;
 
 typedef struct VBOXEXT_HASHMAP_ENTRY
@@ -110,7 +110,7 @@ DECLINLINE(void*) VBoxExtHashEntryKey(PVBOXEXT_HASHMAP_ENTRY pEntry)
 }
 
 struct VBOXEXT_HASHCACHE_ENTRY;
-typedef DECLCALLBACKTYPE(void, FNVBOXEXT_HASHCACHE_CLEANUP_ENTRY,(void *pvKey, struct VBOXEXT_HASHCACHE_ENTRY *pEntry));
+typedef DECLCALLBACK(void) FNVBOXEXT_HASHCACHE_CLEANUP_ENTRY(void *pvKey, struct VBOXEXT_HASHCACHE_ENTRY *pEntry);
 typedef FNVBOXEXT_HASHCACHE_CLEANUP_ENTRY *PFNVBOXEXT_HASHCACHE_CLEANUP_ENTRY;
 
 typedef struct VBOXEXT_HASHCACHE_ENTRY

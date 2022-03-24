@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,9 +60,6 @@ typedef RTCRRSAPUBLICKEY *PRTCRRSAPUBLICKEY;
 /** Pointer to the const ASN.1 IPRT representation of an RSA public key. */
 typedef RTCRRSAPUBLICKEY const *PCRTCRRSAPUBLICKEY;
 RTASN1TYPE_STANDARD_PROTOTYPES(RTCRRSAPUBLICKEY, RTDECL, RTCrRsaPublicKey, SeqCore.Asn1Core);
-
-RTDECL(bool) RTCrRsaPublicKey_CanHandleDigestType(PCRTCRRSAPUBLICKEY pRsaPublicKey, RTDIGESTTYPE enmDigestType,
-                                                  PRTERRINFO pErrInfo);
 
 
 /**
@@ -125,9 +122,6 @@ RTASN1TYPE_STANDARD_PROTOTYPES(RTCRRSAPRIVATEKEY, RTDECL, RTCrRsaPrivateKey, Seq
 #define RTCRRSAPRIVATEKEY_VERSION_TWO_PRIME     0
 #define RTCRRSAPRIVATEKEY_VERSION_MULTI         1
 /** @}  */
-
-RTDECL(bool) RTCrRsaPrivateKey_CanHandleDigestType(PCRTCRRSAPRIVATEKEY pRsaPrivateKey, RTDIGESTTYPE enmDigestType,
-                                                   PRTERRINFO pErrInfo);
 
 
 /**

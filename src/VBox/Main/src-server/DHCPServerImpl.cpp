@@ -1,10 +1,10 @@
-/* $Id: DHCPServerImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DHCPServerImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -581,12 +581,12 @@ HRESULT DHCPServer::setConfiguration(const com::Utf8Str &aIPAddress,
  *
  * @returns COM status code.
  * @param   aVmName             The VM name or UUID.
- * @param   a_uSlot             The slot.
+ * @param   aSlot               The slot.
  * @param   idMachine           Where to return the VM UUID.
  */
-HRESULT DHCPServer::i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, ULONG a_uSlot, com::Guid &idMachine)
+HRESULT DHCPServer::i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, LONG aSlot, com::Guid &idMachine)
 {
-    if (a_uSlot <= 32)
+    if ((ULONG)aSlot <= 32)
     {
         /* Is it a UUID? */
         idMachine = aVmName;
@@ -600,7 +600,7 @@ HRESULT DHCPServer::i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, ULO
             idMachine = ptrMachine->i_getId();
         return hrc;
     }
-    return setError(E_INVALIDARG, tr("NIC slot number (%d) is out of range (0..32)"), a_uSlot);
+    return setError(E_INVALIDARG, tr("NIC slot number (%d) is out of range (0..32)"), aSlot);
 }
 
 
@@ -617,7 +617,7 @@ HRESULT DHCPServer::i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, ULO
  *
  * @note    Caller must not be holding any locks!
  */
-HRESULT DHCPServer::i_vmNameAndSlotToConfig(const com::Utf8Str &a_strVmName, ULONG a_uSlot, bool a_fCreateIfNeeded,
+HRESULT DHCPServer::i_vmNameAndSlotToConfig(const com::Utf8Str &a_strVmName, LONG a_uSlot, bool a_fCreateIfNeeded,
                                             ComObjPtr<DHCPIndividualConfig> &a_rPtrConfig)
 {
     /*
@@ -1016,14 +1016,14 @@ HRESULT DHCPServer::findLeaseByMAC(const com::Utf8Str &aMac, LONG aType,
                 LogThisFunc(("Retrying...\n"));
                 continue;
             }
-            return setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Reading '%s' failed: %Rrc - %s"),
+            return setErrorBoth(VBOX_E_FILE_ERROR, vrc, "Reading '%s' failed: %Rrc - %s",
                                 m->strLeasesFilename.c_str(), vrc, e.what());
         }
         catch (const RTCError &e)
         {
             if (e.what())
-                return setError(VBOX_E_FILE_ERROR, tr("Reading '%s' failed: %s"), m->strLeasesFilename.c_str(), e.what());
-            return setError(VBOX_E_FILE_ERROR, tr("Reading '%s' failed: RTCError"), m->strLeasesFilename.c_str());
+                return setError(VBOX_E_FILE_ERROR, "Reading '%s' failed: %s", m->strLeasesFilename.c_str(), e.what());
+            return setError(VBOX_E_FILE_ERROR, "Reading '%s' failed: RTCError", m->strLeasesFilename.c_str());
         }
         catch (std::bad_alloc &)
         {
@@ -1080,7 +1080,7 @@ HRESULT DHCPServer::findLeaseByMAC(const com::Utf8Str &aMac, LONG aType,
                         RTTIMESPEC Now;
                         if (   (aState.equals("acked") || aState.equals("offered") || aState.isEmpty())
                             && secIssued + cSecsToLive < RTTimeSpecGetSeconds(RTTimeNow(&Now)))
-                            hrc = RT_SUCCESS(aState.assignNoThrow("expired")) ? S_OK : E_OUTOFMEMORY;
+                            hrc = aState.assignNoThrow("expired");
                         return hrc;
                     }
                 }
@@ -1112,7 +1112,7 @@ HRESULT DHCPServer::getConfig(DHCPConfigScope_T aScope, const com::Utf8Str &aNam
             if (aName.isEmpty())
                 return setError(E_INVALIDARG, tr("A group must have a name!"));
             if (aName.length() > _1K)
-                return setError(E_INVALIDARG, tr("Name too long! %zu bytes", "", aName.length()), aName.length());
+                return setError(E_INVALIDARG, tr("Name too long! %zu bytes"), aName.length());
 
             /* Look up the group: */
             {

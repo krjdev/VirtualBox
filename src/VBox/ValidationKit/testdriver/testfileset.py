@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: testfileset.py 94126 2022-03-08 14:18:58Z vboxsync $
+# $Id: testfileset.py $
 # pylint: disable=too-many-lines
 
 """
@@ -8,7 +8,7 @@ Test File Set
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94126 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.
@@ -513,10 +513,7 @@ class TestFileSet(object):
 
         # Open the tarball:
         try:
-            # Make sure to explicitly set GNU_FORMAT here, as with Python 3.8 the default format (tarfile.DEFAULT_FORMAT)
-            # has been changed to tarfile.PAX_FORMAT, which our extraction code (vts_tar) currently can't handle.
-            ## @todo Remove tarfile.GNU_FORMAT and use tarfile.PAX_FORMAT as soon as we have PAX support.
-            oTarFile = tarfile.open(sTarFileHst, 'w:gz', format = tarfile.GNU_FORMAT);  # pylint: disable=consider-using-with
+            oTarFile = tarfile.open(sTarFileHst, 'w:gz');
         except:
             return reporter.errorXcpt('Failed to open new tar file: %s' % (sTarFileHst,));
 
@@ -591,7 +588,7 @@ class TestFileSet(object):
                 sPath = sPath.replace('\\', os.path.sep);
 
             try:
-                oOutFile = open(sPath, 'wb');                   # pylint: disable=consider-using-with
+                oOutFile = open(sPath, 'wb');
             except:
                 return reporter.errorXcpt('open(%s, "wb") failed' % (sPath,));
             try:
@@ -617,13 +614,11 @@ class TestFileSet(object):
         """
         return self.aoFiles[self.oRandom.choice(xrange(len(self.aoFiles)))];
 
-    def chooseRandomDirFromTree(self, fLeaf = False, fNonEmpty = False, cMaxRetries = 1024):
+    def chooseRandomDirFromTree(self, fLeaf = False, fNonEmpty = False):
         """
         Returns a random directory from the tree (self.oTreeDir).
-        Will return None if no directory with given parameters was found.
         """
-        cRetries = 0;
-        while cRetries < cMaxRetries:
+        while True:
             oDir = self.aoDirs[self.oRandom.choice(xrange(len(self.aoDirs)))];
             # Check fNonEmpty requirement:
             if not fNonEmpty or oDir.aoChildren:
@@ -639,8 +634,6 @@ class TestFileSet(object):
                     if oParent is self.oTreeDir:
                         return oDir;
                     oParent = oParent.oParent;
-            cRetries += 1;
-
         return None; # make pylint happy
 
 #

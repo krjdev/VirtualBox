@@ -1,10 +1,10 @@
-/* $Id: UISettingsSerializer.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISettingsSerializer.h $ */
 /** @file
  * VBox Qt GUI - UISettingsSerializer class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,7 +97,7 @@ public:
                          const QVariant &data, const UISettingsPageList &pages);
 
     /** Destructs serializer. */
-    virtual ~UISettingsSerializer() RT_OVERRIDE;
+    virtual ~UISettingsSerializer() /* override */;
 
     /** Returns the load/save direction. */
     SerializationDirection direction() const { return m_enmDirection; }

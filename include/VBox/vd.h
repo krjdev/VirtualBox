@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -129,7 +129,7 @@ RT_C_DECLS_BEGIN
 #define VD_VFSFILE_FLAGS_MASK                   (VD_VFSFILE_DESTROY_ON_RELEASE)
 /** @} */
 
-/** @name VDISKRAW_XXX - VBox raw disk or partition flags
+/** @name VBox raw disk or partition flags
  * @{
  */
 /** No special treatment. */
@@ -143,11 +143,10 @@ RT_C_DECLS_BEGIN
 /** @} */
 
 /**
- * Auxiliary type for describing partitions on raw disks.
- *
- * The entries must be in ascending order (as far as uStart is concerned), and
- * must not overlap. Note that this does not correspond 1:1 to partitions, it is
- * describing the general meaning of contiguous areas on the disk.
+ * Auxiliary type for describing partitions on raw disks. The entries must be
+ * in ascending order (as far as uStart is concerned), and must not overlap.
+ * Note that this does not correspond 1:1 to partitions, it is describing the
+ * general meaning of contiguous areas on the disk.
  */
 typedef struct VDISKRAWPARTDESC
 {
@@ -155,28 +154,29 @@ typedef struct VDISKRAWPARTDESC
      * the offset field is set appropriately. If this is NULL, then this
      * partition will not be accessible to the guest. The size of the data area
      * must still be set correctly. */
-    char           *pszRawDevice;
+    const char      *pszRawDevice;
     /** Pointer to the partitioning info. NULL means this is a regular data
      * area on disk, non-NULL denotes data which should be copied to the
      * partition data overlay. */
-    void           *pvPartitionData;
+    const void      *pvPartitionData;
     /** Offset where the data starts in this device. */
-    uint64_t        offStartInDevice;
+    uint64_t        uStartOffset;
     /** Offset where the data starts in the disk. */
-    uint64_t        offStartInVDisk;
+    uint64_t        uStart;
     /** Size of the data area. */
     uint64_t        cbData;
-    /** Flags for special treatment, see VDISKRAW_XXX. */
+    /** Flags for special treatment, see VDISKRAW_FLAGS_*. */
     uint32_t        uFlags;
 } VDISKRAWPARTDESC, *PVDISKRAWPARTDESC;
 
 /**
- * Auxiliary data structure for difference between GPT and MBR disks.
+ * Auxiliary data structure for difference between GPT and MBR
+ * disks.
  */
 typedef enum VDISKPARTTYPE
 {
-    VDISKPARTTYPE_MBR = 0,
-    VDISKPARTTYPE_GPT
+    MBR,
+    GPT
 } VDISKPARTTYPE;
 
 /**
@@ -187,17 +187,19 @@ typedef struct VDISKRAW
     /** Signature for structure. Must be 'R', 'A', 'W', '\\0'. Actually a trick
      * to make logging of the comment string produce sensible results. */
     char            szSignature[4];
-    /** Flags for special treatment, see VDISKRAW_XXX. */
+    /** Flags for special treatment, see VDISKRAW_FLAGS_*. */
+    /** Flag whether access to full disk should be given (ignoring the
+     * partition information below). */
     uint32_t        uFlags;
     /** Filename for the raw disk. Ignored for partitioned raw disks.
      * For Linux e.g. /dev/sda, and for Windows e.g. //./PhysicalDisk0. */
-    char           *pszRawDisk;
-    /** Partitioning type of the disk */
-    VDISKPARTTYPE   enmPartitioningType;
+    const char      *pszRawDisk;
     /** Number of entries in the partition descriptor array. */
-    uint32_t        cPartDescs;
+    unsigned        cPartDescs;
     /** Pointer to the partition descriptor array. */
     PVDISKRAWPARTDESC pPartDescs;
+    /** Partitioning type of the disk */
+    VDISKPARTTYPE uPartitioningType;
 } VDISKRAW, *PVDISKRAW;
 
 
@@ -459,7 +461,7 @@ typedef struct VDFILTERINFO
 /**
  * Request completion callback for the async read/write API.
  */
-typedef DECLCALLBACKTYPE(void, FNVDASYNCTRANSFERCOMPLETE,(void *pvUser1, void *pvUser2, int rcReq));
+typedef DECLCALLBACK(void) FNVDASYNCTRANSFERCOMPLETE (void *pvUser1, void *pvUser2, int rcReq);
 /** Pointer to a transfer compelte callback. */
 typedef FNVDASYNCTRANSFERCOMPLETE *PFNVDASYNCTRANSFERCOMPLETE;
 
@@ -1312,13 +1314,13 @@ VBOXDDU_DECL(int) VDDiscardRanges(PVDISK pDisk, PCRTRANGE paRanges, unsigned cRa
  * @param   pDisk           Pointer to the HDD container.
  * @param   off             The offset of the virtual disk to read from.
  * @param   cbRead          How many bytes to read.
- * @param   pSgBuf          Pointer to the S/G buffer to read into.
+ * @param   pcSgBuf         Pointer to the S/G buffer to read into.
  * @param   pfnComplete     Completion callback.
  * @param   pvUser1         User data which is passed on completion.
  * @param   pvUser2         User data which is passed on completion.
  */
 VBOXDDU_DECL(int) VDAsyncRead(PVDISK pDisk, uint64_t off, size_t cbRead,
-                              PCRTSGBUF pSgBuf,
+                              PCRTSGBUF pcSgBuf,
                               PFNVDASYNCTRANSFERCOMPLETE pfnComplete,
                               void *pvUser1, void *pvUser2);
 
@@ -1330,13 +1332,13 @@ VBOXDDU_DECL(int) VDAsyncRead(PVDISK pDisk, uint64_t off, size_t cbRead,
  * @param   pDisk           Pointer to the HDD container.
  * @param   off             The offset of the virtual disk to write to.
  * @param   cbWrite         How many bytes to write.
- * @param   pSgBuf          Pointer to the S/G buffer to write from.
+ * @param   pcSgBuf         Pointer to the S/G buffer to write from.
  * @param   pfnComplete     Completion callback.
  * @param   pvUser1         User data which is passed on completion.
  * @param   pvUser2         User data which is passed on completion.
  */
 VBOXDDU_DECL(int) VDAsyncWrite(PVDISK pDisk, uint64_t off, size_t cbWrite,
-                               PCRTSGBUF pSgBuf,
+                               PCRTSGBUF pcSgBuf,
                                PFNVDASYNCTRANSFERCOMPLETE pfnComplete,
                                void *pvUser1, void *pvUser2);
 
@@ -1722,8 +1724,9 @@ typedef VDIOREQTYPE *PVDIOREQTYPE;
  * @param   pvVdIoReq       Pointer to the allocator specific memory for this request.
  * @param   rcReq           The completion status code.
  */
-typedef DECLCALLBACKTYPE(void, FNVDIOQUEUEREQCOMPLETE,(VDIOQUEUE hVdIoQueue, PVDISK pDisk,
-                                                       VDIOREQ hVdIoReq,  void *pvVdIoReq, int rcReq));
+typedef DECLCALLBACK(void) FNVDIOQUEUEREQCOMPLETE(VDIOQUEUE hVdIoQueue, PVDISK pDisk,
+                                                  VDIOREQ hVdIoReq, void *pvVdIoReq,
+                                                  int rcReq);
 /** Pointer to a VD I/O queue request completion callback. */
 typedef FNVDIOQUEUEREQCOMPLETE *PFNVDIOQUEUEREQCOMPLETE;
 

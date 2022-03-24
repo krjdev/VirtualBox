@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsGeneral.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineSettingsGeneral.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsGeneral class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,21 +24,15 @@
 /* GUI includes: */
 #include "UIAddDiskEncryptionPasswordDialog.h"
 #include "UISettingsPage.h"
+#include "UIMachineSettingsGeneral.gen.h"
 
 /* Forward declarations: */
-class QCheckBox;
-class QComboBox;
-class QLineEdit;
-class QTextEdit;
-class QITabWidget;
-class UINameAndSystemEditor;
-
-class UIFilePathSelector;
 struct UIDataSettingsMachineGeneral;
 typedef UISettingsCache<UIDataSettingsMachineGeneral> UISettingsCacheMachineGeneral;
 
 /** Machine settings: General page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsGeneral : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsGeneral : public UISettingsPageMachine,
+                                                      public Ui::UIMachineSettingsGeneral
 {
     Q_OBJECT;
 
@@ -53,6 +47,10 @@ public:
     CGuestOSType guestOSType() const;
     /** Returns whether 64bit OS type ID is selected. */
     bool is64BitOSTypeSelected() const;
+#ifdef VBOX_WITH_VIDEOHWACCEL
+    /** Returns whether Windows OS type ID is selected. */
+    bool isWindowsOSTypeSelected() const;
+#endif /* VBOX_WITH_VIDEOHWACCEL */
 
     /** Defines whether HW virtualization extension is enabled. */
     void setHWVirtExEnabled(bool fEnabled);
@@ -60,33 +58,33 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
     /** Loads data into the cache from the corresponding external object(s).
       * @note This task COULD be performed in other than GUI thread. */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
     /** Loads data into the corresponding widgets from the cache,
       * @note This task SHOULD be performed in GUI thread only! */
-    virtual void getFromCache() RT_OVERRIDE;
+    virtual void getFromCache() /* override */;
 
     /** Saves the data from the corresponding widgets into the cache,
       * @note This task SHOULD be performed in GUI thread only! */
-    virtual void putToCache() RT_OVERRIDE;
+    virtual void putToCache() /* override */;
     /** Save data from the cache into the corresponding external object(s).
       * @note This task COULD be performed in other than GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
 
     /** Defines TAB order for passed @a pWidget. */
-    virtual void setOrderAfter(QWidget *pWidget) RT_OVERRIDE;
+    virtual void setOrderAfter(QWidget *pWidget) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
 private slots:
 
@@ -99,12 +97,8 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
     /** Prepares 'Basic' tab. */
     void prepareTabBasic();
-    /** Prepares 'Advanced' tab. */
-    void prepareTabAdvanced();
     /** Prepares 'Description' tab. */
     void prepareTabDescription();
     /** Prepares 'Encryption' tab. */
@@ -148,56 +142,6 @@ private:
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineGeneral *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the tab-widget instance. */
-        QITabWidget *m_pTabWidget;
-
-        /** Holds the 'Basic' tab instance. */
-        QWidget               *m_pTabBasic;
-        /** Holds the name and system editor instance. */
-        UINameAndSystemEditor *m_pEditorNameAndSystem;
-
-        /** Holds the 'Advanced' tab instance. */
-        QWidget            *m_pTabAdvanced;
-        /** Holds the snapshot folder label instance. */
-        QLabel             *m_pLabelSnapshotFolder;
-        /** Holds the snapshot folder editor instance. */
-        UIFilePathSelector *m_pEditorSnapshotFolder;
-        /** Holds the shared clipboard label instance. */
-        QLabel             *m_pLabelClipboard;
-        /** Holds the shared clipboard combo instance. */
-        QComboBox          *m_pComboClipboard;
-        /** Holds the drag and drop label instance. */
-        QLabel             *m_pLabelDragAndDrop;
-        /** Holds the drag and drop combo instance. */
-        QComboBox          *m_pComboDragAndDrop;
-
-        /** Holds the 'Description' tab instance. */
-        QWidget   *m_pTabDescription;
-        /** Holds the description editor instance. */
-        QTextEdit *m_pEditorDescription;
-
-        /** Holds the 'Encryption' tab instance. */
-        QWidget   *m_pTabEncryption;
-        /** Holds the encryption check-box instance. */
-        QCheckBox *m_pCheckBoxEncryption;
-        /** Holds the encryption widget instance. */
-        QWidget   *m_pWidgetEncryptionSettings;
-        /** Holds the cipher label instance. */
-        QLabel    *m_pLabelCipher;
-        /** Holds the cipher combo instance. */
-        QComboBox *m_pComboCipher;
-        /** Holds the enter password label instance. */
-        QLabel    *m_pLabelEncryptionPassword;
-        /** Holds the enter password editor instance. */
-        QLineEdit *m_pEditorEncryptionPassword;
-        /** Holds the confirm password label instance. */
-        QLabel    *m_pLabelEncryptionPasswordConfirm;
-        /** Holds the confirm password editor instance. */
-        QLineEdit *m_pEditorEncryptionPasswordConfirm;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsGeneral_h */

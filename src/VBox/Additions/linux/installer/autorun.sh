@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: autorun.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: autorun.sh $
 ## @file
 # VirtualBox Guest Additions installation script for *nix guests
 #
 
 #
-# Copyright (C) 2009-2022 Oracle Corporation
+# Copyright (C) 2009-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -85,16 +85,12 @@ if test "$ostype" = "Linux"; then
                 exec "$gxtpath" "$gxttitle" "$TITLE" "$gxtexec" /bin/sh "$path/runasroot.sh" --has-terminal "$TITLE" "/bin/sh $BINARY --xwin" "Please try running "\""$i"\"" manually."
                 exit
                 ;;
-            *)
-                echo "Unable to start installation process with elevated privileges automatically. Please try running "\""$i"\"" manually."
-                exit
-            ;;
             esac
         fi
     done
 
     # else: unknown failure
-    echo "Linux guest additions installer not found -- try to start it manually."
+    echo "Linux guest additions installer not found -- try to start them manually."
     exit 1
 
 elif test "$ostype" = "SunOS"; then

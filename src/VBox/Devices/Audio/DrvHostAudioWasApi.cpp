@@ -1,10 +1,10 @@
-/* $Id: DrvHostAudioWasApi.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostAudioWasApi.cpp $ */
 /** @file
  * Host audio driver - Windows Audio Session API.
  */
 
 /*
- * Copyright (C) 2021-2022 Oracle Corporation
+ * Copyright (C) 2021 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1599,7 +1599,7 @@ static int drvHostWasEnumerateDevices(PDRVHOSTAUDIOWAS pThis, PPDMAUDIOHOSTENUM 
     int rc = VINF_SUCCESS;
     for (unsigned idxPass = 0; idxPass < 2 && RT_SUCCESS(rc); idxPass++)
     {
-        EDataFlow const enmType = idxPass == 0 ? EDataFlow::eRender : EDataFlow::eCapture;
+        EDataFlow const enmType = idxPass == 0 ? /*EDataFlow::*/eRender : /*EDataFlow::*/eCapture;
 
         /* Get the default device first. */
         IMMDevice *pIDefaultDevice = NULL;
@@ -3088,8 +3088,7 @@ static DECLCALLBACK(void) drvHostAudioWasDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvHostAudioWasConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHOSTAUDIOWAS    pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTAUDIOWAS);
-    PCPDMDRVHLPR3       pHlp  = pDrvIns->pHlpR3;
+    PDRVHOSTAUDIOWAS pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTAUDIOWAS);
     RT_NOREF(fFlags, pCfg);
 
     /*
@@ -3134,7 +3133,7 @@ static DECLCALLBACK(int) drvHostAudioWasConstruct(PPDMDRVINS pDrvIns, PCFGMNODE 
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "VmName|VmUuid|InputDeviceID|OutputDeviceID", "");
 
     char szTmp[1024];
-    int rc = pHlp->pfnCFGMQueryStringDef(pCfg, "InputDeviceID", szTmp, sizeof(szTmp), "");
+    int rc = CFGMR3QueryStringDef(pCfg, "InputDeviceID", szTmp, sizeof(szTmp), "");
     AssertMsgRCReturn(rc, ("Confguration error: Failed to read \"InputDeviceID\" as string: rc=%Rrc\n", rc), rc);
     if (szTmp[0])
     {
@@ -3142,7 +3141,7 @@ static DECLCALLBACK(int) drvHostAudioWasConstruct(PPDMDRVINS pDrvIns, PCFGMNODE 
         AssertRCReturn(rc, rc);
     }
 
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "OutputDeviceID", szTmp, sizeof(szTmp), "");
+    rc = CFGMR3QueryStringDef(pCfg, "OutputDeviceID", szTmp, sizeof(szTmp), "");
     AssertMsgRCReturn(rc, ("Confguration error: Failed to read \"OutputDeviceID\" as string: rc=%Rrc\n", rc), rc);
     if (szTmp[0])
     {

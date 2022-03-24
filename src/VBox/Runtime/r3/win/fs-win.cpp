@@ -1,10 +1,10 @@
-/* $Id: fs-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fs-win.cpp $ */
 /** @file
  * IPRT - File System, Win32.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -186,8 +186,7 @@ RTR3DECL(int) RTFsQuerySizes(const char *pszFsPath, RTFOFF *pcbTotal, RTFOFF *pc
     /*
      * Validate & get valid root path.
      */
-    AssertPtrReturn(pszFsPath, VERR_INVALID_POINTER);
-    AssertReturn(*pszFsPath != '\0', VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pszFsPath) && *pszFsPath, ("%p", pszFsPath), VERR_INVALID_PARAMETER);
     PRTUTF16 pwszFsRoot;
     int rc = rtFsGetRoot(pszFsPath, &pwszFsRoot);
     if (RT_FAILURE(rc))
@@ -258,9 +257,8 @@ RTR3DECL(int) RTFsQuerySerial(const char *pszFsPath, uint32_t *pu32Serial)
     /*
      * Validate & get valid root path.
      */
-    AssertPtrReturn(pszFsPath, VERR_INVALID_POINTER);
-    AssertReturn(*pszFsPath != '\0', VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pu32Serial, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszFsPath) && *pszFsPath, ("%p", pszFsPath), VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pu32Serial), ("%p", pu32Serial), VERR_INVALID_PARAMETER);
     PRTUTF16 pwszFsRoot;
     int rc = rtFsGetRoot(pszFsPath, &pwszFsRoot);
     if (RT_FAILURE(rc))
@@ -299,9 +297,8 @@ RTR3DECL(int) RTFsQueryProperties(const char *pszFsPath, PRTFSPROPERTIES pProper
     /*
      * Validate & get valid root path.
      */
-    AssertPtrReturn(pszFsPath, VERR_INVALID_POINTER);
-    AssertReturn(*pszFsPath != '\0', VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pProperties, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszFsPath) && *pszFsPath, ("%p", pszFsPath), VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pProperties), ("%p", pProperties), VERR_INVALID_PARAMETER);
     PRTUTF16 pwszFsRoot;
     int rc = rtFsGetRoot(pszFsPath, &pwszFsRoot);
     if (RT_FAILURE(rc))

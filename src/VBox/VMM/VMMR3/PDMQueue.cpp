@@ -1,10 +1,10 @@
-/* $Id: PDMQueue.cpp 93991 2022-02-28 16:29:55Z vboxsync $ */
+/* $Id: PDMQueue.cpp $ */
 /** @file
  * PDM Queue - Transport data and tasks to EMT and R3.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,14 +30,15 @@
 #include <VBox/log.h>
 #include <iprt/asm.h>
 #include <iprt/assert.h>
-#include <iprt/mem.h>
 #include <iprt/thread.h>
 
 
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static DECLCALLBACK(void)   pdmR3QueueTimer(PVM pVM, TMTIMERHANDLE hTimer, void *pvUser);
+DECLINLINE(void)            pdmR3QueueFreeItem(PPDMQUEUE pQueue, PPDMQUEUEITEMCORE pItem);
+static bool                 pdmR3QueueFlush(PPDMQUEUE pQueue);
+static DECLCALLBACK(void)   pdmR3QueueTimer(PVM pVM, PTMTIMER pTimer, void *pvUser);
 
 
 
@@ -52,108 +53,58 @@ static DECLCALLBACK(void)   pdmR3QueueTimer(PVM pVM, TMTIMERHANDLE hTimer, void 
  *                              If 0 then the emulation thread will be notified whenever an item arrives.
  * @param   fRZEnabled          Set if the queue will be used from RC/R0 and need to be allocated from the hyper heap.
  * @param   pszName             The queue name. Unique. Not copied.
- * @param   enmType             Owner type.
- * @param   pvOwner             The queue owner pointer.
- * @param   uCallback           Callback function.
- * @param   phQueue             Where to store the queue handle.
+ * @param   ppQueue             Where to store the queue handle.
  */
 static int pdmR3QueueCreate(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval, bool fRZEnabled,
-                            const char *pszName, PDMQUEUETYPE enmType, void *pvOwner, uintptr_t uCallback,
-                            PDMQUEUEHANDLE *phQueue)
+                            const char *pszName, PPDMQUEUE *ppQueue)
 {
+    PUVM pUVM = pVM->pUVM;
+
     /*
-     * Validate and adjust the input.
+     * Validate input.
      */
-    VM_ASSERT_EMT0_RETURN(pVM, VERR_VM_THREAD_NOT_EMT); /* serialization by exclusivity */
-
-    cbItem = RT_ALIGN(cbItem, sizeof(uint64_t));
-    AssertMsgReturn(cbItem >= sizeof(PDMQUEUEITEMCORE) && cbItem < PDMQUEUE_MAX_ITEM_SIZE, ("cbItem=%zu\n", cbItem),
-                    VERR_OUT_OF_RANGE);
-    AssertMsgReturn(cItems >= 1 && cItems <= PDMQUEUE_MAX_ITEMS, ("cItems=%u\n", cItems), VERR_OUT_OF_RANGE);
-    AssertMsgReturn((uint64_t)cbItem * cItems <= (fRZEnabled ? PDMQUEUE_MAX_TOTAL_SIZE_R0 : PDMQUEUE_MAX_TOTAL_SIZE_R3),
-                    ("cItems=%u cbItem=%#x -> %#RX64, max %'u\n", cItems, cbItem, (uint64_t)cbItem * cItems,
-                     fRZEnabled ? PDMQUEUE_MAX_TOTAL_SIZE_R0 : PDMQUEUE_MAX_TOTAL_SIZE_R3),
-                    VERR_OUT_OF_RANGE);
-    AssertReturn(!fRZEnabled || enmType == PDMQUEUETYPE_INTERNAL || enmType == PDMQUEUETYPE_DEV, VERR_INVALID_PARAMETER);
-    if (SUPR3IsDriverless())
-        fRZEnabled = false;
-
-    /* Unqiue name that fits within the szName field: */
-    size_t cchName = strlen(pszName);
-    AssertReturn(cchName > 0, VERR_INVALID_NAME);
-    AssertMsgReturn(cchName < RT_SIZEOFMEMB(PDMQUEUE, szName), ("'%s' is too long\n", pszName), VERR_INVALID_NAME);
-    size_t i = pVM->pdm.s.cRing3Queues;
-    while (i-- > 0 )
-        AssertMsgReturn(strcmp(pVM->pdm.s.papRing3Queues[i]->szName, pszName) != 0, ("%s\n", pszName), VERR_DUPLICATE);
-    i = pVM->pdm.s.cRing0Queues;
-    while (i-- > 0 )
-        AssertMsgReturn(strcmp(pVM->pdm.s.apRing0Queues[i]->szName, pszName) != 0, ("%s\n", pszName), VERR_DUPLICATE);
+    AssertMsgReturn(cbItem >= sizeof(PDMQUEUEITEMCORE) && cbItem < _1M, ("cbItem=%zu\n", cbItem), VERR_OUT_OF_RANGE);
+    AssertMsgReturn(cItems >= 1 && cItems <= _64K, ("cItems=%u\n", cItems), VERR_OUT_OF_RANGE);
 
     /*
      * Align the item size and calculate the structure size.
      */
-    PPDMQUEUE      pQueue;
-    PDMQUEUEHANDLE hQueue;
+    cbItem = RT_ALIGN(cbItem, sizeof(RTUINTPTR));
+    size_t cb = cbItem * cItems + RT_ALIGN_Z(RT_UOFFSETOF_DYN(PDMQUEUE, aFreeItems[cItems + PDMQUEUE_FREE_SLACK]), 16);
+    PPDMQUEUE pQueue;
+    int rc;
     if (fRZEnabled)
-    {
-        /* Call ring-0 to allocate and create the queue: */
-        PDMQUEUECREATEREQ Req;
-        Req.Hdr.u32Magic = SUPVMMR0REQHDR_MAGIC;
-        Req.Hdr.cbReq    = sizeof(Req);
-        Req.cItems       = cItems;
-        Req.cbItem       = (uint32_t)cbItem;
-        Req.enmType      = enmType;
-        Req.pvOwner      = pvOwner;
-        Req.pfnCallback  = (RTR3PTR)uCallback;
-        RTStrCopy(Req.szName, sizeof(Req.szName), pszName);
-        AssertCompileMembersSameSize(PDMQUEUECREATEREQ, szName, PDMQUEUE, szName);
-        Req.hQueue       = NIL_PDMQUEUEHANDLE;
-
-        int rc = VMMR3CallR0(pVM, VMMR0_DO_PDM_QUEUE_CREATE, 0, &Req.Hdr);
-        if (RT_FAILURE(rc))
-            return rc;
-        hQueue = Req.hQueue;
-        AssertReturn(hQueue < RT_ELEMENTS(pVM->pdm.s.apRing0Queues), VERR_INTERNAL_ERROR_2);
-        pQueue = pVM->pdm.s.apRing0Queues[hQueue];
-        AssertPtrReturn(pQueue, VERR_INTERNAL_ERROR_3);
-        AssertReturn(pQueue->u32Magic == PDMQUEUE_MAGIC, VERR_INTERNAL_ERROR_4);
-        AssertReturn(pQueue->cbItem == cbItem, VERR_INTERNAL_ERROR_4);
-        AssertReturn(pQueue->cItems == cItems, VERR_INTERNAL_ERROR_4);
-        AssertReturn(pQueue->enmType == enmType, VERR_INTERNAL_ERROR_4);
-        AssertReturn(pQueue->u.Gen.pvOwner == pvOwner, VERR_INTERNAL_ERROR_4);
-        AssertReturn(pQueue->u.Gen.pfnCallback == (RTR3PTR)uCallback, VERR_INTERNAL_ERROR_4);
-    }
+        rc = MMHyperAlloc(pVM, cb, 0, MM_TAG_PDM_QUEUE, (void **)&pQueue );
     else
+        rc = MMR3HeapAllocZEx(pVM, MM_TAG_PDM_QUEUE, cb, (void **)&pQueue);
+    if (RT_FAILURE(rc))
+        return rc;
+
+    /*
+     * Initialize the data fields.
+     */
+    pQueue->pVMR3 = pVM;
+    pQueue->pVMR0 = fRZEnabled ? pVM->pVMR0ForCall : NIL_RTR0PTR;
+    pQueue->pVMRC = fRZEnabled ? pVM->pVMRC : NIL_RTRCPTR;
+    pQueue->pszName = pszName;
+    pQueue->cMilliesInterval = cMilliesInterval;
+    //pQueue->pTimer = NULL;
+    pQueue->cbItem = (uint32_t)cbItem;
+    pQueue->cItems = cItems;
+    //pQueue->pPendingR3 = NULL;
+    //pQueue->pPendingR0 = NULL;
+    //pQueue->pPendingRC = NULL;
+    pQueue->iFreeHead = cItems;
+    //pQueue->iFreeTail = 0;
+    PPDMQUEUEITEMCORE pItem = (PPDMQUEUEITEMCORE)((char *)pQueue + RT_ALIGN_Z(RT_UOFFSETOF_DYN(PDMQUEUE, aFreeItems[cItems + PDMQUEUE_FREE_SLACK]), 16));
+    for (unsigned i = 0; i < cItems; i++, pItem = (PPDMQUEUEITEMCORE)((char *)pItem + cbItem))
     {
-        /* Do it here using the paged heap: */
-        uint32_t const cbBitmap = RT_ALIGN_32(RT_ALIGN_32(cItems, 64) / 8, 64); /* keep bitmap in it's own cacheline  */
-        uint32_t const cbQueue  = RT_OFFSETOF(PDMQUEUE, bmAlloc)
-                                + cbBitmap
-                                + (uint32_t)cbItem * cItems;
-        pQueue = (PPDMQUEUE)RTMemPageAllocZ(cbQueue);
-        if (!pQueue)
-            return VERR_NO_PAGE_MEMORY;
-        pdmQueueInit(pQueue, cbBitmap, (uint32_t)cbItem, cItems, pszName, enmType, (RTR3PTR)uCallback, pvOwner);
-
-        uint32_t iQueue = pVM->pdm.s.cRing3Queues;
-        if (iQueue >= pVM->pdm.s.cRing3QueuesAlloc)
+        pQueue->aFreeItems[i].pItemR3 = pItem;
+        if (fRZEnabled)
         {
-            AssertLogRelMsgReturnStmt(iQueue < _16K, ("%#x\n", iQueue), RTMemPageFree(pQueue, cbQueue), VERR_TOO_MANY_OPENS);
-
-            uint32_t const cNewAlloc = RT_ALIGN_32(iQueue, 64) + 64;
-            PPDMQUEUE *papQueuesNew = (PPDMQUEUE *)RTMemAllocZ(cNewAlloc * sizeof(papQueuesNew[0]));
-            AssertLogRelMsgReturnStmt(papQueuesNew, ("cNewAlloc=%u\n", cNewAlloc), RTMemPageFree(pQueue, cbQueue), VERR_NO_MEMORY);
-
-            if (iQueue)
-                memcpy(papQueuesNew, pVM->pdm.s.papRing3Queues, iQueue * sizeof(papQueuesNew[0]));
-            PPDMQUEUE *papQueuesOld = ASMAtomicXchgPtrT(&pVM->pdm.s.papRing3Queues, papQueuesNew, PPDMQUEUE *);
-            pVM->pdm.s.cRing3QueuesAlloc = cNewAlloc;
-            RTMemFree(papQueuesOld);
+            pQueue->aFreeItems[i].pItemR0 = MMHyperR3ToR0(pVM, pItem);
+            pQueue->aFreeItems[i].pItemRC = MMHyperR3ToRC(pVM, pItem);
         }
-
-        pVM->pdm.s.papRing3Queues[iQueue] = pQueue;
-        pVM->pdm.s.cRing3Queues           = iQueue + 1;
-        hQueue = iQueue + RT_ELEMENTS(pVM->pdm.s.apRing0Queues);
     }
 
     /*
@@ -161,57 +112,75 @@ static int pdmR3QueueCreate(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cM
      */
     if (cMilliesInterval)
     {
-        char szName[48+6];
-        RTStrPrintf(szName, sizeof(szName), "Que/%s", pQueue->szName);
-        int rc = TMR3TimerCreate(pVM, TMCLOCK_REAL, pdmR3QueueTimer, pQueue, TMTIMER_FLAGS_NO_RING0, szName, &pQueue->hTimer);
+        rc = TMR3TimerCreateInternal(pVM, TMCLOCK_REAL, pdmR3QueueTimer, pQueue, "Queue timer", &pQueue->pTimer);
         if (RT_SUCCESS(rc))
         {
-            rc = TMTimerSetMillies(pVM, pQueue->hTimer, cMilliesInterval);
-            if (RT_SUCCESS(rc))
-                pQueue->cMilliesInterval = cMilliesInterval;
-            else
+            rc = TMTimerSetMillies(pQueue->pTimer, cMilliesInterval);
+            if (RT_FAILURE(rc))
             {
                 AssertMsgFailed(("TMTimerSetMillies failed rc=%Rrc\n", rc));
-                int rc2 = TMR3TimerDestroy(pVM, pQueue->hTimer); AssertRC(rc2);
-                pQueue->hTimer = NIL_TMTIMERHANDLE;
+                int rc2 = TMR3TimerDestroy(pQueue->pTimer); AssertRC(rc2);
             }
         }
         else
             AssertMsgFailed(("TMR3TimerCreateInternal failed rc=%Rrc\n", rc));
         if (RT_FAILURE(rc))
         {
-            if (!fRZEnabled)
-                PDMR3QueueDestroy(pVM, hQueue, pvOwner);
-            /* else: will clean up queue when VM is destroyed */
+            if (fRZEnabled)
+                MMHyperFree(pVM, pQueue);
+            else
+                MMR3HeapFree(pQueue);
             return rc;
         }
+
+        /*
+         * Insert into the queue list for timer driven queues.
+         */
+        pdmLock(pVM);
+        pQueue->pNext = pUVM->pdm.s.pQueuesTimer;
+        pUVM->pdm.s.pQueuesTimer = pQueue;
+        pdmUnlock(pVM);
+    }
+    else
+    {
+        /*
+         * Insert into the queue list for forced action driven queues.
+         * This is a FIFO, so insert at the end.
+         */
+        /** @todo we should add a priority to the queues so we don't have to rely on
+         * the initialization order to deal with problems like @bugref{1605} (pgm/pcnet
+         * deadlock caused by the critsect queue to be last in the chain).
+         * - Update, the critical sections are no longer using queues, so this isn't a real
+         *   problem any longer. The priority might be a nice feature for later though.
+         */
+        pdmLock(pVM);
+        if (!pUVM->pdm.s.pQueuesForced)
+            pUVM->pdm.s.pQueuesForced = pQueue;
+        else
+        {
+            PPDMQUEUE pPrev = pUVM->pdm.s.pQueuesForced;
+            while (pPrev->pNext)
+                pPrev = pPrev->pNext;
+            pPrev->pNext = pQueue;
+        }
+        pdmUnlock(pVM);
     }
 
     /*
      * Register the statistics.
      */
-    STAMR3RegisterF(pVM, &pQueue->cbItem,               STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_BYTES,
-                    "Item size.",                       "/PDM/Queue/%s/cbItem",         pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->cItems,               STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
-                    "Queue size.",                      "/PDM/Queue/%s/cItems",         pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->rcOkay,               STAMTYPE_U32, STAMVISIBILITY_ALWAYS, STAMUNIT_NONE,
-                    "Non-zero means queue is busted.",  "/PDM/Queue/%s/rcOkay",         pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->StatAllocFailures,    STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
-                    "PDMQueueAlloc failures.",          "/PDM/Queue/%s/AllocFailures",  pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->StatInsert,           STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_CALLS,
-                    "Calls to PDMQueueInsert.",         "/PDM/Queue/%s/Insert",         pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->StatFlush,            STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_CALLS,
-                    "Calls to pdmR3QueueFlush.",        "/PDM/Queue/%s/Flush",          pQueue->szName);
-    STAMR3RegisterF(pVM, &pQueue->StatFlushLeftovers,   STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
-                    "Left over items after flush.",     "/PDM/Queue/%s/FlushLeftovers", pQueue->szName);
+    STAMR3RegisterF(pVM, &pQueue->cbItem,               STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_BYTES,        "Item size.",                       "/PDM/Queue/%s/cbItem",         pQueue->pszName);
+    STAMR3RegisterF(pVM, &pQueue->cItems,               STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,        "Queue size.",                      "/PDM/Queue/%s/cItems",         pQueue->pszName);
+    STAMR3RegisterF(pVM, &pQueue->StatAllocFailures,    STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,   "PDMQueueAlloc failures.",          "/PDM/Queue/%s/AllocFailures",  pQueue->pszName);
+    STAMR3RegisterF(pVM, &pQueue->StatInsert,           STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_CALLS,        "Calls to PDMQueueInsert.",         "/PDM/Queue/%s/Insert",         pQueue->pszName);
+    STAMR3RegisterF(pVM, &pQueue->StatFlush,            STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_CALLS,        "Calls to pdmR3QueueFlush.",        "/PDM/Queue/%s/Flush",          pQueue->pszName);
+    STAMR3RegisterF(pVM, &pQueue->StatFlushLeftovers,   STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,   "Left over items after flush.",     "/PDM/Queue/%s/FlushLeftovers", pQueue->pszName);
 #ifdef VBOX_WITH_STATISTICS
-    STAMR3RegisterF(pVM, &pQueue->StatFlushPrf,         STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, STAMUNIT_TICKS_PER_CALL,
-                    "Profiling pdmR3QueueFlush.",       "/PDM/Queue/%s/FlushPrf",       pQueue->szName);
-    STAMR3RegisterF(pVM, (void *)&pQueue->cStatPending, STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
-                    "Pending items.",                   "/PDM/Queue/%s/Pending",        pQueue->szName);
+    STAMR3RegisterF(pVM, &pQueue->StatFlushPrf,         STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, STAMUNIT_CALLS,        "Profiling pdmR3QueueFlush.",       "/PDM/Queue/%s/FlushPrf",       pQueue->pszName);
+    STAMR3RegisterF(pVM, (void *)&pQueue->cStatPending, STAMTYPE_U32,     STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,        "Pending items.",                   "/PDM/Queue/%s/Pending",        pQueue->pszName);
 #endif
 
-    *phQueue = hQueue;
+    *ppQueue = pQueue;
     return VINF_SUCCESS;
 }
 
@@ -228,13 +197,12 @@ static int pdmR3QueueCreate(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cM
  *                              If 0 then the emulation thread will be notified whenever an item arrives.
  * @param   pfnCallback         The consumer function.
  * @param   fRZEnabled          Set if the queue must be usable from RC/R0.
- * @param   pszName             The queue name. Unique. Copied.
- * @param   phQueue             Where to store the queue handle on success.
+ * @param   pszName             The queue name. Unique. Not copied.
+ * @param   ppQueue             Where to store the queue handle on success.
  * @thread  Emulation thread only.
  */
-VMMR3_INT_DECL(int) PDMR3QueueCreateDevice(PVM pVM, PPDMDEVINS pDevIns, size_t cbItem, uint32_t cItems,
-                                           uint32_t cMilliesInterval, PFNPDMQUEUEDEV pfnCallback,
-                                           bool fRZEnabled, const char *pszName, PDMQUEUEHANDLE *phQueue)
+VMMR3_INT_DECL(int) PDMR3QueueCreateDevice(PVM pVM, PPDMDEVINS pDevIns, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval,
+                                           PFNPDMQUEUEDEV pfnCallback, bool fRZEnabled, const char *pszName, PPDMQUEUE *ppQueue)
 {
     LogFlow(("PDMR3QueueCreateDevice: pDevIns=%p cbItem=%d cItems=%d cMilliesInterval=%d pfnCallback=%p fRZEnabled=%RTbool pszName=%s\n",
              pDevIns, cbItem, cItems, cMilliesInterval, pfnCallback, fRZEnabled, pszName));
@@ -243,20 +211,27 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateDevice(PVM pVM, PPDMDEVINS pDevIns, size_t c
      * Validate input.
      */
     VM_ASSERT_EMT0(pVM);
-    AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
-    AssertPtrReturn(pDevIns, VERR_INVALID_POINTER);
-
-    if (!(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_R0_ENABLED))
-        fRZEnabled = false;
+    if (!pfnCallback)
+    {
+        AssertMsgFailed(("No consumer callback!\n"));
+        return VERR_INVALID_PARAMETER;
+    }
 
     /*
      * Create the queue.
      */
-    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, fRZEnabled, pszName,
-                              PDMQUEUETYPE_DEV, pDevIns, (uintptr_t)pfnCallback, phQueue);
+    PPDMQUEUE pQueue;
+    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, fRZEnabled, pszName, &pQueue);
     if (RT_SUCCESS(rc))
-        Log(("PDM: Created device queue %#RX64; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p pDevIns=%p\n",
-             *phQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pDevIns));
+    {
+        pQueue->enmType = PDMQUEUETYPE_DEV;
+        pQueue->u.Dev.pDevIns = pDevIns;
+        pQueue->u.Dev.pfnCallback = pfnCallback;
+
+        *ppQueue = pQueue;
+        Log(("PDM: Created device queue %p; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p pDevIns=%p\n",
+             pQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pDevIns));
+    }
     return rc;
 }
 
@@ -272,12 +247,12 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateDevice(PVM pVM, PPDMDEVINS pDevIns, size_t c
  * @param   cMilliesInterval    Number of milliseconds between polling the queue.
  *                              If 0 then the emulation thread will be notified whenever an item arrives.
  * @param   pfnCallback         The consumer function.
- * @param   pszName             The queue name. Unique. Copied.
- * @param   phQueue             Where to store the queue handle on success.
+ * @param   pszName             The queue name. Unique. Not copied.
+ * @param   ppQueue             Where to store the queue handle on success.
  * @thread  Emulation thread only.
  */
 VMMR3_INT_DECL(int) PDMR3QueueCreateDriver(PVM pVM, PPDMDRVINS pDrvIns, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval,
-                                           PFNPDMQUEUEDRV pfnCallback, const char *pszName, PDMQUEUEHANDLE *phQueue)
+                                           PFNPDMQUEUEDRV pfnCallback, const char *pszName, PPDMQUEUE *ppQueue)
 {
     LogFlow(("PDMR3QueueCreateDriver: pDrvIns=%p cbItem=%d cItems=%d cMilliesInterval=%d pfnCallback=%p pszName=%s\n",
              pDrvIns, cbItem, cItems, cMilliesInterval, pfnCallback, pszName));
@@ -287,16 +262,22 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateDriver(PVM pVM, PPDMDRVINS pDrvIns, size_t c
      */
     VM_ASSERT_EMT0(pVM);
     AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
-    AssertPtrReturn(pDrvIns, VERR_INVALID_POINTER);
 
     /*
      * Create the queue.
      */
-    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, false /*fRZEnabled*/, pszName,
-                              PDMQUEUETYPE_DRV, pDrvIns, (uintptr_t)pfnCallback, phQueue);
+    PPDMQUEUE pQueue;
+    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, false, pszName, &pQueue);
     if (RT_SUCCESS(rc))
-        Log(("PDM: Created driver queue %#RX64; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p pDrvIns=%p\n",
-             *phQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pDrvIns));
+    {
+        pQueue->enmType = PDMQUEUETYPE_DRV;
+        pQueue->u.Drv.pDrvIns = pDrvIns;
+        pQueue->u.Drv.pfnCallback = pfnCallback;
+
+        *ppQueue = pQueue;
+        Log(("PDM: Created driver queue %p; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p pDrvIns=%p\n",
+             pQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pDrvIns));
+    }
     return rc;
 }
 
@@ -312,13 +293,12 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateDriver(PVM pVM, PPDMDRVINS pDrvIns, size_t c
  *                              If 0 then the emulation thread will be notified whenever an item arrives.
  * @param   pfnCallback         The consumer function.
  * @param   fRZEnabled          Set if the queue must be usable from RC/R0.
- * @param   pszName             The queue name. Unique. Copied.
- * @param   phQueue             Where to store the queue handle on success.
+ * @param   pszName             The queue name. Unique. Not copied.
+ * @param   ppQueue             Where to store the queue handle on success.
  * @thread  Emulation thread only.
  */
 VMMR3_INT_DECL(int) PDMR3QueueCreateInternal(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval,
-                                             PFNPDMQUEUEINT pfnCallback, bool fRZEnabled,
-                                             const char *pszName, PDMQUEUEHANDLE *phQueue)
+                                             PFNPDMQUEUEINT pfnCallback, bool fRZEnabled, const char *pszName, PPDMQUEUE *ppQueue)
 {
     LogFlow(("PDMR3QueueCreateInternal: cbItem=%d cItems=%d cMilliesInterval=%d pfnCallback=%p fRZEnabled=%RTbool pszName=%s\n",
              cbItem, cItems, cMilliesInterval, pfnCallback, fRZEnabled, pszName));
@@ -332,11 +312,17 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateInternal(PVM pVM, size_t cbItem, uint32_t cI
     /*
      * Create the queue.
      */
-    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, fRZEnabled, pszName,
-                              PDMQUEUETYPE_INTERNAL, pVM, (uintptr_t)pfnCallback, phQueue);
+    PPDMQUEUE pQueue;
+    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, fRZEnabled, pszName, &pQueue);
     if (RT_SUCCESS(rc))
+    {
+        pQueue->enmType = PDMQUEUETYPE_INTERNAL;
+        pQueue->u.Int.pfnCallback = pfnCallback;
+
+        *ppQueue = pQueue;
         Log(("PDM: Created internal queue %p; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p\n",
-             *phQueue, cbItem, cItems, cMilliesInterval, pfnCallback));
+             pQueue, cbItem, cItems, cMilliesInterval, pfnCallback));
+    }
     return rc;
 }
 
@@ -353,15 +339,13 @@ VMMR3_INT_DECL(int) PDMR3QueueCreateInternal(PVM pVM, size_t cbItem, uint32_t cI
  * @param   pfnCallback         The consumer function.
  * @param   pvUser              The user argument to the consumer function.
  * @param   pszName             The queue name. Unique. Not copied.
- * @param   phQueue             Where to store the queue handle on success.
+ * @param   ppQueue             Where to store the queue handle on success.
  * @thread  Emulation thread only.
  */
-VMMR3DECL(int) PDMR3QueueCreateExternal(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval,
-                                        PFNPDMQUEUEEXT pfnCallback, void *pvUser,
-                                        const char *pszName, PDMQUEUEHANDLE *phQueue)
+VMMR3_INT_DECL(int) PDMR3QueueCreateExternal(PVM pVM, size_t cbItem, uint32_t cItems, uint32_t cMilliesInterval,
+                                             PFNPDMQUEUEEXT pfnCallback, void *pvUser, const char *pszName, PPDMQUEUE *ppQueue)
 {
-    LogFlow(("PDMR3QueueCreateExternal: cbItem=%d cItems=%d cMilliesInterval=%d pfnCallback=%p pszName=%s\n",
-             cbItem, cItems, cMilliesInterval, pfnCallback, pszName));
+    LogFlow(("PDMR3QueueCreateExternal: cbItem=%d cItems=%d cMilliesInterval=%d pfnCallback=%p pszName=%s\n", cbItem, cItems, cMilliesInterval, pfnCallback, pszName));
 
     /*
      * Validate input.
@@ -372,11 +356,18 @@ VMMR3DECL(int) PDMR3QueueCreateExternal(PVM pVM, size_t cbItem, uint32_t cItems,
     /*
      * Create the queue.
      */
-    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, false /*fRZEnabled*/, pszName,
-                              PDMQUEUETYPE_EXTERNAL, pvUser, (uintptr_t)pfnCallback, phQueue);
+    PPDMQUEUE pQueue;
+    int rc = pdmR3QueueCreate(pVM, cbItem, cItems, cMilliesInterval, false, pszName, &pQueue);
     if (RT_SUCCESS(rc))
+    {
+        pQueue->enmType = PDMQUEUETYPE_EXTERNAL;
+        pQueue->u.Ext.pvUser = pvUser;
+        pQueue->u.Ext.pfnCallback = pfnCallback;
+
+        *ppQueue = pQueue;
         Log(("PDM: Created external queue %p; cbItem=%d cItems=%d cMillies=%d pfnCallback=%p pvUser=%p\n",
-             *phQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pvUser));
+             pQueue, cbItem, cItems, cMilliesInterval, pfnCallback, pvUser));
+    }
     return rc;
 }
 
@@ -385,123 +376,90 @@ VMMR3DECL(int) PDMR3QueueCreateExternal(PVM pVM, size_t cbItem, uint32_t cItems,
  * Destroy a queue.
  *
  * @returns VBox status code.
- * @param   pVM         Pointer to the cross context VM structure.
- * @param   hQueue      Handle to the queue that should be destroyed.
- * @param   pvOwner     The owner address.
- * @thread  EMT(0)
- * @note    Externally visible mainly for testing purposes.
+ * @param   pQueue      Queue to destroy.
+ * @thread  Emulation thread only.
  */
-VMMR3DECL(int) PDMR3QueueDestroy(PVM pVM, PDMQUEUEHANDLE hQueue, void *pvOwner)
+VMMR3_INT_DECL(int) PDMR3QueueDestroy(PPDMQUEUE pQueue)
 {
-    LogFlow(("PDMR3QueueDestroy: hQueue=%p pvOwner=%p\n", hQueue, pvOwner));
+    LogFlow(("PDMR3QueueDestroy: pQueue=%p\n", pQueue));
 
     /*
      * Validate input.
      */
-    VM_ASSERT_EMT0_RETURN(pVM, VERR_VM_THREAD_NOT_EMT); /* serialization */
-    if (hQueue == NIL_PDMQUEUEHANDLE)
-        return VINF_SUCCESS;
+    if (!pQueue)
+        return VERR_INVALID_PARAMETER;
+    Assert(pQueue && pQueue->pVMR3);
+    PVM     pVM  = pQueue->pVMR3;
+    PUVM    pUVM = pVM->pUVM;
 
-    PPDMQUEUE pQueue;
-    bool      fRZEnabled = false;
-    if (hQueue < RT_ELEMENTS(pVM->pdm.s.apRing0Queues))
+    pdmLock(pVM);
+
+    /*
+     * Unlink it.
+     */
+    if (pQueue->pTimer)
     {
-        AssertReturn(hQueue < pVM->pdm.s.cRing0Queues, VERR_INVALID_HANDLE);
-        pQueue = pVM->pdm.s.apRing0Queues[hQueue];
-        AssertPtrReturn(pQueue, VERR_INVALID_HANDLE);
-        AssertReturn(pQueue->u32Magic == PDMQUEUE_MAGIC, VERR_INVALID_HANDLE);
-        AssertReturn(pQueue->u.Gen.pvOwner == pvOwner, VERR_INVALID_HANDLE);
-
-        /* Lazy bird: Cannot dynamically delete ring-0 capable queues. */
-        AssertFailedReturn(VERR_NOT_SUPPORTED);
+        if (pUVM->pdm.s.pQueuesTimer != pQueue)
+        {
+            PPDMQUEUE pCur = pUVM->pdm.s.pQueuesTimer;
+            while (pCur)
+            {
+                if (pCur->pNext == pQueue)
+                {
+                    pCur->pNext = pQueue->pNext;
+                    break;
+                }
+                pCur = pCur->pNext;
+            }
+            AssertMsg(pCur, ("Didn't find the queue!\n"));
+        }
+        else
+            pUVM->pdm.s.pQueuesTimer = pQueue->pNext;
     }
     else
     {
-        hQueue -= RT_ELEMENTS(pVM->pdm.s.apRing0Queues);
-        AssertReturn(hQueue < pVM->pdm.s.cRing3Queues, VERR_INVALID_HANDLE);
-        pQueue = pVM->pdm.s.papRing3Queues[hQueue];
-        AssertPtrReturn(pQueue, VERR_INVALID_HANDLE);
-        AssertReturn(pQueue->u32Magic == PDMQUEUE_MAGIC, VERR_INVALID_HANDLE);
-        AssertReturn(pQueue->u.Gen.pvOwner == pvOwner, VERR_INVALID_HANDLE);
-
-        /* Enter the lock here to serialize with other EMTs traversing the handles. */
-        pdmLock(pVM);
-        pVM->pdm.s.papRing3Queues[hQueue] = NULL;
-        if (hQueue + 1 == pVM->pdm.s.cRing3Queues)
+        if (pUVM->pdm.s.pQueuesForced != pQueue)
         {
-            while (hQueue > 0 && pVM->pdm.s.papRing3Queues[hQueue - 1] == NULL)
-                hQueue--;
-            pVM->pdm.s.cRing3Queues = hQueue;
+            PPDMQUEUE pCur = pUVM->pdm.s.pQueuesForced;
+            while (pCur)
+            {
+                if (pCur->pNext == pQueue)
+                {
+                    pCur->pNext = pQueue->pNext;
+                    break;
+                }
+                pCur = pCur->pNext;
+            }
+            AssertMsg(pCur, ("Didn't find the queue!\n"));
         }
-        pQueue->u32Magic = PDMQUEUE_MAGIC_DEAD;
-        pdmUnlock(pVM);
+        else
+            pUVM->pdm.s.pQueuesForced = pQueue->pNext;
     }
+    pQueue->pNext = NULL;
+    pQueue->pVMR3 = NULL;
+    pdmUnlock(pVM);
 
     /*
      * Deregister statistics.
      */
-    STAMR3DeregisterF(pVM->pUVM, "/PDM/Queue/%s/*", pQueue->szName);
+    STAMR3DeregisterF(pVM->pUVM, "/PDM/Queue/%s/cbItem", pQueue->pszName);
 
     /*
      * Destroy the timer and free it.
      */
-    if (pQueue->hTimer != NIL_TMTIMERHANDLE)
+    if (pQueue->pTimer)
     {
-        TMR3TimerDestroy(pVM, pQueue->hTimer);
-        pQueue->hTimer = NIL_TMTIMERHANDLE;
+        TMR3TimerDestroy(pQueue->pTimer);
+        pQueue->pTimer = NULL;
     }
-    if (!fRZEnabled)
-        RTMemPageFree(pQueue, pQueue->offItems + pQueue->cbItem * pQueue->cItems);
-
-    return VINF_SUCCESS;
-}
-
-
-/**
- * Destroy a all queues with a given owner.
- *
- * @returns VBox status code.
- * @param   pVM         The cross context VM structure.
- * @param   pvOwner     The owner pointer.
- * @param   enmType     Owner type.
- * @thread  EMT(0)
- */
-static int pdmR3QueueDestroyByOwner(PVM pVM, void *pvOwner, PDMQUEUETYPE enmType)
-{
-    LogFlow(("pdmR3QueueDestroyByOwner: pvOwner=%p enmType=%d\n", pvOwner, enmType));
-
-    /*
-     * Validate input.
-     */
-    AssertPtrReturn(pvOwner, VERR_INVALID_PARAMETER);
-    AssertReturn(pvOwner != pVM, VERR_INVALID_PARAMETER);
-    VM_ASSERT_EMT0_RETURN(pVM, VERR_VM_THREAD_NOT_EMT); /* serialization */
-
-    /*
-     * Scan and destroy.
-     */
-    uint32_t i = pVM->pdm.s.cRing0Queues;
-    while (i-- > 0)
+    if (pQueue->pVMRC)
     {
-        PPDMQUEUE pQueue = pVM->pdm.s.apRing0Queues[i];
-        if (   pQueue
-            && pQueue->u.Gen.pvOwner == pvOwner
-            && pQueue->enmType == enmType)
-        {
-            /* Not supported at runtime. */
-            VM_ASSERT_STATE_RETURN(pVM, VMSTATE_DESTROYING, VERR_WRONG_ORDER);
-        }
+        pQueue->pVMRC = NIL_RTRCPTR;
+        pQueue->pVMR0 = NIL_RTR0PTR;
+        MMHyperFree(pVM, pQueue);
     }
-
-    i = pVM->pdm.s.cRing3Queues;
-    while (i-- > 0)
-    {
-        PPDMQUEUE pQueue = pVM->pdm.s.papRing3Queues[i];
-        if (   pQueue
-            && pQueue->u.Gen.pvOwner == pvOwner
-            && pQueue->enmType       == enmType)
-            PDMR3QueueDestroy(pVM, i + RT_ELEMENTS(pVM->pdm.s.apRing0Queues), pvOwner);
-    }
+    else
+        MMR3HeapFree(pQueue);
 
     return VINF_SUCCESS;
 }
@@ -513,12 +471,49 @@ static int pdmR3QueueDestroyByOwner(PVM pVM, void *pvOwner, PDMQUEUETYPE enmType
  * @returns VBox status code.
  * @param   pVM         The cross context VM structure.
  * @param   pDevIns     Device instance.
- * @thread  EMT(0)
+ * @thread  Emulation thread only.
  */
 VMMR3_INT_DECL(int) PDMR3QueueDestroyDevice(PVM pVM, PPDMDEVINS pDevIns)
 {
     LogFlow(("PDMR3QueueDestroyDevice: pDevIns=%p\n", pDevIns));
-    return pdmR3QueueDestroyByOwner(pVM, pDevIns, PDMQUEUETYPE_DEV);
+
+    /*
+     * Validate input.
+     */
+    if (!pDevIns)
+        return VERR_INVALID_PARAMETER;
+
+    PUVM pUVM = pVM->pUVM;
+    pdmLock(pVM);
+
+    /*
+     * Unlink it.
+     */
+    PPDMQUEUE pQueueNext = pUVM->pdm.s.pQueuesTimer;
+    PPDMQUEUE pQueue     = pUVM->pdm.s.pQueuesForced;
+    do
+    {
+        while (pQueue)
+        {
+            if (    pQueue->enmType == PDMQUEUETYPE_DEV
+                &&  pQueue->u.Dev.pDevIns == pDevIns)
+            {
+                PPDMQUEUE pQueueDestroy = pQueue;
+                pQueue = pQueue->pNext;
+                int rc = PDMR3QueueDestroy(pQueueDestroy);
+                AssertRC(rc);
+            }
+            else
+                pQueue = pQueue->pNext;
+        }
+
+        /* next queue list */
+        pQueue = pQueueNext;
+        pQueueNext = NULL;
+    } while (pQueue);
+
+    pdmUnlock(pVM);
+    return VINF_SUCCESS;
 }
 
 
@@ -528,189 +523,103 @@ VMMR3_INT_DECL(int) PDMR3QueueDestroyDevice(PVM pVM, PPDMDEVINS pDevIns)
  * @returns VBox status code.
  * @param   pVM         The cross context VM structure.
  * @param   pDrvIns     Driver instance.
- * @thread  EMT(0)
+ * @thread  Emulation thread only.
  */
 VMMR3_INT_DECL(int) PDMR3QueueDestroyDriver(PVM pVM, PPDMDRVINS pDrvIns)
 {
     LogFlow(("PDMR3QueueDestroyDriver: pDrvIns=%p\n", pDrvIns));
-    return pdmR3QueueDestroyByOwner(pVM, pDrvIns, PDMQUEUETYPE_DRV);
+
+    /*
+     * Validate input.
+     */
+    if (!pDrvIns)
+        return VERR_INVALID_PARAMETER;
+
+    PUVM pUVM = pVM->pUVM;
+    pdmLock(pVM);
+
+    /*
+     * Unlink it.
+     */
+    PPDMQUEUE pQueueNext = pUVM->pdm.s.pQueuesTimer;
+    PPDMQUEUE pQueue     = pUVM->pdm.s.pQueuesForced;
+    do
+    {
+        while (pQueue)
+        {
+            if (    pQueue->enmType == PDMQUEUETYPE_DRV
+                &&  pQueue->u.Drv.pDrvIns == pDrvIns)
+            {
+                PPDMQUEUE pQueueDestroy = pQueue;
+                pQueue = pQueue->pNext;
+                int rc = PDMR3QueueDestroy(pQueueDestroy);
+                AssertRC(rc);
+            }
+            else
+                pQueue = pQueue->pNext;
+        }
+
+        /* next queue list */
+        pQueue = pQueueNext;
+        pQueueNext = NULL;
+    } while (pQueue);
+
+    pdmUnlock(pVM);
+    return VINF_SUCCESS;
 }
 
 
 /**
- * Free an item.
+ * Relocate the queues.
  *
- * @param   pQueue  The queue.
- * @param   pbItems Where the items area starts.
- * @param   cbItem  Item size.
- * @param   pItem   The item to free.
+ * @param   pVM             The cross context VM structure.
+ * @param   offDelta        The relocation delta.
  */
-DECLINLINE(void) pdmR3QueueFreeItem(PPDMQUEUE pQueue, uint8_t *pbItems, uint32_t cbItem, PPDMQUEUEITEMCORE pItem)
+void pdmR3QueueRelocate(PVM pVM, RTGCINTPTR offDelta)
 {
-    pItem->u64View = UINT64_C(0xfeedfeedfeedfeed);
-
-    uintptr_t const offItem = (uintptr_t)pItem - (uintptr_t)pbItems;
-    uintptr_t const iItem   = offItem / cbItem;
-    Assert(!(offItem % cbItem));
-    Assert(iItem < pQueue->cItems);
-    AssertReturnVoidStmt(ASMAtomicBitTestAndSet(pQueue->bmAlloc, iItem) == false, pQueue->rcOkay = VERR_INTERNAL_ERROR_4);
-    STAM_STATS({ ASMAtomicDecU32(&pQueue->cStatPending); });
-}
-
-
-
-/**
- * Process pending items in one queue.
- *
- * @returns VBox status code.
- * @param   pVM     The cross context VM structure.
- * @param   pQueue  The queue needing flushing.
- */
-static int pdmR3QueueFlush(PVM pVM, PPDMQUEUE pQueue)
-{
-    STAM_PROFILE_START(&pQueue->StatFlushPrf,p);
-
-    uint32_t const  cbItem  = pQueue->cbItem;
-    uint32_t const  cItems  = pQueue->cItems;
-    uint8_t * const pbItems = (uint8_t *)pQueue + pQueue->offItems;
-
     /*
-     * Get the list and reverse it into a pointer list (inserted in LIFO order to avoid locking).
+     * Process the queues.
      */
-    uint32_t          cPending = 0;
-    PPDMQUEUEITEMCORE pHead    = NULL;
+    PUVM      pUVM       = pVM->pUVM;
+    PPDMQUEUE pQueueNext = pUVM->pdm.s.pQueuesTimer;
+    PPDMQUEUE pQueue     = pUVM->pdm.s.pQueuesForced;
+    do
     {
-        uint32_t iCur = ASMAtomicXchgU32(&pQueue->iPending, UINT32_MAX);
-        do
+        while (pQueue)
         {
-            AssertMsgReturn(iCur < cItems, ("%#x vs %#x\n", iCur, cItems), pQueue->rcOkay = VERR_INTERNAL_ERROR_5);
-            AssertReturn(ASMBitTest(pQueue->bmAlloc, iCur) == false, pQueue->rcOkay = VERR_INTERNAL_ERROR_3);
-            PPDMQUEUEITEMCORE pCur = (PPDMQUEUEITEMCORE)&pbItems[iCur * cbItem];
-
-            iCur = pCur->iNext;
-            ASMCompilerBarrier(); /* paranoia */
-            pCur->pNext = pHead;
-            pHead = pCur;
-            cPending++;
-        } while (iCur != UINT32_MAX);
-    }
-    RT_NOREF(cPending);
-
-    /*
-     * Feed the items to the consumer function.
-     */
-    Log2(("pdmR3QueueFlush: pQueue=%p enmType=%d pHead=%p cItems=%u\n", pQueue, pQueue->enmType, pHead, cPending));
-    switch (pQueue->enmType)
-    {
-        case PDMQUEUETYPE_DEV:
-            while (pHead)
+            if (pQueue->pVMRC)
             {
-                if (!pQueue->u.Dev.pfnCallback(pQueue->u.Dev.pDevIns, pHead))
-                    break;
-                PPDMQUEUEITEMCORE pFree = pHead;
-                pHead = pHead->pNext;
-                ASMCompilerBarrier(); /* paranoia */
-                pdmR3QueueFreeItem(pQueue, pbItems, cbItem, pFree);
-            }
-            break;
+                pQueue->pVMRC = pVM->pVMRC;
 
-        case PDMQUEUETYPE_DRV:
-            while (pHead)
-            {
-                if (!pQueue->u.Drv.pfnCallback(pQueue->u.Drv.pDrvIns, pHead))
-                    break;
-                PPDMQUEUEITEMCORE pFree = pHead;
-                pHead = pHead->pNext;
-                ASMCompilerBarrier(); /* paranoia */
-                pdmR3QueueFreeItem(pQueue, pbItems, cbItem, pFree);
-            }
-            break;
-
-        case PDMQUEUETYPE_INTERNAL:
-            while (pHead)
-            {
-                if (!pQueue->u.Int.pfnCallback(pVM, pHead))
-                    break;
-                PPDMQUEUEITEMCORE pFree = pHead;
-                pHead = pHead->pNext;
-                ASMCompilerBarrier(); /* paranoia */
-                pdmR3QueueFreeItem(pQueue, pbItems, cbItem, pFree);
-            }
-            break;
-
-        case PDMQUEUETYPE_EXTERNAL:
-            while (pHead)
-            {
-                if (!pQueue->u.Ext.pfnCallback(pQueue->u.Ext.pvUser, pHead))
-                    break;
-                PPDMQUEUEITEMCORE pFree = pHead;
-                pHead = pHead->pNext;
-                ASMCompilerBarrier(); /* paranoia */
-                pdmR3QueueFreeItem(pQueue, pbItems, cbItem, pFree);
-            }
-            break;
-
-        default:
-            AssertMsgFailed(("Invalid queue type %d\n", pQueue->enmType));
-            break;
-    }
-
-    /*
-     * Success?
-     */
-    if (!pHead)
-    { /* likely */ }
-    else
-    {
-        /*
-         * Reverse the list and turn it back into index chain.
-         */
-        uint32_t iPendingHead = UINT32_MAX;
-        do
-        {
-            PPDMQUEUEITEMCORE pInsert = pHead;
-            pHead = pHead->pNext;
-            ASMCompilerBarrier(); /* paranoia */
-            pInsert->iNext = iPendingHead;
-            iPendingHead = ((uintptr_t)pInsert - (uintptr_t)pbItems) / cbItem;
-        } while (pHead);
-
-        /*
-         * Insert the list at the tail of the pending list.  If someone races
-         * us there, we have to join the new LIFO with the old.
-         */
-        for (;;)
-        {
-            if (ASMAtomicCmpXchgU32(&pQueue->iPending, iPendingHead, UINT32_MAX))
-                break;
-
-            uint32_t const iNewPending = ASMAtomicXchgU32(&pQueue->iPending, UINT32_MAX);
-            if (iNewPending != UINT32_MAX)
-            {
-                /* Find the last entry and chain iPendingHead onto it. */
-                uint32_t iCur = iNewPending;
-                for (;;)
+                /* Pending RC items. */
+                if (pQueue->pPendingRC)
                 {
-                    AssertReturn(iCur < cItems, pQueue->rcOkay = VERR_INTERNAL_ERROR_2);
-                    AssertReturn(ASMBitTest(pQueue->bmAlloc, iCur) == false, pQueue->rcOkay = VERR_INTERNAL_ERROR_3);
-                    PPDMQUEUEITEMCORE pCur = (PPDMQUEUEITEMCORE)&pbItems[iCur * cbItem];
-                    iCur = pCur->iNext;
-                    if (iCur == UINT32_MAX)
+                    pQueue->pPendingRC += offDelta;
+                    PPDMQUEUEITEMCORE pCur = (PPDMQUEUEITEMCORE)MMHyperRCToR3(pVM, pQueue->pPendingRC);
+                    while (pCur->pNextRC)
                     {
-                        pCur->iNext = iPendingHead;
-                        break;
+                        pCur->pNextRC += offDelta;
+                        pCur = (PPDMQUEUEITEMCORE)MMHyperRCToR3(pVM, pCur->pNextRC);
                     }
                 }
 
-                iPendingHead = iNewPending;
+                /* The free items. */
+                uint32_t i = pQueue->iFreeTail;
+                while (i != pQueue->iFreeHead)
+                {
+                    pQueue->aFreeItems[i].pItemRC = MMHyperR3ToRC(pVM, pQueue->aFreeItems[i].pItemR3);
+                    i = (i + 1) % (pQueue->cItems + PDMQUEUE_FREE_SLACK);
+                }
             }
+
+            /* next queue */
+            pQueue = pQueue->pNext;
         }
 
-        STAM_REL_COUNTER_INC(&pQueue->StatFlushLeftovers);
-    }
-
-    STAM_PROFILE_STOP(&pQueue->StatFlushPrf,p);
-    return VINF_SUCCESS;
+        /* next queue list */
+        pQueue = pQueueNext;
+        pQueueNext = NULL;
+    } while (pQueue);
 }
 
 
@@ -720,9 +629,8 @@ static int pdmR3QueueFlush(PVM pVM, PPDMQUEUE pQueue)
  *
  * @param   pVM     The cross context VM structure.
  * @thread  Emulation thread only.
- * @note    Internal, but exported for use in the testcase.
  */
-VMMR3DECL(void) PDMR3QueueFlushAll(PVM pVM)
+VMMR3_INT_DECL(void) PDMR3QueueFlushAll(PVM pVM)
 {
     VM_ASSERT_EMT(pVM);
     LogFlow(("PDMR3QueuesFlush:\n"));
@@ -741,30 +649,11 @@ VMMR3DECL(void) PDMR3QueueFlushAll(PVM pVM)
     {
         ASMAtomicBitClear(&pVM->pdm.s.fQueueFlushing, PDM_QUEUE_FLUSH_FLAG_PENDING_BIT);
 
-        /* Scan the ring-0 queues: */
-        size_t i = pVM->pdm.s.cRing0Queues;
-        while (i-- > 0)
-        {
-            PPDMQUEUE pQueue = pVM->pdm.s.apRing0Queues[i];
-            if (   pQueue
-                && pQueue->iPending != UINT32_MAX
-                && pQueue->hTimer == NIL_TMTIMERHANDLE
-                && pQueue->rcOkay == VINF_SUCCESS)
-                pdmR3QueueFlush(pVM, pQueue);
-        }
-
-        /* Scan the ring-3 queues: */
-/** @todo Deal with destroy concurrency issues. */
-        i = pVM->pdm.s.cRing3Queues;
-        while (i-- > 0)
-        {
-            PPDMQUEUE pQueue = pVM->pdm.s.papRing3Queues[i];
-            if (   pQueue
-                && pQueue->iPending != UINT32_MAX
-                && pQueue->hTimer == NIL_TMTIMERHANDLE
-                && pQueue->rcOkay == VINF_SUCCESS)
-                pdmR3QueueFlush(pVM, pQueue);
-        }
+        for (PPDMQUEUE pCur = pVM->pUVM->pdm.s.pQueuesForced; pCur; pCur = pCur->pNext)
+            if (    pCur->pPendingR3
+                ||  pCur->pPendingR0
+                ||  pCur->pPendingRC)
+                pdmR3QueueFlush(pCur);
 
         ASMAtomicBitClear(&pVM->pdm.s.fQueueFlushing, PDM_QUEUE_FLUSH_FLAG_ACTIVE_BIT);
 
@@ -777,48 +666,212 @@ VMMR3DECL(void) PDMR3QueueFlushAll(PVM pVM)
 }
 
 
+/**
+ * Process pending items in one queue.
+ *
+ * @returns Success indicator.
+ *          If false the item the consumer said "enough!".
+ * @param   pQueue  The queue.
+ */
+static bool pdmR3QueueFlush(PPDMQUEUE pQueue)
+{
+    STAM_PROFILE_START(&pQueue->StatFlushPrf,p);
+
+    /*
+     * Get the lists.
+     */
+    PPDMQUEUEITEMCORE pItems   = ASMAtomicXchgPtrT(&pQueue->pPendingR3, NULL, PPDMQUEUEITEMCORE);
+    RTRCPTR           pItemsRC = ASMAtomicXchgRCPtr(&pQueue->pPendingRC, NIL_RTRCPTR);
+    RTR0PTR           pItemsR0 = ASMAtomicXchgR0Ptr(&pQueue->pPendingR0, NIL_RTR0PTR);
+
+    AssertMsgReturn(   pItemsR0
+                    || pItemsRC
+                    || pItems,
+                    ("Someone is racing us? This shouldn't happen!\n"),
+                    true);
+
+    /*
+     * Reverse the list (it's inserted in LIFO order to avoid semaphores, remember).
+     */
+    PPDMQUEUEITEMCORE pCur = pItems;
+    pItems = NULL;
+    while (pCur)
+    {
+        PPDMQUEUEITEMCORE pInsert = pCur;
+        pCur = pCur->pNextR3;
+        pInsert->pNextR3 = pItems;
+        pItems = pInsert;
+    }
+
+    /*
+     * Do the same for any pending RC items.
+     */
+    while (pItemsRC)
+    {
+        PPDMQUEUEITEMCORE pInsert = (PPDMQUEUEITEMCORE)MMHyperRCToR3(pQueue->pVMR3, pItemsRC);
+        pItemsRC = pInsert->pNextRC;
+        pInsert->pNextRC = NIL_RTRCPTR;
+        pInsert->pNextR3 = pItems;
+        pItems = pInsert;
+    }
+
+    /*
+     * Do the same for any pending R0 items.
+     */
+    while (pItemsR0)
+    {
+        PPDMQUEUEITEMCORE pInsert = (PPDMQUEUEITEMCORE)MMHyperR0ToR3(pQueue->pVMR3, pItemsR0);
+        pItemsR0 = pInsert->pNextR0;
+        pInsert->pNextR0 = NIL_RTR0PTR;
+        pInsert->pNextR3 = pItems;
+        pItems = pInsert;
+    }
+
+    /*
+     * Feed the items to the consumer function.
+     */
+    Log2(("pdmR3QueueFlush: pQueue=%p enmType=%d pItems=%p\n", pQueue, pQueue->enmType, pItems));
+    switch (pQueue->enmType)
+    {
+        case PDMQUEUETYPE_DEV:
+            while (pItems)
+            {
+                if (!pQueue->u.Dev.pfnCallback(pQueue->u.Dev.pDevIns, pItems))
+                    break;
+                pCur = pItems;
+                pItems = pItems->pNextR3;
+                pdmR3QueueFreeItem(pQueue, pCur);
+            }
+            break;
+
+        case PDMQUEUETYPE_DRV:
+            while (pItems)
+            {
+                if (!pQueue->u.Drv.pfnCallback(pQueue->u.Drv.pDrvIns, pItems))
+                    break;
+                pCur = pItems;
+                pItems = pItems->pNextR3;
+                pdmR3QueueFreeItem(pQueue, pCur);
+            }
+            break;
+
+        case PDMQUEUETYPE_INTERNAL:
+            while (pItems)
+            {
+                if (!pQueue->u.Int.pfnCallback(pQueue->pVMR3, pItems))
+                    break;
+                pCur = pItems;
+                pItems = pItems->pNextR3;
+                pdmR3QueueFreeItem(pQueue, pCur);
+            }
+            break;
+
+        case PDMQUEUETYPE_EXTERNAL:
+            while (pItems)
+            {
+                if (!pQueue->u.Ext.pfnCallback(pQueue->u.Ext.pvUser, pItems))
+                    break;
+                pCur = pItems;
+                pItems = pItems->pNextR3;
+                pdmR3QueueFreeItem(pQueue, pCur);
+            }
+            break;
+
+        default:
+            AssertMsgFailed(("Invalid queue type %d\n", pQueue->enmType));
+            break;
+    }
+
+    /*
+     * Success?
+     */
+    if (pItems)
+    {
+        /*
+         * Reverse the list.
+         */
+        pCur = pItems;
+        pItems = NULL;
+        while (pCur)
+        {
+            PPDMQUEUEITEMCORE pInsert = pCur;
+            pCur = pInsert->pNextR3;
+            pInsert->pNextR3 = pItems;
+            pItems = pInsert;
+        }
+
+        /*
+         * Insert the list at the tail of the pending list.
+         */
+        for (;;)
+        {
+            if (ASMAtomicCmpXchgPtr(&pQueue->pPendingR3, pItems, NULL))
+                break;
+            PPDMQUEUEITEMCORE pPending = ASMAtomicXchgPtrT(&pQueue->pPendingR3, NULL, PPDMQUEUEITEMCORE);
+            if (pPending)
+            {
+                pCur = pPending;
+                while (pCur->pNextR3)
+                    pCur = pCur->pNextR3;
+                pCur->pNextR3 = pItems;
+                pItems = pPending;
+            }
+        }
+
+        STAM_REL_COUNTER_INC(&pQueue->StatFlushLeftovers);
+        STAM_PROFILE_STOP(&pQueue->StatFlushPrf,p);
+        return false;
+    }
+
+    STAM_PROFILE_STOP(&pQueue->StatFlushPrf,p);
+    return true;
+}
+
 
 /**
- * @callback_method_impl{FNTMTIMERINT, Timer handler for one PDM queue.}
+ * Free an item.
+ *
+ * @param   pQueue  The queue.
+ * @param   pItem   The item.
  */
-static DECLCALLBACK(void) pdmR3QueueTimer(PVM pVM, TMTIMERHANDLE hTimer, void *pvUser)
+DECLINLINE(void) pdmR3QueueFreeItem(PPDMQUEUE pQueue, PPDMQUEUEITEMCORE pItem)
+{
+    VM_ASSERT_EMT(pQueue->pVMR3);
+
+    int i = pQueue->iFreeHead;
+    int iNext = (i + 1) % (pQueue->cItems + PDMQUEUE_FREE_SLACK);
+
+    pQueue->aFreeItems[i].pItemR3 = pItem;
+    if (pQueue->pVMRC)
+    {
+        pQueue->aFreeItems[i].pItemRC = MMHyperR3ToRC(pQueue->pVMR3, pItem);
+        pQueue->aFreeItems[i].pItemR0 = MMHyperR3ToR0(pQueue->pVMR3, pItem);
+    }
+
+    if (!ASMAtomicCmpXchgU32(&pQueue->iFreeHead, iNext, i))
+        AssertMsgFailed(("huh? i=%d iNext=%d iFreeHead=%d iFreeTail=%d\n", i, iNext, pQueue->iFreeHead, pQueue->iFreeTail));
+    STAM_STATS({ ASMAtomicDecU32(&pQueue->cStatPending); });
+}
+
+
+/**
+ * Timer handler for PDM queues.
+ * This is called by for a single queue.
+ *
+ * @param   pVM     The cross context VM structure.
+ * @param   pTimer  Pointer to timer.
+ * @param   pvUser  Pointer to the queue.
+ */
+static DECLCALLBACK(void) pdmR3QueueTimer(PVM pVM, PTMTIMER pTimer, void *pvUser)
 {
     PPDMQUEUE pQueue = (PPDMQUEUE)pvUser;
-    Assert(hTimer == pQueue->hTimer);
+    Assert(pTimer == pQueue->pTimer); NOREF(pTimer); NOREF(pVM);
 
-    if (pQueue->iPending != UINT32_MAX)
-        pdmR3QueueFlush(pVM, pQueue);
-
-    int rc = TMTimerSetMillies(pVM, hTimer, pQueue->cMilliesInterval);
+    if (   pQueue->pPendingR3
+        || pQueue->pPendingR0
+        || pQueue->pPendingRC)
+        pdmR3QueueFlush(pQueue);
+    int rc = TMTimerSetMillies(pQueue->pTimer, pQueue->cMilliesInterval);
     AssertRC(rc);
 }
 
-
-/**
- * Terminate the queues, freeing any resources still allocated.
- *
- * @returns nothing.
- * @param   pVM                 The cross-context VM structure.
- */
-DECLHIDDEN(void) pdmR3QueueTerm(PVM pVM)
-{
-    if (pVM->pdm.s.papRing3Queues)
-    {
-        /*
-         * Free the R3 queue handle array.
-         */
-        PDMQUEUEHANDLE cQueues = pVM->pdm.s.cRing3Queues;
-        for (PDMQUEUEHANDLE i = 0; i < cQueues; i++)
-            if (pVM->pdm.s.papRing3Queues[i])
-            {
-                PPDMQUEUE pQueue = pVM->pdm.s.papRing3Queues[i];
-
-                PDMR3QueueDestroy(pVM, RT_ELEMENTS(pVM->pdm.s.apRing0Queues) + i, pQueue->u.Gen.pvOwner);
-                Assert(!pVM->pdm.s.papRing3Queues[i]);
-            }
-
-        RTMemFree(pVM->pdm.s.papRing3Queues);
-        pVM->pdm.s.cRing3QueuesAlloc = 0;
-        pVM->pdm.s.papRing3Queues    = NULL;
-    }
-}

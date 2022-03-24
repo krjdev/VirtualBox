@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: valueunit.py 93754 2022-02-15 14:29:56Z vboxsync $
+# $Id: valueunit.py $
 
 """
 Test Value Unit Definititions.
@@ -10,7 +10,7 @@ include/VBox/VMMDevTesting.h.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93754 $"
+__version__ = "$Revision: 135976 $"
 
 
 
@@ -69,21 +69,7 @@ PP1K                    = 0x1c;
 PP10K                   = 0x1d;
 PPM                     = 0x1e;
 PPB                     = 0x1f;
-TICKS                   = 0x20;
-TICKS_PER_CALL          = 0x21;
-TICKS_PER_OCCURENCE     = 0x22;
-PAGES                   = 0x23;
-PAGES_PER_SEC           = 0x24;
-TICKS_PER_PAGE          = 0x25;
-NS_PER_PAGE             = 0x26;
-PS                      = 0x27;
-PS_PER_CALL             = 0x28;
-PS_PER_FRAME            = 0x29;
-PS_PER_OCCURRENCE       = 0x2a;
-PS_PER_PACKET           = 0x2b;
-PS_PER_ROUND_TRIP       = 0x2c;
-PS_PER_PAGE             = 0x2d;
-END                     = 0x2e;
+END                     = 0x20;
 ## @}
 
 
@@ -122,24 +108,8 @@ g_asNames = \
     'pp10k',
     'ppm',
     'ppb',
-    'ticks',
-    'ticks/call',
-    'ticks/occ',
-    'pages',
-    'pages/s',
-    'ticks/page',
-    'ns/page',
-    'ps',
-    'ps/call',
-    'ps/frame',
-    'ps/occurrences',
-    'ps/packet',
-    'ps/roundtrips',
-    'ps/page',
 ];
 assert g_asNames[PP1K] == 'pp1k';
-assert g_asNames[NS_PER_PAGE] == 'ns/page';
-assert g_asNames[PS_PER_PAGE] == 'ps/page';
 
 
 ## Translation table for XML -> number.

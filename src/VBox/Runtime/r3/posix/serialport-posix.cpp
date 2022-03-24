@@ -1,10 +1,10 @@
-/* $Id: serialport-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: serialport-posix.cpp $ */
 /** @file
  * IPRT - Serial Port API, POSIX Implementation.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,6 +39,7 @@
 #include <iprt/string.h>
 #include <iprt/thread.h>
 #include <iprt/time.h>
+#include <iprt/log.h>
 #include "internal/magics.h"
 
 #include <errno.h>
@@ -175,6 +176,174 @@ static const RTSERIALPORTBRATECONVDESC s_rtSerialPortBaudrateConv[] =
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
+
+/**
+ * ioctl() wrapper for requests taking no additional argument, logs EIO errors.
+ *
+ * @returns ioctl() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   iReq                    The ioctl() request argument.
+ */
+DECLINLINE(int) rtSerialPortIoctlWrapperNoArg(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, int iReq)
+{
+    int rcPsx = ioctl(pThis->iFd, iReq);
+    if (   rcPsx
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s iReq=%#x -> EIO\n", RT_SRC_POS_ARGS, iReq));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return rcPsx;
+}
+
+
+/**
+ * ioctl() wrapper for requests taking a pointer argument, logs EIO errors.
+ *
+ * @returns ioctl() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   iReq                    The ioctl() request argument.
+ * @param   pvArg                   Argument passed in as a pointer.
+ */
+DECLINLINE(int) rtSerialPortIoctlWrapperPV(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, int iReq, void *pvArg)
+{
+    int rcPsx = ioctl(pThis->iFd, iReq, pvArg);
+    if (   rcPsx
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s iReq=%#x pvArg=%p -> EIO\n", RT_SRC_POS_ARGS, iReq, pvArg));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return rcPsx;
+}
+
+
+#ifdef RT_OS_LINUX
+/**
+ * ioctl() wrapper for requests taking an integer argument, logs EIO errors.
+ *
+ * @returns ioctl() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   iReq                    The ioctl() request argument.
+ * @param   iArg                    Argument passed in as an integer.
+ */
+DECLINLINE(int) rtSerialPortIoctlWrapperS32(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, int iReq, int32_t iArg)
+{
+    int rcPsx = ioctl(pThis->iFd, iReq, iArg);
+    if (   rcPsx
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s iReq=%#x iArg=%#x -> EIO\n", RT_SRC_POS_ARGS, iReq, iArg));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return rcPsx;
+}
+#endif
+
+
+/**
+ * write() wrapper, logs EIO errors.
+ *
+ * @returns write() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   pvBuf                   The data to write.
+ * @param   cbWrite                 Number of bytes to write.
+ */
+DECLINLINE(ssize_t) rtSerialPortWriteWrapper(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, const void *pvBuf, size_t cbWrite)
+{
+    ssize_t cbWritten = write(pThis->iFd, pvBuf, cbWrite);
+    if (   cbWritten == -1
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s cbWrite=%zu -> EIO\n", RT_SRC_POS_ARGS, cbWrite));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return cbWritten;
+}
+
+
+/**
+ * read() wrapper, logs EIO errors.
+ *
+ * @returns read() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   pvBuf                   Where to store the read data.
+ * @param   cbRead                  Number of bytes to read.
+ */
+DECLINLINE(ssize_t) rtSerialPortReadWrapper(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, void *pvBuf, size_t cbRead)
+{
+    ssize_t cbThisRead = read(pThis->iFd, pvBuf, cbRead);
+    if (   cbThisRead == -1
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s cbRead=%zu -> EIO\n", RT_SRC_POS_ARGS, cbRead));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return cbThisRead;
+}
+
+
+/**
+ * fcntl() wrapper, logs EIO errors.
+ *
+ * @returns fcntl() return code.
+ * @param   pThis                   The internal serial port instance data.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   iCmd                    The fcntl() command identifier.
+ * @param   iArg                    The argument to the command.
+ */
+DECLINLINE(int) rtSerialPortFcntlWrapper(PRTSERIALPORTINTERNAL pThis, RT_SRC_POS_DECL, int iCmd, int32_t iArg)
+{
+    int rcPsx = fcntl(pThis->iFd, iCmd, iArg);
+    if (   rcPsx == -1
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s iCmd=%#x iArg=%#x -> EIO\n", RT_SRC_POS_ARGS, iCmd, iArg));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return rcPsx;
+}
+
+
+/**
+ * poll() wrapper, logs EIO errors.
+ *
+ * @returns poll() return code.
+ * @param   SRC_POS                 The source position where call is being made from.
+ *                                  Use RT_SRC_POS when possible.
+ * @param   iCmd                    The fcntl() command identifier.
+ * @param   iArg                    The argument to the command.
+ */
+DECLINLINE(int) rtSerialPortPollWrapper(RT_SRC_POS_DECL, struct pollfd *paFds, nfds_t cFds, int iTimeout)
+{
+    int rcPsx = poll(paFds, cFds, iTimeout);
+    if (   rcPsx == -1
+        && errno == EIO)
+    {
+        LogRel(("%s:%u %s cFds=%u iTimeout=%d -> EIO\n", RT_SRC_POS_ARGS, cFds, iTimeout));
+        errno = EIO; /* Reset the errno value, it might get trashed during logging. */
+    }
+
+    return rcPsx;
+}
+
 
 /**
  * Converts the given termios speed identifier to the baud rate used in the API.
@@ -503,7 +672,7 @@ static DECLCALLBACK(int) rtSerialPortStsLineMonitorThrd(RTTHREAD hThreadSelf, vo
 
     RTThreadUserSignal(hThreadSelf);
 
-    int rcPsx = ioctl(pThis->iFd, TIOCMGET, &fStsLinesOld);
+    int rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMGET, &fStsLinesOld);
     if (rcPsx == -1)
     {
         ASMAtomicXchgBool(&pThis->fMonThrdShutdown, true);
@@ -530,7 +699,7 @@ static DECLCALLBACK(int) rtSerialPortStsLineMonitorThrd(RTTHREAD hThreadSelf, vo
          */
         if (!fPoll)
         {
-            rcPsx = ioctl(pThis->iFd, TIOCMIWAIT, fStsLinesChk);
+            rcPsx = rtSerialPortIoctlWrapperS32(pThis, RT_SRC_POS, TIOCMIWAIT, fStsLinesChk);
             if (!rcPsx)
             {
                 rc = rtSerialPortWakeupEvtPoller(pThis, RTSERIALPORT_WAKEUP_PIPE_REASON_STS_LINE_CHANGED);
@@ -544,7 +713,7 @@ static DECLCALLBACK(int) rtSerialPortStsLineMonitorThrd(RTTHREAD hThreadSelf, vo
 #endif
         {
             uint32_t fStsLines = 0;
-            rcPsx = ioctl(pThis->iFd, TIOCMGET, &fStsLines);
+            rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMGET, &fStsLines);
             if (!rcPsx)
             {
                 cStsLineGetErrors = 0; /* Reset the error counter once we had one successful query. */
@@ -598,7 +767,7 @@ static int rtSerialPortMonitorThreadCreate(PRTSERIALPORTINTERNAL pThis)
      * don't support it so an error returned in that case.
      */
     uint32_t fStsLines = 0;
-    int rcPsx = ioctl(pThis->iFd, TIOCMGET, &fStsLines);
+    int rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMGET, &fStsLines);
     if (!rcPsx)
     {
         pThis->fMonThrdShutdown = false;
@@ -663,7 +832,7 @@ static void rtSerialPortMonitorThreadShutdown(PRTSERIALPORTINTERNAL pThis)
  */
 static int rtSerialPortSwitchBlockingModeSlow(PRTSERIALPORTINTERNAL pThis, bool fBlocking)
 {
-    int fFlags = fcntl(pThis->iFd, F_GETFL, 0);
+    int fFlags = rtSerialPortFcntlWrapper(pThis, RT_SRC_POS, F_GETFL, 0);
     if (fFlags == -1)
        return RTErrConvertFromErrno(errno);
 
@@ -671,7 +840,7 @@ static int rtSerialPortSwitchBlockingModeSlow(PRTSERIALPORTINTERNAL pThis, bool 
         fFlags &= ~O_NONBLOCK;
     else
         fFlags |= O_NONBLOCK;
-    if (fcntl(pThis->iFd, F_SETFL, fFlags) == -1)
+    if (rtSerialPortFcntlWrapper(pThis, RT_SRC_POS, F_SETFL, fFlags) == -1)
        return RTErrConvertFromErrno(errno);
 
     pThis->fBlocking = fBlocking;
@@ -697,8 +866,7 @@ DECLINLINE(int) rtSerialPortSwitchBlockingMode(PRTSERIALPORTINTERNAL pThis, bool
 RTDECL(int)  RTSerialPortOpen(PRTSERIALPORT phSerialPort, const char *pszPortAddress, uint32_t fFlags)
 {
     AssertPtrReturn(phSerialPort, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszPortAddress, VERR_INVALID_POINTER);
-    AssertReturn(*pszPortAddress != '\0', VERR_INVALID_PARAMETER);
+    AssertReturn(VALID_PTR(pszPortAddress) && *pszPortAddress != '\0', VERR_INVALID_PARAMETER);
     AssertReturn(!(fFlags & ~RTSERIALPORT_OPEN_F_VALID_MASK), VERR_INVALID_PARAMETER);
     AssertReturn((fFlags & RTSERIALPORT_OPEN_F_READ) || (fFlags & RTSERIALPORT_OPEN_F_WRITE),
                  VERR_INVALID_PARAMETER);
@@ -821,7 +989,7 @@ RTDECL(int) RTSerialPortRead(RTSERIALPORT hSerialPort, void *pvBuf, size_t cbToR
         /*
          * Attempt read.
          */
-        ssize_t cbRead = read(pThis->iFd, pvBuf, cbToRead);
+        ssize_t cbRead = rtSerialPortReadWrapper(pThis, RT_SRC_POS, pvBuf, cbToRead);
         if (cbRead > 0)
         {
             if (pcbRead)
@@ -832,7 +1000,7 @@ RTDECL(int) RTSerialPortRead(RTSERIALPORT hSerialPort, void *pvBuf, size_t cbToR
                 /* Caller expects all to be read. */
                 while ((ssize_t)cbToRead > cbRead)
                 {
-                    ssize_t cbReadPart = read(pThis->iFd, (uint8_t *)pvBuf + cbRead, cbToRead - cbRead);
+                    ssize_t cbReadPart = rtSerialPortReadWrapper(pThis, RT_SRC_POS, (uint8_t *)pvBuf + cbRead, cbToRead - cbRead);
                     if (cbReadPart < 0)
                         return RTErrConvertFromErrno(errno);
                     else if (cbReadPart == 0)
@@ -866,7 +1034,7 @@ RTDECL(int) RTSerialPortReadNB(RTSERIALPORT hSerialPort, void *pvBuf, size_t cbT
     int rc = rtSerialPortSwitchBlockingMode(pThis, false);
     if (RT_SUCCESS(rc))
     {
-        ssize_t cbThisRead = read(pThis->iFd, pvBuf, cbToRead);
+        ssize_t cbThisRead = rtSerialPortReadWrapper(pThis, RT_SRC_POS, pvBuf, cbToRead);
         if (cbThisRead > 0)
         {
             /*
@@ -910,7 +1078,7 @@ RTDECL(int) RTSerialPortWrite(RTSERIALPORT hSerialPort, const void *pvBuf, size_
         /*
          * Attempt write.
          */
-        ssize_t cbWritten = write(pThis->iFd, pvBuf, cbToWrite);
+        ssize_t cbWritten = rtSerialPortWriteWrapper(pThis, RT_SRC_POS, pvBuf, cbToWrite);
         if (cbWritten > 0)
         {
             if (pcbWritten)
@@ -921,7 +1089,7 @@ RTDECL(int) RTSerialPortWrite(RTSERIALPORT hSerialPort, const void *pvBuf, size_
                 /* Caller expects all to be written. */
                 while ((ssize_t)cbToWrite > cbWritten)
                 {
-                    ssize_t cbWrittenPart = write(pThis->iFd, (const uint8_t *)pvBuf + cbWritten, cbToWrite - cbWritten);
+                    ssize_t cbWrittenPart = rtSerialPortWriteWrapper(pThis, RT_SRC_POS, (const uint8_t *)pvBuf + cbWritten, cbToWrite - cbWritten);
                     if (cbWrittenPart < 0)
                         return RTErrConvertFromErrno(errno);
                     else if (cbWrittenPart == 0)
@@ -954,7 +1122,7 @@ RTDECL(int) RTSerialPortWriteNB(RTSERIALPORT hSerialPort, const void *pvBuf, siz
     int rc = rtSerialPortSwitchBlockingMode(pThis, false);
     if (RT_SUCCESS(rc))
     {
-        ssize_t cbThisWrite = write(pThis->iFd, pvBuf, cbToWrite);
+        ssize_t cbThisWrite = rtSerialPortWriteWrapper(pThis, RT_SRC_POS, pvBuf, cbToWrite);
         if (cbThisWrite > 0)
             *pcbWritten = cbThisWrite;
         else if (cbThisWrite == 0)
@@ -1003,7 +1171,7 @@ RTDECL(int) RTSerialPortCfgSet(RTSERIALPORT hSerialPort, PCRTSERIALPORTCFG pCfg,
             if (fBaudrateCust)
             {
                 struct serial_struct SerLnx;
-                rcPsx = ioctl(pThis->iFd, TIOCGSERIAL, &SerLnx);
+                rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCGSERIAL, &SerLnx);
                 if (!rcPsx)
                 {
                     SerLnx.custom_divisor = SerLnx.baud_base / pCfg->uBaudRate;
@@ -1099,7 +1267,7 @@ RTDECL(int) RTSerialPortEvtPoll(RTSERIALPORT hSerialPort, uint32_t fEvtMask, uin
         {
             uint64_t tsPollStart = RTTimeMilliTS();
 
-            rcPsx = poll(&aPollFds[0], RT_ELEMENTS(aPollFds), msTimeoutLeft);
+            rcPsx = rtSerialPortPollWrapper(RT_SRC_POS, &aPollFds[0], RT_ELEMENTS(aPollFds), msTimeoutLeft);
             if (rcPsx != -1 || errno != EINTR)
                 break;
             /* Restart when getting interrupted. */
@@ -1186,7 +1354,7 @@ RTDECL(int) RTSerialPortChgBreakCondition(RTSERIALPORT hSerialPort, bool fSet)
     AssertReturn(pThis->u32Magic == RTSERIALPORT_MAGIC, VERR_INVALID_HANDLE);
 
     int rc = VINF_SUCCESS;
-    int rcPsx = ioctl(pThis->iFd, fSet ? TIOCSBRK : TIOCCBRK);
+    int rcPsx = rtSerialPortIoctlWrapperNoArg(pThis, RT_SRC_POS, fSet ? TIOCSBRK : TIOCCBRK);
     if (rcPsx == -1)
         rc = RTErrConvertFromErrno(errno);
 
@@ -1214,10 +1382,10 @@ RTDECL(int) RTSerialPortChgStatusLines(RTSERIALPORT hSerialPort, uint32_t fClear
     if (fSet & RTSERIALPORT_CHG_STS_LINES_F_DTR)
         fTiocmSet |= TIOCM_DTR;
 
-    int rcPsx = ioctl(pThis->iFd, TIOCMBIS, &fTiocmSet);
+    int rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMBIS, &fTiocmSet);
     if (!rcPsx)
     {
-        rcPsx = ioctl(pThis->iFd, TIOCMBIC, &fTiocmClear);
+        rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMBIC, &fTiocmClear);
         if (rcPsx == -1)
             rc = RTErrConvertFromErrno(errno);
     }
@@ -1236,7 +1404,7 @@ RTDECL(int) RTSerialPortQueryStatusLines(RTSERIALPORT hSerialPort, uint32_t *pfS
 
     int rc = VINF_SUCCESS;
     int fStsLines = 0;
-    int rcPsx = ioctl(pThis->iFd, TIOCMGET, &fStsLines);
+    int rcPsx = rtSerialPortIoctlWrapperPV(pThis, RT_SRC_POS, TIOCMGET, &fStsLines);
     if (!rcPsx)
     {
         /* This resets the status line event pending flag. */

@@ -2583,7 +2583,7 @@ OpalDriverGetDriverDeviceName(
   @param ImageHandle     Image Handle this driver.
   @param SystemTable     Pointer to SystemTable.
 
-  @retval EFI_SUCCESS    This function always complete successfully.
+  @retval EFI_SUCESS     This function always complete successfully.
 **/
 EFI_STATUS
 EFIAPI
@@ -2637,7 +2637,7 @@ EfiDriverEntryPoint(
   Tests to see if this driver supports a given controller.
 
   This function checks to see if the controller contains an instance of the
-  EFI_STORAGE_SECURITY_COMMAND_PROTOCOL and the EFI_BLOCK_IO_PROTOCOL
+  EFI_STORAGE_SECURITY_COMMAND_PROTOCOL and the EFI_BLOCK_IO_PROTOCL
   and returns EFI_SUCCESS if it does.
 
   @param[in]  This                  A pointer to the EFI_DRIVER_BINDING_PROTOCOL instance.
@@ -2667,6 +2667,7 @@ OpalEfiDriverBindingSupported(
 {
   EFI_STATUS                              Status;
   EFI_STORAGE_SECURITY_COMMAND_PROTOCOL*  SecurityCommand;
+  EFI_BLOCK_IO_PROTOCOL*                  BlkIo;
 
   if (mOpalEndOfDxe) {
     return EFI_UNSUPPORTED;
@@ -2702,6 +2703,33 @@ OpalEfiDriverBindingSupported(
       Controller
       );
 
+  //
+  // Test EFI_BLOCK_IO_PROTOCOL on controller Handle, required by EFI_STORAGE_SECURITY_COMMAND_PROTOCOL
+  // function APIs
+  //
+  Status = gBS->OpenProtocol(
+    Controller,
+    &gEfiBlockIoProtocolGuid,
+    (VOID **)&BlkIo,
+    This->DriverBindingHandle,
+    Controller,
+    EFI_OPEN_PROTOCOL_BY_DRIVER
+    );
+
+  if (EFI_ERROR(Status)) {
+    DEBUG((DEBUG_INFO, "No EFI_BLOCK_IO_PROTOCOL on controller\n"));
+    return Status;
+  }
+
+  //
+  // Close protocol and reopen in Start call
+  //
+  gBS->CloseProtocol(
+    Controller,
+    &gEfiBlockIoProtocolGuid,
+    This->DriverBindingHandle,
+    Controller
+    );
 
   return EFI_SUCCESS;
 }
@@ -2713,7 +2741,7 @@ OpalEfiDriverBindingSupported(
   "controller", which is a child Handle, contains the EF_STORAGE_SECURITY_COMMAND protocols.
   This function will complete the other necessary checks, such as verifying the device supports
   the correct version of Opal.  Upon verification, it will add the device to the
-  Opal HII list in order to expose Opal management options.
+  Opal HII list in order to expose Opal managmeent options.
 
   @param[in]  This                  A pointer to the EFI_DRIVER_BINDING_PROTOCOL instance.
   @param[in]  ControllerHandle      The Handle of the controller to start. This Handle
@@ -2799,42 +2827,30 @@ OpalEfiDriverBindingStart(
     );
   if (EFI_ERROR(Status)) {
     //
-    // Block_IO not supported on handle
+    // Close storage security that was opened
     //
-    if(Status == EFI_UNSUPPORTED) {
-      BlkIo = NULL;
-    } else {
-      //
-      // Close storage security that was opened
-      //
-      gBS->CloseProtocol(
-          Controller,
-          &gEfiStorageSecurityCommandProtocolGuid,
-          This->DriverBindingHandle,
-          Controller
-          );
+    gBS->CloseProtocol(
+        Controller,
+        &gEfiStorageSecurityCommandProtocolGuid,
+        This->DriverBindingHandle,
+        Controller
+        );
 
-      FreePool(Dev);
-      return Status;
-    }
+    FreePool(Dev);
+    return Status;
   }
 
   //
   // Save mediaId
   //
-  if(BlkIo == NULL) {
-    // If no Block IO present, use defined MediaId value.
-    Dev->MediaId = 0x0;
-  } else {
-    Dev->MediaId = BlkIo->Media->MediaId;
+  Dev->MediaId = BlkIo->Media->MediaId;
 
-    gBS->CloseProtocol(
-      Controller,
-      &gEfiBlockIoProtocolGuid,
-      This->DriverBindingHandle,
-      Controller
+  gBS->CloseProtocol(
+    Controller,
+    &gEfiBlockIoProtocolGuid,
+    This->DriverBindingHandle,
+    Controller
     );
-  }
 
   //
   // Acquire Ascii printable name of child, if not found, then ignore device

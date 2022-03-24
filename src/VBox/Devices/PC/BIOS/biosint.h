@@ -1,10 +1,10 @@
-/* $Id: biosint.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: biosint.h $ */
 /** @file
  * PC BIOS - BIOS internal definitions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -267,7 +267,6 @@ extern  void        put_str(uint16_t action, const char __far *s);
 extern  void        put_str_near(uint16_t action, const char __near *s);
 extern  uint8_t     inb_cmos(uint8_t cmos_reg);
 extern  void        outb_cmos(uint8_t cmos_reg, uint8_t val);
-extern  uint16_t    get_cmos_word(uint8_t idxFirst);
 extern  uint16_t    cdrom_boot(void);
 extern  void        show_logo(void);
 extern  void        delay_boot(uint16_t secs);
@@ -286,7 +285,6 @@ extern  bx_bool     set_enable_a20(bx_bool val);
 #endif
 #ifdef VBOX
 #define BX_INFO(...)    do { put_str(BIOS_PRINTF_INFO, bios_prefix_string); bios_printf(BIOS_PRINTF_INFO, __VA_ARGS__); } while (0)
-#define BX_INFO_CON(...)do { put_str(BIOS_PRINTF_INFO, bios_prefix_string); bios_printf(BIOS_PRINTF_ALL, __VA_ARGS__); } while (0)
 #else /* !VBOX */
 #define BX_INFO(...)    bios_printf(BIOS_PRINTF_INFO, __VA_ARGS__)
 #endif /* !VBOX */

@@ -1,4 +1,4 @@
-/** $Id: VBoxSF.cpp 93071 2021-12-24 00:12:04Z vboxsync $ */
+/** $Id: VBoxSF.cpp $ */
 /** @file
  * VBoxSF - OS/2 Shared Folders, the FS and FSD level IFS EPs
  */

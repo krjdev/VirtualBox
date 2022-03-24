@@ -1,10 +1,10 @@
-/* $Id: tstRTBigNum.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTBigNum.cpp $ */
 /** @file
  * IPRT - Testcase for the RTBigNum* functions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,9 +41,7 @@
 #include <iprt/time.h>
 
 #if 1
-# include "../include/internal/openssl-pre.h"
 # include <openssl/bn.h>
-# include "../include/internal/openssl-post.h"
 #endif
 
 

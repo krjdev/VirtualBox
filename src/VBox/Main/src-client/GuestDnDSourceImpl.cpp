@@ -1,10 +1,10 @@
-/* $Id: GuestDnDSourceImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDnDSourceImpl.cpp $ */
 /** @file
  * VBox Console COM Class implementation - Guest drag and drop source.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -249,6 +249,23 @@ HRESULT GuestDnDSource::removeFormats(const GuestDnDMIMEList &aFormats)
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
     return GuestDnDBase::i_removeFormats(aFormats);
+#endif /* VBOX_WITH_DRAG_AND_DROP */
+}
+
+HRESULT GuestDnDSource::getProtocolVersion(ULONG *aProtocolVersion)
+{
+#if !defined(VBOX_WITH_DRAG_AND_DROP)
+    ReturnComNotImplemented();
+#else /* VBOX_WITH_DRAG_AND_DROP */
+
+    AutoCaller autoCaller(this);
+    if (FAILED(autoCaller.rc())) return autoCaller.rc();
+
+    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
+
+    *aProtocolVersion = m_pState->m_uProtocolVersion;
+
+    return S_OK;
 #endif /* VBOX_WITH_DRAG_AND_DROP */
 }
 

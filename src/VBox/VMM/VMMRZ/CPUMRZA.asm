@@ -1,10 +1,10 @@
- ; $Id: CPUMRZA.asm 93115 2022-01-01 11:31:46Z vboxsync $
+ ; $Id: CPUMRZA.asm $
 ;; @file
 ; CPUM - Raw-mode and Ring-0 Context Assembly Routines.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -158,7 +158,7 @@ SEH64_END_PROLOGUE
         ;
 
         ; Save caller's XMM registers.
-        lea     pXState, [pCpumCpu + CPUMCPU.Host.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Host.pXStateR0]
         movdqa  [pXState + X86FXSTATE.xmm6 ], xmm6
         movdqa  [pXState + X86FXSTATE.xmm7 ], xmm7
         movdqa  [pXState + X86FXSTATE.xmm8 ], xmm8
@@ -172,7 +172,7 @@ SEH64_END_PROLOGUE
         stmxcsr [pXState + X86FXSTATE.MXCSR]
 
         ; Load the guest XMM register values we already saved in HMR0VMXStartVMWrapXMM.
-        lea     pXState, [pCpumCpu + CPUMCPU.Guest.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Guest.pXStateR0]
         movdqa  xmm0,  [pXState + X86FXSTATE.xmm0]
         movdqa  xmm1,  [pXState + X86FXSTATE.xmm1]
         movdqa  xmm2,  [pXState + X86FXSTATE.xmm2]
@@ -194,7 +194,7 @@ SEH64_END_PROLOGUE
         CPUMR0_SAVE_GUEST
 
         ; Restore caller's XMM registers.
-        lea     pXState, [pCpumCpu + CPUMCPU.Host.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Host.pXStateR0]
         movdqa  xmm6,  [pXState + X86FXSTATE.xmm6 ]
         movdqa  xmm7,  [pXState + X86FXSTATE.xmm7 ]
         movdqa  xmm8,  [pXState + X86FXSTATE.xmm8 ]
@@ -210,7 +210,6 @@ SEH64_END_PROLOGUE
  %endif
 
         and     dword [pCpumCpu + CPUMCPU.fUseFlags], ~CPUM_USED_FPU_GUEST
-        mov     byte [pCpumCpu + CPUMCPU.Guest.fUsedFpuGuest], 0
  %ifdef IN_RC
         test    byte [ebp + 0ch], 1     ; fLeaveFpuAccessible
         jz      .no_cr0_restore
@@ -248,14 +247,20 @@ SEH64_END_PROLOGUE
 
 %ifndef VBOX_WITH_KERNEL_USING_XMM
         ;
-        ; Load xCX with the guest pXState.
+        ; Load xCX with the guest pXStateR0.
         ;
  %ifdef ASM_CALL64_GCC
         mov     xCX, rdi
  %elifdef RT_ARCH_X86
         mov     xCX, dword [ebp + 8]
  %endif
-        lea     xCX, [xCX + CPUMCPU.Guest.XState]
+ %ifdef IN_RING0
+        mov     xCX, [xCX + CPUMCPU.Guest.pXStateR0]
+ %elifdef IN_RC
+        mov     xCX, [xCX + CPUMCPU.Guest.pXStateRC]
+ %else
+  %error "Invalid context!"
+ %endif
 
  %ifdef IN_RC
         ; Temporarily grant access to the SSE state. xDX must be preserved until CR0 is restored!
@@ -322,14 +327,20 @@ BEGINPROC cpumRZSaveGuestAvxRegisters
 SEH64_END_PROLOGUE
 
         ;
-        ; Load xCX with the guest pXState.
+        ; Load xCX with the guest pXStateR0.
         ;
 %ifdef ASM_CALL64_GCC
         mov     xCX, rdi
 %elifdef RT_ARCH_X86
         mov     xCX, dword [ebp + 8]
 %endif
-        lea     xCX, [xCX + CPUMCPU.Guest.XState]
+%ifdef IN_RING0
+        mov     xCX, [xCX + CPUMCPU.Guest.pXStateR0]
+%elifdef IN_RC
+        mov     xCX, [xCX + CPUMCPU.Guest.pXStateRC]
+%else
+ %error "Invalid context!"
+%endif
 
 %ifdef IN_RC
         ; Temporarily grant access to the SSE state. xBX must be preserved until CR0 is restored!

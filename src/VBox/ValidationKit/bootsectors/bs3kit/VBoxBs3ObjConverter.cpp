@@ -1,10 +1,10 @@
-/* $Id: VBoxBs3ObjConverter.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxBs3ObjConverter.cpp $ */
 /** @file
  * VirtualBox Validation Kit - Boot Sector 3 object file convert.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2134,8 +2134,7 @@ static bool convertCoffSectionsToSegDefsAndGrpDefs(POMFWRITER pThis, PCIMAGE_SEC
         else
         {
             /* Translate the name, group and class. */
-            if (   strcmp(szName, ".text") == 0
-                || strcmp(szName, ".text$mn") == 0 /* Seen first in VC++ 14.1 (could be older). */)
+            if (strcmp(szName, ".text") == 0)
             {
                 strcpy(szName, "BS3TEXT64");
                 pThis->paSegments[i].iGrpNm   = idxGrpFlat;
@@ -5493,7 +5492,7 @@ int main(int argc, char **argv)
                         break;
 
                     case 'V':
-                        printf("%s\n", "$Revision: 93115 $");
+                        printf("%s\n", "$Revision: 142330 $");
                         return 0;
 
                     case '?':

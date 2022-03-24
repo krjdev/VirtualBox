@@ -1,10 +1,10 @@
-/* $Id: SUPLibAll.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLibAll.cpp $ */
 /** @file
  * VirtualBox Support Library - All Contexts Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,13 +40,10 @@
 # include <iprt/asm-amd64-x86.h>
 #endif
 #include <iprt/errcore.h>
-#if defined(IN_RING0) && defined(RT_OS_LINUX)
-# include "SUPDrvInternal.h"
-#endif
-
 
 
 #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
+
 /**
  * The slow case for SUPReadTsc where we need to apply deltas.
  *
@@ -220,10 +217,6 @@ SUPDECL(uint64_t) SUPReadTscWithDelta(PSUPGLOBALINFOPAGE pGip)
     AssertMsgFailed(("iGipCpu=%d (%#x) cCpus=%d fGetGipCpu=%#x\n", iGipCpu, iGipCpu, pGip->cCpus, pGip->fGetGipCpu));
     return uTsc;
 }
-# ifdef SUPR0_EXPORT_SYMBOL
-SUPR0_EXPORT_SYMBOL(SUPReadTscWithDelta);
-# endif
-#endif /* RT_ARCH_AMD64 || RT_ARCH_X86 */
 
 
 /**
@@ -236,7 +229,6 @@ DECLINLINE(uint16_t) supGetGipCpuIndex(PSUPGLOBALINFOPAGE pGip)
 {
     uint16_t iGipCpu;
 #ifdef IN_RING3
-# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
     if (pGip->fGetGipCpu & SUPGIPGETCPU_IDTR_LIMIT_MASK_MAX_SET_CPUS)
     {
         /* Storing the IDTR is normally very fast. */
@@ -271,15 +263,6 @@ DECLINLINE(uint16_t) supGetGipCpuIndex(PSUPGLOBALINFOPAGE pGip)
         uint8_t idApic = ASMGetApicId();
         iGipCpu = pGip->aiCpuFromApicId[idApic];
     }
-
-# else
-    int iCpuSet = RTMpCpuIdToSetIndex(RTMpCpuId());
-    if (RT_LIKELY((unsigned)iCpuSet < RT_ELEMENTS(pGip->aiCpuFromCpuSetIdx)))
-        iGipCpu = pGip->aiCpuFromCpuSetIdx[iCpuSet];
-    else
-        iGipCpu = UINT16_MAX;
-# endif
-
 #elif defined(IN_RING0)
     /* Ring-0: Use use RTMpCpuId() (disables cli to avoid host OS assertions about unsafe CPU number usage). */
     RTCCUINTREG uFlags  = ASMIntDisableFlags();
@@ -297,7 +280,6 @@ DECLINLINE(uint16_t) supGetGipCpuIndex(PSUPGLOBALINFOPAGE pGip)
         iGipCpu = pGip->aiCpuFromCpuSetIdx[iCpuSet];
     else
         iGipCpu = UINT16_MAX;
-
 #else
 # error "IN_RING3, IN_RC or IN_RING0 must be defined!"
 #endif
@@ -312,7 +294,7 @@ DECLINLINE(uint16_t) supGetGipCpuIndex(PSUPGLOBALINFOPAGE pGip)
  * @param   pGip        The GIP.
  * @internal
  */
-SUPDECL(int64_t) SUPGetTscDeltaSlow(PSUPGLOBALINFOPAGE pGip)
+SUPDECL(uint64_t) SUPGetTscDeltaSlow(PSUPGLOBALINFOPAGE pGip)
 {
     uint16_t iGipCpu = supGetGipCpuIndex(pGip);
     if (RT_LIKELY(iGipCpu < pGip->cCpus))
@@ -323,22 +305,6 @@ SUPDECL(int64_t) SUPGetTscDeltaSlow(PSUPGLOBALINFOPAGE pGip)
     }
     AssertFailed();
     return 0;
-}
-
-
-/**
- * SLow path in SUPGetGipCpuPtr, don't call directly.
- *
- * @returns Pointer to the CPU entry for the caller, NULL on failure.
- * @param   pGip        The GIP.
- */
-SUPDECL(PSUPGIPCPU) SUPGetGipCpuPtrForAsyncMode(PSUPGLOBALINFOPAGE pGip)
-{
-    uint16_t iGipCpu = supGetGipCpuIndex(pGip);
-    if (RT_LIKELY(iGipCpu < pGip->cCpus))
-        return &pGip->aCPUs[iGipCpu];
-    AssertFailed();
-    return NULL;
 }
 
 
@@ -357,7 +323,6 @@ SUPDECL(uint64_t) SUPGetCpuHzFromGipForAsyncMode(PSUPGLOBALINFOPAGE pGip)
     AssertFailed();
     return pGip->u64CpuHz;
 }
-
 
 
 /**
@@ -416,4 +381,6 @@ SUPDECL(bool) SUPIsTscFreqCompatible(uint64_t uCpuHz, uint64_t *puGipCpuHz, bool
         *puGipCpuHz = uGipCpuHz;
     return fCompat;
 }
+
+#endif /* RT_ARCH_AMD64 || RT_ARCH_X86 */
 

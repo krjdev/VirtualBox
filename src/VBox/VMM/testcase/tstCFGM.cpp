@@ -1,10 +1,10 @@
-/* $Id: tstCFGM.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: tstCFGM.cpp $ */
 /** @file
  * Testcase for CFGM.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 *********************************************************************************************************************************/
 #include <VBox/sup.h>
 #include <VBox/vmm/cfgm.h>
-#include <VBox/vmm/dbgf.h>
 #include <VBox/vmm/mm.h>
 #include <VBox/vmm/vm.h>
 #include <VBox/vmm/uvm.h>
@@ -102,11 +101,10 @@ static void doInVmmTests(RTTEST hTest)
     }
 
     PVM pVM;
-    RTTESTI_CHECK_RC_RETV(SUPR3PageAlloc(RT_ALIGN_Z(sizeof(*pVM), HOST_PAGE_SIZE) >> HOST_PAGE_SHIFT, 0, (void **)&pVM),
-                          VINF_SUCCESS);
+    RTTESTI_CHECK_RC_RETV(SUPR3PageAlloc(RT_ALIGN_Z(sizeof(*pVM), PAGE_SIZE) >> PAGE_SHIFT, (void **)&pVM), VINF_SUCCESS);
 
 
-    PUVM pUVM = (PUVM)RTMemPageAllocZ(sizeof(*pUVM));
+    PUVM pUVM = (PUVM)RTMemPageAlloc(sizeof(*pUVM));
     pUVM->u32Magic = UVM_MAGIC;
     pUVM->pVM = pVM;
     pVM->pUVM = pUVM;
@@ -125,10 +123,6 @@ static void doInVmmTests(RTTEST hTest)
 
     /* done */
     RTTESTI_CHECK_RC_RETV(CFGMR3Term(pVM), VINF_SUCCESS);
-    MMR3TermUVM(pUVM);
-    STAMR3TermUVM(pUVM);
-    DBGFR3TermUVM(pUVM);
-    RTMemPageFree(pUVM, sizeof(*pUVM));
 }
 
 
@@ -153,7 +147,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
      * Init runtime.
      */
     RTTEST hTest;
-    RTR3InitExeNoArguments(RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExeNoArguments(RTR3INIT_FLAGS_SUPLIB);
     RTEXITCODE rcExit = RTTestInitAndCreate("tstCFGM", &hTest);
     if (rcExit != RTEXITCODE_SUCCESS)
         return rcExit;

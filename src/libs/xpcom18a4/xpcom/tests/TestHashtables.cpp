@@ -289,11 +289,11 @@ IFoo::Release()
     if ( wrap_message )
       printf(">>");
       
-    nsrefcnt newrefcount = --refcount_;
+    --refcount_;
     printf("IFoo@%p::Release(), refcount --> %d\n",
-           NS_STATIC_CAST(void*, this), newrefcount);
+           NS_STATIC_CAST(void*, this), refcount_);
 
-    if ( !newrefcount )
+    if ( !refcount_ )
       {
         printf("  delete IFoo@%p\n", NS_STATIC_CAST(void*, this));
         delete this;
@@ -302,7 +302,7 @@ IFoo::Release()
     if ( wrap_message )
       printf("  delete IFoo@%p\n", NS_STATIC_CAST(void*, this));
 
-    return newrefcount;
+    return refcount_;
   }
 
 nsresult

@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-modifymedium" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-14 10:02:16 +0100 (Mo, 14. Mär 2022) $</pubdate>
+    <pubdate>August 2019</pubdate>
     <title>VBoxManage modifymedium</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-modifymedium</refname>
     <refpurpose>change the characteristics of an existing disk image</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>

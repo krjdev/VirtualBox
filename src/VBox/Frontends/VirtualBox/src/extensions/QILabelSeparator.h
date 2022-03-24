@@ -1,10 +1,10 @@
-/* $Id: QILabelSeparator.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QILabelSeparator.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QILabelSeparator class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,11 +39,11 @@ class SHARED_LIBRARY_STUFF QILabelSeparator : public QWidget
 
 public:
 
-    /** Constructs label-separator passing @a pParent and @a enmFlags to the base-class. */
-    QILabelSeparator(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
-    /** Constructs label-separator passing @a pParent and @a enmFlags to the base-class.
+    /** Constructs label-separator passing @a pParent and @a fFlags to the base-class. */
+    QILabelSeparator(QWidget *pParent = 0, Qt::WindowFlags fFlags = 0);
+    /** Constructs label-separator passing @a pParent and @a fFlags to the base-class.
       * @param  strText  Brings the label text. */
-    QILabelSeparator(const QString &strText, QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    QILabelSeparator(const QString &strText, QWidget *pParent = 0, Qt::WindowFlags fFlags = 0);
 
     /** Returns the label text. */
     QString text() const;

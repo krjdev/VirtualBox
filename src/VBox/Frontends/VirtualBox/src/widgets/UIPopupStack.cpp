@@ -1,10 +1,10 @@
-/* $Id: UIPopupStack.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIPopupStack.cpp $ */
 /** @file
  * VBox Qt GUI - UIPopupStack class implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,8 +25,6 @@
 
 /* GUI includes: */
 #include "UICommon.h"
-#include "UICursor.h"
-#include "UIDesktopWidgetWatchdog.h"
 #include "UIPopupStack.h"
 #include "UIPopupStackViewport.h"
 
@@ -97,10 +95,10 @@ void UIPopupStack::setParent(QWidget *pParent)
     m_iParentStatusBarHeight = parentStatusBarHeight(pParent);
 }
 
-void UIPopupStack::setParent(QWidget *pParent, Qt::WindowFlags enmFlags)
+void UIPopupStack::setParent(QWidget *pParent, Qt::WindowFlags flags)
 {
     /* Call to base-class: */
-    QWidget::setParent(pParent, enmFlags);
+    QWidget::setParent(pParent, flags);
     /* Recalculate parent menu-bar height: */
     m_iParentMenuBarHeight = parentMenuBarHeight(pParent);
     /* Recalculate parent status-bar height: */
@@ -203,7 +201,7 @@ void UIPopupStack::sltAdjustGeometry()
     }
 
     /* Adjust geometry: */
-    UIDesktopWidgetWatchdog::setTopLevelGeometry(this, iX, iY, iWidth, iHeight);
+    UICommon::setTopLevelGeometry(this, iX, iY, iWidth, iHeight);
 }
 
 void UIPopupStack::sltPopupPaneRemoved(QString)
@@ -248,7 +246,7 @@ void UIPopupStack::prepareContent()
         m_pScrollArea = new QScrollArea;
         {
             /* Configure scroll-area: */
-            UICursor::setCursor(m_pScrollArea, Qt::ArrowCursor);
+            UICommon::setCursor(m_pScrollArea, Qt::ArrowCursor);
             m_pScrollArea->setWidgetResizable(true);
             m_pScrollArea->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
             m_pScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -260,7 +258,7 @@ void UIPopupStack::prepareContent()
             m_pScrollViewport = new UIPopupStackViewport;
             {
                 /* Configure scroll-viewport: */
-                UICursor::setCursor(m_pScrollViewport, Qt::ArrowCursor);
+                UICommon::setCursor(m_pScrollViewport, Qt::ArrowCursor);
                 /* Connect scroll-viewport: */
                 connect(this, &UIPopupStack::sigProposeStackViewportSize,
                         m_pScrollViewport, &UIPopupStackViewport::sltHandleProposalForSize);

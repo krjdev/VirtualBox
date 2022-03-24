@@ -9,7 +9,6 @@
 
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
-#include <Library/MemEncryptSevLib.h>
 #include <Library/PcdLib.h>
 
 #include "QemuFlash.h"
@@ -75,50 +74,35 @@ QemuFlashDetected (
   }
 
   if (Offset >= mFdBlockSize) {
-    DEBUG ((DEBUG_INFO, "QEMU Flash: Failed to find probe location\n"));
+    DEBUG ((EFI_D_INFO, "QEMU Flash: Failed to find probe location\n"));
     return FALSE;
   }
 
-  DEBUG ((DEBUG_INFO, "QEMU Flash: Attempting flash detection at %p\n", Ptr));
-
-  if (MemEncryptSevEsIsEnabled ()) {
-    //
-    // When SEV-ES is enabled, the check below can result in an infinite
-    // loop with respect to a nested page fault. When the memslot is mapped
-    // read-only, the nested page table entry is read-only. The check below
-    // will cause a nested page fault that cannot be emulated, causing
-    // the instruction to retried over and over. For SEV-ES, acknowledge that
-    // the FD appears as ROM and not as FLASH, but report FLASH anyway because
-    // FLASH behavior can be simulated using VMGEXIT.
-    //
-    DEBUG ((DEBUG_INFO,
-      "QEMU Flash: SEV-ES enabled, assuming FD behaves as FLASH\n"));
-    return TRUE;
-  }
+  DEBUG ((EFI_D_INFO, "QEMU Flash: Attempting flash detection at %p\n", Ptr));
 
   OriginalUint8 = *Ptr;
   *Ptr = CLEAR_STATUS_CMD;
   ProbeUint8 = *Ptr;
   if (OriginalUint8 != CLEAR_STATUS_CMD &&
       ProbeUint8 == CLEAR_STATUS_CMD) {
-    DEBUG ((DEBUG_INFO, "QemuFlashDetected => FD behaves as RAM\n"));
+    DEBUG ((EFI_D_INFO, "QemuFlashDetected => FD behaves as RAM\n"));
     *Ptr = OriginalUint8;
   } else {
     *Ptr = READ_STATUS_CMD;
     ProbeUint8 = *Ptr;
     if (ProbeUint8 == OriginalUint8) {
-      DEBUG ((DEBUG_INFO, "QemuFlashDetected => FD behaves as ROM\n"));
+      DEBUG ((EFI_D_INFO, "QemuFlashDetected => FD behaves as ROM\n"));
     } else if (ProbeUint8 == READ_STATUS_CMD) {
-      DEBUG ((DEBUG_INFO, "QemuFlashDetected => FD behaves as RAM\n"));
+      DEBUG ((EFI_D_INFO, "QemuFlashDetected => FD behaves as RAM\n"));
       *Ptr = OriginalUint8;
     } else if (ProbeUint8 == CLEARED_ARRAY_STATUS) {
-      DEBUG ((DEBUG_INFO, "QemuFlashDetected => FD behaves as FLASH\n"));
+      DEBUG ((EFI_D_INFO, "QemuFlashDetected => FD behaves as FLASH\n"));
       FlashDetected = TRUE;
       *Ptr = READ_ARRAY_CMD;
     }
   }
 
-  DEBUG ((DEBUG_INFO, "QemuFlashDetected => %a\n",
+  DEBUG ((EFI_D_INFO, "QemuFlashDetected => %a\n",
                       FlashDetected ? "Yes" : "No"));
   return FlashDetected;
 }
@@ -197,9 +181,8 @@ QemuFlashWrite (
   //
   Ptr = QemuFlashPtr (Lba, Offset);
   for (Loop = 0; Loop < *NumBytes; Loop++) {
-    QemuFlashPtrWrite (Ptr, WRITE_BYTE_CMD);
-    QemuFlashPtrWrite (Ptr, Buffer[Loop]);
-
+    *Ptr = WRITE_BYTE_CMD;
+    *Ptr = Buffer[Loop];
     Ptr++;
   }
 
@@ -207,7 +190,7 @@ QemuFlashWrite (
   // Restore flash to read mode
   //
   if (*NumBytes > 0) {
-    QemuFlashPtrWrite (Ptr - 1, READ_ARRAY_CMD);
+    *(Ptr - 1) = READ_ARRAY_CMD;
   }
 
   return EFI_SUCCESS;
@@ -232,8 +215,8 @@ QemuFlashEraseBlock (
   }
 
   Ptr = QemuFlashPtr (Lba, 0);
-  QemuFlashPtrWrite (Ptr, BLOCK_ERASE_CMD);
-  QemuFlashPtrWrite (Ptr, BLOCK_ERASE_CONFIRM_CMD);
+  *Ptr = BLOCK_ERASE_CMD;
+  *Ptr = BLOCK_ERASE_CONFIRM_CMD;
   return EFI_SUCCESS;
 }
 

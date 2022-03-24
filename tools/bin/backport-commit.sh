@@ -1,11 +1,11 @@
 # !kmk_ash
-# $Id: backport-commit.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: backport-commit.sh $
 ## @file
 # Script for committing a backport from trunk.
 #
 
 #
-# Copyright (C) 2020-2022 Oracle Corporation
+# Copyright (C) 2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -128,14 +128,6 @@ fi
 #
 # Do the committing.
 #
-if [ -n "${MY_SHOW_DIFF}" ]; then
-    echo "***"
-    echo "*** Diff:"
-    "${MY_SVN}" diff --internal-diff
-    echo "*** end diff ***"
-    echo "***"
-    echo ""
-fi
 echo "***"
 echo "*** Commit message:"
 "${MY_CAT}" "${MY_MSG_FILE}"
@@ -169,3 +161,4 @@ for MY_IGNORE in 1 2 3; do
     esac
 done
 exit 1;
+

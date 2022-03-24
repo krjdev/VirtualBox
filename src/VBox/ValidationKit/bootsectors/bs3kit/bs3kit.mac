@@ -1,10 +1,10 @@
-; $Id: bs3kit.mac 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: bs3kit.mac $
 ;; @file
 ; BS3Kit - structures, symbols, macros and stuff.
 ;
 
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -688,8 +688,8 @@ BS3_GLOBAL_NAME_EX %1 %+ _EndProc, function hidden, (%1 %+ _EndProc - %1)
 ;; @{
 %define BS3_PBC_NEAR          1 ;;< Only near.
 %define BS3_PBC_FAR           2 ;;< Only far.
-%define BS3_PBC_HYBRID        3 ;;< Hybrid near/far procedure, trashing AX. Use BS3_HYBRID_RET to return.
-%define BS3_PBC_HYBRID_SAFE   4 ;;< Hybrid near/far procedure, no trashing but slower. Use BS3_HYBRID_RET to return.
+%define BS3_PBC_HYBRID        3 ;;< Hybrid near/far procedure, trashing AX
+%define BS3_PBC_HYBRID_SAFE   4 ;;< Hybrid near/far procedure, no trashing but slower.
 %define BS3_PBC_HYBRID_0_ARGS 5 ;;< Hybrid near/far procedure, no parameters so separate far stub, no trashing, fast near calls.
 ;; @}
 

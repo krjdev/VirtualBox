@@ -1,10 +1,10 @@
-/* $Id: UnattendedInstaller.cpp 94173 2022-03-11 14:59:01Z vboxsync $ */
+/* $Id: UnattendedInstaller.cpp $ */
 /** @file
  * UnattendedInstaller class and it's descendants implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,36 +49,33 @@
 using namespace std;
 
 
-/* static */ UnattendedInstaller *
-UnattendedInstaller::createInstance(VBOXOSTYPE enmDetectedOSType, const Utf8Str &strDetectedOSType,
-                                    const Utf8Str &strDetectedOSVersion, const Utf8Str &strDetectedOSFlavor,
-                                    const Utf8Str &strDetectedOSHints, Unattended *pParent)
+/* static */ UnattendedInstaller *UnattendedInstaller::createInstance(VBOXOSTYPE enmOsType,
+                                                                      const Utf8Str &strGuestOsType,
+                                                                      const Utf8Str &strDetectedOSVersion,
+                                                                      const Utf8Str &strDetectedOSFlavor,
+                                                                      const Utf8Str &strDetectedOSHints,
+                                                                      Unattended *pParent)
 {
     UnattendedInstaller *pUinstaller = NULL;
 
-    if (strDetectedOSType.find("Windows") != RTCString::npos)
+    if (strGuestOsType.find("Windows") != RTCString::npos)
     {
-        if (enmDetectedOSType >= VBOXOSTYPE_WinVista)
+        if (enmOsType >= VBOXOSTYPE_WinVista)
             pUinstaller = new UnattendedWindowsXmlInstaller(pParent);
         else
             pUinstaller = new UnattendedWindowsSifInstaller(pParent);
     }
-    else if (enmDetectedOSType >= VBOXOSTYPE_OS2 && enmDetectedOSType < VBOXOSTYPE_Linux)
-        pUinstaller = new UnattendedOs2Installer(pParent, strDetectedOSHints);
     else
     {
-        if (enmDetectedOSType == VBOXOSTYPE_Debian || enmDetectedOSType == VBOXOSTYPE_Debian_x64)
+        if (enmOsType == VBOXOSTYPE_Debian || enmOsType == VBOXOSTYPE_Debian_x64)
             pUinstaller = new UnattendedDebianInstaller(pParent);
-        else if (enmDetectedOSType >= VBOXOSTYPE_Ubuntu && enmDetectedOSType <= VBOXOSTYPE_Ubuntu_x64)
+        else if (enmOsType >= VBOXOSTYPE_Ubuntu && enmOsType <= VBOXOSTYPE_Ubuntu_x64)
             pUinstaller = new UnattendedUbuntuInstaller(pParent);
-        else if (enmDetectedOSType >= VBOXOSTYPE_RedHat && enmDetectedOSType <= VBOXOSTYPE_RedHat_x64)
+        else if (enmOsType >= VBOXOSTYPE_RedHat && enmOsType <= VBOXOSTYPE_RedHat_x64)
         {
-            if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "8") >= 0)
-                pUinstaller = new UnattendedRhel8Installer(pParent);
-            else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "7") >= 0)
-                pUinstaller = new UnattendedRhel7Installer(pParent);
-            else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "6") >= 0)
-                pUinstaller = new UnattendedRhel6Installer(pParent);
+            if (   strDetectedOSVersion.isEmpty()
+                || RTStrVersionCompare(strDetectedOSVersion.c_str(), "6") >= 0)
+                pUinstaller = new UnattendedRhel6And7Installer(pParent);
             else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "5") >= 0)
                 pUinstaller = new UnattendedRhel5Installer(pParent);
             else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "4") >= 0)
@@ -86,23 +83,14 @@ UnattendedInstaller::createInstance(VBOXOSTYPE enmDetectedOSType, const Utf8Str 
             else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "3") >= 0)
                 pUinstaller = new UnattendedRhel3Installer(pParent);
             else
-                pUinstaller = new UnattendedRhel6Installer(pParent);
+                pUinstaller = new UnattendedRhel6And7Installer(pParent);
         }
-        else if (enmDetectedOSType >= VBOXOSTYPE_FedoraCore && enmDetectedOSType <= VBOXOSTYPE_FedoraCore_x64)
+        else if (enmOsType >= VBOXOSTYPE_FedoraCore && enmOsType <= VBOXOSTYPE_FedoraCore_x64)
             pUinstaller = new UnattendedFedoraInstaller(pParent);
-        else if (enmDetectedOSType >= VBOXOSTYPE_Oracle && enmDetectedOSType <= VBOXOSTYPE_Oracle_x64)
-        {
-            if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "8") >= 0)
-                pUinstaller = new UnattendedOracleLinux8Installer(pParent);
-            else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "7") >= 0)
-                pUinstaller = new UnattendedOracleLinux7Installer(pParent);
-            else if (RTStrVersionCompare(strDetectedOSVersion.c_str(), "6") >= 0)
-                pUinstaller = new UnattendedOracleLinux6Installer(pParent);
-            else
-                pUinstaller = new UnattendedOracleLinux6Installer(pParent);
-        }
+        else if (enmOsType >= VBOXOSTYPE_Oracle && enmOsType <= VBOXOSTYPE_Oracle_x64)
+            pUinstaller = new UnattendedOracleLinuxInstaller(pParent);
 #if 0 /* doesn't work, so convert later. */
-        else if (enmDetectedOSType == VBOXOSTYPE_OpenSUSE || enmDetectedOSType == VBOXOSTYPE_OpenSUSE_x64)
+        else if (enmOsType == VBOXOSTYPE_OpenSUSE || enmOsType == VBOXOSTYPE_OpenSUSE_x64)
             pUinstaller = new UnattendedSuseInstaller(new UnattendedSUSEXMLScript(pParent), pParent);
 #endif
     }
@@ -164,7 +152,7 @@ HRESULT UnattendedInstaller::initInstaller()
             vrc = RTPathAppendCxx(mStrMainScriptTemplate, mMainScript.getDefaultTemplateFilename());
         if (RT_FAILURE(vrc))
             return mpParent->setErrorBoth(E_FAIL, vrc,
-                                          tr("Failed to construct path to the unattended installer script templates (%Rrc)"),
+                                          mpParent->tr("Failed to construct path to the unattended installer script templates (%Rrc)"),
                                           vrc);
     }
 
@@ -182,7 +170,7 @@ HRESULT UnattendedInstaller::initInstaller()
             vrc = RTPathAppendCxx(mStrPostScriptTemplate, mPostScript.getDefaultTemplateFilename());
         if (RT_FAILURE(vrc))
             return mpParent->setErrorBoth(E_FAIL, vrc,
-                                          tr("Failed to construct path to the unattended installer script templates (%Rrc)"),
+                                          mpParent->tr("Failed to construct path to the unattended installer script templates (%Rrc)"),
                                           vrc);
     }
 
@@ -207,11 +195,11 @@ HRESULT UnattendedInstaller::initInstaller()
      * Check that we've got the minimum of data available.
      */
     if (mpParent->i_getIsoPath().isEmpty())
-        return mpParent->setError(E_INVALIDARG, tr("Cannot proceed with an empty installation ISO path"));
+        return mpParent->setError(E_INVALIDARG, mpParent->tr("Cannot proceed with an empty installation ISO path"));
     if (mpParent->i_getUser().isEmpty())
-        return mpParent->setError(E_INVALIDARG, tr("Empty user name is not allowed"));
+        return mpParent->setError(E_INVALIDARG, mpParent->tr("Empty user name is not allowed"));
     if (mpParent->i_getPassword().isEmpty())
-        return mpParent->setError(E_INVALIDARG, tr("Empty password is not allowed"));
+        return mpParent->setError(E_INVALIDARG, mpParent->tr("Empty password is not allowed"));
 
     LogRelFunc(("UnattendedInstaller::savePassedData(): \n"));
     return S_OK;
@@ -312,47 +300,30 @@ HRESULT UnattendedInstaller::prepareAuxFloppyImage(bool fOverwrite)
     Assert(isAuxiliaryFloppyNeeded());
 
     /*
-     * Create the image.
+     * Create the image and get a VFS to it.
      */
-    RTVFSFILE hVfsFile;
-    HRESULT hrc = newAuxFloppyImage(getAuxiliaryFloppyFilePath().c_str(), fOverwrite, &hVfsFile);
+    RTVFS   hVfs;
+    HRESULT hrc = newAuxFloppyImage(getAuxiliaryFloppyFilePath().c_str(), fOverwrite, &hVfs);
     if (SUCCEEDED(hrc))
     {
         /*
-         * Open the FAT file system so we can copy files onto the floppy.
+         * Call overridable method to copies the files onto it.
          */
-        RTERRINFOSTATIC ErrInfo;
-        RTVFS           hVfs;
-        int vrc = RTFsFatVolOpen(hVfsFile, false /*fReadOnly*/,  0 /*offBootSector*/, &hVfs, RTErrInfoInitStatic(&ErrInfo));
-        RTVfsFileRelease(hVfsFile);
-        if (RT_SUCCESS(vrc))
-        {
-            /*
-             * Call overridable method to copies the files onto it.
-             */
-            hrc = copyFilesToAuxFloppyImage(hVfs);
+        hrc = copyFilesToAuxFloppyImage(hVfs);
 
-            /*
-             * Release the VFS.  On failure, delete the floppy image so the operation can
-             * be repeated in non-overwrite mode and so that we don't leave any mess behind.
-             */
-            RTVfsRelease(hVfs);
-        }
-        else if (RTErrInfoIsSet(&ErrInfo.Core))
-            hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                         tr("Failed to open FAT file system on newly created floppy image '%s': %Rrc: %s"),
-                                         getAuxiliaryFloppyFilePath().c_str(), vrc, ErrInfo.Core.pszMsg);
-        else
-            hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                         tr("Failed to open FAT file system onnewly created floppy image '%s': %Rrc"),
-                                         getAuxiliaryFloppyFilePath().c_str(), vrc);
+        /*
+         * Relase the VFS.  On failure, delete the floppy image so the operation can
+         * be repeated in non-overwrite mode and we don't leave any mess behind.
+         */
+        RTVfsRelease(hVfs);
+
         if (FAILED(hrc))
             RTFileDelete(getAuxiliaryFloppyFilePath().c_str());
     }
     return hrc;
 }
 
-HRESULT UnattendedInstaller::newAuxFloppyImage(const char *pszFilename, bool fOverwrite, PRTVFSFILE phVfsFile)
+HRESULT UnattendedInstaller::newAuxFloppyImage(const char *pszFilename, bool fOverwrite, PRTVFS phVfs)
 {
     /*
      * Open the image file.
@@ -373,19 +344,37 @@ HRESULT UnattendedInstaller::newAuxFloppyImage(const char *pszFilename, bool fOv
         vrc = RTFsFatVolFormat144(hVfsFile, false /*fQuick*/);
         if (RT_SUCCESS(vrc))
         {
-            *phVfsFile = hVfsFile;
-            LogRelFlow(("UnattendedInstaller::newAuxFloppyImage: created and formatted  '%s'\n", pszFilename));
-            return S_OK;
-        }
+            /*
+             * Open the FAT VFS.
+             */
+            RTERRINFOSTATIC ErrInfo;
+            RTVFS           hVfs;
+            vrc = RTFsFatVolOpen(hVfsFile, false /*fReadOnly*/,  0 /*offBootSector*/, &hVfs, RTErrInfoInitStatic(&ErrInfo));
+            if (RT_SUCCESS(vrc))
+            {
+                *phVfs = hVfs;
+                RTVfsFileRelease(hVfsFile);
+                LogRelFlow(("UnattendedInstaller::newAuxFloppyImage: created, formatted and opened '%s'\n", pszFilename));
+                return S_OK;
+            }
 
-        hrc = mpParent->setErrorBoth(E_FAIL, vrc, tr("Failed to format floppy image '%s': %Rrc"), pszFilename, vrc);
+            if (RTErrInfoIsSet(&ErrInfo.Core))
+                hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to open newly created floppy image '%s': %Rrc: %s"),
+                                             pszFilename, vrc, ErrInfo.Core.pszMsg);
+            else
+                hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to open newly created floppy image '%s': %Rrc"),
+                                             pszFilename, vrc);
+        }
+        else
+            hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to format floppy image '%s': %Rrc"), pszFilename, vrc);
         RTVfsFileRelease(hVfsFile);
         RTFileDelete(pszFilename);
     }
     else
-        hrc = mpParent->setErrorBoth(E_FAIL, vrc, tr("Failed to create floppy image '%s': %Rrc"), pszFilename, vrc);
+        hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to create floppy image '%s': %Rrc"), pszFilename, vrc);
     return hrc;
 }
+
 
 HRESULT UnattendedInstaller::copyFilesToAuxFloppyImage(RTVFS hVfs)
 {
@@ -423,8 +412,7 @@ HRESULT UnattendedInstaller::addScriptToFloppyImage(BaseTextScript *pEditor, RTV
                 hrc = S_OK; /* done */
             else
                 hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                             tr("Error writing %zu bytes to '%s' in floppy image '%s': %Rrc",
-                                                "", strScript.length()),
+                                             mpParent->tr("Error writing %zu bytes to '%s' in floppy image '%s': %Rrc"),
                                              strScript.length(), pEditor->getDefaultFilename(),
                                              getAuxiliaryFloppyFilePath().c_str());
         }
@@ -432,54 +420,10 @@ HRESULT UnattendedInstaller::addScriptToFloppyImage(BaseTextScript *pEditor, RTV
     }
     else
         hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                     tr("Error creating '%s' in floppy image '%s': %Rrc"),
+                                     mpParent->tr("Error creating '%s' in floppy image '%s': %Rrc"),
                                      pEditor->getDefaultFilename(), getAuxiliaryFloppyFilePath().c_str());
     return hrc;
-}
 
-HRESULT UnattendedInstaller::addFileToFloppyImage(RTVFS hVfs, const char *pszSrc, const char *pszDst)
-{
-    HRESULT hrc;
-
-    /*
-     * Open the source file.
-     */
-    RTVFSIOSTREAM hVfsIosSrc;
-    int vrc = RTVfsIoStrmOpenNormal(pszSrc, RTFILE_O_READ | RTFILE_O_OPEN | RTFILE_O_DENY_WRITE, &hVfsIosSrc);
-    if (RT_SUCCESS(vrc))
-    {
-        /*
-         * Open the destination file.
-         */
-        RTVFSFILE hVfsFileDst;
-        vrc = RTVfsFileOpen(hVfs, pszDst,
-                            RTFILE_O_WRITE | RTFILE_O_CREATE_REPLACE | RTFILE_O_DENY_ALL | (0660 << RTFILE_O_CREATE_MODE_SHIFT),
-                            &hVfsFileDst);
-        if (RT_SUCCESS(vrc))
-        {
-            /*
-             * Do the copying.
-             */
-            RTVFSIOSTREAM hVfsIosDst = RTVfsFileToIoStream(hVfsFileDst);
-            vrc = RTVfsUtilPumpIoStreams(hVfsIosSrc, hVfsIosDst, 0);
-            if (RT_SUCCESS(vrc))
-                hrc = S_OK;
-            else
-                hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error writing copying '%s' to floppy image '%s': %Rrc"),
-                                             pszSrc, getAuxiliaryFloppyFilePath().c_str(), vrc);
-            RTVfsIoStrmRelease(hVfsIosDst);
-            RTVfsFileRelease(hVfsFileDst);
-        }
-        else
-            hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error opening '%s' on floppy image '%s' for writing: %Rrc"),
-                                         pszDst, getAuxiliaryFloppyFilePath().c_str(), vrc);
-
-        RTVfsIoStrmRelease(hVfsIosSrc);
-    }
-    else
-        hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error opening '%s' for copying onto floppy image '%s': %Rrc"),
-                                     pszSrc, getAuxiliaryFloppyFilePath().c_str(), vrc);
-    return hrc;
 }
 
 HRESULT UnattendedInstaller::prepareAuxIsoImage(bool fOverwrite)
@@ -548,7 +492,7 @@ HRESULT UnattendedInstaller::openInstallIsoImage(PRTVFS phVfsIso, uint32_t fFlag
     RTVFSFILE hOrgIsoFile;
     int vrc = RTVfsFileOpenNormal(pszIsoPath, RTFILE_O_READ | RTFILE_O_OPEN | RTFILE_O_DENY_WRITE, &hOrgIsoFile);
     if (RT_FAILURE(vrc))
-        return mpParent->setErrorBoth(E_FAIL, vrc, tr("Failed to open ISO image '%s' (%Rrc)"), pszIsoPath, vrc);
+        return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to open ISO image '%s' (%Rrc)"), pszIsoPath, vrc);
 
     /* Pass the file to the ISO file system interpreter. */
     RTERRINFOSTATIC ErrInfo;
@@ -557,17 +501,17 @@ HRESULT UnattendedInstaller::openInstallIsoImage(PRTVFS phVfsIso, uint32_t fFlag
     if (RT_SUCCESS(vrc))
         return S_OK;
     if (RTErrInfoIsSet(&ErrInfo.Core))
-        return mpParent->setErrorBoth(E_FAIL, vrc, tr("ISO reader fail to open '%s' (%Rrc): %s"),
+        return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("ISO reader fail to open '%s' (%Rrc): %s"),
                                       pszIsoPath, vrc, ErrInfo.Core.pszMsg);
-    return mpParent->setErrorBoth(E_FAIL, vrc, tr("ISO reader fail to open '%s' (%Rrc)"), pszIsoPath, vrc);
+    return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("ISO reader fail to open '%s' (%Rrc)"), pszIsoPath, vrc);
 }
 
 HRESULT UnattendedInstaller::newAuxIsoImageMaker(PRTFSISOMAKER phIsoMaker)
 {
     int vrc = RTFsIsoMakerCreate(phIsoMaker);
     if (RT_SUCCESS(vrc))
-        return S_OK;
-    return mpParent->setErrorBoth(E_FAIL, vrc, tr("RTFsIsoMakerCreate failed (%Rrc)"), vrc);
+        return vrc;
+    return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("RTFsIsoMakerCreate failed (%Rrc)"), vrc);
 }
 
 HRESULT UnattendedInstaller::addFilesToAuxIsoImageMaker(RTFSISOMAKER hIsoMaker, RTVFS hVfsOrgIso)
@@ -626,12 +570,12 @@ HRESULT UnattendedInstaller::addScriptToIsoMaker(BaseTextScript *pEditor, RTFSIS
                 hrc = S_OK;
             else
                 hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                             tr("RTFsIsoMakerAddFileWithVfsFile failed on the script '%s' (%Rrc)"),
+                                             mpParent->tr("RTFsIsoMakerAddFileWithVfsFile failed on the script '%s' (%Rrc)"),
                                              pszDstFilename, vrc);
         }
         else
             hrc = mpParent->setErrorBoth(E_FAIL, vrc,
-                                         tr("RTVfsFileFromBuffer failed on the %zu byte script '%s' (%Rrc)", "", cchScript),
+                                         mpParent->tr("RTVfsFileFromBuffer failed on the %zu byte script '%s' (%Rrc)"),
                                          cchScript, pszDstFilename, vrc);
     }
     return hrc;
@@ -644,7 +588,7 @@ HRESULT UnattendedInstaller::finalizeAuxIsoImage(RTFSISOMAKER hIsoMaker, const c
      */
     int vrc = RTFsIsoMakerFinalize(hIsoMaker);
     if (RT_FAILURE(vrc))
-        return mpParent->setErrorBoth(E_FAIL, vrc, tr("RTFsIsoMakerFinalize failed (%Rrc)"), vrc);
+        return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("RTFsIsoMakerFinalize failed (%Rrc)"), vrc);
 
     /*
      * Open the destination file.
@@ -659,9 +603,9 @@ HRESULT UnattendedInstaller::finalizeAuxIsoImage(RTFSISOMAKER hIsoMaker, const c
     if (RT_FAILURE(vrc))
     {
         if (vrc == VERR_ALREADY_EXISTS)
-            return mpParent->setErrorBoth(E_FAIL, vrc, tr("The auxiliary ISO image file '%s' already exists"),
+            return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("The auxiliary ISO image file '%s' already exists"),
                                           pszFilename);
-        return mpParent->setErrorBoth(E_FAIL, vrc, tr("Failed to open the auxiliary ISO image file '%s' for writing (%Rrc)"),
+        return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Failed to open the auxiliary ISO image file '%s' for writing (%Rrc)"),
                                       pszFilename, vrc);
     }
 
@@ -682,17 +626,17 @@ HRESULT UnattendedInstaller::finalizeAuxIsoImage(RTFSISOMAKER hIsoMaker, const c
             if (RT_SUCCESS(vrc))
                 hrc = S_OK;
             else
-                hrc = mpParent->setErrorBoth(E_FAIL, vrc, tr("Error writing auxiliary ISO image '%s' (%Rrc)"),
+                hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("Error writing auxiliary ISO image '%s' (%Rrc)"),
                                              pszFilename, vrc);
         }
         else
             hrc = mpParent->setErrorBoth(E_FAIL, VERR_INTERNAL_ERROR_2,
-                                         tr("Internal Error: Failed to case VFS file to VFS I/O stream"));
+                                         mpParent->tr("Internal Error: Failed to case VFS file to VFS I/O stream"));
         RTVfsIoStrmRelease(hVfsSrcIso);
         RTVfsIoStrmRelease(hVfsDstIso);
     }
     else
-        hrc = mpParent->setErrorBoth(E_FAIL, vrc, tr("RTFsIsoMakerCreateVfsOutputFile failed (%Rrc)"), vrc);
+        hrc = mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("RTFsIsoMakerCreateVfsOutputFile failed (%Rrc)"), vrc);
     RTVfsFileRelease(hVfsSrcFile);
     RTVfsFileRelease(hVfsDstFile);
     if (FAILED(hrc))
@@ -716,7 +660,7 @@ HRESULT UnattendedInstaller::addFilesToAuxVisoVectors(RTCList<RTCString> &rVecAr
         try
         {
             /*
-             * If we've got a Guest Additions ISO, add its content to a /vboxadditions dir.
+             * If we've got additions ISO, add its content to a /vboxadditions dir.
              */
             if (mpParent->i_getInstallGuestAdditions())
             {
@@ -726,7 +670,7 @@ HRESULT UnattendedInstaller::addFilesToAuxVisoVectors(RTCList<RTCString> &rVecAr
             }
 
             /*
-             * If we've got a Validation Kit ISO, add its content to a /vboxvalidationkit dir.
+             * If we've got additions ISO, add its content to a /vboxadditions dir.
              */
             if (mpParent->i_getInstallTestExecService())
             {
@@ -800,7 +744,7 @@ HRESULT UnattendedInstaller::finalizeAuxVisoFile(RTCList<RTCString> const &rVecA
     int vrc = RTGetOptArgvToString(&pszCmdLine, papszArgs, RTGETOPTARGV_CNV_QUOTE_BOURNE_SH);
     RTMemTmpFree(papszArgs);
     if (RT_FAILURE(vrc))
-        return mpParent->setErrorBoth(E_FAIL, vrc, tr("RTGetOptArgvToString failed (%Rrc)"), vrc);
+        return mpParent->setErrorBoth(E_FAIL, vrc, mpParent->tr("RTGetOptArgvToString failed (%Rrc)"), vrc);
 
     /*
      * Open the file.
@@ -823,10 +767,10 @@ HRESULT UnattendedInstaller::finalizeAuxVisoFile(RTCList<RTCString> const &rVecA
         if (RT_SUCCESS(vrc))
             hrc = S_OK;
         else
-            hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error writing '%s' (%Rrc)"), pszFilename, vrc);
+            hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, mpParent->tr("Error writing '%s' (%Rrc)"), pszFilename, vrc);
     }
     else
-        hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Failed to create '%s' (%Rrc)"), pszFilename, vrc);
+        hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, mpParent->tr("Failed to create '%s' (%Rrc)"), pszFilename, vrc);
 
     RTStrFree(pszCmdLine);
     return hrc;
@@ -845,11 +789,10 @@ HRESULT UnattendedInstaller::loadAndParseFileFromIso(RTVFS hVfsOrgIso, const cha
             hrc = pEditor->parse();
     }
     else
-        hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Failed to open '%s' on the ISO '%s' (%Rrc)"),
+        hrc = mpParent->setErrorBoth(VBOX_E_FILE_ERROR, vrc, mpParent->tr("Failed to open '%s' on the ISO '%s' (%Rrc)"),
                                      pszFilename, mpParent->i_getIsoPath().c_str(), vrc);
     return hrc;
 }
-
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -873,18 +816,6 @@ HRESULT UnattendedLinuxInstaller::editIsoLinuxCfg(GeneralTextScript *pEditor)
                 if (FAILED(hrc))
                     return hrc;
             }
-
-        /* Don't include menu.cfg which may default (as most Debians do) to some vanilla menu item. txt.cfg has command
-         * kernel line options pointing to our preseed file. */
-        vecLineNumbers = pEditor->findTemplate("include", RTCString::CaseInsensitive);
-        for (size_t i = 0; i < vecLineNumbers.size(); ++i)
-            if (pEditor->getContentOfLine(vecLineNumbers[i]).startsWithWord("include", RTCString::CaseInsensitive))
-            {
-                HRESULT hrc = pEditor->setContentOfLine(vecLineNumbers.at(i), "include txt.cfg");
-                if (FAILED(hrc))
-                    return hrc;
-            }
-
 
         /* Comment out 'display <filename>' directives that's used for displaying files at boot time. */
         vecLineNumbers = pEditor->findTemplate("display", RTCString::CaseInsensitive);
@@ -1145,11 +1076,11 @@ HRESULT UnattendedDebianInstaller::editDebianTxtCfg(GeneralTextScript *pEditor)
 /*
 *
 *
-*  Implementation UnattendedRhel6Installer functions
+*  Implementation UnattendedRhel6And7Installer functions
 *
 */
 //////////////////////////////////////////////////////////////////////////////////////////////////////
-HRESULT UnattendedRhel6Installer::addFilesToAuxVisoVectors(RTCList<RTCString> &rVecArgs, RTCList<RTCString> &rVecFiles,
+HRESULT UnattendedRhel6And7Installer::addFilesToAuxVisoVectors(RTCList<RTCString> &rVecArgs, RTCList<RTCString> &rVecFiles,
                                                                RTVFS hVfsOrgIso, bool fOverwrite)
 {
     Utf8Str strIsoLinuxCfg;
@@ -1332,3 +1263,4 @@ HRESULT UnattendedSuseInstaller::setupScriptOnAuxiliaryCD(const Utf8Str &path)
     return rc;
 }
 #endif
+

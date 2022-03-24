@@ -1,10 +1,10 @@
-/* $Id: process-creation-posix.cpp 93543 2022-02-02 12:40:40Z vboxsync $ */
+/* $Id: process-creation-posix.cpp $ */
 /** @file
  * IPRT - Process Creation, POSIX.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -166,8 +166,8 @@
 #  define IPRT_LIBPAM_FILE_2_END_VER   1
 # else
 #  define IPRT_LIBPAM_FILE_1           "libpam.so"
-#  define IPRT_LIBPAM_FILE_1_FIRST_VER 16
-#  define IPRT_LIBPAM_FILE_1_END_VER   0
+#  define IPRT_LIBPAM_FILE_1_MIN_VER   16
+#  define IPRT_LIBPAM_FILE_1_MAX_VER   0
 # endif
 #endif
 
@@ -446,7 +446,7 @@ static bool rtProcPosixPamServiceExists(const char *pszService)
 typedef char *(*PFNCRYPTR)(const char *, const char *, struct crypt_data *);
 
 /**
- * Wrapper for resolving and calling crypt_r dynamically.
+ * Wrapper for resolving and calling crypt_r dynamcially.
  *
  * The reason for this is that fedora 30+ wants to use libxcrypt rather than the
  * glibc libcrypt.  The two libraries has different crypt_data sizes and layout,
@@ -1446,11 +1446,7 @@ static int rtProcPosixConvertArgv(const char * const *papszArgs, RTENV hEnvToUse
             RT_NOREF_PV(pszVar);
         }
         else
-#ifdef RT_OS_DARWIN /* @bugref{10153}: Darwin defaults to UTF-8. */
-            pszEncoding = "UTF-8";
-#else
             pszEncoding = "ASCII";
-#endif
     }
 
     /*

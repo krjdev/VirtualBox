@@ -1,4 +1,4 @@
-/* $Id: RTSha256Digest.cpp 93301 2022-01-18 11:24:43Z vboxsync $ */
+/* $Id: RTSha256Digest.cpp $ */
 /** @file
  * IPRT - SHA256 digest creation
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -57,7 +57,7 @@ RTR3DECL(int) RTSha256Digest(void* pvBuf, size_t cbBuf, char **ppszDigest, PFNRT
     RTSha256Init(&Ctx);
 
     /* Buffer size for progress callback */
-    double rdMulti = 100.0 / (cbBuf ? (double)cbBuf : 1);
+    double rdMulti = 100.0 / (cbBuf ? cbBuf : 1);
 
     /* Working buffer */
     char *pvTmp = (char*)pvBuf;
@@ -74,7 +74,7 @@ RTR3DECL(int) RTSha256Digest(void* pvBuf, size_t cbBuf, char **ppszDigest, PFNRT
         /* Call the progress callback if one is defined */
         if (pfnProgressCallback)
         {
-            rc = pfnProgressCallback((unsigned)((double)cbReadTotal * rdMulti), pvUser);
+            rc = pfnProgressCallback((unsigned)(cbReadTotal * rdMulti), pvUser);
             if (RT_FAILURE(rc))
                 break; /* canceled */
         }
@@ -123,7 +123,7 @@ RTR3DECL(int) RTSha256DigestFromFile(const char *pszFile, char **ppszDigest, PFN
         return rc;
 
     /* Fetch the file size. Only needed if there is a progress callback. */
-    double rdMulti = 0.0;
+    double rdMulti = 0;
     if (pfnProgressCallback)
     {
         uint64_t cbFile;
@@ -133,7 +133,7 @@ RTR3DECL(int) RTSha256DigestFromFile(const char *pszFile, char **ppszDigest, PFN
             RTFileClose(hFile);
             return rc;
         }
-        rdMulti = 100.0 / (cbFile ? (double)cbFile : 1.0);
+        rdMulti = 100.0 / (cbFile ? cbFile : 1);
     }
 
     /* Allocate a reasonably large buffer, fall back on a tiny one. */
@@ -160,7 +160,7 @@ RTR3DECL(int) RTSha256DigestFromFile(const char *pszFile, char **ppszDigest, PFN
         /* Call the progress callback if one is defined */
         if (pfnProgressCallback)
         {
-            rc = pfnProgressCallback((unsigned)((double)cbReadTotal * rdMulti), pvUser);
+            rc = pfnProgressCallback((unsigned)(cbReadTotal * rdMulti), pvUser);
             if (RT_FAILURE(rc))
                 break; /* canceled */
         }

@@ -3,7 +3,7 @@
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ BEGINCODE
 ; @param   rcx  pu64    Pointer to the 64-bit variable to read.
 ;                  The memory pointed to must be writable.
 ;
-RT_BEGINPROC ASMAtomicReadU64
+BEGINPROC_EXPORTED ASMAtomicReadU64
         mov     rax, [rcx]
         ret
 ENDPROC ASMAtomicReadU64

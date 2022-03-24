@@ -1,10 +1,10 @@
-/* $Id: UIIndicatorsPool.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIIndicatorsPool.cpp $ */
 /** @file
  * VBox Qt GUI - UIIndicatorsPool class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,7 +81,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Holds the indicator type. */
     const IndicatorType m_enmType;
@@ -139,7 +139,7 @@ public:
     {}
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text /* enmTextRole */) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text /* enmTextRole */) const /* override */
     {
         /* Sanity check: */
         AssertPtrReturn(indicator(), 0);
@@ -631,7 +631,7 @@ private:
             /* Enumerate all the USB devices: */
             const CConsole console = m_pSession->console();
             foreach (const CUSBDevice &usbDevice, console.GetUSBDevices())
-                strFullData += s_strTableRow1.arg(uiCommon().usbDetails(usbDevice));
+                strFullData += s_strTableRow1.arg(uiCommon().details(usbDevice));
             /* Handle 'no-usb-devices' case: */
             if (strFullData.isNull())
                 strFullData = s_strTableRow1
@@ -761,7 +761,7 @@ private:
         }
 
         /* 3D acceleration: */
-        const bool fAcceleration3D = comGraphics.GetAccelerate3DEnabled();
+        const bool fAcceleration3D = comGraphics.GetAccelerate3DEnabled() && uiCommon().is3DAvailable();
         if (fAcceleration3D)
         {
             const QString strAcceleration3D = fAcceleration3D ?
@@ -985,12 +985,10 @@ public:
         , m_iCPULoadPercentage(0)
     {
         /* Assign state-icons: */
-/** @todo  The vtx_amdv_disabled_16px.png icon isn't really approprate anymore (no raw-mode),
- * might want to get something different for KVMExecutionEngine_Emulated or reuse the
- * vm_execution_engine_native_api_16px.png one... @bugref{9898} */
         setStateIcon(KVMExecutionEngine_NotSet, UIIconPool::iconSet(":/vtx_amdv_disabled_16px.png"));
-        setStateIcon(KVMExecutionEngine_Emulated, UIIconPool::iconSet(":/vtx_amdv_disabled_16px.png"));
+        setStateIcon(KVMExecutionEngine_RawMode, UIIconPool::iconSet(":/vtx_amdv_disabled_16px.png"));
         setStateIcon(KVMExecutionEngine_HwVirt, UIIconPool::iconSet(":/vtx_amdv_16px.png"));
+        /** @todo New indicator icon, vm_execution_engine_native_api_16px.png, V inside a turtle / tortoise.  @bugref{9044} */
         setStateIcon(KVMExecutionEngine_NativeApi, UIIconPool::iconSet(":/vm_execution_engine_native_api_16px.png"));
 
         /* Configure machine state-change listener: */
@@ -1009,7 +1007,7 @@ public:
 
 protected:
 
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */
     {
         UISessionStateStatusBarIndicator::paintEvent(pEvent);
         QPainter painter(this);
@@ -1080,8 +1078,8 @@ private:
             case KVMExecutionEngine_HwVirt:
                 strExecutionEngine = "VT-x/AMD-V";  /* no translation */
                 break;
-            case KVMExecutionEngine_Emulated:
-                strExecutionEngine = "IEM";         /* no translation */
+            case KVMExecutionEngine_RawMode:
+                strExecutionEngine = "raw-mode";    /* no translation */
                 break;
             case KVMExecutionEngine_NativeApi:
                 strExecutionEngine = "native API";  /* no translation */

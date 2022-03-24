@@ -1,10 +1,10 @@
-/* $Id: tstRTCRest-1.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTCRest-1.cpp $ */
 /** @file
  * IPRT Testcase - REST C++ classes.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -879,12 +879,12 @@ void testDouble(void)
 
         RTTESTI_CHECK_RC(fromString(&obj4, "false", NULL, RT_XSTR(__LINE__)), VERR_NO_DIGITS);
 
-#if (!defined(RT_OS_SOLARIS) && !defined(RT_OS_WINDOWS)) || RT_MSC_PREREQ(RT_MSC_VER_VS2015)
-        RTTESTI_CHECK_RC(fromString(&obj4, " 0x42 ", &ErrInfo, RT_XSTR(__LINE__)), VINF_SUCCESS);
-        RTTESTI_CHECK(obj4.m_rdValue == 66.0);
-#else
+#if defined(RT_OS_WINDOWS) || defined(RT_OS_SOLARIS)
         RTTESTI_CHECK_RC(fromString(&obj4, " 0x42 ", &ErrInfo, RT_XSTR(__LINE__)), VERR_TRAILING_CHARS);
         RTTESTI_CHECK(obj4.m_rdValue == 0.0);
+#else
+        RTTESTI_CHECK_RC(fromString(&obj4, " 0x42 ", &ErrInfo, RT_XSTR(__LINE__)), VINF_SUCCESS);
+        RTTESTI_CHECK(obj4.m_rdValue == 66.0);
 #endif
         RTTESTI_CHECK(obj4.isNull() == false);
     }
@@ -2024,11 +2024,6 @@ public:
         return m_Array.resetToDefault();
     }
 
-    const char *getOperationName() const RT_NOEXCEPT RT_OVERRIDE
-    {
-        return "Test";
-    }
-
     int xmitPrepare(RTCString *a_pStrPath, RTCString *a_pStrQuery, RTHTTP a_hHttp, RTCString *a_pStrBody) const RT_NOEXCEPT RT_OVERRIDE
     {
         RT_NOREF(a_pStrPath, a_pStrQuery, a_hHttp, a_pStrBody);
@@ -2171,23 +2166,6 @@ public:
 
     TestResponse() : m_pArray(NULL), m_pMap(NULL), m_pInteger(NULL), m_pStrContentType(NULL)
     { }
-
-    ~TestResponse()
-    {
-        if (m_pStrContentType)
-            delete m_pStrContentType;
-        if (m_pInteger)
-            delete m_pInteger;
-        if (m_pMap)
-            delete m_pMap;
-        if (m_pArray)
-            delete m_pArray;
-    }
-
-    const char *getOperationName() const RT_NOEXCEPT RT_OVERRIDE
-    {
-        return "Test";
-    }
 
 protected:
     virtual int consumeHeader(uint32_t a_uMatchWord, const char *a_pchField, size_t a_cchField,

@@ -1,10 +1,10 @@
-/* $Id: pipe-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pipe-win.cpp $ */
 /** @file
  * IPRT - Anonymous Pipes, Windows Implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,8 +66,6 @@ typedef struct RTPIPEINTERNAL
     HANDLE              hPipe;
     /** Set if this is the read end, clear if it's the write end. */
     bool                fRead;
-    /** RTPipeFromNative: Leave native handle open on RTPipeClose. */
-    bool                fLeaveOpen;
     /** Set if there is already pending I/O. */
     bool                fIOPending;
     /** Set if the zero byte read that the poll code using is pending. */
@@ -285,8 +283,6 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
                             pThisW->hPipe               = hPipeW;
                             pThisR->fRead               = true;
                             pThisW->fRead               = false;
-                            pThisR->fLeaveOpen          = false;
-                            pThisW->fLeaveOpen          = false;
                             //pThisR->fIOPending        = false;
                             //pThisW->fIOPending        = false;
                             //pThisR->fZeroByteRead     = false;
@@ -403,7 +399,7 @@ static int rtPipeWriteCheckCompletion(RTPIPEINTERNAL *pThis)
 
 
 
-RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
+RTDECL(int)  RTPipeClose(RTPIPE hPipe)
 {
     RTPIPEINTERNAL *pThis = hPipe;
     if (pThis == NIL_RTPIPE)
@@ -421,8 +417,7 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
     if (!pThis->fRead && pThis->fIOPending)
         rtPipeWriteCheckCompletion(pThis);
 
-    if (!fLeaveOpen && !pThis->fLeaveOpen)
-        CloseHandle(pThis->hPipe);
+    CloseHandle(pThis->hPipe);
     pThis->hPipe = INVALID_HANDLE_VALUE;
 
     CloseHandle(pThis->Overlapped.hEvent);
@@ -440,16 +435,10 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
 }
 
 
-RTDECL(int)  RTPipeClose(RTPIPE hPipe)
-{
-    return RTPipeCloseEx(hPipe, false /*fLeaveOpen*/);
-}
-
-
 RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t fFlags)
 {
     AssertPtrReturn(phPipe, VERR_INVALID_POINTER);
-    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK_FN), VERR_INVALID_PARAMETER);
+    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK), VERR_INVALID_PARAMETER);
     AssertReturn(!!(fFlags & RTPIPE_N_READ) != !!(fFlags & RTPIPE_N_WRITE), VERR_INVALID_PARAMETER);
 
     /*
@@ -492,8 +481,7 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
         {
             pThis->u32Magic             = RTPIPE_MAGIC;
             pThis->hPipe                = hNative;
-            pThis->fRead                = RT_BOOL(fFlags & RTPIPE_N_READ);
-            pThis->fLeaveOpen           = RT_BOOL(fFlags & RTPIPE_N_LEAVE_OPEN);
+            pThis->fRead                = !!(fFlags & RTPIPE_N_READ);
             //pThis->fIOPending         = false;
             //pThis->fZeroByteRead      = false;
             //pThis->fBrokenPipe        = false;
@@ -521,10 +509,7 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
                 {
                     pThis->hPipe = hNative2;
                     if (rtPipeQueryNtInfo(pThis, &Info))
-                    {
-                        pThis->fLeaveOpen = false;
                         rc = VINF_SUCCESS;
-                    }
                     else
                     {
                         rc = VERR_ACCESS_DENIED;
@@ -566,10 +551,9 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
                      */
                     if (hNative2 != INVALID_HANDLE_VALUE)
                     {
-                        if (   !(fFlags & RTPIPE_N_LEAVE_OPEN)
-                            && hNative != GetStdHandle(STD_INPUT_HANDLE)
+                        if (   hNative != GetStdHandle(STD_INPUT_HANDLE)
                             && hNative != GetStdHandle(STD_OUTPUT_HANDLE)
-                            && hNative != GetStdHandle(STD_ERROR_HANDLE) )
+                            && hNative != GetStdHandle(STD_ERROR_HANDLE))
                             CloseHandle(hNative);
                     }
                     *phPipe = pThis;

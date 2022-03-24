@@ -1,10 +1,10 @@
-/* $Id: getopt.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: getopt.cpp $ */
 /** @file
  * IPRT - Command Line Parsing
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,15 +39,6 @@
 #include <iprt/message.h>
 #include <iprt/string.h>
 #include <iprt/uuid.h>
-
-
-/*********************************************************************************************************************************
-*   Defined Constants And Macros                                                                                                 *
-*********************************************************************************************************************************/
-#ifdef IN_RT_STATIC  /* We don't need full unicode case insensitive if we ASSUME basic latin only. */
-# define RTStrICmp  RTStrICmpAscii
-# define RTStrNICmp RTStrNICmpAscii
-#endif
 
 
 /*********************************************************************************************************************************
@@ -86,7 +77,6 @@ RTDECL(int) RTGetOptInit(PRTGETOPTSTATE pState, int argc, char **argv,
     pState->fFlags       = fFlags;
     pState->cNonOptions  = 0;
 
-#ifdef RT_STRICT
     /* validate the options. */
     for (size_t i = 0; i < cOptions; i++)
     {
@@ -94,21 +84,12 @@ RTDECL(int) RTGetOptInit(PRTGETOPTSTATE pState, int argc, char **argv,
         Assert(paOptions[i].iShort > 0);
         Assert(paOptions[i].iShort != VINF_GETOPT_NOT_OPTION);
         Assert(paOptions[i].iShort != '-');
-        if (paOptions[i].fFlags & RTGETOPT_FLAG_ICASE)
-        {
-            const char   *psz = paOptions[i].pszLong;
-            unsigned char ch;
-            while ((ch = *psz++) != '\0')
-                Assert(ch <= 0x7f); /* ASSUMPTION that we can use RTStrICmpAscii and RTStrNICmpAscii. */
-        }
     }
-#endif
 
     return VINF_SUCCESS;
 }
 RT_EXPORT_SYMBOL(RTGetOptInit);
 
-#ifndef IPRT_GETOPT_WITHOUT_NETWORK_ADDRESSES
 
 /**
  * Converts an stringified IPv4 address into the RTNETADDRIPV4 representation.
@@ -146,7 +127,6 @@ static int rtgetoptConvertMacAddr(const char *pszValue, PRTMAC pAddr)
     return VINF_SUCCESS;
 }
 
-#endif /* IPRT_GETOPT_WITHOUT_NETWORK_ADDRESSES */
 
 /**
  * Searches for a long option.
@@ -389,8 +369,6 @@ static int rtGetOptProcessValue(uint32_t fFlags, const char *pszValue, PRTGETOPT
 #undef MY_INT_CASE
 #undef MY_BASE_INT_CASE
 
-#ifndef IPRT_GETOPT_WITHOUT_NETWORK_ADDRESSES
-
         case RTGETOPT_REQ_IPV4ADDR:
         {
             RTNETADDRIPV4 Addr;
@@ -419,8 +397,6 @@ static int rtGetOptProcessValue(uint32_t fFlags, const char *pszValue, PRTGETOPT
             pValueUnion->MacAddr = Addr;
             break;
         }
-
-#endif /* IPRT_GETOPT_WITHOUT_NETWORK_ADDRESSES */
 
         case RTGETOPT_REQ_UUID:
         {
@@ -465,14 +441,13 @@ static int rtGetOptProcessValue(uint32_t fFlags, const char *pszValue, PRTGETOPT
                             if (rc == VINF_SUCCESS) \
                             { /* likely */ } \
                             else \
-                                AssertMsgFailedReturn(("z rc=%Rrc: '%s' '%s' uBase=%d\n", rc, pszValue, pszNext, uBase), \
-                                                       VERR_GETOPT_INVALID_ARGUMENT_FORMAT); \
+                               { RTAssertMsg2("z rc=%Rrc: '%s' '%s' uBase=%d\n", rc, pszValue, pszNext, uBase); return VERR_GETOPT_INVALID_ARGUMENT_FORMAT; } \
                         } \
                         else if (fSwitchValue != (a_fReqValueOptional)) \
-                            AssertMsgFailedReturn(("x\n"), VERR_GETOPT_INVALID_ARGUMENT_FORMAT); \
+                        { RTAssertMsg2("x\n"); return VERR_GETOPT_INVALID_ARGUMENT_FORMAT; } \
                     } \
                     else if (fSwitchValue != (a_fReqValueOptional)) \
-                        AssertMsgFailedReturn(("y\n"), VERR_GETOPT_INVALID_ARGUMENT_FORMAT); \
+                        { RTAssertMsg2("y\n"); return VERR_GETOPT_INVALID_ARGUMENT_FORMAT; } \
                     pValueUnion->a_MemberPrefix##Second = Value2; \
                     pValueUnion->a_MemberPrefix##First  = Value1; \
                     break; \

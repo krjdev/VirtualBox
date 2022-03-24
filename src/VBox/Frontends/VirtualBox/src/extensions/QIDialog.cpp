@@ -1,10 +1,10 @@
-/* $Id: QIDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIDialog.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIDialog class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,10 +21,9 @@
 /* GUI includes: */
 #include "QIDialog.h"
 #include "UICommon.h"
-#include "UIDesktopWidgetWatchdog.h"
 
 
-QIDialog::QIDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
+QIDialog::QIDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = 0 */)
     : QDialog(pParent, enmFlags)
     , m_fPolished(false)
 {
@@ -124,5 +123,5 @@ void QIDialog::polishEvent(QShowEvent *)
 #endif /* VBOX_WS_MAC */
 
     /* Explicit centering according to our parent: */
-    UIDesktopWidgetWatchdog::centerWidget(this, parentWidget(), false);
+    UICommon::centerWidget(this, parentWidget(), false);
 }

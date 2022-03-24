@@ -1,10 +1,10 @@
-/* $Id: bios.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bios.c $ */
 /** @file
  * PC BIOS - ???
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -56,7 +56,6 @@
 #include <stdint.h>
 #include "inlines.h"
 #include "biosint.h"
-#include "VBox/bios.h"
 #ifndef VBOX_VERSION_STRING
 #include <VBox/version.h>
 #endif
@@ -81,15 +80,6 @@ void outb_cmos(uint8_t cmos_reg, uint8_t val)
         cmos_port += 2;
     outb(cmos_port, cmos_reg);
     outb(cmos_port + 1, val);
-}
-
-/**
- * Reads two adjacent cmos bytes and return their values as a 16-bit word.
- */
-uint16_t get_cmos_word(uint8_t idxFirst)
-{
-    return ((uint16_t)inb_cmos(idxFirst + 1) << 8)
-         |            inb_cmos(idxFirst);
 }
 
 void BIOSCALL dummy_isr_function(pusha_regs_t regs, uint16_t es,
@@ -130,8 +120,7 @@ void BIOSCALL nmi_handler_msg(void)
 
 void BIOSCALL int18_panic_msg(void)
 {
-    BX_INFO("INT18: BOOT FAILURE\n");
-    out_ctrl_str_asm(VBOX_BIOS_SHUTDOWN_PORT, "Bootfail");
+    BX_PANIC("INT18: BOOT FAILURE\n");
 }
 
 void BIOSCALL log_bios_start(void)

@@ -1,10 +1,10 @@
-/* $Id: VBoxMPIOCTL.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPIOCTL.cpp $ */
 /** @file
  * VBox XPDM Miniport IOCTL handlers
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,13 +32,6 @@
 
 #define VBOXMPIOCTL_UNHIDE()   \
     }
-
-#ifndef DOXYGEN_RUNNING
-# if RT_MSC_PREREQ(RT_MSC_VER_VC140)
-/* VBoxMPIOCTL.cpp(80): warning C4457: declaration of 'pRequestedAddress' hides function parameter (caused by VBOXMPIOCTL_HIDE) */
-#  pragma warning(disable:4457 )
-# endif
-#endif
 
 /* Called for IOCTL_VIDEO_RESET_DEVICE.
  * Reset device to a state it comes at system boot time.
@@ -94,7 +87,7 @@ BOOLEAN VBoxMPMapVideoMemory(PVBOXMP_DEVEXT pExt, PVIDEO_MEMORY pRequestedAddres
     {
         pMapInfo->FrameBufferBase = (PUCHAR)pMapInfo->VideoRamBase;
         pMapInfo->FrameBufferLength =
-            VBoxMPXpdmCurrentVideoMode(pExt)->VisScreenHeight *
+            VBoxMPXpdmCurrentVideoMode(pExt)->VisScreenHeight*
             VBoxMPXpdmCurrentVideoMode(pExt)->ScreenStride;
 
         pStatus->Information = sizeof(VIDEO_MEMORY_INFORMATION);

@@ -1,10 +1,10 @@
-/* $Id: UIVersion.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVersion.cpp $ */
 /** @file
  * VBox Qt GUI - UIVersion class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,6 +50,15 @@ UIVersion::UIVersion(const QString &strFullVersionInfo)
     }
     if (fullVersionInfo.size() > 1)
         m_strPostfix = fullVersionInfo.at(1);
+}
+
+UIVersion &UIVersion::operator=(const UIVersion &another)
+{
+    m_x = another.x();
+    m_y = another.y();
+    m_z = another.z();
+    m_strPostfix = another.postfix();
+    return *this;
 }
 
 bool UIVersion::isValid() const

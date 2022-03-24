@@ -1,4 +1,4 @@
-/* $Id: semevent-r0drv-netbsd.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semevent-r0drv-netbsd.c $ */
 /** @file
  * IPRT - Single Release Event Semaphores, Ring-0 Driver, NetBSD.
  */
@@ -6,7 +6,7 @@
 /*
  * Contributed by knut st. osmundsen.
  *
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -275,10 +275,3 @@ RTDECL(uint32_t) RTSemEventGetResolution(void)
 {
     return 1000000000 / hz;
 }
-
-RTR0DECL(bool) RTSemEventIsSignalSafe(void)
-{
-    /** @todo check the code...   */
-    return false;
-}
-

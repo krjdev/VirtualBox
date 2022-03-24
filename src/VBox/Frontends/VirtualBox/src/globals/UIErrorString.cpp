@@ -1,10 +1,10 @@
-/* $Id: UIErrorString.cpp 94001 2022-02-28 22:54:24Z vboxsync $ */
+/* $Id: UIErrorString.cpp $ */
 /** @file
  * VBox Qt GUI - UIErrorString class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,12 +18,10 @@
 /* Qt includes: */
 #include <QApplication>
 #include <QObject>
-#include <QPalette>
 
 /* GUI includes: */
 #include "UICommon.h"
 #include "UIErrorString.h"
-#include "UITranslator.h"
 
 /* COM includes: */
 #include "COMDefs.h"
@@ -34,51 +32,75 @@
 /* static */
 QString UIErrorString::formatRC(HRESULT rc)
 {
-    /** @todo r=bird: Not sure why we set the sign bit 31 bit for warnings.
-     *  Maybe to try get the error variant?  It won't really work for S_FALSE and
-     *  probably a bunch of others too.  I've modified it on windows to try get
-     *  the exact one, the one with the top bit set, or just the value. */
-#ifdef RT_OS_WINDOWS
-    char szDefine[80];
-    if (   !SUCCEEDED_WARNING(rc)
-        || (   RTErrWinQueryDefine(rc, szDefine, sizeof(szDefine), true /*fFailIfUnknown*/) == VERR_NOT_FOUND
-            && RTErrWinQueryDefine(rc | 0x80000000, szDefine, sizeof(szDefine), true /*fFailIfUnknown*/) == VERR_NOT_FOUND))
-        RTErrWinQueryDefine(rc, szDefine, sizeof(szDefine), false /*fFailIfUnknown*/);
-
     QString str;
-    str.sprintf("%s", szDefine);
-    return str;
-#else
-    const char *pszDefine = RTErrCOMGet(SUCCEEDED_WARNING(rc) ? rc | 0x80000000 : rc)->pszDefine;
-    Assert(pszDefine);
 
-    return QString(pszDefine);
-#endif
+    PCRTCOMERRMSG msg = NULL;
+    const char *pErrMsg = NULL;
+
+    /* First, try as is (only set bit 31 bit for warnings): */
+    if (SUCCEEDED_WARNING(rc))
+        msg = RTErrCOMGet(rc | 0x80000000);
+    else
+        msg = RTErrCOMGet(rc);
+
+    if (msg != NULL)
+        pErrMsg = msg->pszDefine;
+
+#ifdef VBOX_WS_WIN
+    PCRTWINERRMSG winMsg = NULL;
+
+    /* If not found, try again using RTErrWinGet with masked off top 16bit: */
+    if (msg == NULL)
+    {
+        winMsg = RTErrWinGet(rc & 0xFFFF);
+
+        if (winMsg != NULL)
+            pErrMsg = winMsg->pszDefine;
+    }
+#endif /* VBOX_WS_WIN */
+
+    if (pErrMsg != NULL && *pErrMsg != '\0')
+        str.sprintf("%s", pErrMsg);
+
+    return str;
 }
 
 /* static */
 QString UIErrorString::formatRCFull(HRESULT rc)
 {
-    /** @todo r=bird: See UIErrorString::formatRC for 31th bit discussion. */
-    char szHex[32];
-    RTStrPrintf(szHex, sizeof(szHex), "%#010X", rc);
+    QString str;
 
-#ifdef RT_OS_WINDOWS
-    char szDefine[80];
-    ssize_t cchRet = RTErrWinQueryDefine(rc, szDefine, sizeof(szDefine), true /*fFailIfUnknown*/);
-    if (cchRet == VERR_NOT_FOUND && SUCCEEDED_WARNING(rc))
-        cchRet = RTErrWinQueryDefine(rc | 0x80000000, szDefine, sizeof(szDefine), true /*fFailIfUnknown*/);
+    PCRTCOMERRMSG msg = NULL;
+    const char *pErrMsg = NULL;
 
-    if (cchRet != VERR_NOT_FOUND)
-        return QString(szDefine).append(" (").append(szHex).append(")");
-#else
-    const char *pszDefine = RTErrCOMGet(SUCCEEDED_WARNING(rc) ? rc | 0x80000000 : rc)->pszDefine;
-    Assert(pszDefine);
+    /* First, try as is (only set bit 31 bit for warnings): */
+    if (SUCCEEDED_WARNING(rc))
+        msg = RTErrCOMGet(rc | 0x80000000);
+    else
+        msg = RTErrCOMGet(rc);
 
-    if (strncmp(pszDefine, RT_STR_TUPLE("Unknown ")))
-        return QString(pszDefine).append(" (").append(szHex).append(")");
-#endif
-    return QString(szHex);
+    if (msg != NULL)
+        pErrMsg = msg->pszDefine;
+
+#ifdef VBOX_WS_WIN
+    PCRTWINERRMSG winMsg = NULL;
+
+    /* If not found, try again using RTErrWinGet with masked off top 16bit: */
+    if (msg == NULL)
+    {
+        winMsg = RTErrWinGet(rc & 0xFFFF);
+
+        if (winMsg != NULL)
+            pErrMsg = winMsg->pszDefine;
+    }
+#endif /* VBOX_WS_WIN */
+
+    if (pErrMsg != NULL && *pErrMsg != '\0')
+        str.sprintf("%s (0x%08X)", pErrMsg, rc);
+    else
+        str.sprintf("0x%08X", rc);
+
+    return str;
 }
 
 /* static */
@@ -94,9 +116,8 @@ QString UIErrorString::formatErrorInfo(const CProgress &comProgress)
     if (!comErrorInfo.isNull())
         return formatErrorInfo(comErrorInfo);
     /* Handle NULL error-info otherwise: */
-    return QString("<table bgcolor=%1 border=0 cellspacing=5 cellpadding=0 width=100%>"
-                   "<tr><td>%2</td><td><tt>%3</tt></td></tr></table>")
-                   .arg(QApplication::palette().color(QPalette::Active, QPalette::Window).name(QColor::HexRgb))
+    return QString("<table bgcolor=#EEEEEE border=0 cellspacing=5 cellpadding=0 width=100%>"
+                   "<tr><td>%1</td><td><tt>%2</tt></td></tr></table>")
                    .arg(QApplication::translate("UIErrorString", "Result&nbsp;Code: ", "error info"))
                    .arg(formatRCFull(comProgress.GetResultCode()))
                    .prepend("<!--EOM-->") /* move to details */;
@@ -156,13 +177,13 @@ QString UIErrorString::errorInfoToString(const COMErrorInfo &comInfo, HRESULT wr
         /* Check if details text written in English (latin1) and translated: */
         if (   strDetailsInfo == QString::fromLatin1(strDetailsInfo.toLatin1())
             && strDetailsInfo != QObject::tr(strDetailsInfo.toLatin1().constData()))
-            strFormatted += QString("<p>%1.</p>").arg(UITranslator::emphasize(QObject::tr(strDetailsInfo.toLatin1().constData())));
+            strFormatted += QString("<p>%1.</p>").arg(uiCommon().emphasize(QObject::tr(strDetailsInfo.toLatin1().constData())));
         else
-            strFormatted += QString("<p>%1.</p>").arg(UITranslator::emphasize(strDetailsInfo));
+            strFormatted += QString("<p>%1.</p>").arg(uiCommon().emphasize(strDetailsInfo));
     }
 
-    strFormatted += QString("<!--EOM--><table bgcolor=%1 border=0 cellspacing=5 cellpadding=0 width=100%>")
-                            .arg(QApplication::palette().color(QPalette::Active, QPalette::Window).name(QColor::HexRgb));
+    strFormatted += "<!--EOM--><table bgcolor=#EEEEEE border=0 cellspacing=5 "
+                    "cellpadding=0 width=100%>";
 
     bool fHaveResultCode = false;
 

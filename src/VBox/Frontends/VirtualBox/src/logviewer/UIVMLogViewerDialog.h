@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMLogViewerDialog.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewerDialog class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,6 @@ class QDialogButtonBox;
 class QVBoxLayout;
 class UIActionPool;
 class UIVMLogViewerDialog;
-class UIVirtualMachineItem;
 class CMachine;
 
 
@@ -50,21 +49,19 @@ public:
 
     /** Constructs Log Viewer factory acquiring additional arguments.
       * @param  pActionPool  Brings the action-pool reference.
-      * @param  uMachineId   Brings the machine id for which VM Log-Viewer is requested. */
-    UIVMLogViewerDialogFactory(UIActionPool *pActionPool = 0, const QUuid &uMachineId = QUuid(),
-                               const QString &strMachineName = QString());
+      * @param  comMachine   Brings the machine for which VM Log-Viewer is requested. */
+    UIVMLogViewerDialogFactory(UIActionPool *pActionPool = 0, const CMachine &comMachine = CMachine());
 
 protected:
 
     /** Creates derived @a pDialog instance.
       * @param  pCenterWidget  Brings the widget to center wrt. pCenterWidget. */
-    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) RT_OVERRIDE;
+    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) /* override */;
 
     /** Holds the action-pool reference. */
     UIActionPool *m_pActionPool;
-    /** Holds the machine id. */
-    QUuid      m_uMachineId;
-    QString    m_strMachineName;
+    /** Holds the machine reference. */
+    CMachine      m_comMachine;
 };
 
 
@@ -78,41 +75,36 @@ public:
     /** Constructs Log Viewer dialog.
       * @param  pCenterWidget  Brings the widget reference to center according to.
       * @param  pActionPool    Brings the action-pool reference.
-      * @param  machine id     Brings the machine id. */
-    UIVMLogViewerDialog(QWidget *pCenterWidget, UIActionPool *pActionPool,
-                        const QUuid &uMachineId = QUuid(), const QString &strMachineName = QString());
-    ~UIVMLogViewerDialog();
-    void setSelectedVMListItems(const QList<UIVirtualMachineItem*> &items);
-    void addSelectedVMListItems(const QList<UIVirtualMachineItem*> &items);
+      * @param  comMachine     Brings the machine reference. */
+    UIVMLogViewerDialog(QWidget *pCenterWidget, UIActionPool *pActionPool, const CMachine &comMachine);
 
 protected:
 
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
-        virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
     /** @name Prepare/cleanup cascade.
      * @{ */
         /** Configures all. */
-        virtual void configure() RT_OVERRIDE;
+        virtual void configure() /* override */;
         /** Configures central-widget. */
-        virtual void configureCentralWidget() RT_OVERRIDE;
+        virtual void configureCentralWidget() /* override */;
         /** Perform final preparations. */
-        virtual void finalize() RT_OVERRIDE;
-        /** Loads dialog geometry from extradata. */
-        virtual void loadDialogGeometry();
+        virtual void finalize() /* override */;
+        /** Loads dialog setting such as geometry from extradata. */
+        virtual void loadSettings() /* override */;
 
-        /** Saves dialog geometry into extradata. */
-        virtual void saveDialogGeometry();
+        /** Saves dialog setting into extradata. */
+        virtual void saveSettings() const /* override */;
     /** @} */
 
     /** @name Functions related to geometry restoration.
      * @{ */
         /** Returns whether the window should be maximized when geometry being restored. */
-        virtual bool shouldBeMaximized() const RT_OVERRIDE;
+        virtual bool shouldBeMaximized() const /* override */;
     /** @} */
 
 private slots:
@@ -125,10 +117,8 @@ private:
     void manageEscapeShortCut();
     /** Holds the action-pool reference. */
     UIActionPool *m_pActionPool;
-    /** Holds the machine id. */
-    QUuid      m_uMachineId;
-    int m_iGeometrySaveTimerId;
-    QString    m_strMachineName;
+    /** Holds the machine reference. */
+    CMachine      m_comMachine;
 };
 
 

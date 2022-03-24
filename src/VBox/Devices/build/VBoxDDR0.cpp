@@ -1,10 +1,10 @@
-/* $Id: VBoxDDR0.cpp 93560 2022-02-03 06:37:40Z vboxsync $ */
+/* $Id: VBoxDDR0.cpp $ */
 /** @file
  * VBoxDDR0 - Built-in drivers & devices (part 1), ring-0 module.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,8 +60,9 @@ static PCPDMDEVREGR0 g_apVBoxDDR0DevRegs[] =
 #ifdef VBOX_WITH_VIRTIO
     &g_DeviceVirtioNet,
 #endif
-    &g_DeviceDP8390,
-    &g_Device3C501,
+#ifdef VBOX_WITH_VIRTIO_NET_1_0
+    &g_DeviceVirtioNet_1_0,
+#endif
     &g_DeviceICHAC97,
     &g_DeviceHDA,
 #ifdef VBOX_WITH_VUSB
@@ -105,15 +106,6 @@ static PCPDMDEVREGR0 g_apVBoxDDR0DevRegs[] =
     &g_DeviceGIMDev,
 #ifdef VBOX_WITH_NEW_LPC_DEVICE
     &g_DeviceLPC,
-#endif
-#ifdef VBOX_WITH_IOMMU_AMD
-    &g_DeviceIommuAmd,
-#endif
-#ifdef VBOX_WITH_IOMMU_INTEL
-    &g_DeviceIommuIntel,
-#endif
-#ifdef VBOX_WITH_TPM
-    &g_DeviceTpm,
 #endif
 };
 

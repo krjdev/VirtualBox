@@ -435,7 +435,7 @@ Tpm2HierarchyChangeAuth (
   WriteUnaligned16 ((UINT16 *)Buffer, SwapBytes16(NewAuth->size));
   Buffer += sizeof(UINT16);
 
-  // New Authorization
+  // New Authorizeation
   CopyMem(Buffer, NewAuth->buffer, NewAuth->size);
   Buffer += NewAuth->size;
 

@@ -1,10 +1,10 @@
-/* $Id: PGMR0Bth.h 93922 2022-02-24 15:14:31Z vboxsync $ */
+/* $Id: PGMR0Bth.h $ */
 /** @file
  * VBox - Page Manager / Monitor, Shadow+Guest Paging Template.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,7 +21,5 @@
 *******************************************************************************/
 RT_C_DECLS_BEGIN
 PGM_BTH_DECL(int, Trap0eHandler)(PVMCPUCC pVCpu, RTGCUINT uErr, PCPUMCTXCORE pRegFrame, RTGCPTR pvFault, bool *pfLockTaken);
-PGM_BTH_DECL(int, NestedTrap0eHandler)(PVMCPUCC pVCpu, RTGCUINT uErr, PCPUMCTXCORE pRegFrame, RTGCPHYS GCPhysNested,
-                                       bool fIsLinearAddrValid, RTGCPTR GCPtrNested, PPGMPTWALK pWalk, bool *pfLockTaken);
 RT_C_DECLS_END
 

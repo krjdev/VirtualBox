@@ -821,9 +821,13 @@ LibFindFileSystem (
       if (Info == NULL) {
         VolumeLabel = L"NO FILE SYSTEM INFO";
       } else {
-        VolumeLabel = Info->VolumeLabel;
-        if (*VolumeLabel == 0x0000) {
-          VolumeLabel = L"NO VOLUME LABEL";
+        if (Info->VolumeLabel == NULL) {
+          VolumeLabel = L"NULL VOLUME LABEL";
+        } else {
+          VolumeLabel = Info->VolumeLabel;
+          if (*VolumeLabel == 0x0000) {
+            VolumeLabel = L"NO VOLUME LABEL";
+          }
         }
       }
       MenuEntry->DisplayString  = AllocateZeroPool (MAX_CHAR);
@@ -1408,14 +1412,12 @@ LibUpdateFileExplorer (
   if (NewFileContext->IsDir) {
     RemoveEntryList (&NewMenuEntry->Link);
     LibFreeMenu (gFileExplorerPrivate.FsOptionMenu);
-    Status = LibGetFileHandleFromMenu (NewMenuEntry, &FileHandle);
+    LibGetFileHandleFromMenu (NewMenuEntry, &FileHandle);
+    Status = LibFindFiles (FileHandle, NewFileContext->FileName, NewFileContext->DeviceHandle);
     if (!EFI_ERROR (Status)) {
-      Status = LibFindFiles (FileHandle, NewFileContext->FileName, NewFileContext->DeviceHandle);
-      if (!EFI_ERROR (Status)) {
-        LibUpdateFileExplorePage ();
-      } else {
-        LibFreeMenu (gFileExplorerPrivate.FsOptionMenu);
-      }
+      LibUpdateFileExplorePage ();
+    } else {
+      LibFreeMenu (gFileExplorerPrivate.FsOptionMenu);
     }
     LibDestroyMenuEntry (NewMenuEntry);
   }

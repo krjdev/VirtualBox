@@ -1,10 +1,10 @@
-/* $Id: ApplianceImplImport.cpp 93481 2022-01-28 16:31:30Z vboxsync $ */
+/* $Id: ApplianceImplImport.cpp $ */
 /** @file
  * IAppliance and IVirtualSystem COM class implementations.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,6 @@
 #include <iprt/crypto/pkix.h>
 #include <iprt/crypto/store.h>
 #include <iprt/crypto/x509.h>
-#include <iprt/rand.h>
 
 #include <VBox/vd.h>
 #include <VBox/com/array.h>
@@ -407,7 +406,7 @@ HRESULT Appliance::interpret()
                 /* Check for the constrains */
                 if (llNetworkAdapters.size() > maxNetworkAdapters)
                     i_addWarning(tr("The virtual system \"%s\" claims support for %zu network adapters, but VirtualBox "
-                                    "has support for max %u network adapter only.","", llNetworkAdapters.size()),
+                                    "has support for max %u network adapter only."),
                                     vsysThis.strName.c_str(), llNetworkAdapters.size(), maxNetworkAdapters);
                 /* Iterate through all network adapters. */
                 settings::NetworkAdaptersList::const_iterator it1;
@@ -437,7 +436,7 @@ HRESULT Appliance::interpret()
                 /* Check for the constrains */
                 if (cEthernetAdapters > maxNetworkAdapters)
                     i_addWarning(tr("The virtual system \"%s\" claims support for %zu network adapters, but VirtualBox "
-                                    "has support for max %u network adapter only.", "", cEthernetAdapters),
+                                    "has support for max %u network adapter only."),
                                     vsysThis.strName.c_str(), cEthernetAdapters, maxNetworkAdapters);
 
                 /* Get the default network adapter type for the selected guest OS */
@@ -510,10 +509,6 @@ HRESULT Appliance::interpret()
                             nwAdapterVBox = NetworkAdapterType_I82545EM;
                     }
 #endif /* VBOX_WITH_E1000 */
-                    else if (   !ea.strAdapterType.compare("VirtioNet", Utf8Str::CaseInsensitive)
-                             || !ea.strAdapterType.compare("virtio-net", Utf8Str::CaseInsensitive)
-                             || !ea.strAdapterType.compare("3", Utf8Str::CaseInsensitive))
-                        nwAdapterVBox = NetworkAdapterType_Virtio;
 
                     pNewDesc->i_addEntry(VirtualSystemDescriptionType_NetworkAdapter,
                                          "",      // ref
@@ -566,8 +561,6 @@ HRESULT Appliance::interpret()
             uint16_t cIDEused = 0;
             uint16_t cSATAused = 0; NOREF(cSATAused);
             uint16_t cSCSIused = 0; NOREF(cSCSIused);
-            uint16_t cVIRTIOSCSIused = 0; NOREF(cVIRTIOSCSIused);
-
             ovf::ControllersMap::const_iterator hdcIt;
             /* Iterate through all storage controllers */
             for (hdcIt = vsysThis.mapControllers.begin();
@@ -575,6 +568,7 @@ HRESULT Appliance::interpret()
                  ++hdcIt)
             {
                 const ovf::HardDiskController &hdc = hdcIt->second;
+                Utf8Str strControllerID = Utf8StrFmt("%RI32", (uint32_t)hdc.idController);
 
                 switch (hdc.system)
                 {
@@ -590,9 +584,9 @@ HRESULT Appliance::interpret()
                             else if (!hdc.strControllerType.compare("ICH6", Utf8Str::CaseInsensitive))
                                 strType = "ICH6";
                             pNewDesc->i_addEntry(VirtualSystemDescriptionType_HardDiskControllerIDE,
-                                                 hdc.strIdController,       // strRef
-                                                 hdc.strControllerType,     // aOvfValue
-                                                 strType);                  // aVBoxValue
+                                                 strControllerID,         // strRef
+                                                 hdc.strControllerType,   // aOvfValue
+                                                 strType);                // aVBoxValue
                         }
                         else
                             /* Warn only once */
@@ -611,7 +605,7 @@ HRESULT Appliance::interpret()
                             /// @todo figure out the SATA types
                             /* We only support a plain AHCI controller, so use them always */
                             pNewDesc->i_addEntry(VirtualSystemDescriptionType_HardDiskControllerSATA,
-                                                 hdc.strIdController,
+                                                 strControllerID,
                                                  hdc.strControllerType,
                                                  "AHCI");
                         }
@@ -642,7 +636,7 @@ HRESULT Appliance::interpret()
                             else if (!hdc.strControllerType.compare("BusLogic", Utf8Str::CaseInsensitive))
                                 hdcController = "BusLogic";
                             pNewDesc->i_addEntry(vsdet,
-                                                 hdc.strIdController,
+                                                 strControllerID,
                                                  hdc.strControllerType,
                                                  hdcController);
                         }
@@ -652,31 +646,9 @@ HRESULT Appliance::interpret()
                                             "supports only one SCSI controller."),
                                             vsysThis.strName.c_str(),
                                             hdc.strControllerType.c_str(),
-                                            hdc.strIdController.c_str());
+                                            strControllerID.c_str());
                         ++cSCSIused;
                     break;
-
-                    case ovf::HardDiskController::VIRTIOSCSI:
-                        /* Check for the constrains */
-                        if (cVIRTIOSCSIused < 1)
-                        {
-                            pNewDesc->i_addEntry(VirtualSystemDescriptionType_HardDiskControllerVirtioSCSI,
-                                                 hdc.strIdController,
-                                                 hdc.strControllerType,
-                                                 "VirtioSCSI");
-                        }
-                        else
-                        {
-                            /* Warn only once */
-                            if (cVIRTIOSCSIused == 1)
-                                i_addWarning(tr("The virtual system \"%s\" requests support for more than one "
-                                                "VirtioSCSI controller, but VirtualBox has support for only one"),
-                                                vsysThis.strName.c_str());
-
-                        }
-                        ++cVIRTIOSCSIused;
-                    break;
-
                 }
             }
 
@@ -752,16 +724,16 @@ HRESULT Appliance::interpret()
                     if (di.strCompression.compare("gzip", Utf8Str::CaseInsensitive)==0)
                         strFilename.stripSuffix();
 
-                    i_ensureUniqueImageFilePath(strMachineFolder, devType, strFilename); /** @todo check the return code! */
+                    i_searchUniqueImageFilePath(strMachineFolder, devType, strFilename); /** @todo check the return code! */
 
                     /* find the description for the storage controller
-                     * that has the same ID as hd.strIdController */
+                     * that has the same ID as hd.idController */
                     const VirtualSystemDescriptionEntry *pController;
-                    if (!(pController = pNewDesc->i_findControllerFromID(hd.strIdController)))
+                    if (!(pController = pNewDesc->i_findControllerFromID(hd.idController)))
                         throw setError(E_FAIL,
-                                       tr("Cannot find storage controller with OVF instance ID \"%s\" "
+                                       tr("Cannot find storage controller with OVF instance ID %RI32 "
                                           "to which medium \"%s\" should be attached"),
-                                       hd.strIdController.c_str(),
+                                       hd.idController,
                                        di.strHref.c_str());
 
                     /* controller to attach to, and the bus within that controller */
@@ -1225,17 +1197,18 @@ HRESULT Appliance::i_gettingCloudData(TaskCloud *pTask)
     try
     {
         Utf8Str strBasename(pTask->locInfo.strPath);
-        RTCList<RTCString, RTCString *> parts = strBasename.split("/");
+        RTCList<RTCString, RTCString *> parts = strBasename.split("/" );
         if (parts.size() != 2)//profile + instance id
-            return setErrorVrc(VERR_MISMATCH,
-                               tr("%s: The profile name or instance id are absent or contain unsupported characters: %s"),
-                               __FUNCTION__, strBasename.c_str());
+        {
+            return setErrorVrc(VERR_MISMATCH, tr("%s: The profile name or instance id are absent or"
+                                                 "contain unsupported characters.", __FUNCTION__));
+        }
 
         //Get information about the passed cloud instance
         ComPtr<ICloudProviderManager> cpm;
         hrc = mVirtualBox->COMGETTER(CloudProviderManager)(cpm.asOutParam());
         if (FAILED(hrc))
-            return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud provider manager object wasn't found (%Rhrc)"), __FUNCTION__, hrc);
+            return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud provider manager object wasn't found"), __FUNCTION__);
 
         Utf8Str strProviderName = pTask->locInfo.strProvider;
         ComPtr<ICloudProvider> cloudProvider;
@@ -1243,20 +1216,20 @@ HRESULT Appliance::i_gettingCloudData(TaskCloud *pTask)
         hrc = cpm->GetProviderByShortName(Bstr(strProviderName.c_str()).raw(), cloudProvider.asOutParam());
 
         if (FAILED(hrc))
-            return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud provider object wasn't found (%Rhrc)"), __FUNCTION__, hrc);
+            return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud provider object wasn't found"), __FUNCTION__);
 
         Utf8Str profileName(parts.at(0));//profile
         if (profileName.isEmpty())
-            return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud user profile name wasn't found (%Rhrc)"), __FUNCTION__, hrc);
+            return setErrorVrc(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud user profile name wasn't found"), __FUNCTION__);
 
         hrc = cloudProvider->GetProfileByName(Bstr(parts.at(0)).raw(), cloudProfile.asOutParam());
         if (FAILED(hrc))
-            return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud profile object wasn't found (%Rhrc)"), __FUNCTION__, hrc);
+            return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud profile object wasn't found"), __FUNCTION__);
 
         ComObjPtr<ICloudClient> cloudClient;
         hrc = cloudProfile->CreateCloudClient(cloudClient.asOutParam());
         if (FAILED(hrc))
-            return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud client object wasn't found (%Rhrc)"), __FUNCTION__, hrc);
+            return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud client object wasn't found"), __FUNCTION__);
 
         m->virtualSystemDescriptions.clear();//clear all for assurance before creating new
         std::vector<ComPtr<IVirtualSystemDescription> > vsdArray;
@@ -1265,8 +1238,7 @@ HRESULT Appliance::i_gettingCloudData(TaskCloud *pTask)
         hrc = createVirtualSystemDescriptions(requestedVSDnums, &newVSDnums);
         if (FAILED(hrc)) throw hrc;
         if (requestedVSDnums != newVSDnums)
-            throw setErrorVrc(VERR_MISMATCH, tr("%s: Requested (%d) and created (%d) numbers of VSD are differ ."),
-                              __FUNCTION__, requestedVSDnums, newVSDnums);
+            throw setErrorVrc(VERR_MISMATCH, tr("%s: Requested and created numbers of VSD are differ."), __FUNCTION__);
 
         hrc = getVirtualSystemDescriptions(vsdArray);
         if (FAILED(hrc)) throw hrc;
@@ -1281,12 +1253,16 @@ HRESULT Appliance::i_gettingCloudData(TaskCloud *pTask)
         if (FAILED(hrc)) throw hrc;
 
         // set cloud profile
-        instanceDescription->AddDescription(VirtualSystemDescriptionType_CloudProfileName, Bstr(profileName).raw(),  NULL);
+        instanceDescription->AddDescription(VirtualSystemDescriptionType_CloudProfileName,
+                             Bstr(profileName).raw(),
+                             NULL);
 
         Utf8StrFmt strSetting("VM with id %s imported from the cloud provider %s",
                               parts.at(1).c_str(), strProviderName.c_str());
         // set description
-        instanceDescription->AddDescription(VirtualSystemDescriptionType_Description, Bstr(strSetting).raw(), NULL);
+        instanceDescription->AddDescription(VirtualSystemDescriptionType_Description,
+                             Bstr(strSetting).raw(),
+                             NULL);
     }
     catch (HRESULT arc)
     {
@@ -1319,12 +1295,9 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
     LogFlowFunc(("Appliance %p\n", this));
 
     int vrc = VINF_SUCCESS;
-    /** @todo r=klaus This should be a MultiResult, because this can cause
-     * multiple errors and warnings which should be relevant for the caller.
-     * Needs some work, because there might be errors which need to be
-     * excluded if they happen in error recovery code paths. */
     HRESULT hrc = S_OK;
     bool fKeepDownloadedObject = false;//in the future should be passed from the caller
+    Utf8Str strLastActualErrorDesc("No errors");
 
     /* Clear the list of imported machines, if any */
     m->llGuidsMachinesCreated.clear();
@@ -1356,32 +1329,22 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
  * local #define  for better reading the code
  * uses only the previously locally declared variable names
  * set hrc as the result of operation
- *
- * What the above description fail to say is that this returns:
- *      - retTypes
- *      - aRefs
- *      - aOvfValues
- *      - aVBoxValues
- *      - aExtraConfigValues
  */
-/** @todo r=bird: The setNull calls here are implicit in ComSafeArraySasOutParam,
- * so we're doing twice here for no good reason!  Btw. very untidy to not wrap
- * this in do { } while (0) and require ';' when used.  */
-#define GET_VSD_DESCRIPTION_BY_TYPE(aParamType) do { \
-        retTypes.setNull(); \
-        aRefs.setNull(); \
-        aOvfValues.setNull(); \
-        aVBoxValues.setNull(); \
-        aExtraConfigValues.setNull(); \
-        vsd->GetDescriptionByType(aParamType, \
-                                  ComSafeArrayAsOutParam(retTypes), \
-                                  ComSafeArrayAsOutParam(aRefs), \
-                                  ComSafeArrayAsOutParam(aOvfValues), \
-                                  ComSafeArrayAsOutParam(aVBoxValues), \
-                                  ComSafeArrayAsOutParam(aExtraConfigValues)); \
-    } while (0)
+#define GET_VSD_DESCRIPTION_BY_TYPE(aParamType) \
+    retTypes.setNull(); \
+    aRefs.setNull(); \
+    aOvfValues.setNull(); \
+    aVBoxValues.setNull(); \
+    aExtraConfigValues.setNull(); \
+    vsd->GetDescriptionByType(aParamType, \
+        ComSafeArrayAsOutParam(retTypes), \
+        ComSafeArrayAsOutParam(aRefs), \
+        ComSafeArrayAsOutParam(aOvfValues), \
+        ComSafeArrayAsOutParam(aVBoxValues), \
+        ComSafeArrayAsOutParam(aExtraConfigValues)); \
 
-    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudProfileName);
+
+    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudProfileName)
     if (aVBoxValues.size() == 0)
         return setErrorVrc(VERR_NOT_FOUND, tr("%s: Cloud user profile name wasn't found"), __FUNCTION__);
 
@@ -1407,7 +1370,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
     ComPtr<IGuestOSType> pGuestOSType;
     {
         VBOXOSTYPE guestOsType = VBOXOSTYPE_Unknown;
-        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_OS); //aVBoxValues is set in this #define
+        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_OS)//aVBoxValues is set in this #define
         if (aVBoxValues.size() != 0)
         {
             strOsType = aVBoxValues[0];
@@ -1452,7 +1415,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
             ComPtr<IVirtualBox> VBox(mVirtualBox);
 
             {
-                GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Name); //aVBoxValues is set in this #define
+                GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Name)//aVBoxValues is set in this #define
                 if (aVBoxValues.size() != 0)//paranoia but anyway...
                     strVMName = aVBoxValues[0];
                 LogRel(("%s: VM name is %s\n", __FUNCTION__, strVMName.c_str()));
@@ -1465,10 +1428,9 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
             if (SUCCEEDED(hrc))
             {
                 /* what to do? create a new name from the old one with some suffix? */
-                uint64_t uRndSuff = RTRandU64();
-                vrc = strVMName.appendPrintfNoThrow("__%RU64", uRndSuff);
-                AssertRCBreakStmt(vrc, hrc = E_OUTOFMEMORY);
-
+                com::Guid newId;
+                newId.create();
+                strVMName.append("__").append(newId.toString());
                 vsd->RemoveDescriptionByType(VirtualSystemDescriptionType_Name);
                 vsd->AddDescription(VirtualSystemDescriptionType_Name,
                                     Bstr(strVMName).raw(),
@@ -1515,31 +1477,37 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                         return setErrorVrc(vrc, tr("Can't open folder %s"), strMachineFolder.c_str());
 
                     if (counter > 0)
-                        return setErrorVrc(VERR_ALREADY_EXISTS,
-                                           tr("The target folder %s has already contained some files (%d items). Clear the folder from the files or choose another folder"),
-                                           strMachineFolder.c_str(), counter);
+                    {
+                        return setErrorVrc(VERR_ALREADY_EXISTS, tr("The target folder %s has already contained some"
+                                          " files (%d items). Clear the folder from the files or choose another folder"),
+                                          strMachineFolder.c_str(), counter);
+                    }
                 }
             }
 
-            GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId); //aVBoxValues is set in this #define
+            Utf8Str strInsId;
+            GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId)//aVBoxValues is set in this #define
             if (aVBoxValues.size() == 0)
                 return setErrorVrc(VERR_NOT_FOUND, "%s: Cloud Instance Id wasn't found", __FUNCTION__);
 
-            Utf8Str strInsId = aVBoxValues[0];
+            strInsId = aVBoxValues[0];
 
-            LogRelFunc(("calling CloudClient::ImportInstance\n"));
+            LogRel(("%s: calling CloudClient::ImportInstance\n", __FUNCTION__));
 
             /* Here it's strongly supposed that cloud import produces ONE object on the disk.
              * Because it much easier to manage one object in any case.
              * In the case when cloud import creates several object on the disk all of them
              * must be combined together into one object by cloud client.
              * The most simple way is to create a TAR archive. */
-            hrc = cloudClient->ImportInstance(m->virtualSystemDescriptions.front(), pProgress);
+            hrc = cloudClient->ImportInstance(m->virtualSystemDescriptions.front(),
+                                              pProgress);
             if (FAILED(hrc))
             {
-                LogRelFunc(("Cloud import (cloud phase) failed. Used cloud instance is \'%s\'\n", strInsId.c_str()));
-                hrc = setError(hrc, tr("%s: Cloud import (cloud phase) failed. Used cloud instance is \'%s\'\n"),
-                               __FUNCTION__, strInsId.c_str());
+                strLastActualErrorDesc = Utf8StrFmt("%s: Cloud import (cloud phase) failed. "
+                        "Used cloud instance is \'%s\'\n", __FUNCTION__, strInsId.c_str());
+
+                LogRel((strLastActualErrorDesc.c_str()));
+                hrc = setError(hrc, strLastActualErrorDesc.c_str());
                 break;
             }
 
@@ -1552,14 +1520,13 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
     }
 
 
+    HRESULT original_hrc = hrc;//save the original result
+
     /* In any case we delete the cloud leavings which may exist after the first phase (cloud phase).
      * Should they be deleted in the OCICloudClient::importInstance()?
      * Because deleting them here is not easy as it in the importInstance(). */
     {
-        ErrorInfoKeeper eik;    /* save the error info */
-        HRESULT const hrcSaved = hrc;
-
-        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId); //aVBoxValues is set in this #define
+        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId)//aVBoxValues is set in this #define
         if (aVBoxValues.size() == 0)
             hrc = setErrorVrc(VERR_NOT_FOUND, tr("%s: Cloud cleanup action - the instance wasn't found"), __FUNCTION__);
         else
@@ -1587,19 +1554,13 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
         /* Because during the cleanup phase the hrc may have the good result
          * Thus we restore the original error in the case when the cleanup phase was successful
          * Otherwise we return not the original error but the last error in the cleanup phase */
-        /** @todo r=bird: do this conditionally perhaps?
-         * if (FAILED(hrcSaved))
-         *     hrc = hrcSaved;
-         * else
-         *     eik.forget();
-         */
-        hrc = hrcSaved;
+         hrc = original_hrc;
     }
 
     if (FAILED(hrc))
     {
-        const char *pszGeneralRollBackErrorMessage = tr("Rollback action for Import Cloud operation failed. "
-                                                        "Some leavings may exist on the local disk or in the Cloud.");
+        Utf8Str generalRollBackErrorMessage("Rollback action for Import Cloud operation failed. "
+                                            "Some leavings may exist on the local disk or in the Cloud.");
         /*
          * Roll-back actions.
          * we finish here if:
@@ -1610,17 +1571,14 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
          * 1. The downloaded object, so just check the presence and delete it if one exists
          */
 
-        { /** @todo r=bird: Pointless {}. */
+        {
             if (!fKeepDownloadedObject)
             {
-                ErrorInfoKeeper eik;    /* save the error info */
-                HRESULT const hrcSaved = hrc;
-
                 /* small explanation here, the image here points out to the whole downloaded object (not to the image only)
                  * filled during the first cloud import stage (in the ICloudClient::importInstance()) */
-                GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage); //aVBoxValues is set in this #define
+                GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage)//aVBoxValues is set in this #define
                 if (aVBoxValues.size() == 0)
-                    hrc = setErrorVrc(VERR_NOT_FOUND, pszGeneralRollBackErrorMessage);
+                    hrc = setErrorVrc(VERR_NOT_FOUND, generalRollBackErrorMessage.c_str());
                 else
                 {
                     vsdData = aVBoxValues[0];
@@ -1631,20 +1589,20 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                         vrc = RTFileDelete(vsdData.c_str());
                         if (RT_FAILURE(vrc))
                         {
-                            hrc = setErrorVrc(vrc, pszGeneralRollBackErrorMessage);
+                            hrc = setErrorVrc(vrc, generalRollBackErrorMessage.c_str());
                             LogRel(("%s: Rollback action - the object %s hasn't been deleted\n", __FUNCTION__, vsdData.c_str()));
                         }
                         else
                             LogRel(("%s: Rollback action - the object %s has been deleted\n", __FUNCTION__, vsdData.c_str()));
                     }
                 }
-
-                /* Because during the rollback phase the hrc may have the good result
-                 * Thus we restore the original error in the case when the rollback phase was successful
-                 * Otherwise we return not the original error but the last error in the rollback phase */
-                hrc = hrcSaved;
             }
         }
+
+        /* Because during the rollback phase the hrc may have the good result
+         * Thus we restore the original error in the case when the rollback phase was successful
+         * Otherwise we return not the original error but the last error in the rollback phase */
+         hrc = original_hrc;
     }
     else
     {
@@ -1666,7 +1624,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
         {
             /* Small explanation here, the image here points out to the whole downloaded object (not to the image only)
              * filled during the first cloud import stage (in the ICloudClient::importInstance()) */
-            GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage); //aVBoxValues is set in this #define
+            GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage)//aVBoxValues is set in this #define
             if (aVBoxValues.size() == 0)
                 throw setErrorVrc(VERR_NOT_FOUND, "%s: The description of the downloaded object wasn't found", __FUNCTION__);
 
@@ -1696,21 +1654,29 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
             /* Continue and create new VM using data from VSD and downloaded object.
              * The downloaded images should be converted to VDI/VMDK if they have another format */
             Utf8Str strInstId("default cloud instance id");
-            GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId); //aVBoxValues is set in this #define
-            if (aVBoxValues.size() != 0)//paranoia but anyway...
-                strInstId = aVBoxValues[0];
-            LogRel(("%s: Importing cloud instance %s\n", __FUNCTION__, strInstId.c_str()));
+            {
+                GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CloudInstanceId)//aVBoxValues is set in this #define
+                if (aVBoxValues.size() != 0)//paranoia but anyway...
+                    strInstId = aVBoxValues[0];
+                LogRel(("%s: Importing cloud instance %s\n", __FUNCTION__, strInstId.c_str()));
+            }
 
             /* Processing the downloaded object (prepare for the local import) */
             RTVFSIOSTREAM hVfsIosSrc;
             vrc = RTVfsIoStrmOpenNormal(strAbsSrcPath.c_str(), RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE, &hVfsIosSrc);
             if (RT_FAILURE(vrc))
-                throw setErrorVrc(vrc, tr("Error opening '%s' for reading (%Rrc)\n"), strAbsSrcPath.c_str(), vrc);
+            {
+                strLastActualErrorDesc = Utf8StrFmt("Error opening '%s' for reading (%Rrc)\n", strAbsSrcPath.c_str(), vrc);
+                throw setErrorVrc(vrc, strLastActualErrorDesc.c_str());
+            }
 
             vrc = RTZipTarFsStreamFromIoStream(hVfsIosSrc, 0 /*fFlags*/, &hVfsFssObject);
             RTVfsIoStrmRelease(hVfsIosSrc);
             if (RT_FAILURE(vrc))
-                throw setErrorVrc(vrc, tr("Error reading the downloaded file '%s' (%Rrc)"), strAbsSrcPath.c_str(), vrc);
+            {
+                strLastActualErrorDesc = Utf8StrFmt("Error reading the downloaded file '%s' (%Rrc)", strAbsSrcPath.c_str(), vrc);
+                throw setErrorVrc(vrc, strLastActualErrorDesc.c_str());
+            }
 
             /* Create a new virtual system and work directly on the list copy. */
             m->pReader->m_llVirtualSystems.push_back(ovf::VirtualSystem());
@@ -1721,7 +1687,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 vsys.strName = strVMName;
                 uint32_t cpus = 1;
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CPU); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_CPU)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                     {
                         vsdData = aVBoxValues[0];
@@ -1734,7 +1700,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 ULONG memory;//Mb
                 pGuestOSType->COMGETTER(RecommendedRAM)(&memory);
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Memory); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Memory)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                     {
                         vsdData = aVBoxValues[0];
@@ -1746,7 +1712,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 }
 
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Description); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_Description)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                     {
                         vsdData = aVBoxValues[0];
@@ -1756,7 +1722,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 }
 
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_OS); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_OS)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                         strOsType = aVBoxValues[0];
                     vsys.strTypeVBox = strOsType;
@@ -1765,7 +1731,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
 
                 ovf::EthernetAdapter ea;
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_NetworkAdapter); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_NetworkAdapter)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                     {
                         ea.strAdapterType = (Utf8Str)(aVBoxValues[0]);
@@ -1788,16 +1754,16 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 {
                     //It's thought that SATA is supported by any OS types
                     hdc.system = ovf::HardDiskController::SATA;
-                    hdc.strIdController = "0";
+                    hdc.idController = 0;
 
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskControllerSATA); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskControllerSATA)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                         hdc.strControllerType = (Utf8Str)(aVBoxValues[0]);
                     else
                         hdc.strControllerType = "AHCI";
 
                     LogRel(("%s: Hard disk controller type is %s\n", __FUNCTION__, hdc.strControllerType.c_str()));
-                    vsys.mapControllers[hdc.strIdController] = hdc;
+                    vsys.mapControllers[hdc.idController] = hdc;
 
                     if (aVBoxValues.size() == 0)
                     {
@@ -1809,7 +1775,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                 }
 
                 {
-                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_SoundCard); //aVBoxValues is set in this #define
+                    GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_SoundCard)//aVBoxValues is set in this #define
                     if (aVBoxValues.size() != 0)
                         vsys.strSoundCardType  = (Utf8Str)(aVBoxValues[0]);
                     else
@@ -1915,20 +1881,23 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                         catch (HRESULT aRc)
                         {
                             hrc = aRc;
-                            LogRel(("%s: Processing the downloaded object was failed. The exception (%Rhrc)\n",
-                                    __FUNCTION__, hrc));
+                            strLastActualErrorDesc = Utf8StrFmt("%s: Processing the downloaded object was failed. "
+                                    "The exception (%Rrc)\n", __FUNCTION__, hrc);
+                            LogRel((strLastActualErrorDesc.c_str()));
                         }
                         catch (int aRc)
                         {
                             hrc = setErrorVrc(aRc);
-                            LogRel(("%s: Processing the downloaded object was failed. The exception (%Rrc/%Rhrc)\n",
-                                    __FUNCTION__, aRc, hrc));
+                            strLastActualErrorDesc = Utf8StrFmt("%s: Processing the downloaded object was failed. "
+                                    "The exception (%Rrc)\n", __FUNCTION__, aRc);
+                            LogRel((strLastActualErrorDesc.c_str()));
                         }
                         catch (...)
                         {
-                            hrc = setErrorVrc(VERR_UNEXPECTED_EXCEPTION);
-                            LogRel(("%s: Processing the downloaded object was failed. The exception (VERR_UNEXPECTED_EXCEPTION/%Rhrc)\n",
-                                    __FUNCTION__, hrc));
+                            hrc = VERR_UNEXPECTED_EXCEPTION;
+                            strLastActualErrorDesc = Utf8StrFmt("%s: Processing the downloaded object was failed. "
+                                    "The exception (%Rrc)\n", __FUNCTION__, hrc);
+                            LogRel((strLastActualErrorDesc.c_str()));
                         }
                     }
                     else
@@ -1947,7 +1916,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
 
                         hrc = mVirtualBox->i_findHardDiskByLocation(strAbsDstPath, false, NULL);
                         if (SUCCEEDED(hrc))
-                            throw setErrorVrc(VERR_ALREADY_EXISTS, tr("The hard disk '%s' already exists."), strAbsDstPath.c_str());
+                            throw setError(VERR_ALREADY_EXISTS, tr("The hard disk '%s' already exists."), strAbsDstPath.c_str());
 
                         /* Create an IMedium object. */
                         ComObjPtr<Medium> pTargetMedium;
@@ -1970,9 +1939,10 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                             throw hrc;
 
                         hrc = pProgressImportTmp->init(mVirtualBox,
-                                                       static_cast<IAppliance*>(this),
-                                                       Utf8StrFmt(tr("Importing medium '%s'"), pszName),
-                                                       TRUE);
+                                                      static_cast<IAppliance*>(this),
+                                                      Utf8StrFmt(tr("Importing medium '%s'"),
+                                                                 pszName),
+                                                      TRUE);
                         if (FAILED(hrc))
                             throw hrc;
 
@@ -2007,7 +1977,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                             d.strDiskId = pTargetMedium->i_getId().toString();
                             d.strHref = pTargetMedium->i_getLocationFull();
                             d.strFormat = pTargetMedium->i_getFormat();
-                            d.iSize = (int64_t)pTargetMedium->i_getSize();
+                            d.iSize = pTargetMedium->i_getSize();
                             d.ulSuggestedSizeMB = (uint32_t)(d.iSize/_1M);
 
                             m->pReader->m_mapDisks[d.strDiskId] = d;
@@ -2026,7 +1996,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
                                                    d.ulSuggestedSizeMB);
 
                             ovf::VirtualDisk vd;
-                            vd.strIdController = vsys.mapControllers[0].strIdController;
+                            vd.idController = vsys.mapControllers[0].idController;
                             vd.ulAddressOnParent = 0;
                             vd.strDiskId = d.strDiskId;
                             vsys.mapVirtualDisks[vd.strDiskId] = vd;
@@ -2062,20 +2032,23 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
         catch (HRESULT aRc)
         {
             hrc = aRc;
-            LogRel(("%s: Cloud import (local phase) failed. The exception (%Rhrc)\n",
-                    __FUNCTION__, hrc));
+            strLastActualErrorDesc = Utf8StrFmt("%s: Cloud import (local phase) failed. "
+                    "The exception (%Rrc)\n", __FUNCTION__, hrc);
+            LogRel((strLastActualErrorDesc.c_str()));
         }
         catch (int aRc)
         {
             hrc = setErrorVrc(aRc);
-            LogRel(("%s: Cloud import (local phase) failed. The exception (%Rrc/%Rhrc)\n",
-                    __FUNCTION__, aRc, hrc));
+            strLastActualErrorDesc = Utf8StrFmt("%s: Cloud import (local phase) failed. "
+                    "The exception (%Rrc)\n", __FUNCTION__, aRc);
+            LogRel((strLastActualErrorDesc.c_str()));
         }
         catch (...)
         {
-            hrc = setErrorVrc(VERR_UNRESOLVED_ERROR);
-            LogRel(("%s: Cloud import (local phase) failed. The exception (VERR_UNRESOLVED_ERROR/%Rhrc)\n",
-                    __FUNCTION__, hrc));
+            hrc = VERR_UNRESOLVED_ERROR;
+            strLastActualErrorDesc = Utf8StrFmt("%s: Cloud import (local phase) failed. "
+                    "The exception (%Rrc)\n", __FUNCTION__, hrc);
+            LogRel((strLastActualErrorDesc.c_str()));
         }
 
         LogRel(("%s: Cloud import (local phase) final result (%Rrc).\n", __FUNCTION__, hrc));
@@ -2094,7 +2067,7 @@ HRESULT Appliance::i_importCloudImpl(TaskCloud *pTask)
          * It's needed to go through this list to find the record about the downloaded object.
          * But it was the first record added into the list, so aVBoxValues[0] should be correct here.
          */
-        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage); //aVBoxValues is set in this #define
+        GET_VSD_DESCRIPTION_BY_TYPE(VirtualSystemDescriptionType_HardDiskImage)//aVBoxValues is set in this #define
         if (!fKeepDownloadedObject)
         {
             if (aVBoxValues.size() != 0)
@@ -2300,7 +2273,7 @@ HRESULT Appliance::i_readFSOVF(TaskOVF *pTask)
      * Allocate a buffer for filenames and prep it for suffix appending.
      */
     char *pszNameBuf = (char *)alloca(pTask->locInfo.strPath.length() + 16);
-    AssertReturn(pszNameBuf, E_OUTOFMEMORY);
+    AssertReturn(pszNameBuf, VERR_NO_TMP_MEMORY);
     memcpy(pszNameBuf, pTask->locInfo.strPath.c_str(), pTask->locInfo.strPath.length() + 1);
     RTPathStripSuffix(pszNameBuf);
     size_t const cchBaseName = strlen(pszNameBuf);
@@ -2597,7 +2570,7 @@ HRESULT Appliance::i_readManifestFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosMf, c
 
     /*
      * Copy the manifest into a memory backed file so we can later do signature
-     * validation independent of the algorithms used by the signature.
+     * validation indepentend of the algorithms used by the signature.
      */
     int vrc = RTVfsMemorizeIoStreamAsFile(hVfsIosMf, RTFILE_O_READ, &m->hMemFileTheirManifest);
     RTVfsIoStrmRelease(hVfsIosMf);     /* consumes stream handle.  */
@@ -2655,7 +2628,7 @@ HRESULT Appliance::i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosCert
     {
         const char *pszSuffix = strrchr(pszSubFileNm, '.');
         AssertReturn(pszSuffix, E_FAIL);
-        strManifestName = Utf8Str(pszSubFileNm, (size_t)(pszSuffix - pszSubFileNm));
+        strManifestName = Utf8Str(pszSubFileNm, pszSuffix - pszSubFileNm);
         strManifestName.append(".mf");
     }
     catch (...)
@@ -2678,7 +2651,7 @@ HRESULT Appliance::i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosCert
 
     /*
      * Parse the signing certificate. Unlike the manifest parser we use below,
-     * this API ignores parts of the file that aren't relevant.
+     * this API ignores parse of the file that aren't relevant.
      */
     RTERRINFOSTATIC StaticErrInfo;
     vrc = RTCrX509Certificate_ReadFromBuffer(&m->SignerCert, pvSignature, cbSignature,
@@ -2707,7 +2680,6 @@ HRESULT Appliance::i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosCert
                                    pTask->locInfo.strPath.c_str(), pszSubFileNm));
             pszSplit = (char *)pvSignature + cbSignature;
         }
-        char const chSaved = *pszSplit;
         *pszSplit = '\0';
 
         /*
@@ -2720,7 +2692,7 @@ HRESULT Appliance::i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosCert
         if (RT_SUCCESS(vrc))
         {
             RTVFSIOSTREAM hVfsIosTmp;
-            vrc = RTVfsIoStrmFromBuffer(RTFILE_O_READ, pvSignature, (size_t)(pszSplit - (char *)pvSignature), &hVfsIosTmp);
+            vrc = RTVfsIoStrmFromBuffer(RTFILE_O_READ, pvSignature, pszSplit - (char *)pvSignature, &hVfsIosTmp);
             if (RT_SUCCESS(vrc))
             {
                 vrc = RTManifestReadStandardEx(hSignedDigestManifest, hVfsIosTmp, StaticErrInfo.szMsg, sizeof(StaticErrInfo.szMsg));
@@ -2785,22 +2757,6 @@ HRESULT Appliance::i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hVfsIosCert
         }
         else
             hrc = E_OUTOFMEMORY;
-
-        /*
-         * Look for the additional for PKCS#7/CMS signature we produce when we sign stuff.
-         */
-        if (SUCCEEDED(hrc))
-        {
-            *pszSplit = chSaved;
-            vrc = RTCrPkcs7_ReadFromBuffer(&m->ContentInfo, pvSignature, cbSignature, RTCRPKCS7_READ_F_PEM_ONLY,
-                                           &g_RTAsn1DefaultAllocator, NULL /*pfCmsLabeled*/,
-                                           RTErrInfoInitStatic(&StaticErrInfo), pszSubFileNm);
-            if (RT_SUCCESS(vrc))
-                m->fContentInfoLoaded = true;
-            else if (vrc != VERR_NOT_FOUND)
-                hrc = setErrorVrc(vrc, tr("Error reading the PKCS#7/CMS signature from '%s' for '%s' (%Rrc): %s"),
-                                  pszSubFileNm, pTask->locInfo.strPath.c_str(), vrc, StaticErrInfo.Core.pszMsg);
-        }
     }
     else if (vrc == VERR_NOT_FOUND || vrc == VERR_EOF)
         hrc = setErrorBoth(E_FAIL, vrc, tr("Malformed .cert-file for '%s': Signer's certificate not found (%Rrc)"),
@@ -2827,17 +2783,9 @@ HRESULT Appliance::i_readTailProcessing(TaskOVF *pTask)
     /*
      * Parse and validate the signature file.
      *
-     * The signature file nominally has two parts, manifest part and a PEM
-     * encoded certificate.  The former contains an entry for the manifest file
-     * with a digest that is encrypted with the certificate in the latter part.
-     *
-     * When an appliance is signed by VirtualBox, a PKCS#7/CMS signedData part
-     * is added by default, supplying more info than the bits mandated by the
-     * OVF specs.  We will validate both the signedData and the standard OVF
-     * signature.  Another requirement is that the first signedData signer
-     * uses the same certificate as the regular OVF signature, allowing us to
-     * only do path building for the signedData with the additional info it
-     * ships with.
+     * The signature file has two parts, manifest part and a PEM encoded
+     * certificate.  The former contains an entry for the manifest file with a
+     * digest that is encrypted with the certificate in the latter part.
      */
     if (m->pbSignedDigest)
     {
@@ -2888,17 +2836,9 @@ HRESULT Appliance::i_readTailProcessing(TaskOVF *pTask)
             hrc = setErrorVrc(vrc, tr("RTCrDigestCreateByType failed: %Rrc"), vrc);
 
         /*
-         * If we have a PKCS#7/CMS signature, validate it and check that the
-         * certificate matches the first signerInfo entry.
-         */
-        HRESULT hrc2 = i_readTailProcessingSignedData(&StaticErrInfo);
-        if (FAILED(hrc2) && SUCCEEDED(hrc))
-            hrc = hrc2;
-
-        /*
          * Validate the certificate.
          *
-         * We don't fail here if we cannot validate the certificate, we postpone
+         * We don't fail here on if we cannot validate the certificate, we postpone
          * that till the import stage, so that we can allow the user to ignore it.
          *
          * The certificate validity time is deliberately left as warnings as the
@@ -2929,42 +2869,147 @@ HRESULT Appliance::i_readTailProcessing(TaskOVF *pTask)
         Assert(m->strCertError.isEmpty());
         Assert(m->fCertificateIsSelfSigned == RTCrX509Certificate_IsSelfSigned(&m->SignerCert));
 
-        /* We'll always needs the trusted cert store. */
-        hrc2 = S_OK;
-        RTCRSTORE hTrustedCerts;
-        vrc = RTCrStoreCreateSnapshotOfUserAndSystemTrustedCAsAndCerts(&hTrustedCerts, RTErrInfoInitStatic(&StaticErrInfo));
-        if (RT_SUCCESS(vrc))
+        HRESULT hrc2 = S_OK;
+        if (m->fCertificateIsSelfSigned)
         {
-            /* If we don't have a PKCS7/CMS signature or if it uses a different
-               certificate, we try our best to validate the OVF certificate. */
-            if (!m->fContentInfoOkay || !m->fContentInfoSameCert)
+            /*
+             * It's a self signed certificate.  We assume the frontend will
+             * present this fact to the user and give a choice whether this
+             * is acceptible.  But, first make sure it makes internal sense.
+             */
+            m->fCertificateMissingPath = true; /** @todo need to check if the certificate is trusted by the system! */
+            vrc = RTCrX509Certificate_VerifySignatureSelfSigned(&m->SignerCert, RTErrInfoInitStatic(&StaticErrInfo));
+            if (RT_SUCCESS(vrc))
             {
-                if (m->fCertificateIsSelfSigned)
-                    hrc2 = i_readTailProcessingVerifySelfSignedOvfCert(pTask, hTrustedCerts, &StaticErrInfo);
-                else
-                    hrc2 = i_readTailProcessingVerifyIssuedOvfCert(pTask, hTrustedCerts, &StaticErrInfo);
-            }
+                m->fCertificateValid = true;
 
-            /* If there is a PKCS7/CMS signature, we always verify its certificates. */
-            if (m->fContentInfoOkay)
-            {
-                void  *pvData = NULL;
-                size_t cbData = 0;
-                HRESULT hrc3 = i_readTailProcessingGetManifestData(&pvData, &cbData);
-                if (SUCCEEDED(hrc3))
+                /* Check whether the certificate is currently valid, just warn if not. */
+                RTTIMESPEC Now;
+                if (RTCrX509Validity_IsValidAtTimeSpec(&m->SignerCert.TbsCertificate.Validity, RTTimeNow(&Now)))
                 {
-                    hrc3 = i_readTailProcessingVerifyContentInfoCerts(pvData, cbData, hTrustedCerts, &StaticErrInfo);
-                    RTMemTmpFree(pvData);
+                    m->fCertificateValidTime = true;
+                    i_addWarning(tr("A self signed certificate was used to sign '%s'"), pTask->locInfo.strPath.c_str());
                 }
-                if (FAILED(hrc3) && SUCCEEDED(hrc2))
-                    hrc2 = hrc3;
+                else
+                    i_addWarning(tr("Self signed certificate used to sign '%s' is not currently valid"),
+                                 pTask->locInfo.strPath.c_str());
+
+                /* Just warn if it's not a CA. Self-signed certificates are
+                   hardly trustworthy to start with without the user's consent. */
+                if (   !m->SignerCert.TbsCertificate.T3.pBasicConstraints
+                    || !m->SignerCert.TbsCertificate.T3.pBasicConstraints->CA.fValue)
+                    i_addWarning(tr("Self signed certificate used to sign '%s' is not marked as certificate authority (CA)"),
+                                 pTask->locInfo.strPath.c_str());
             }
-            RTCrStoreRelease(hTrustedCerts);
+            else
+            {
+                try { m->strCertError = Utf8StrFmt(tr("Verification of the self signed certificate failed (%Rrc, %s)"),
+                                                   vrc, StaticErrInfo.Core.pszMsg); }
+                catch (...) { AssertFailed(); }
+                i_addWarning(tr("Verification of the self signed certificate used to sign '%s' failed (%Rrc): %s"),
+                             pTask->locInfo.strPath.c_str(), vrc, StaticErrInfo.Core.pszMsg);
+            }
         }
         else
-            hrc2 = setErrorBoth(E_FAIL, vrc,
-                                tr("Failed to query trusted CAs and Certificates from the system and for the current user (%Rrc%RTeim)"),
-                                vrc, &StaticErrInfo.Core);
+        {
+            /*
+             * The certificate is not self-signed.  Use the system certificate
+             * stores to try build a path that validates successfully.
+             */
+            RTCRX509CERTPATHS hCertPaths;
+            vrc = RTCrX509CertPathsCreate(&hCertPaths, &m->SignerCert);
+            if (RT_SUCCESS(vrc))
+            {
+                /* Get trusted certificates from the system and add them to the path finding mission. */
+                RTCRSTORE hTrustedCerts;
+                vrc = RTCrStoreCreateSnapshotOfUserAndSystemTrustedCAsAndCerts(&hTrustedCerts,
+                                                                               RTErrInfoInitStatic(&StaticErrInfo));
+                if (RT_SUCCESS(vrc))
+                {
+                    vrc = RTCrX509CertPathsSetTrustedStore(hCertPaths, hTrustedCerts);
+                    if (RT_FAILURE(vrc))
+                        hrc2 = setErrorBoth(E_FAIL, vrc, tr("RTCrX509CertPathsSetTrustedStore failed (%Rrc)"), vrc);
+                    RTCrStoreRelease(hTrustedCerts);
+                }
+                else
+                    hrc2 = setErrorBoth(E_FAIL, vrc,
+                                        tr("Failed to query trusted CAs and Certificates from the system and for the current user (%Rrc, %s)"),
+                                        vrc, StaticErrInfo.Core.pszMsg);
+
+                /* Add untrusted intermediate certificates. */
+                if (RT_SUCCESS(vrc))
+                {
+                    /// @todo RTCrX509CertPathsSetUntrustedStore(hCertPaths, hAdditionalCerts);
+                    /// By scanning for additional certificates in the .cert file?  It would be
+                    /// convenient to be able to supply intermediate certificates for the user,
+                    /// right?  Or would that be unacceptable as it may weaken security?
+                    ///
+                    /// Anyway, we should look for intermediate certificates on the system, at
+                    /// least.
+                }
+                if (RT_SUCCESS(vrc))
+                {
+                    /*
+                     * Do the building and verification of certificate paths.
+                     */
+                    vrc = RTCrX509CertPathsBuild(hCertPaths, RTErrInfoInitStatic(&StaticErrInfo));
+                    if (RT_SUCCESS(vrc))
+                    {
+                        vrc = RTCrX509CertPathsValidateAll(hCertPaths, NULL, RTErrInfoInitStatic(&StaticErrInfo));
+                        if (RT_SUCCESS(vrc))
+                        {
+                            /*
+                             * Mark the certificate as good.
+                             */
+                            /** @todo check the certificate purpose? If so, share with self-signed. */
+                            m->fCertificateValid = true;
+                            m->fCertificateMissingPath = false;
+
+                            /*
+                             * We add a warning if the certificate path isn't valid at the current
+                             * time.  Since the time is only considered during path validation and we
+                             * can repeat the validation process (but not building), it's easy to check.
+                             */
+                            RTTIMESPEC Now;
+                            vrc = RTCrX509CertPathsSetValidTimeSpec(hCertPaths, RTTimeNow(&Now));
+                            if (RT_SUCCESS(vrc))
+                            {
+                                vrc = RTCrX509CertPathsValidateAll(hCertPaths, NULL, RTErrInfoInitStatic(&StaticErrInfo));
+                                if (RT_SUCCESS(vrc))
+                                    m->fCertificateValidTime = true;
+                                else
+                                    i_addWarning(tr("The certificate used to sign '%s' (or a certificate in the path) is not currently valid (%Rrc)"),
+                                                 pTask->locInfo.strPath.c_str(), vrc);
+                            }
+                            else
+                                hrc2 = setErrorVrc(vrc, "RTCrX509CertPathsSetValidTimeSpec failed: %Rrc", vrc);
+                        }
+                        else if (vrc == VERR_CR_X509_CPV_NO_TRUSTED_PATHS)
+                        {
+                            m->fCertificateValid = true;
+                            i_addWarning(tr("No trusted certificate paths"));
+
+                            /* Add another warning if the pathless certificate is not valid at present. */
+                            RTTIMESPEC Now;
+                            if (RTCrX509Validity_IsValidAtTimeSpec(&m->SignerCert.TbsCertificate.Validity, RTTimeNow(&Now)))
+                                m->fCertificateValidTime = true;
+                            else
+                                i_addWarning(tr("The certificate used to sign '%s' is not currently valid"),
+                                             pTask->locInfo.strPath.c_str());
+                        }
+                        else
+                            hrc2 = setErrorBoth(E_FAIL, vrc, tr("Certificate path validation failed (%Rrc, %s)"),
+                                                vrc, StaticErrInfo.Core.pszMsg);
+                    }
+                    else
+                        hrc2 = setErrorBoth(E_FAIL, vrc, tr("Certificate path building failed (%Rrc, %s)"),
+                                            vrc, StaticErrInfo.Core.pszMsg);
+                }
+                RTCrX509CertPathsRelease(hCertPaths);
+            }
+            else
+                hrc2 = setErrorVrc(vrc, tr("RTCrX509CertPathsCreate failed: %Rrc"), vrc);
+        }
 
         /* Merge statuses from signature and certificate validation, prefering the signature one. */
         if (SUCCEEDED(hrc) && FAILED(hrc2))
@@ -2976,7 +3021,6 @@ HRESULT Appliance::i_readTailProcessing(TaskOVF *pTask)
     /** @todo provide details about the signatory, signature, etc.  */
     if (m->fSignerCertLoaded)
     {
-        /** @todo PKCS7/CMS certs too */
         m->ptrCertificateInfo.createObject();
         m->ptrCertificateInfo->initCertificate(&m->SignerCert,
                                                m->fCertificateValid && !m->fCertificateMissingPath,
@@ -2988,505 +3032,6 @@ HRESULT Appliance::i_readTailProcessing(TaskOVF *pTask)
      */
 
     NOREF(pTask);
-    return S_OK;
-}
-
-/**
- * Reads hMemFileTheirManifest into a memory buffer so it can be passed to
- * RTCrPkcs7VerifySignedDataWithExternalData.
- *
- * Use RTMemTmpFree to free the memory.
- */
-HRESULT Appliance::i_readTailProcessingGetManifestData(void **ppvData, size_t *pcbData)
-{
-    uint64_t cbData;
-    int vrc = RTVfsFileQuerySize(m->hMemFileTheirManifest, &cbData);
-    AssertRCReturn(vrc, setErrorVrc(vrc, "RTVfsFileQuerySize"));
-
-    void *pvData = RTMemTmpAllocZ((size_t)cbData);
-    AssertPtrReturn(pvData, E_OUTOFMEMORY);
-
-    vrc = RTVfsFileReadAt(m->hMemFileTheirManifest, 0, pvData, (size_t)cbData, NULL);
-    AssertRCReturnStmt(vrc, RTMemTmpFree(pvData), setErrorVrc(vrc, "RTVfsFileReadAt"));
-
-    *pcbData = (size_t)cbData;
-    *ppvData = pvData;
-    return S_OK;
-}
-
-/**
- * Worker for i_readTailProcessing that validates the signedData.
- *
- * If we have a PKCS#7/CMS signature:
- *      - validate it
- *      - check that the OVF certificate matches the first signerInfo entry
- *      - verify the signature, but leave the certificate path validation for
- *        later.
- *
- * @param   pErrInfo    Static error info buffer (not for returning, just for
- *                      avoiding wasting stack).
- * @returns COM status.
- * @throws  Nothing!
- */
-HRESULT Appliance::i_readTailProcessingSignedData(PRTERRINFOSTATIC pErrInfo)
-{
-    m->fContentInfoOkay           = false;
-    m->fContentInfoSameCert       = false;
-    m->fContentInfoValidSignature = false;
-
-    if (!m->fContentInfoLoaded)
-        return S_OK;
-
-    /*
-     * Validate it.
-     */
-    HRESULT hrc = S_OK;
-    PCRTCRPKCS7SIGNEDDATA pSignedData = m->ContentInfo.u.pSignedData;
-    if (!RTCrPkcs7ContentInfo_IsSignedData(&m->ContentInfo))
-        i_addWarning(tr("Invalid PKCS#7/CMS type: %s, expected %s (signedData)"),
-                     m->ContentInfo.ContentType.szObjId, RTCRPKCS7SIGNEDDATA_OID);
-    else if (RTAsn1ObjId_CompareWithString(&pSignedData->ContentInfo.ContentType, RTCR_PKCS7_DATA_OID) != 0)
-        i_addWarning(tr("Invalid PKCS#7/CMS inner type: %s, expected %s (data)"),
-                     pSignedData->ContentInfo.ContentType.szObjId, RTCR_PKCS7_DATA_OID);
-    else if (RTAsn1OctetString_IsPresent(&pSignedData->ContentInfo.Content))
-        i_addWarning(tr("Invalid PKCS#7/CMS data: embedded (%u bytes), expected external","",
-                        pSignedData->ContentInfo.Content.Asn1Core.cb),
-                     pSignedData->ContentInfo.Content.Asn1Core.cb);
-    else if (pSignedData->SignerInfos.cItems == 0)
-        i_addWarning(tr("Invalid PKCS#7/CMS: No signers"));
-    else
-    {
-        m->fContentInfoOkay = true;
-
-        /*
-         * Same certificate as the OVF signature?
-         */
-        PCRTCRPKCS7SIGNERINFO pSignerInfo = pSignedData->SignerInfos.papItems[0];
-        if (   RTCrX509Name_Compare(&pSignerInfo->IssuerAndSerialNumber.Name, &m->SignerCert.TbsCertificate.Issuer) == 0
-            && RTAsn1Integer_Compare(&pSignerInfo->IssuerAndSerialNumber.SerialNumber,
-                                     &m->SignerCert.TbsCertificate.SerialNumber) == 0)
-            m->fContentInfoSameCert = true;
-        else
-            i_addWarning(tr("Invalid PKCS#7/CMS: Using a different certificate"));
-
-        /*
-         * Then perform a validation of the signatures, but first without
-         * validating the certificate trust paths yet.
-         */
-        RTCRSTORE hTrustedCerts = NIL_RTCRSTORE;
-        int vrc = RTCrStoreCreateInMem(&hTrustedCerts, 1);
-        AssertRCReturn(vrc, setErrorVrc(vrc, tr("RTCrStoreCreateInMem failed: %Rrc"), vrc));
-
-        vrc = RTCrStoreCertAddX509(hTrustedCerts, 0, &m->SignerCert, RTErrInfoInitStatic(pErrInfo));
-        if (RT_SUCCESS(vrc))
-        {
-            void  *pvData = NULL;
-            size_t cbData = 0;
-            hrc = i_readTailProcessingGetManifestData(&pvData, &cbData);
-            if (SUCCEEDED(hrc))
-            {
-                RTTIMESPEC Now;
-                vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo, RTCRPKCS7VERIFY_SD_F_TRUST_ALL_CERTS,
-                                                                NIL_RTCRSTORE /*hAdditionalCerts*/, hTrustedCerts,
-                                                                RTTimeNow(&Now), NULL /*pfnVerifyCert*/, NULL /*pvUser*/,
-                                                                pvData, cbData, RTErrInfoInitStatic(pErrInfo));
-                if (RT_SUCCESS(vrc))
-                    m->fContentInfoValidSignature = true;
-                else
-                    i_addWarning(tr("Failed to validate PKCS#7/CMS signature: %Rrc%RTeim"), vrc, &pErrInfo->Core);
-                RTMemTmpFree(pvData);
-            }
-        }
-        else
-            hrc = setErrorVrc(vrc, tr("RTCrStoreCertAddX509 failed: %Rrc%RTeim"), vrc, &pErrInfo->Core);
-        RTCrStoreRelease(hTrustedCerts);
-    }
-
-    return hrc;
-}
-
-
-/**
- * Worker for i_readTailProcessing that verifies a self signed certificate when
- * no PKCS\#7/CMS signature using the same certificate is present.
- */
-HRESULT Appliance::i_readTailProcessingVerifySelfSignedOvfCert(TaskOVF *pTask, RTCRSTORE hTrustedStore, PRTERRINFOSTATIC pErrInfo)
-{
-    /*
-     * It's a self signed certificate.  We assume the frontend will
-     * present this fact to the user and give a choice whether this
-     * is acceptable.  But, first make sure it makes internal sense.
-     */
-    m->fCertificateMissingPath = true;
-    PCRTCRCERTCTX pCertCtx = RTCrStoreCertByIssuerAndSerialNo(hTrustedStore, &m->SignerCert.TbsCertificate.Issuer,
-                                                              &m->SignerCert.TbsCertificate.SerialNumber);
-    if (pCertCtx)
-    {
-        if (pCertCtx->pCert && RTCrX509Certificate_Compare(pCertCtx->pCert, &m->SignerCert) == 0)
-            m->fCertificateMissingPath = true;
-        RTCrCertCtxRelease(pCertCtx);
-    }
-
-    int vrc = RTCrX509Certificate_VerifySignatureSelfSigned(&m->SignerCert, RTErrInfoInitStatic(pErrInfo));
-    if (RT_SUCCESS(vrc))
-    {
-        m->fCertificateValid = true;
-
-        /* Check whether the certificate is currently valid, just warn if not. */
-        RTTIMESPEC Now;
-        m->fCertificateValidTime = RTCrX509Validity_IsValidAtTimeSpec(&m->SignerCert.TbsCertificate.Validity, RTTimeNow(&Now));
-        if (m->fCertificateValidTime)
-        {
-            m->fCertificateValidTime = true;
-            i_addWarning(tr("A self signed certificate was used to sign '%s'"), pTask->locInfo.strPath.c_str());
-        }
-        else
-            i_addWarning(tr("Self signed certificate used to sign '%s' is not currently valid"),
-                         pTask->locInfo.strPath.c_str());
-    }
-    else
-    {
-        m->strCertError.printfNoThrow(tr("Verification of the self signed certificate failed (%Rrc%#RTeim)"),
-                                      vrc, &pErrInfo->Core);
-        i_addWarning(tr("Verification of the self signed certificate used to sign '%s' failed (%Rrc)%RTeim"),
-                     pTask->locInfo.strPath.c_str(), vrc, &pErrInfo->Core);
-    }
-
-    /* Just warn if it's not a CA. Self-signed certificates are
-       hardly trustworthy to start with without the user's consent. */
-    if (   !m->SignerCert.TbsCertificate.T3.pBasicConstraints
-        || !m->SignerCert.TbsCertificate.T3.pBasicConstraints->CA.fValue)
-        i_addWarning(tr("Self signed certificate used to sign '%s' is not marked as certificate authority (CA)"),
-                     pTask->locInfo.strPath.c_str());
-
-    return S_OK;
-}
-
-/**
- * Worker for i_readTailProcessing that verfies a non-self-issued OVF
- * certificate when no PKCS\#7/CMS signature using the same certificate is
- * present.
- */
-HRESULT Appliance::i_readTailProcessingVerifyIssuedOvfCert(TaskOVF *pTask, RTCRSTORE hTrustedStore, PRTERRINFOSTATIC pErrInfo)
-{
-    /*
-     * The certificate is not self-signed.  Use the system certificate
-     * stores to try build a path that validates successfully.
-     */
-    HRESULT hrc = S_OK;
-    RTCRX509CERTPATHS hCertPaths;
-    int vrc = RTCrX509CertPathsCreate(&hCertPaths, &m->SignerCert);
-    if (RT_SUCCESS(vrc))
-    {
-        /* Get trusted certificates from the system and add them to the path finding mission. */
-        vrc = RTCrX509CertPathsSetTrustedStore(hCertPaths, hTrustedStore);
-        if (RT_FAILURE(vrc))
-            hrc = setErrorBoth(E_FAIL, vrc, tr("RTCrX509CertPathsSetTrustedStore failed (%Rrc)"), vrc);
-
-        /* Add untrusted intermediate certificates. */
-        if (RT_SUCCESS(vrc))
-        {
-            /// @todo RTCrX509CertPathsSetUntrustedStore(hCertPaths, hAdditionalCerts);
-            /// We should look for intermediate certificates on the system, at least.
-        }
-        if (RT_SUCCESS(vrc))
-        {
-            /*
-             * Do the building and verification of certificate paths.
-             */
-            vrc = RTCrX509CertPathsBuild(hCertPaths, RTErrInfoInitStatic(pErrInfo));
-            if (RT_SUCCESS(vrc))
-            {
-                vrc = RTCrX509CertPathsValidateAll(hCertPaths, NULL, RTErrInfoInitStatic(pErrInfo));
-                if (RT_SUCCESS(vrc))
-                {
-                    /*
-                     * Mark the certificate as good.
-                     */
-                    /** @todo check the certificate purpose? If so, share with self-signed. */
-                    m->fCertificateValid = true;
-                    m->fCertificateMissingPath = false;
-
-                    /*
-                     * We add a warning if the certificate path isn't valid at the current
-                     * time.  Since the time is only considered during path validation and we
-                     * can repeat the validation process (but not building), it's easy to check.
-                     */
-                    RTTIMESPEC Now;
-                    vrc = RTCrX509CertPathsSetValidTimeSpec(hCertPaths, RTTimeNow(&Now));
-                    if (RT_SUCCESS(vrc))
-                    {
-                        vrc = RTCrX509CertPathsValidateAll(hCertPaths, NULL, RTErrInfoInitStatic(pErrInfo));
-                        if (RT_SUCCESS(vrc))
-                            m->fCertificateValidTime = true;
-                        else
-                            i_addWarning(tr("The certificate used to sign '%s' (or a certificate in the path) is not currently valid (%Rrc)"),
-                                         pTask->locInfo.strPath.c_str(), vrc);
-                    }
-                    else
-                        hrc = setErrorVrc(vrc, tr("RTCrX509CertPathsSetValidTimeSpec failed: %Rrc"), vrc);
-                }
-                else if (vrc == VERR_CR_X509_CPV_NO_TRUSTED_PATHS)
-                {
-                    m->fCertificateValid = true;
-                    i_addWarning(tr("No trusted certificate paths"));
-
-                    /* Add another warning if the pathless certificate is not valid at present. */
-                    RTTIMESPEC Now;
-                    if (RTCrX509Validity_IsValidAtTimeSpec(&m->SignerCert.TbsCertificate.Validity, RTTimeNow(&Now)))
-                        m->fCertificateValidTime = true;
-                    else
-                        i_addWarning(tr("The certificate used to sign '%s' is not currently valid"),
-                                     pTask->locInfo.strPath.c_str());
-                }
-                else
-                    hrc = setErrorBoth(E_FAIL, vrc, tr("Certificate path validation failed (%Rrc%RTeim)"), vrc, &pErrInfo->Core);
-            }
-            else
-                hrc = setErrorBoth(E_FAIL, vrc, tr("Certificate path building failed (%Rrc%RTeim)"), vrc, &pErrInfo->Core);
-        }
-        RTCrX509CertPathsRelease(hCertPaths);
-    }
-    else
-        hrc = setErrorVrc(vrc, tr("RTCrX509CertPathsCreate failed: %Rrc"), vrc);
-    return hrc;
-}
-
-/**
- * Helper for i_readTailProcessingVerifySignerInfo that reports a verfication
- * failure.
- *
- * @returns S_OK
- */
-HRESULT Appliance::i_readTailProcessingVerifyContentInfoFailOne(const char *pszSignature, int vrc, PRTERRINFOSTATIC pErrInfo)
-{
-    i_addWarning(tr("%s verification failed: %Rrc%RTeim"), pszSignature, vrc, &pErrInfo->Core);
-    if (m->strCertError.isEmpty())
-        m->strCertError.printfNoThrow(tr("%s verification failed: %Rrc%RTeim"), pszSignature, vrc, &pErrInfo->Core);
-    return S_OK;
-}
-
-/**
- * Worker for i_readTailProcessingVerifyContentInfoCerts that analyzes why the
- * standard verification of a signer info entry failed (@a vrc & @a pErrInfo).
- *
- * There are a couple of things we might want try to investigate deeper here:
- *      1. Untrusted signing certificate, often self-signed.
- *      2. Untrusted timstamp signing certificate.
- *      3. Certificate not valid at the current time and there isn't a
- *         timestamp counter signature.
- *
- * That said, it is difficult to get an accurate fix and report on the
- * issues here since there are a number of error sources, so just try identify
- * the more typical cases.
- *
- * @note Caller cleans up *phTrustedStore2 if not NIL.
- */
-HRESULT Appliance::i_readTailProcessingVerifyAnalyzeSignerInfo(void const *pvData, size_t cbData, RTCRSTORE hTrustedStore,
-                                                               uint32_t iSigner, PRTTIMESPEC pNow, int vrc,
-                                                               PRTERRINFOSTATIC pErrInfo, PRTCRSTORE phTrustedStore2)
-{
-    PRTCRPKCS7SIGNEDDATA const pSignedData = m->ContentInfo.u.pSignedData;
-    PRTCRPKCS7SIGNERINFO const pSigner     = pSignedData->SignerInfos.papItems[iSigner];
-
-    /*
-     * Error/warning message prefix:
-     */
-    const char *pszSignature;
-    if (iSigner == 0 && m->fContentInfoSameCert)
-        pszSignature = tr("OVF & PKCS#7/CMS signature");
-    else
-        pszSignature = tr("PKCS#7/CMS signature");
-    char szSignatureBuf[64];
-    if (pSignedData->SignerInfos.cItems > 1)
-    {
-        RTStrPrintf(szSignatureBuf, sizeof(szSignatureBuf), "%s #%u", pszSignature, iSigner + 1);
-        pszSignature = szSignatureBuf;
-    }
-
-    /*
-     * Don't try handle weird stuff:
-     */
-    /** @todo Are there more statuses we can deal with here? */
-    if (   vrc != VERR_CR_X509_CPV_NOT_VALID_AT_TIME
-        && vrc != VERR_CR_X509_NO_TRUST_ANCHOR)
-        return i_readTailProcessingVerifyContentInfoFailOne(pszSignature, vrc, pErrInfo);
-
-    /*
-     * Find the signing certificate.
-     * We require the certificate to be included in the signed data here.
-     */
-    PCRTCRX509CERTIFICATE pSigningCert;
-    pSigningCert = RTCrPkcs7SetOfCerts_FindX509ByIssuerAndSerialNumber(&pSignedData->Certificates,
-                                                                       &pSigner->IssuerAndSerialNumber.Name,
-                                                                       &pSigner->IssuerAndSerialNumber.SerialNumber);
-    if (!pSigningCert)
-    {
-        i_addWarning(tr("PKCS#7/CMS signature #%u does not include the signing certificate"), iSigner + 1);
-        if (m->strCertError.isEmpty())
-            m->strCertError.printfNoThrow(tr("PKCS#7/CMS signature #%u does not include the signing certificate"), iSigner + 1);
-        return S_OK;
-    }
-
-    PCRTCRCERTCTX const pCertCtxTrusted = RTCrStoreCertByIssuerAndSerialNo(hTrustedStore, &pSigner->IssuerAndSerialNumber.Name,
-                                                                           &pSigner->IssuerAndSerialNumber.SerialNumber);
-    bool const          fSelfSigned     = RTCrX509Certificate_IsSelfSigned(pSigningCert);
-
-    /*
-     * Add warning about untrusted self-signed certificate:
-     */
-    if (fSelfSigned && !pCertCtxTrusted)
-        i_addWarning(tr("%s: Untrusted self-signed certificate"), pszSignature);
-
-    /*
-     * Start by eliminating signing time issues (2 + 3) first as primary problem.
-     * Keep the error info and status for later failures.
-     */
-    char szTime[RTTIME_STR_LEN];
-    RTTIMESPEC Now2 = *pNow;
-    vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo, RTCRPKCS7VERIFY_SD_F_USE_SIGNING_TIME_UNVERIFIED
-                                                    | RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
-                                                    | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                    | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS, NIL_RTCRSTORE,
-                                                    hTrustedStore, &Now2, NULL, NULL,
-                                                    pvData, cbData, RTErrInfoInitStatic(pErrInfo));
-    if (RT_SUCCESS(vrc))
-    {
-        /* Okay, is it an untrusted time signing certificate or just signing time in general? */
-        RTTIMESPEC Now3 = *pNow;
-        vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo, RTCRPKCS7VERIFY_SD_F_USE_SIGNING_TIME_UNVERIFIED
-                                                        | RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
-                                                        | RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
-                                                        | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                        | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS, NIL_RTCRSTORE,
-                                                        hTrustedStore, &Now3, NULL, NULL, pvData, cbData, NULL);
-        if (RT_SUCCESS(vrc))
-            i_addWarning(tr("%s: Untrusted timestamp (%s)"), pszSignature, RTTimeSpecToString(&Now3, szTime, sizeof(szTime)));
-        else
-            i_addWarning(tr("%s: Not valid at current time, but validates fine for untrusted signing time (%s)"),
-                         pszSignature, RTTimeSpecToString(&Now2, szTime, sizeof(szTime)));
-        return S_OK;
-    }
-
-    /* If we've got a trusted signing certificate (unlikely, but whatever), we can stop already.
-       If we haven't got a self-signed certificate, stop too as messaging becomes complicated otherwise. */
-    if (pCertCtxTrusted || !fSelfSigned)
-        return i_readTailProcessingVerifyContentInfoFailOne(pszSignature, vrc, pErrInfo);
-
-    int const vrcErrInfo = vrc;
-
-    /*
-     * Create a new trust store that includes the signing certificate
-     * to see what that changes.
-     */
-    vrc = RTCrStoreCreateInMemEx(phTrustedStore2, 1, hTrustedStore);
-    AssertRCReturn(vrc, setErrorVrc(vrc, "RTCrStoreCreateInMemEx"));
-    vrc = RTCrStoreCertAddX509(*phTrustedStore2, 0, (PRTCRX509CERTIFICATE)pSigningCert, NULL);
-    AssertRCReturn(vrc, setErrorVrc(vrc, "RTCrStoreCertAddX509/%u", iSigner));
-
-    vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo,
-                                                    RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
-                                                    | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                    | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS, NIL_RTCRSTORE,
-                                                    *phTrustedStore2, pNow, NULL, NULL, pvData, cbData, NULL);
-    if (RT_SUCCESS(vrc))
-    {
-        if (!fSelfSigned)
-            i_readTailProcessingVerifyContentInfoFailOne(pszSignature, vrcErrInfo, pErrInfo);
-        return S_OK;
-    }
-
-    /*
-     * Time problems too?  Repeat what we did above, but with the modified trust store.
-     */
-    Now2 = *pNow;
-    vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo, RTCRPKCS7VERIFY_SD_F_USE_SIGNING_TIME_UNVERIFIED
-                                                    | RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
-                                                    | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                    | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS, NIL_RTCRSTORE,
-                                                    *phTrustedStore2, pNow, NULL, NULL, pvData, cbData, NULL);
-    if (RT_SUCCESS(vrc))
-    {
-        /* Okay, is it an untrusted time signing certificate or just signing time in general? */
-        RTTIMESPEC Now3 = *pNow;
-        vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo, RTCRPKCS7VERIFY_SD_F_USE_SIGNING_TIME_UNVERIFIED
-                                                        | RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
-                                                        | RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
-                                                        | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                        | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS, NIL_RTCRSTORE,
-                                                        *phTrustedStore2, &Now3, NULL, NULL, pvData, cbData, NULL);
-        if (RT_SUCCESS(vrc))
-            i_addWarning(tr("%s: Untrusted timestamp (%s)"), pszSignature, RTTimeSpecToString(&Now3, szTime, sizeof(szTime)));
-        else
-            i_addWarning(tr("%s: Not valid at current time, but validates fine for untrusted signing time (%s)"),
-                         pszSignature, RTTimeSpecToString(&Now2, szTime, sizeof(szTime)));
-    }
-    else
-        i_readTailProcessingVerifyContentInfoFailOne(pszSignature, vrcErrInfo, pErrInfo);
-
-    return S_OK;
-}
-
-/**
- * Verify the signing certificates used to sign the PKCS\#7/CMS signature.
- *
- * ASSUMES that we've previously verified the PKCS\#7/CMS stuff in
- * trust-all-certs-without-question mode and it's just the certificate
- * validation that can fail now.
- */
-HRESULT Appliance::i_readTailProcessingVerifyContentInfoCerts(void const *pvData, size_t cbData,
-                                                              RTCRSTORE hTrustedStore, PRTERRINFOSTATIC pErrInfo)
-{
-    /*
-     * Just do a run and see what happens (note we've already verified
-     * the data signatures, which just leaves certificates and paths).
-     */
-    RTTIMESPEC Now;
-    int vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo,
-                                                          RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
-                                                        | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS,
-                                                        NIL_RTCRSTORE /*hAdditionalCerts*/, hTrustedStore,
-                                                        RTTimeNow(&Now), NULL /*pfnVerifyCert*/, NULL /*pvUser*/,
-                                                        pvData, cbData, RTErrInfoInitStatic(pErrInfo));
-    if (RT_SUCCESS(vrc))
-        m->fContentInfoVerifiedOkay = true;
-    else
-    {
-        /*
-         * Deal with each of the signatures separately to try figure out
-         * more exactly what's going wrong.
-         */
-        uint32_t             cVerifiedOkay = 0;
-        PRTCRPKCS7SIGNEDDATA pSignedData   = m->ContentInfo.u.pSignedData;
-        for (uint32_t iSigner = 0; iSigner < pSignedData->SignerInfos.cItems; iSigner++)
-        {
-            vrc = RTCrPkcs7VerifySignedDataWithExternalData(&m->ContentInfo,
-                                                            RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
-                                                            | RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(iSigner)
-                                                            | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS,
-                                                            NIL_RTCRSTORE /*hAdditionalCerts*/, hTrustedStore,
-                                                            &Now, NULL /*pfnVerifyCert*/, NULL /*pvUser*/,
-                                                            pvData, cbData, RTErrInfoInitStatic(pErrInfo));
-            if (RT_SUCCESS(vrc))
-                cVerifiedOkay++;
-            else
-            {
-                RTCRSTORE hTrustedStore2 = NIL_RTCRSTORE;
-                HRESULT hrc = i_readTailProcessingVerifyAnalyzeSignerInfo(pvData, cbData, hTrustedStore, iSigner, &Now,
-                                                                          vrc, pErrInfo, &hTrustedStore2);
-                RTCrStoreRelease(hTrustedStore2);
-                if (FAILED(hrc))
-                    return hrc;
-            }
-        }
-
-        if (   pSignedData->SignerInfos.cItems > 1
-            && pSignedData->SignerInfos.cItems != cVerifiedOkay)
-            i_addWarning(tr("%u out of %u PKCS#7/CMS signatures verfified okay", "",
-                            pSignedData->SignerInfos.cItems),
-                         cVerifiedOkay, pSignedData->SignerInfos.cItems);
-    }
-
     return S_OK;
 }
 
@@ -3910,72 +3455,66 @@ void Appliance::i_convertDiskAttachmentValues(const ovf::HardDiskController &hdc
                     if (!hdc.fPrimary)
                     {
                         // secondary master
-                        lControllerPort = 1;
-                        lDevice         = 0;
+                        lControllerPort = (long)1;
+                        lDevice = (long)0;
                     }
                     else // primary master
                     {
-                        lControllerPort = 0;
-                        lDevice         = 0;
+                        lControllerPort = (long)0;
+                        lDevice = (long)0;
                     }
-                    break;
+                break;
 
                 case 1: // slave
                     if (!hdc.fPrimary)
                     {
                         // secondary slave
-                        lControllerPort = 1;
-                        lDevice         = 1;
+                        lControllerPort = (long)1;
+                        lDevice = (long)1;
                     }
                     else // primary slave
                     {
-                        lControllerPort = 0;
-                        lDevice         = 1;
+                        lControllerPort = (long)0;
+                        lDevice = (long)1;
                     }
-                    break;
+                break;
 
                 // used by older VBox exports
                 case 2:     // interpret this as secondary master
-                    lControllerPort = 1;
-                    lDevice         = 0;
-                    break;
+                    lControllerPort = (long)1;
+                    lDevice = (long)0;
+                break;
 
                 // used by older VBox exports
                 case 3:     // interpret this as secondary slave
-                    lControllerPort = 1;
-                    lDevice         = 1;
-                    break;
+                    lControllerPort = (long)1;
+                    lDevice = (long)1;
+                break;
 
                 default:
                     throw setError(VBOX_E_NOT_SUPPORTED,
-                                   tr("Invalid channel %RU32 specified; IDE controllers support only 0, 1 or 2"),
+                                   tr("Invalid channel %RI16 specified; IDE controllers support only 0, 1 or 2"),
                                    ulAddressOnParent);
-                    break;
+                break;
             }
-            break;
+        break;
 
         case ovf::HardDiskController::SATA:
-            controllerName  = "SATA";
-            lControllerPort = (int32_t)ulAddressOnParent;
-            lDevice         = 0;
+            controllerName = "SATA";
+            lControllerPort = (long)ulAddressOnParent;
+            lDevice = (long)0;
             break;
 
         case ovf::HardDiskController::SCSI:
         {
-            if (hdc.strControllerType.compare("lsilogicsas")==0)
+            if(hdc.strControllerType.compare("lsilogicsas")==0)
                 controllerName = "SAS";
             else
                 controllerName = "SCSI";
-            lControllerPort = (int32_t)ulAddressOnParent;
-            lDevice         = 0;
+            lControllerPort = (long)ulAddressOnParent;
+            lDevice = (long)0;
             break;
         }
-
-        case ovf::HardDiskController::VIRTIOSCSI:
-            controllerName  = "VirtioSCSI";
-            lControllerPort = (int32_t)ulAddressOnParent;
-            lDevice         = 0;
-            break;
 
         default: break;
     }
@@ -4304,67 +3843,6 @@ void Appliance::i_importOneDiskImage(const ovf::DiskImage &di,
 }
 
 /**
- * Helper routine to parse the ExtraData Utf8Str for a storage controller's
- * value or channel value.
- *
- * @param   aExtraData    The ExtraData string with a format of
- *                        'controller=13;channel=3'.
- * @param   pszKey        The string being looked up, either 'controller' or
- *                        'channel'.
- * @param   puVal         The integer value of the 'controller=' or 'channel='
- *                        key in the ExtraData string.
- * @returns COM status code.
- * @throws  Nothing.
- */
-static int getStorageControllerDetailsFromStr(const com::Utf8Str &aExtraData, const char *pszKey, uint32_t *puVal)
-{
-    size_t posKey = aExtraData.find(pszKey);
-    if (posKey == Utf8Str::npos)
-        return VERR_INVALID_PARAMETER;
-
-    int vrc = RTStrToUInt32Ex(aExtraData.c_str() + posKey + strlen(pszKey), NULL, 0, puVal);
-    if (vrc == VWRN_NUMBER_TOO_BIG || vrc == VWRN_NEGATIVE_UNSIGNED)
-        return VERR_INVALID_PARAMETER;
-
-    return vrc;
-}
-
-/**
- * Verifies the validity of a storage controller's channel (aka controller port).
- *
- * @param   aStorageControllerType     The type of storage controller as idenfitied
- *                                     by the enum of type StorageControllerType_T.
- * @param   uControllerPort            The controller port value.
- * @param   aMaxPortCount              The maximum number of ports allowed for this
- *                                     storage controller type.
- * @returns COM status code.
- * @throws  Nothing.
- */
-HRESULT Appliance::i_verifyStorageControllerPortValid(const StorageControllerType_T aStorageControllerType,
-                                                      const uint32_t uControllerPort,
-                                                      ULONG *aMaxPortCount)
-{
-    SystemProperties *pSysProps;
-    pSysProps = mVirtualBox->i_getSystemProperties();
-    if (pSysProps == NULL)
-        return VBOX_E_OBJECT_NOT_FOUND;
-
-    StorageBus_T enmStorageBus = StorageBus_Null;
-    HRESULT vrc = pSysProps->GetStorageBusForStorageControllerType(aStorageControllerType, &enmStorageBus);
-    if (FAILED(vrc))
-        return vrc;
-
-    vrc = pSysProps->GetMaxPortCountForStorageBus(enmStorageBus, aMaxPortCount);
-    if (FAILED(vrc))
-        return vrc;
-
-    if (uControllerPort >= *aMaxPortCount)
-        return E_INVALIDARG;
-
-    return S_OK;
-}
-
-/**
  * Imports one OVF virtual system (described by the given ovf::VirtualSystem and VirtualSystemDescription)
  * into VirtualBox by creating an IMachine instance, which is returned.
  *
@@ -4372,16 +3850,14 @@ HRESULT Appliance::i_verifyStorageControllerPortValid(const StorageControllerTyp
  * up any leftovers from this function. For this, the given ImportStack instance has received information
  * about what needs cleaning up (to support rollback).
  *
- * @param       vsysThis        OVF virtual system (machine) to import.
- * @param       vsdescThis      Matching virtual system description (machine) to import.
- * @param[out]  pNewMachineRet  Newly created machine.
- * @param       stack           Cleanup stack for when this throws.
- *
- * @throws HRESULT
+ * @param vsysThis OVF virtual system (machine) to import.
+ * @param vsdescThis  Matching virtual system description (machine) to import.
+ * @param pNewMachine out: Newly created machine.
+ * @param stack Cleanup stack for when this throws.
  */
 void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
                                        ComObjPtr<VirtualSystemDescription> &vsdescThis,
-                                       ComPtr<IMachine> &pNewMachineRet,
+                                       ComPtr<IMachine> &pNewMachine,
                                        ImportStack &stack)
 {
     LogFlowFuncEnter();
@@ -4397,7 +3873,6 @@ void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
     SafeArray<BSTR> groups; /* no groups, or maybe one group... */
     if (!stack.strPrimaryGroup.isEmpty() && stack.strPrimaryGroup != "/")
         Bstr(stack.strPrimaryGroup).detachTo(groups.appendedRaw());
-    ComPtr<IMachine> pNewMachine;
     rc = mVirtualBox->CreateMachine(Bstr(stack.strSettingsFilename).raw(),
                                     Bstr(stack.strNameVBox).raw(),
                                     ComSafeArrayAsInParam(groups),
@@ -4405,7 +3880,6 @@ void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
                                     NULL, /* aCreateFlags */
                                     pNewMachine.asOutParam());
     if (FAILED(rc)) throw rc;
-    pNewMachineRet = pNewMachine;
 
     // set the description
     if (!stack.strDescription.isEmpty())
@@ -4519,7 +3993,7 @@ void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
     else if (vsdeNW.size() > maxNetworkAdapters)
         throw setError(VBOX_E_FILE_ERROR,
                        tr("Too many network adapters: OVF requests %d network adapters, "
-                          "but VirtualBox only supports %d", "", vsdeNW.size()),
+                          "but VirtualBox only supports %d"),
                        vsdeNW.size(), maxNetworkAdapters);
     else
     {
@@ -4755,34 +4229,6 @@ void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
         if (FAILED(rc)) throw rc;
     }
 
-
-    /* Storage controller VirtioSCSI */
-    std::list<VirtualSystemDescriptionEntry*> vsdeHDCVirtioSCSI =
-        vsdescThis->i_findByType(VirtualSystemDescriptionType_HardDiskControllerVirtioSCSI);
-    if (vsdeHDCVirtioSCSI.size() > 1)
-        throw setError(VBOX_E_FILE_ERROR,
-                       tr("Too many VirtioSCSI controllers in OVF; import facility only supports one"));
-    if (!vsdeHDCVirtioSCSI.empty())
-    {
-        ComPtr<IStorageController> pController;
-        Utf8Str strName("VirtioSCSI");
-        const Utf8Str &hdcVBox = vsdeHDCVirtioSCSI.front()->strVBoxCurrent;
-        if (hdcVBox == "VirtioSCSI")
-        {
-            rc = pNewMachine->AddStorageController(Bstr(strName).raw(),
-                                                   StorageBus_VirtioSCSI,
-                                                   pController.asOutParam());
-            if (FAILED(rc)) throw rc;
-
-            rc = pController->COMSETTER(ControllerType)(StorageControllerType_VirtioSCSI);
-            if (FAILED(rc)) throw rc;
-        }
-        else
-            throw setError(VBOX_E_FILE_ERROR,
-                           tr("Invalid VirtioSCSI controller type \"%s\""),
-                           hdcVBox.c_str());
-    }
-
     /* Now its time to register the machine before we add any storage devices */
     rc = mVirtualBox->RegisterMachine(pNewMachine);
     if (FAILED(rc)) throw rc;
@@ -4868,7 +4314,7 @@ void Appliance::i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
             if (info.isFullAvailable())
                 throw setError(aRC, Utf8Str(info.getText()).c_str());
             else
-                throw setError(aRC, tr("Unknown error during OVF import"));
+                throw setError(aRC, "Unknown error during OVF import");
         }
     }
 
@@ -5074,96 +4520,12 @@ l_skipped:
                 if (FAILED(rc))
                     throw rc;
 
+                // find the hard disk controller to which we should attach
+                ovf::HardDiskController hdc = (*vsysThis.mapControllers.find(ovfVdisk.idController)).second;
+
                 // this is for rollback later
                 MyHardDiskAttachment mhda;
                 mhda.pMachine = pNewMachine;
-
-                // find the hard disk controller to which we should attach
-                ovf::HardDiskController hdc;
-
-                /*
-                 * Before importing the virtual hard disk found above (diCurrent/vsdeTargetHD) first
-                 * check if the user requested to change either the controller it is to be attached
-                 * to and/or the controller port (aka 'channel') on the controller.
-                 */
-                if (   !vsdeTargetHD->strExtraConfigCurrent.isEmpty()
-                    && vsdeTargetHD->strExtraConfigSuggested != vsdeTargetHD->strExtraConfigCurrent)
-                {
-                    int vrc;
-                    uint32_t uTargetControllerIndex;
-                    vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigCurrent, "controller=",
-                        &uTargetControllerIndex);
-                    if (RT_FAILURE(vrc))
-                        throw setError(E_FAIL,
-                                       tr("Target controller value invalid or missing: '%s'"),
-                                       vsdeTargetHD->strExtraConfigCurrent.c_str());
-
-                    uint32_t uNewControllerPortValue;
-                    vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigCurrent, "channel=",
-                        &uNewControllerPortValue);
-                    if (RT_FAILURE(vrc))
-                        throw setError(E_FAIL,
-                                       tr("Target controller port ('channel=') invalid or missing: '%s'"),
-                                       vsdeTargetHD->strExtraConfigCurrent.c_str());
-
-                    const VirtualSystemDescriptionEntry *vsdeTargetController;
-                    vsdeTargetController = vsdescThis->i_findByIndex(uTargetControllerIndex);
-                    if (!vsdeTargetController)
-                        throw setError(E_FAIL,
-                                       tr("Failed to find storage controller '%u' in the System Description list"),
-                                       uTargetControllerIndex);
-
-                    hdc = (*vsysThis.mapControllers.find(vsdeTargetController->strRef.c_str())).second;
-
-                    StorageControllerType_T hdStorageControllerType = StorageControllerType_Null;
-                    switch (hdc.system)
-                    {
-                        case ovf::HardDiskController::IDE:
-                            hdStorageControllerType = StorageControllerType_PIIX3;
-                            break;
-                        case ovf::HardDiskController::SATA:
-                            hdStorageControllerType = StorageControllerType_IntelAhci;
-                            break;
-                        case ovf::HardDiskController::SCSI:
-                        {
-                            if (hdc.strControllerType.compare("lsilogicsas")==0)
-                                hdStorageControllerType = StorageControllerType_LsiLogicSas;
-                            else
-                                hdStorageControllerType = StorageControllerType_LsiLogic;
-                            break;
-                        }
-                        case ovf::HardDiskController::VIRTIOSCSI:
-                            hdStorageControllerType = StorageControllerType_VirtioSCSI;
-                            break;
-                        default:
-                            throw setError(E_FAIL,
-                                           tr("Invalid hard disk contoller type: '%d'"),
-                                           hdc.system);
-                            break;
-                    }
-
-                    ULONG ulMaxPorts;
-                    rc = i_verifyStorageControllerPortValid(hdStorageControllerType,
-                                                            uNewControllerPortValue,
-                                                            &ulMaxPorts);
-                    if (FAILED(rc))
-                    {
-                        if (rc == E_INVALIDARG)
-                        {
-                            const char *pcszSCType = Global::stringifyStorageControllerType(hdStorageControllerType);
-                            throw setError(E_INVALIDARG,
-                                           tr("Illegal channel: '%u'.  For %s controllers the valid values are "
-                                           "0 to %lu (inclusive).\n"), uNewControllerPortValue, pcszSCType, ulMaxPorts-1);
-                        }
-                        else
-                            throw rc;
-                    }
-
-                    unconst(ovfVdisk.ulAddressOnParent) = uNewControllerPortValue;
-                }
-                else
-                    hdc = (*vsysThis.mapControllers.find(ovfVdisk.strIdController)).second;
-
 
                 i_convertDiskAttachmentValues(hdc,
                                               ovfVdisk.ulAddressOnParent,
@@ -5221,7 +4583,7 @@ l_skipped:
             if (info.isFullAvailable())
                 throw setError(aRC, Utf8Str(info.getText()).c_str());
             else
-                throw setError(aRC, tr("Unknown error during OVF import"));
+                throw setError(aRC, "Unknown error during OVF import");
         }
     }
     LogFlowFuncLeave();
@@ -5406,6 +4768,7 @@ void Appliance::i_importVBoxMachine(ComObjPtr<VirtualSystemDescription> &vsdescT
      * attachments pointing to the last hard disk image, which causes import
      * failures. A long fixed bug, however the OVF files are long lived. */
     settings::StorageControllersList &llControllers = config.hardwareMachine.storage.llStorageControllers;
+    Guid hdUuid;
     uint32_t cDisks = 0;
     bool fInconsistent = false;
     bool fRepairDuplicate = false;
@@ -5414,7 +4777,6 @@ void Appliance::i_importVBoxMachine(ComObjPtr<VirtualSystemDescription> &vsdescT
          it3 != llControllers.end();
          ++it3)
     {
-        Guid hdUuid;
         settings::AttachedDevicesList &llAttachments = it3->llAttachedDevices;
         settings::AttachedDevicesList::iterator it4 = llAttachments.begin();
         while (it4 != llAttachments.end())
@@ -5509,6 +4871,14 @@ void Appliance::i_importVBoxMachine(ComObjPtr<VirtualSystemDescription> &vsdescT
             continue;
         }
 
+
+
+
+
+
+
+
+
         /*
          * preliminary check availability of the image
          * This step is useful if image is placed in the OVA (TAR) package
@@ -5580,6 +4950,11 @@ l_skipped:
                         throw setError(E_FAIL,
                                        tr("Internal inconsistency looking up disk image '%s'"),
                                        diCurrent.strHref.c_str());
+
+
+
+
+
                 }
                 else
                 {
@@ -5604,223 +4979,6 @@ l_skipped:
         // there must be an image in the OVF disk structs with the same UUID
         bool fFound = false;
         Utf8Str strUuid;
-
-        /*
-         * Before importing the virtual hard disk found above (diCurrent/vsdeTargetHD) first
-         * check if the user requested to change either the controller it is to be attached
-         * to and/or the controller port (aka 'channel') on the controller.
-         */
-        if (   !vsdeTargetHD->strExtraConfigCurrent.isEmpty()
-            && vsdeTargetHD->strExtraConfigSuggested != vsdeTargetHD->strExtraConfigCurrent)
-        {
-            /*
-             * First, we examine the extra configuration values for this vdisk:
-             *   vsdeTargetHD->strExtraConfigSuggested
-             *   vsdeTargetHD->strExtraConfigCurrent
-             * in order to extract both the "before" and "after" storage controller and port
-             * details. The strExtraConfigSuggested string contains the current controller
-             * and port the vdisk is attached to and is populated by Appliance::interpret()
-             * when processing the OVF data; it is in the following format:
-             * 'controller=12;channel=0' (the 'channel=' label for the controller port is
-             * historical and is documented as such in the SDK so can't be changed). The
-             * strExtraConfigSuggested string contains the target controller and port specified
-             * by the user and it has the same format. The 'controller=' value is not a
-             * controller-ID but rather it is the index for the corresponding storage controller
-             * in the array of VirtualSystemDescriptionEntry entries.
-             */
-            int vrc;
-            uint32_t uOrigControllerIndex;
-            vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigSuggested, "controller=", &uOrigControllerIndex);
-            if (RT_FAILURE(vrc))
-                throw setError(E_FAIL,
-                               tr("Original controller value invalid or missing: '%s'"),
-                               vsdeTargetHD->strExtraConfigSuggested.c_str());
-
-            uint32_t uTargetControllerIndex;
-            vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigCurrent, "controller=", &uTargetControllerIndex);
-            if (RT_FAILURE(vrc))
-                throw setError(E_FAIL,
-                               tr("Target controller value invalid or missing: '%s'"),
-                               vsdeTargetHD->strExtraConfigCurrent.c_str());
-
-            uint32_t uOrigControllerPortValue;
-            vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigSuggested, "channel=",
-                &uOrigControllerPortValue);
-            if (RT_FAILURE(vrc))
-                throw setError(E_FAIL,
-                               tr("Original controller port ('channel=') invalid or missing: '%s'"),
-                               vsdeTargetHD->strExtraConfigSuggested.c_str());
-
-            uint32_t uNewControllerPortValue;
-            vrc = getStorageControllerDetailsFromStr(vsdeTargetHD->strExtraConfigCurrent, "channel=", &uNewControllerPortValue);
-            if (RT_FAILURE(vrc))
-                throw setError(E_FAIL,
-                               tr("Target controller port ('channel=') invalid or missing: '%s'"),
-                               vsdeTargetHD->strExtraConfigCurrent.c_str());
-
-            /*
-             * Second, now that we have the storage controller indexes we locate the corresponding
-             * VirtualSystemDescriptionEntry (VSDE) for both storage controllers which contain
-             * identifying details which will be needed later when walking the list of storage
-             * controllers.
-             */
-            const VirtualSystemDescriptionEntry *vsdeOrigController;
-            vsdeOrigController = vsdescThis->i_findByIndex(uOrigControllerIndex);
-            if (!vsdeOrigController)
-                throw setError(E_FAIL,
-                               tr("Failed to find storage controller '%u' in the System Description list"),
-                               uOrigControllerIndex);
-
-            const VirtualSystemDescriptionEntry *vsdeTargetController;
-            vsdeTargetController = vsdescThis->i_findByIndex(uTargetControllerIndex);
-            if (!vsdeTargetController)
-                throw setError(E_FAIL,
-                               tr("Failed to find storage controller '%u' in the System Description list"),
-                               uTargetControllerIndex);
-
-            /*
-             * Third, grab the UUID of the current vdisk so we can identify which device
-             * attached to the original storage controller needs to be updated (channel) and/or
-             * removed.
-             */
-            ovf::DiskImagesMap::const_iterator itDiskImageMap = stack.mapDisks.find(vsdeTargetHD->strRef);
-            if (itDiskImageMap == stack.mapDisks.end())
-                throw setError(E_FAIL,
-                               tr("Failed to find virtual disk '%s' in DiskImagesMap"),
-                               vsdeTargetHD->strVBoxCurrent.c_str());
-            const ovf::DiskImage &targetDiskImage = itDiskImageMap->second;
-            Utf8Str strTargetDiskUuid = targetDiskImage.uuidVBox;;
-
-            /*
-             * Fourth, walk the attached devices of the original storage controller to find the
-             * current vdisk and update the controller port (aka channel) value if necessary and
-             * also remove the vdisk from this controller if needed.
-             *
-             * A short note on the choice of which items to compare when determining the type of
-             * storage controller here and below in the vdisk addition scenario:
-             *  + The VirtualSystemDescriptionEntry 'strOvf' field is populated from the OVF
-             *    data which can contain a value like 'vmware.sata.ahci' if created by VMWare so
-             *    it isn't a reliable choice.
-             *  + The settings::StorageController 'strName' field can have varying content based
-             *    on the version of the settings file, e.g. 'IDE Controller' vs. 'IDE' so it
-             *    isn't a reliable choice.  Further, this field can contain 'SATA' whereas
-             *    'AHCI' is used in 'strOvf' and 'strVBoxSuggested'.
-             *  + The VirtualSystemDescriptionEntry 'strVBoxSuggested' field is populated by
-             *    Appliance::interpret()->VirtualSystemDescription::i_addEntry() and is thus
-             *    under VBox's control and has a fixed format and predictable content.
-             */
-            bool fDiskRemoved = false;
-            settings::AttachedDevice originalAttachedDevice;
-            settings::StorageControllersList::iterator itSCL;
-            for (itSCL = config.hardwareMachine.storage.llStorageControllers.begin();
-                 itSCL != config.hardwareMachine.storage.llStorageControllers.end();
-                 ++itSCL)
-            {
-                settings::StorageController &SC = *itSCL;
-                const char *pcszSCType = Global::stringifyStorageControllerType(SC.controllerType);
-
-                /* There can only be one storage controller of each type in the OVF data. */
-                if (!vsdeOrigController->strVBoxSuggested.compare(pcszSCType, Utf8Str::CaseInsensitive))
-                {
-                    settings::AttachedDevicesList::iterator itAD;
-                    for (itAD = SC.llAttachedDevices.begin();
-                         itAD != SC.llAttachedDevices.end();
-                         ++itAD)
-                    {
-                        settings::AttachedDevice &AD = *itAD;
-
-                        if (AD.uuid.toString() == strTargetDiskUuid)
-                        {
-                            ULONG ulMaxPorts;
-                            rc = i_verifyStorageControllerPortValid(SC.controllerType,
-                                                                    uNewControllerPortValue,
-                                                                    &ulMaxPorts);
-                            if (FAILED(rc))
-                            {
-                                if (rc == E_INVALIDARG)
-                                    throw setError(E_INVALIDARG,
-                                                   tr("Illegal channel: '%u'.  For %s controllers the valid values are "
-                                                   "0 to %lu (inclusive).\n"), uNewControllerPortValue, pcszSCType, ulMaxPorts-1);
-                                else
-                                    throw rc;
-                            }
-
-                            if (uOrigControllerPortValue != uNewControllerPortValue)
-                            {
-                                AD.lPort = (int32_t)uNewControllerPortValue;
-                            }
-                            if (uOrigControllerIndex != uTargetControllerIndex)
-                            {
-                                LogFunc(("Removing vdisk '%s' (uuid = %RTuuid) from the %s storage controller.\n",
-                                         vsdeTargetHD->strVBoxCurrent.c_str(),
-                                         itAD->uuid.raw(),
-                                         SC.strName.c_str()));
-                                originalAttachedDevice = AD;
-                                SC.llAttachedDevices.erase(itAD);
-                                fDiskRemoved = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            /*
-             * Fifth, if we are moving the vdisk to a different controller and not just changing
-             * the channel then we walk the attached devices of the target controller and check
-             * for conflicts before adding the vdisk detached/removed above.
-             */
-            bool fDiskAdded = false;
-            if (fDiskRemoved)
-            {
-                for (itSCL = config.hardwareMachine.storage.llStorageControllers.begin();
-                     itSCL != config.hardwareMachine.storage.llStorageControllers.end();
-                     ++itSCL)
-                {
-                    settings::StorageController &SC = *itSCL;
-                    const char *pcszSCType = Global::stringifyStorageControllerType(SC.controllerType);
-
-                    /* There can only be one storage controller of each type in the OVF data. */
-                    if (!vsdeTargetController->strVBoxSuggested.compare(pcszSCType, Utf8Str::CaseInsensitive))
-                    {
-                        settings::AttachedDevicesList::iterator itAD;
-                        for (itAD = SC.llAttachedDevices.begin();
-                             itAD != SC.llAttachedDevices.end();
-                             ++itAD)
-                        {
-                            settings::AttachedDevice &AD = *itAD;
-                            if (   AD.lDevice == originalAttachedDevice.lDevice
-                                && AD.lPort == originalAttachedDevice.lPort)
-                                    throw setError(E_FAIL,
-                                                   tr("Device of type '%s' already attached to the %s controller at this "
-                                                   "port/channel (%d)."),
-                                                   Global::stringifyDeviceType(AD.deviceType), pcszSCType, AD.lPort);
-                        }
-
-                        LogFunc(("Adding vdisk '%s' (uuid = %RTuuid) to the %s storage controller\n",
-                                 vsdeTargetHD->strVBoxCurrent.c_str(),
-                                 originalAttachedDevice.uuid.raw(),
-                                 SC.strName.c_str()));
-                        SC.llAttachedDevices.push_back(originalAttachedDevice);
-                        fDiskAdded = true;
-                    }
-                }
-
-                if (!fDiskAdded)
-                    throw setError(E_FAIL,
-                                   tr("Failed to add disk '%s' (uuid=%RTuuid) to the %s storage controller."),
-                                   vsdeTargetHD->strVBoxCurrent.c_str(),
-                                   originalAttachedDevice.uuid.raw(),
-                                   vsdeTargetController->strVBoxSuggested.c_str());
-            }
-
-            /*
-             * Sixth, update the machine settings since we've changed the storage controller
-             * and/or controller port for this vdisk.
-             */
-            AutoWriteLock vboxLock(mVirtualBox COMMA_LOCKVAL_SRC_POS);
-            mVirtualBox->i_saveSettings();
-            vboxLock.release();
-        }
 
         // for each storage controller...
         for (settings::StorageControllersList::iterator sit = config.hardwareMachine.storage.llStorageControllers.begin();
@@ -5967,6 +5125,8 @@ void Appliance::i_importMachines(ImportStack &stack)
         const ovf::VirtualSystem &vsysThis = *it;
         ComObjPtr<VirtualSystemDescription> vsdescThis = (*it1);
 
+        ComPtr<IMachine> pNewMachine;
+
         // there are two ways in which we can create a vbox machine from OVF:
         // -- either this OVF was written by vbox 3.2 or later, in which case there is a <vbox:Machine> element
         //    in the <VirtualSystem>; then the VirtualSystemDescription::Data has a settings::MachineConfigFile
@@ -6004,7 +5164,7 @@ void Appliance::i_importMachines(ImportStack &stack)
         {
             VirtualSystemDescriptionEntry *vsdeSF1 = vsdeSettingsFile.front();
             if (vsdeSF1->strVBoxCurrent != vsdeSF1->strVBoxSuggested)
-                stack.strSettingsFilename = vsdeSF1->strVBoxCurrent;
+            stack.strSettingsFilename = vsdeSF1->strVBoxCurrent;
         }
         if (stack.strSettingsFilename.isEmpty())
         {
@@ -6083,7 +5243,6 @@ void Appliance::i_importMachines(ImportStack &stack)
             stack.strDescription = vsdeDescription.front()->strVBoxCurrent;
 
         // import vbox:machine or OVF now
-        ComPtr<IMachine> pNewMachine; /** @todo pointless */
         if (vsdescThis->m->pConfig)
             // vbox:Machine config
             i_importVBoxMachine(vsdescThis, pNewMachine, stack);

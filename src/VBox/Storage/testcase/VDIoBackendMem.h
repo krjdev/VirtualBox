@@ -1,11 +1,11 @@
-/** $Id: VDIoBackendMem.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/** $Id: VDIoBackendMem.h $ */
 /** @file
  *
  * VBox HDD container test utility, async I/O memory backend
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ typedef PVDIOBACKENDMEM *PPVDIOBACKENDMEM;
  * @param   pvUser    Opaque user data.
  * @param   rcReq     Completion code for the request.
  */
-typedef DECLCALLBACKTYPE(int, FNVDIOCOMPLETE,(void *pvUser, int rcReq));
+typedef DECLCALLBACK(int) FNVDIOCOMPLETE(void *pvUser, int rcReq);
 /** Pointer to a completion handler. */
 typedef FNVDIOCOMPLETE *PFNVDIOCOMPLETE;
 

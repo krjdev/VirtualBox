@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-guestcontrol" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-13 21:16:15 +0100 (So, 13. Mär 2022) $</pubdate>
+    <pubdate>September 2019</pubdate>
     <title>VBoxManage guestcontrol</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-guestcontrol</refname>
     <refpurpose>control a virtual machine from the host system</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -446,8 +446,8 @@
           <listitem><para>
               Specifies the password for the specified user. If you do
               not specify a password on the command line or if the
-              password file is empty, the specified user needs to have
-              an empty password.
+              password file is empty, the specified user has a null
+              password.
             </para></listitem>
         </varlistentry>
         <varlistentry>
@@ -456,8 +456,8 @@
               Specifies the absolute path to a file on the guest OS that
               contains the password for the specified user. If the
               password file is empty or if you do not specify a password
-              on the command line, the specified user needs to have an
-              empty password.
+              on the command line, the specified user has a null
+              password.
             </para></listitem>
         </varlistentry>
         <varlistentry>
@@ -1198,35 +1198,6 @@
             </para></listitem>
         </varlistentry>
         <varlistentry>
-          <term><option>--reboot</option></term>
-          <listitem><para>
-              Automatically reboots the guest after a successful Guest Additions
-              update.
-            </para></listitem>
-        </varlistentry>
-        <varlistentry>
-          <term><option>--timeout=<replaceable>ms</replaceable></option></term>
-          <listitem><para>
-              Sets the timeout (in ms) to wait for the overall Guest Additions update
-              to complete. By default no timeout is being used.
-            </para></listitem>
-        </varlistentry>
-        <varlistentry>
-          <term><option>--verify</option></term>
-          <listitem><para>
-              Verifies whether the Guest Additions were updated successfully after
-              a successful installation. A guest reboot is mandatory.
-            </para></listitem>
-        </varlistentry>
-        <varlistentry>
-          <term><option>--wait-ready</option></term>
-          <listitem><para>
-              Waits for the current Guest Additions being ready to handle the
-              Guest Additions update.
-            </para>
-          </listitem>
-        </varlistentry>
-        <varlistentry>
           <term><option>--wait-start</option></term>
           <listitem><para>
               Starts the <command>VBoxManage</command> update process on
@@ -1252,29 +1223,6 @@
               Ensure that any command argument that includes spaces is
               enclosed by quotes.
             </para></listitem>
-        </varlistentry>
-      </variablelist>
-    </refsect2>
-    <refsect2 id="vboxmanage-guestcontrol-waitrunlevel">
-      <title>Wait for a guest run level</title>
-      <para>
-        The <command>VBoxManage guestcontrol
-        <replaceable>vmname</replaceable> waitrunlevel</command> command
-        enables you to wait for a guest run level being reached.
-      </para>
-      <variablelist>
-        <varlistentry>
-          <term><option>--timeout=<replaceable>ms</replaceable></option></term>
-          <listitem><para>
-              Sets the timeout (in ms) to wait for reaching the run level.
-              By default no timeout is being used.
-            </para></listitem>
-        </varlistentry>
-        <varlistentry>
-          <term><option><replaceable>system</replaceable>|<replaceable>userland</replaceable>|<replaceable>desktop</replaceable></option></term>
-          <listitem><para>
-            Specifies the run level to wait for.
-          </para></listitem>
         </varlistentry>
       </variablelist>
     </refsect2>

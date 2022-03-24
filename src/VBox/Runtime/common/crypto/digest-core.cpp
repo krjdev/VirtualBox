@@ -1,10 +1,10 @@
-/* $Id: digest-core.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: digest-core.cpp $ */
 /** @file
  * IPRT - Crypto - Cryptographic Hash / Message Digest API
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -425,12 +425,6 @@ RTDECL(const char *) RTCrDigestTypeToAlgorithmOid(RTDIGESTTYPE enmDigestType)
         case RTDIGESTTYPE_SHA256:       return RTCRX509ALGORITHMIDENTIFIERID_SHA256;
         case RTDIGESTTYPE_SHA384:       return RTCRX509ALGORITHMIDENTIFIERID_SHA384;
         case RTDIGESTTYPE_SHA512:       return RTCRX509ALGORITHMIDENTIFIERID_SHA512;
-        case RTDIGESTTYPE_SHA512T224:   return RTCRX509ALGORITHMIDENTIFIERID_SHA512T224;
-        case RTDIGESTTYPE_SHA512T256:   return RTCRX509ALGORITHMIDENTIFIERID_SHA512T256;
-        case RTDIGESTTYPE_SHA3_224:     return RTCRX509ALGORITHMIDENTIFIERID_SHA3_224;
-        case RTDIGESTTYPE_SHA3_256:     return RTCRX509ALGORITHMIDENTIFIERID_SHA3_256;
-        case RTDIGESTTYPE_SHA3_384:     return RTCRX509ALGORITHMIDENTIFIERID_SHA3_384;
-        case RTDIGESTTYPE_SHA3_512:     return RTCRX509ALGORITHMIDENTIFIERID_SHA3_512;
         default:                        return NULL;
     }
 }
@@ -452,10 +446,6 @@ RTDECL(const char *) RTCrDigestTypeToName(RTDIGESTTYPE enmDigestType)
         case RTDIGESTTYPE_SHA512:       return "SHA-512";
         case RTDIGESTTYPE_SHA512T224:   return "SHA-512/224";
         case RTDIGESTTYPE_SHA512T256:   return "SHA-512/256";
-        case RTDIGESTTYPE_SHA3_224:     return "SHA3-224";
-        case RTDIGESTTYPE_SHA3_256:     return "SHA3-256";
-        case RTDIGESTTYPE_SHA3_384:     return "SHA3-384";
-        case RTDIGESTTYPE_SHA3_512:     return "SHA3-512";
         default:                        return NULL;
     }
 }
@@ -477,10 +467,6 @@ RTDECL(uint32_t) RTCrDigestTypeToHashSize(RTDIGESTTYPE enmDigestType)
         case RTDIGESTTYPE_SHA512:       return 512 / 8;
         case RTDIGESTTYPE_SHA512T224:   return 224 / 8;
         case RTDIGESTTYPE_SHA512T256:   return 256 / 8;
-        case RTDIGESTTYPE_SHA3_224:     return 224 / 8;
-        case RTDIGESTTYPE_SHA3_256:     return 256 / 8;
-        case RTDIGESTTYPE_SHA3_384:     return 384 / 8;
-        case RTDIGESTTYPE_SHA3_512:     return 512 / 8;
         default:
             AssertFailed();
             return 0;

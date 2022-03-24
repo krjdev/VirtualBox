@@ -1,10 +1,10 @@
-/* $Id: CPUMR0.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: CPUMR0.cpp $ */
 /** @file
  * CPUM - Host Context Ring 0.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -185,7 +185,6 @@ static DECLCALLBACK(void) cpumR0CheckCpuid(RTCPUID idCpu, void *pvUser1, void *p
 VMMR0_INT_DECL(int) CPUMR0InitVM(PVMCC pVM)
 {
     LogFlow(("CPUMR0Init: %p\n", pVM));
-    AssertCompile(sizeof(pVM->aCpus[0].cpum.s.Host.abXState) >= sizeof(pVM->aCpus[0].cpum.s.Guest.abXState));
 
     /*
      * Check CR0 & CR4 flags.
@@ -248,7 +247,7 @@ VMMR0_INT_DECL(int) CPUMR0InitVM(PVMCC pVM)
          */
         uint32_t cExt = 0;
         ASMCpuId(0x80000000, &cExt, &u32Dummy, &u32Dummy, &u32Dummy);
-        if (RTX86IsValidExtRange(cExt))
+        if (ASMIsValidExtRange(cExt))
         {
             uint32_t fExtFeaturesEDX = ASMCpuId_EDX(0x80000001);
             if (fExtFeaturesEDX & X86_CPUID_EXT_FEATURE_EDX_SYSCALL)
@@ -278,7 +277,7 @@ VMMR0_INT_DECL(int) CPUMR0InitVM(PVMCC pVM)
         pVM->cpum.s.HostFeatures.fArchVmmNeedNotFlushL1d = 0;
         pVM->cpum.s.HostFeatures.fArchMdsNo              = 0;
         uint32_t const cStdRange = ASMCpuId_EAX(0);
-        if (   RTX86IsValidStdRange(cStdRange)
+        if (   ASMIsValidStdRange(cStdRange)
             && cStdRange >= 7)
         {
             uint32_t fEdxFeatures = ASMCpuId_EDX(7);
@@ -439,6 +438,7 @@ VMMR0_INT_DECL(int) CPUMR0LoadGuestFPU(PVMCC pVM, PVMCPUCC pVCpu)
     int rc;
     Assert(!RTThreadPreemptIsEnabled(NIL_RTTHREAD));
     Assert(!(pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST));
+    Assert(!(pVCpu->cpum.s.fUseFlags & CPUM_SYNC_FPU_STATE));
 
     if (!pVM->cpum.s.HostFeatures.fLeakyFxSR)
     {
@@ -466,7 +466,6 @@ VMMR0_INT_DECL(int) CPUMR0LoadGuestFPU(PVMCC pVM, PVMCPUCC pVCpu)
     }
     Assert(   (pVCpu->cpum.s.fUseFlags & (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST | CPUM_USED_FPU_SINCE_REM))
            ==                            (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST | CPUM_USED_FPU_SINCE_REM));
-    Assert(pVCpu->cpum.s.Guest.fUsedFpuGuest);
     return rc;
 }
 
@@ -486,7 +485,6 @@ VMMR0_INT_DECL(bool) CPUMR0FpuStateMaybeSaveGuestAndRestoreHost(PVMCPUCC pVCpu)
     if (pVCpu->cpum.s.fUseFlags & (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST))
     {
         fSavedGuest = RT_BOOL(pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST);
-        Assert(fSavedGuest == pVCpu->cpum.s.Guest.fUsedFpuGuest);
         if (!(pVCpu->cpum.s.fUseFlags & CPUM_USED_MANUAL_XMM_RESTORE))
             cpumR0SaveGuestRestoreHostFPUState(&pVCpu->cpum.s);
         else
@@ -510,8 +508,7 @@ VMMR0_INT_DECL(bool) CPUMR0FpuStateMaybeSaveGuestAndRestoreHost(PVMCPUCC pVCpu)
     else
         fSavedGuest = false;
     Assert(!(  pVCpu->cpum.s.fUseFlags
-             & (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST | CPUM_USED_MANUAL_XMM_RESTORE)));
-    Assert(!pVCpu->cpum.s.Guest.fUsedFpuGuest);
+             & (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST | CPUM_SYNC_FPU_STATE | CPUM_USED_MANUAL_XMM_RESTORE)));
     return fSavedGuest;
 }
 
@@ -582,7 +579,8 @@ VMMR0_INT_DECL(bool) CPUMR0DebugStateMaybeSaveGuestAndRestoreHost(PVMCPUCC pVCpu
         if (fDr6)
             pVCpu->cpum.s.Guest.dr[6] = ASMGetDR6();
     }
-    ASMAtomicAndU32(&pVCpu->cpum.s.fUseFlags, ~(CPUM_USED_DEBUG_REGS_GUEST | CPUM_USED_DEBUG_REGS_HYPER));
+    ASMAtomicAndU32(&pVCpu->cpum.s.fUseFlags, ~(  CPUM_USED_DEBUG_REGS_GUEST | CPUM_USED_DEBUG_REGS_HYPER
+                                                | CPUM_SYNC_DEBUG_REGS_GUEST | CPUM_SYNC_DEBUG_REGS_HYPER));
 
     /*
      * Restore the host's debug state. DR0-3, DR6 and only then DR7!
@@ -691,7 +689,7 @@ VMMR0_INT_DECL(void) CPUMR0LoadHyperDebugState(PVMCPUCC pVCpu, bool fDr6)
     /*
      * Make sure the hypervisor values are up to date.
      */
-    CPUMRecalcHyperDRx(pVCpu, UINT8_MAX /* no loading, please */);
+    CPUMRecalcHyperDRx(pVCpu, UINT8_MAX /* no loading, please */, true);
 
     /*
      * Activate the guest state DR0-3.
@@ -727,12 +725,12 @@ static DECLCALLBACK(void) cpumR0MapLocalApicCpuProber(RTCPUID idCpu, void *pvUse
      */
     uint32_t uMaxLeaf, u32EBX, u32ECX, u32EDX;
     ASMCpuId(0, &uMaxLeaf, &u32EBX, &u32ECX, &u32EDX);
-    if (   (   RTX86IsIntelCpu(u32EBX, u32ECX, u32EDX)
-            || RTX86IsAmdCpu(u32EBX, u32ECX, u32EDX)
-            || RTX86IsViaCentaurCpu(u32EBX, u32ECX, u32EDX)
-            || RTX86IsShanghaiCpu(u32EBX, u32ECX, u32EDX)
-            || RTX86IsHygonCpu(u32EBX, u32ECX, u32EDX))
-        && RTX86IsValidStdRange(uMaxLeaf))
+    if (   (   ASMIsIntelCpuEx(u32EBX, u32ECX, u32EDX)
+            || ASMIsAmdCpuEx(u32EBX, u32ECX, u32EDX)
+            || ASMIsViaCentaurCpuEx(u32EBX, u32ECX, u32EDX)
+            || ASMIsShanghaiCpuEx(u32EBX, u32ECX, u32EDX)
+            || ASMIsHygonCpuEx(u32EBX, u32ECX, u32EDX))
+        && ASMIsValidStdRange(uMaxLeaf))
     {
         uint32_t uDummy;
         ASMCpuId(1, &uDummy, &u32EBX, &u32ECX, &u32EDX);
@@ -749,7 +747,7 @@ static DECLCALLBACK(void) cpumR0MapLocalApicCpuProber(RTCPUID idCpu, void *pvUse
             uint32_t uMaxExtLeaf;
             ASMCpuId(0x80000000, &uMaxExtLeaf, &u32EBX, &u32ECX, &u32EDX);
             if (   uMaxExtLeaf >= UINT32_C(0x80000008)
-                && RTX86IsValidExtRange(uMaxExtLeaf))
+                && ASMIsValidExtRange(uMaxExtLeaf))
             {
                 uint32_t u32PhysBits;
                 ASMCpuId(0x80000008, &u32PhysBits, &u32EBX, &u32ECX, &u32EDX);
@@ -860,11 +858,11 @@ static int cpumR0MapLocalApics(void)
         if (g_aLApics[iCpu].fEnabled && !g_aLApics[iCpu].fX2Apic)
         {
             rc = RTR0MemObjEnterPhys(&g_aLApics[iCpu].hMemObj, g_aLApics[iCpu].PhysBase,
-                                     HOST_PAGE_SIZE, RTMEM_CACHE_POLICY_MMIO);
+                                     PAGE_SIZE, RTMEM_CACHE_POLICY_MMIO);
             if (RT_SUCCESS(rc))
             {
                 rc = RTR0MemObjMapKernel(&g_aLApics[iCpu].hMapObj, g_aLApics[iCpu].hMemObj, (void *)-1,
-                                         HOST_PAGE_SIZE, RTMEM_PROT_READ | RTMEM_PROT_WRITE);
+                                         PAGE_SIZE, RTMEM_PROT_READ | RTMEM_PROT_WRITE);
                 if (RT_SUCCESS(rc))
                 {
                     g_aLApics[iCpu].pv = RTR0MemObjAddress(g_aLApics[iCpu].hMapObj);

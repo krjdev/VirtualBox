@@ -1,10 +1,10 @@
-/* $Id: VirtualBoxClientImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VirtualBoxClientImpl.h $ */
 /** @file
  * Header file for the VirtualBoxClient (IVirtualBoxClient) class, VBoxC.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,6 @@
 
 #include "VirtualBoxClientWrap.h"
 #include "EventImpl.h"
-#include "VirtualBoxTranslator.h"
 
 #ifdef RT_OS_WINDOWS
 # include "win/resource.h"
@@ -82,13 +81,7 @@ private:
 
     struct Data
     {
-        Data()
-            : m_ThreadWatcher(NIL_RTTHREAD)
-            , m_SemEvWatcher(NIL_RTSEMEVENT)
-#ifdef VBOX_WITH_MAIN_NLS
-            , m_pVBoxTranslator(NULL)
-            , m_pTrComponent(NULL)
-#endif
+        Data() : m_ThreadWatcher(NIL_RTTHREAD), m_SemEvWatcher(NIL_RTSEMEVENT)
         {}
 
         ~Data()
@@ -104,15 +97,9 @@ private:
         ComPtr<IVirtualBox> m_pVirtualBox;
         ComPtr<IToken> m_pToken;
         const ComObjPtr<EventSource> m_pEventSource;
-        ComPtr<IEventSource> m_pVBoxEventSource;
-        ComPtr<IEventListener> m_pVBoxEventListener;
 
         RTTHREAD m_ThreadWatcher;
         RTSEMEVENT m_SemEvWatcher;
-#ifdef VBOX_WITH_MAIN_NLS
-        VirtualBoxTranslator *m_pVBoxTranslator;
-        PTRCOMPONENT          m_pTrComponent;
-#endif
     };
 
     Data mData;
@@ -122,12 +109,6 @@ public:
      * DllCanUnloadNow().  This is incremented to 1 when init() initialized
      * m_pEventSource and is decremented by the Data destructor (above). */
     static LONG s_cUnnecessaryAtlModuleLocks;
-
-#ifdef VBOX_WITH_MAIN_NLS
-    HRESULT i_reloadApiLanguage();
-    HRESULT i_registerEventListener();
-    void    i_unregisterEventListener();
-#endif
 };
 
 #endif /* !MAIN_INCLUDED_VirtualBoxClientImpl_h */

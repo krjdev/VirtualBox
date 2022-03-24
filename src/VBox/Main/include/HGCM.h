@@ -1,10 +1,10 @@
-/* $Id: HGCM.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: HGCM.h $ */
 /** @file
  * HGCM - Host-Guest Communication Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,8 +35,7 @@ int HGCMHostShutdown(bool fUvmIsInvalid = false);
 
 int HGCMHostReset(bool fForShutdown);
 
-int HGCMHostLoad(const char *pszServiceLibrary, const char *pszServiceName,
-                 PUVM pUVM, PCVMMR3VTABLE pVMM, PPDMIHGCMPORT pHgcmPort);
+int HGCMHostLoad(const char *pszServiceLibrary, const char *pszServiceName, PUVM pUVM, PPDMIHGCMPORT pHgcmPort);
 
 int HGCMHostRegisterServiceExtension(HGCMSVCEXTHANDLE *pHandle, const char *pszServiceName, PFNHGCMSVCEXT pfnExtension, void *pvExtension);
 void HGCMHostUnregisterServiceExtension(HGCMSVCEXTHANDLE handle);
@@ -50,8 +49,8 @@ void HGCMGuestCancelled(PPDMIHGCMPORT pHGCMPort, PVBOXHGCMCMD pCmdPtr, uint32_t 
 int HGCMHostCall(const char *pszServiceName, uint32_t function, uint32_t cParms, VBOXHGCMSVCPARM aParms[]);
 int HGCMBroadcastEvent(HGCMNOTIFYEVENT enmEvent);
 
-int HGCMHostSaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM);
-int HGCMHostLoadState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion);
+int HGCMHostSaveState(PSSMHANDLE pSSM);
+int HGCMHostLoadState(PSSMHANDLE pSSM, uint32_t uVersion);
 
 RT_C_DECLS_END
 

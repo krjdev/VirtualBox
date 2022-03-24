@@ -1,10 +1,10 @@
-/* $Id: internal-r0drv-nt.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: internal-r0drv-nt.h $ */
 /** @file
  * IPRT - Internal Header for the NT Ring-0 Driver Code.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,9 +35,9 @@
 
 RT_C_DECLS_BEGIN
 
-/*********************************************************************************************************************************
-*   Structures and Typedefs                                                                                                      *
-*********************************************************************************************************************************/
+/*******************************************************************************
+*   Structures and Typedefs                                                    *
+*******************************************************************************/
 typedef ULONG (__stdcall *PFNMYEXSETTIMERRESOLUTION)(ULONG, BOOLEAN);
 typedef VOID (__stdcall *PFNMYKEFLUSHQUEUEDDPCS)(VOID);
 typedef VOID (__stdcall *PFNHALSENDSOFTWAREINTERRUPT)(ULONG ProcessorNumber, KIRQL Irql);
@@ -53,60 +53,10 @@ typedef VOID (__stdcall *PFNRTKEQUERYSYSTEMTIMEPRECISE)(PLARGE_INTEGER pTime);
 typedef PMDL (__stdcall *PFNMMALLOCATEPAGESFORMDLEX)(PHYSICAL_ADDRESS, PHYSICAL_ADDRESS, PHYSICAL_ADDRESS,
                                                      SIZE_T, MEMORY_CACHING_TYPE, ULONG);
 
-#ifndef EX_TIMER_HIGH_RESOLUTION /* Too old DDK, so add missing bits. */
-# define EX_TIMER_NO_WAKE               RT_BIT_32(3)
-# define EX_TIMER_HIGH_RESOLUTION       RT_BIT_32(2)
-# define EX_TIMER_NOTIFICATION          RT_BIT_32(31)
-typedef struct _EX_TIMER *PEX_TIMER;
-typedef VOID (__stdcall *PEXT_CALLBACK)(PEX_TIMER, void *);
-typedef PEX_TIMER (__stdcall *PFNEXALLOCATETIMER)(PEXT_CALLBACK pfnCallback, void *pvUser, ULONG fFlags);
 
-typedef VOID (__stdcall *PEXT_DELETE_CALLBACK)(void *);
-typedef struct _EXT_DELETE_PARAMETERS
-{
-    ULONG                   Version;
-    ULONG                   Reserved;
-    PEXT_DELETE_CALLBACK    DeleteCallback;
-    void                   *DeleteContext;
-} EXT_DELETE_PARAMETERS;
-typedef EXT_DELETE_PARAMETERS *PEXT_DELETE_PARAMETERS;
-DECLINLINE(void) ExInitializeDeleteTimerParameters(PEXT_DELETE_PARAMETERS pParams)
-{
-    pParams->Version        = 0;
-    pParams->Reserved       = 0;
-    pParams->DeleteCallback = NULL;
-    pParams->DeleteContext  = NULL;
-}
-typedef BOOLEAN   (__stdcall *PFNEXDELETETIMER)(PEX_TIMER pTimer, BOOLEAN fCancel, BOOLEAN fWait, PEXT_DELETE_PARAMETERS pParams);
-
-typedef struct _EXT_SET_PARAMETERS_V0
-{
-    ULONG       Version;
-    ULONG       Reserved;
-    LONGLONG    NoWakeTolerance;
-} EXT_SET_PARAMETERS;
-typedef EXT_SET_PARAMETERS *PEXT_SET_PARAMETERS;
-DECLINLINE(void) ExInitializeSetTimerParameters(PEXT_SET_PARAMETERS pParams)
-{
-    pParams->Version         = 0;
-    pParams->Reserved        = 0;
-    pParams->NoWakeTolerance = 0;
-}
-typedef BOOLEAN   (__stdcall *PFNEXSETTIMER)(PEX_TIMER pTimer, LONGLONG DueTime, LONGLONG Period, PEXT_SET_PARAMETERS pParams);
-
-typedef BOOLEAN   (__stdcall *PFNEXCANCELTIMER)(PEX_TIMER pTimer, void *pvReserved);
-
-#else
-typedef decltype(ExAllocateTimer) *PFNEXALLOCATETIMER;
-typedef decltype(ExDeleteTimer)   *PFNEXDELETETIMER;
-typedef decltype(ExSetTimer)      *PFNEXSETTIMER;
-typedef decltype(ExCancelTimer)   *PFNEXCANCELTIMER;
-#endif
-
-
-/*********************************************************************************************************************************
-*   Global Variables                                                                                                             *
-*********************************************************************************************************************************/
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
 extern RTCPUSET                                g_rtMpNtCpuSet;
 extern uint32_t                                g_cRtMpNtMaxGroups;
 extern uint32_t                                g_cRtMpNtMaxCpus;
@@ -115,10 +65,6 @@ extern RTCPUID                                 g_aidRtMpNtByCpuSetIdx[RTCPUSET_M
 extern decltype(ExAllocatePoolWithTag)        *g_pfnrtExAllocatePoolWithTag;
 extern decltype(ExFreePoolWithTag)            *g_pfnrtExFreePoolWithTag;
 extern PFNMYEXSETTIMERRESOLUTION               g_pfnrtNtExSetTimerResolution;
-extern PFNEXALLOCATETIMER                      g_pfnrtExAllocateTimer;
-extern PFNEXDELETETIMER                        g_pfnrtExDeleteTimer;
-extern PFNEXSETTIMER                           g_pfnrtExSetTimer;
-extern PFNEXCANCELTIMER                        g_pfnrtExCancelTimer;
 extern PFNMYKEFLUSHQUEUEDDPCS                  g_pfnrtNtKeFlushQueuedDpcs;
 extern PFNHALREQUESTIPI_W7PLUS                 g_pfnrtHalRequestIpiW7Plus;
 extern PFNHALREQUESTIPI_PRE_W7                 g_pfnrtHalRequestIpiPreW7;
@@ -152,7 +98,6 @@ extern decltype(MmMapLockedPagesSpecifyCache) *g_pfnrtMmMapLockedPagesSpecifyCac
 extern decltype(MmAllocateContiguousMemorySpecifyCache) *g_pfnrtMmAllocateContiguousMemorySpecifyCache;
 extern decltype(MmSecureVirtualMemory)        *g_pfnrtMmSecureVirtualMemory;
 extern decltype(MmUnsecureVirtualMemory)      *g_pfnrtMmUnsecureVirtualMemory;
-extern decltype(PsIsThreadTerminating)        *g_pfnrtPsIsThreadTerminating;
 
 extern PFNRTRTLGETVERSION                      g_pfnrtRtlGetVersion;
 #ifdef RT_ARCH_X86

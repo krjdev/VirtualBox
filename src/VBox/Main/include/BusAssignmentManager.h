@@ -1,10 +1,10 @@
-/* $Id: BusAssignmentManager.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: BusAssignmentManager.h $ */
 /** @file
  * VirtualBox bus slots assignment manager
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,7 +46,7 @@ public:
         PCIBusAddress hostAddress;
     };
 
-    static BusAssignmentManager *createInstance(PCVMMR3VTABLE pVMM, ChipsetType_T chipsetType, IommuType_T iommuType);
+    static BusAssignmentManager *createInstance(ChipsetType_T chipsetType);
     virtual void AddRef();
     virtual void Release();
 

@@ -1,10 +1,10 @@
-/* $Id: UIDetails.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIDetails.cpp $ */
 /** @file
  * VBox Qt GUI - UIDetails class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -19,7 +19,6 @@
 #include <QVBoxLayout>
 
 /* GUI includes: */
-#include "UICommon.h"
 #include "UIDetails.h"
 #include "UIDetailsModel.h"
 #include "UIDetailsView.h"
@@ -28,10 +27,10 @@
 
 UIDetails::UIDetails(QWidget *pParent /* = 0 */)
     : QWidget(pParent)
-    , m_pMainLayout(0)
     , m_pDetailsModel(0)
     , m_pDetailsView(0)
 {
+    /* Prepare: */
     prepare();
 }
 
@@ -43,66 +42,41 @@ void UIDetails::setItems(const QList<UIVirtualMachineItem*> &items)
 
 void UIDetails::prepare()
 {
-    /* Prepare everything: */
-    prepareContents();
-    prepareConnections();
-
-    /* Configure context-sensitive help: */
-    uiCommon().setHelpKeyword(this, "vm-details-tool");
-
-    /* Init model finally: */
-    initModel();
-}
-
-void UIDetails::prepareContents()
-{
-    /* Prepare main-layout: */
-    m_pMainLayout = new QVBoxLayout(this);
-    if (m_pMainLayout)
+    /* Create main-layout: */
+    QVBoxLayout *pMainLayout = new QVBoxLayout(this);
+    if (pMainLayout)
     {
-        m_pMainLayout->setContentsMargins(0, 0, 0, 0);
-        m_pMainLayout->setSpacing(0);
+        pMainLayout->setContentsMargins(0, 0, 0, 0);
+        pMainLayout->setSpacing(0);
 
-        /* Prepare model: */
-        prepareModel();
+        /* Create details-model: */
+        m_pDetailsModel = new UIDetailsModel(this);
+        if (m_pDetailsModel)
+        {
+            /* Create details-view: */
+            m_pDetailsView = new UIDetailsView(this);
+            if (m_pDetailsView)
+            {
+                m_pDetailsView->setScene(m_pDetailsModel->scene());
+                m_pDetailsView->show();
+                setFocusProxy(m_pDetailsView);
+
+                /* Add into layout: */
+                pMainLayout->addWidget(m_pDetailsView);
+            }
+
+            /* Init model: */
+            m_pDetailsModel->init();
+        }
     }
-}
 
-void UIDetails::prepareModel()
-{
-    /* Prepare model: */
-    m_pDetailsModel = new UIDetailsModel(this);
-    if (m_pDetailsModel)
-        prepareView();
-}
-
-void UIDetails::prepareView()
-{
-    AssertPtrReturnVoid(m_pDetailsModel);
-    AssertPtrReturnVoid(m_pMainLayout);
-
-    /* Prepare view: */
-    m_pDetailsView = new UIDetailsView(this);
-    if (m_pDetailsView)
-    {
-        m_pDetailsView->setScene(m_pDetailsModel->scene());
-        m_pDetailsView->show();
-        setFocusProxy(m_pDetailsView);
-
-        /* Add into layout: */
-        m_pMainLayout->addWidget(m_pDetailsView);
-    }
-}
-
-void UIDetails::prepareConnections()
-{
     /* Extra-data events connections: */
     connect(gEDataManager, &UIExtraDataManager::sigDetailsCategoriesChange,
             m_pDetailsModel, &UIDetailsModel::sltHandleExtraDataCategoriesChange);
     connect(gEDataManager, &UIExtraDataManager::sigDetailsOptionsChange,
             m_pDetailsModel, &UIDetailsModel::sltHandleExtraDataOptionsChange);
 
-    /* Model connections: */
+    /* Setup details-model connections: */
     connect(m_pDetailsModel, &UIDetailsModel::sigRootItemMinimumWidthHintChanged,
             m_pDetailsView, &UIDetailsView::sltMinimumWidthHintChanged);
     connect(m_pDetailsModel, &UIDetailsModel::sigLinkClicked,
@@ -112,12 +86,7 @@ void UIDetails::prepareConnections()
     connect(this, &UIDetails::sigToggleFinished,
             m_pDetailsModel, &UIDetailsModel::sltHandleToggleFinished);
 
-    /* View connections: */
+    /* Setup details-view connections: */
     connect(m_pDetailsView, &UIDetailsView::sigResized,
             m_pDetailsModel, &UIDetailsModel::sltHandleViewResize);
-}
-
-void UIDetails::initModel()
-{
-    m_pDetailsModel->init();
 }

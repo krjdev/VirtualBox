@@ -1,10 +1,10 @@
-/* $Id: VBoxMPGaWddm.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPGaWddm.cpp $ */
 /** @file
  * VirtualBox Windows Guest Mesa3D - Gallium driver interface for WDDM kernel mode driver.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1475,26 +1475,24 @@ VOID GaDxgkDdiDpcRoutine(const PVOID MiniportDeviceContext)
 
     gaFenceObjectsLock(pGaDevExt);
 
+    GAFENCEOBJECT *pIter, *pNext;
+    RTListForEachSafe(&pGaDevExt->fenceObjects.list, pIter, pNext, GAFENCEOBJECT, node)
     {
-        GAFENCEOBJECT *pIter, *pNext;
-        RTListForEachSafe(&pGaDevExt->fenceObjects.list, pIter, pNext, GAFENCEOBJECT, node)
+        if (pIter->u32FenceState == GAFENCE_STATE_SUBMITTED)
         {
-            if (pIter->u32FenceState == GAFENCE_STATE_SUBMITTED)
+            if (gaFenceCmp(pIter->u32SubmissionFenceId, u32LastCompletedFenceId) <= 0)
             {
-                if (gaFenceCmp(pIter->u32SubmissionFenceId, u32LastCompletedFenceId) <= 0)
+                GALOG(("u32SubmissionFenceId %u -> SIGNALED %RU64 ns\n",
+                       pIter->u32SubmissionFenceId, RTTimeNanoTS() - pIter->u64SubmittedTS));
+
+                ASMAtomicWriteU32(&pGaDevExt->u32LastCompletedSeqNo, pIter->u32SeqNo);
+                pIter->u32FenceState = GAFENCE_STATE_SIGNALED;
+                if (RT_BOOL(pIter->fu32FenceFlags & GAFENCE_F_WAITED))
                 {
-                    GALOG(("u32SubmissionFenceId %u -> SIGNALED %RU64 ns\n",
-                           pIter->u32SubmissionFenceId, RTTimeNanoTS() - pIter->u64SubmittedTS));
-
-                    ASMAtomicWriteU32(&pGaDevExt->u32LastCompletedSeqNo, pIter->u32SeqNo);
-                    pIter->u32FenceState = GAFENCE_STATE_SIGNALED;
-                    if (RT_BOOL(pIter->fu32FenceFlags & GAFENCE_F_WAITED))
-                    {
-                        KeSetEvent(&pIter->event, 0, FALSE);
-                    }
-
-                    GaFenceUnrefLocked(pGaDevExt, pIter);
+                    KeSetEvent(&pIter->event, 0, FALSE);
                 }
+
+                GaFenceUnrefLocked(pGaDevExt, pIter);
             }
         }
     }

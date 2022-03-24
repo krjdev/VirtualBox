@@ -1,10 +1,10 @@
-/* $Id: VBoxDev-haiku.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDev-haiku.c $ */
 /** @file
  * VBoxGuest kernel driver, Haiku Guest Additions, implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,7 @@
  *
  * VirtualBox Guest Additions for Haiku.
  * Copyright (c) 2011 Mike Smith <mike@scgtrp.net>
- *                    FranÃ§ois Revol <revol@free.fr>
+ *                    François Revol <revol@free.fr>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -161,7 +161,7 @@ static status_t vgdrvHaikuFree(void *cookie)
     /*
      * Close the session if it's still hanging on to the device...
      */
-    if (RT_VALID_PTR(pSession))
+    if (VALID_PTR(pSession))
     {
         VGDrvCommonCloseSession(&g_DevExt, pSession);
         ASMAtomicDecU32(&cUsers);
@@ -190,7 +190,7 @@ static status_t vgdrvHaikuIOCtl(void *cookie, uint32 op, void *data, size_t len)
     /*
      * Validate the input.
      */
-    if (RT_UNLIKELY(!RT_VALID_PTR(pSession)))
+    if (RT_UNLIKELY(!VALID_PTR(pSession)))
         return EINVAL;
 
     /*
@@ -232,7 +232,7 @@ static status_t vgdrvHaikuIOCtl(void *cookie, uint32 op, void *data, size_t len)
             LogRel((DRIVER_NAME ":vgdrvHaikuIOCtl: user_memcpy failed; pvBuf=%p data=%p op=%d. rc=%d\n", pvBuf, data, op, rc));
             return EFAULT;
         }
-        if (RT_UNLIKELY(!RT_VALID_PTR(pvBuf)))
+        if (RT_UNLIKELY(!VALID_PTR(pvBuf)))
         {
             RTMemTmpFree(pvBuf);
             LogRel((DRIVER_NAME ":vgdrvHaikuIOCtl: pvBuf invalid pointer %p\n", pvBuf));

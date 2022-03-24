@@ -1,10 +1,10 @@
-/* $Id: VBoxCredProvCredential.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxCredProvCredential.cpp $ */
 /** @file
  * VBoxCredProvCredential - Class for keeping and handling the passed credentials.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,11 +41,11 @@
 
 
 
-VBoxCredProvCredential::VBoxCredProvCredential(void)
-    : m_cRefs(1)
-    , m_enmUsageScenario(CPUS_INVALID)
-    , m_pEvents(NULL)
-    , m_fHaveCreds(false)
+VBoxCredProvCredential::VBoxCredProvCredential(void) :
+    m_enmUsageScenario(CPUS_INVALID),
+    m_cRefs(1),
+    m_pEvents(NULL),
+    m_fHaveCreds(false)
 {
     VBoxCredProvVerbose(0, "VBoxCredProvCredential: Created\n");
     VBoxCredentialProviderAcquire();

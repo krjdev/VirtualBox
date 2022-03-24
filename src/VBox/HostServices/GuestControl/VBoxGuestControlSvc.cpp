@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestControlSvc.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: VBoxGuestControlSvc.cpp $ */
 /** @file
  * Guest Control Service: Controlling the guest.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -68,7 +68,6 @@
 #include <VBox/AssertGuest.h>
 #include <VBox/VMMDev.h>
 #include <VBox/vmm/ssm.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <iprt/assert.h>
 #include <iprt/cpp/autores.h>
 #include <iprt/cpp/utils.h>
@@ -905,16 +904,14 @@ public:
     static DECLCALLBACK(void) svcCall(void *pvService, VBOXHGCMCALLHANDLE hCall, uint32_t idClient, void *pvClient,
                                       uint32_t u32Function, uint32_t cParms, VBOXHGCMSVCPARM paParms[], uint64_t tsArrival);
     static DECLCALLBACK(int)  svcHostCall(void *pvService, uint32_t u32Function, uint32_t cParms, VBOXHGCMSVCPARM paParms[]);
-    static DECLCALLBACK(int)  svcSaveState(void *pvService, uint32_t idClient, void *pvClient,
-                                           PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM);
-    static DECLCALLBACK(int)  svcLoadState(void *pvService, uint32_t idClient, void *pvClient,
-                                           PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion);
+    static DECLCALLBACK(int)  svcSaveState(void *pvService, uint32_t idClient, void *pvClient, PSSMHANDLE pSSM);
+    static DECLCALLBACK(int)  svcLoadState(void *pvService, uint32_t idClient, void *pvClient, PSSMHANDLE pSSM, uint32_t uVersion);
     static DECLCALLBACK(int)  svcRegisterExtension(void *pvService, PFNHGCMSVCEXT pfnExtension, void *pvExtension);
 
 private:
     int clientMakeMeMaster(ClientState *pClient, VBOXHGCMCALLHANDLE hCall, uint32_t cParms);
     int clientReportFeatures(ClientState *pClient, VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[]);
-    int clientQueryFeatures(ClientState *pClient, VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[]);
+    int clientQueryFeatures(VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[]);
     int clientMsgPeek(ClientState *pClient, VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[], bool fWait);
     int clientMsgGet(ClientState *pClient, VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[]);
     int clientMsgCancel(ClientState *pClient, uint32_t cParms);
@@ -948,7 +945,7 @@ static uint64_t const g_fGstCtrlHostFeatures0 = VBOX_GUESTCTRL_HF_0_NOTIFY_RDWR_
 /*static*/ DECLCALLBACK(int)
 GstCtrlService::svcUnload(void *pvService)
 {
-    AssertLogRelReturn(RT_VALID_PTR(pvService), VERR_INVALID_PARAMETER);
+    AssertLogRelReturn(VALID_PTR(pvService), VERR_INVALID_PARAMETER);
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
     AssertPtrReturn(pThis, VERR_INVALID_POINTER);
 
@@ -969,7 +966,7 @@ GstCtrlService::svcConnect(void *pvService, uint32_t idClient, void *pvClient, u
     LogFlowFunc(("[Client %RU32] Connected\n", idClient));
 
     RT_NOREF(fRestoring, pvClient);
-    AssertLogRelReturn(RT_VALID_PTR(pvService), VERR_INVALID_PARAMETER);
+    AssertLogRelReturn(VALID_PTR(pvService), VERR_INVALID_PARAMETER);
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
     AssertPtrReturn(pThis, VERR_INVALID_POINTER);
 
@@ -1050,6 +1047,14 @@ GstCtrlService::svcDisconnect(void *pvService, uint32_t idClient, void *pvClient
     }
 
     /*
+     * Delete the client state.
+     */
+    pThis->m_ClientStateMap.erase(idClient);
+    if (pClient->m_idSession != UINT32_MAX)
+        pThis->m_SessionIdMap.erase(pClient->m_idSession);
+    pClient->~ClientState();
+
+    /*
      * If it's the master disconnecting, we need to reset related globals.
      */
     if (idClient == pThis->m_idMasterClient)
@@ -1064,41 +1069,9 @@ GstCtrlService::svcDisconnect(void *pvService, uint32_t idClient, void *pvClient
             RTMemFree(pCur);
         }
         pThis->m_cPreparedSessions = 0;
-
-        /* Make sure that the host gets notified about still associated guest sessions going down.
-         *
-         * Some guest OSes (like OL8) do reboot / shut down quite abruptly so that
-         * VBoxService does not have the chance to do so instead.
-         *
-         * Note: We do this only when the master disconnects as a last meassure, as this otherwise
-         *       would overwrite formerly sent session statuses on the host.
-         */
-        ClientStateMap::const_iterator itClientState = pThis->m_SessionIdMap.begin();
-        while (itClientState != pThis->m_SessionIdMap.end())
-        {
-            VBOXHGCMSVCPARM aParms[4];
-            HGCMSvcSetU32(&aParms[0], VBOX_GUESTCTRL_CONTEXTID_MAKE(pCur->idSession, 0 /* uObject */, 0 /* uCount */));
-            HGCMSvcSetU32(&aParms[1], GUEST_SESSION_NOTIFYTYPE_DWN); /* type */
-            HGCMSvcSetU32(&aParms[2], VINF_SUCCESS);                 /* result */
-
-            int rc2 = pThis->hostCallback(GUEST_MSG_SESSION_NOTIFY, 3, aParms);
-            LogFlowFunc(("Notified host about session ID=%RU32 going down -> %Rrc\n", pClient->m_idSession, rc2));
-            RT_NOREF(rc2);
-
-            ++itClientState;
-            /* Note: Don't erase the client state -- this will be done when the actual client is disconnecting. */
-        }
     }
     else
         Assert(pClient != pThis->m_pMasterClient);
-
-    /*
-     * Delete the client state.
-     */
-    pThis->m_ClientStateMap.erase(idClient);
-    if (pClient->m_idSession != UINT32_MAX)
-        pThis->m_SessionIdMap.erase(pClient->m_idSession);
-    pClient->~ClientState();
 
     if (pThis->m_ClientStateMap.empty())
         pThis->m_fLegacyMode = true;
@@ -1229,7 +1202,7 @@ int GstCtrlService::clientReportFeatures(ClientState *pClient, VBOXHGCMCALLHANDL
     {
         m_fGuestFeatures0 = fFeatures0;
         m_fGuestFeatures1 = fFeatures1;
-        Log(("[Client %RU32] reported features: %#RX64 %#RX64\n", pClient->m_idClient, fFeatures0, fFeatures1));
+        Log(("[Client %RU32] features: %#RX64 %#RX64\n", pClient->m_idClient, fFeatures0, fFeatures1));
 
         /*
          * Forward the info to main.
@@ -1250,16 +1223,12 @@ int GstCtrlService::clientReportFeatures(ClientState *pClient, VBOXHGCMCALLHANDL
  * @retval  VINF_HGCM_ASYNC_EXECUTE on success (we complete the message here).
  * @retval  VERR_WRONG_PARAMETER_COUNT
  *
- * @param   pClient     The client state.
  * @param   hCall       The client's call handle.
  * @param   cParms      Number of parameters.
  * @param   paParms     Array of parameters.
  */
-int GstCtrlService::clientQueryFeatures(ClientState *pClient,
-                                        VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[])
+int GstCtrlService::clientQueryFeatures(VBOXHGCMCALLHANDLE hCall, uint32_t cParms, VBOXHGCMSVCPARM paParms[])
 {
-    RT_NOREF(pClient);
-
     /*
      * Validate the request.
      */
@@ -1274,11 +1243,7 @@ int GstCtrlService::clientQueryFeatures(ClientState *pClient,
     paParms[0].u.uint64 = g_fGstCtrlHostFeatures0;
     paParms[1].u.uint64 = 0;
     int rc = mpHelpers->pfnCallComplete(hCall, VINF_SUCCESS);
-    if (RT_SUCCESS(rc))
-    {
-        Log(("[Client %RU32] query features: %#RX64 0\n", pClient->m_idClient, g_fGstCtrlHostFeatures0));
-    }
-    else
+    if (RT_FAILURE(rc))
         LogFunc(("pfnCallComplete -> %Rrc\n", rc));
 
     return VINF_HGCM_ASYNC_EXECUTE;
@@ -2131,7 +2096,7 @@ GstCtrlService::svcCall(void *pvService, VBOXHGCMCALLHANDLE hCall, uint32_t idCl
      * Convert opaque pointers to typed ones.
      */
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
-    AssertPtrReturnVoid(pThis);
+    AssertReturnVoidStmt(pThis, pThis->mpHelpers->pfnCallComplete(hCall, VERR_INTERNAL_ERROR_5));
     ClientState *pClient = reinterpret_cast<ClientState *>(pvClient);
     AssertReturnVoidStmt(pClient, pThis->mpHelpers->pfnCallComplete(hCall, VERR_INVALID_CLIENT_ID));
     Assert(pClient->m_idClient == idClient);
@@ -2152,7 +2117,7 @@ GstCtrlService::svcCall(void *pvService, VBOXHGCMCALLHANDLE hCall, uint32_t idCl
             break;
         case GUEST_MSG_QUERY_FEATURES:
             LogFlowFunc(("[Client %RU32] GUEST_MSG_QUERY_FEATURES\n", idClient));
-            rc = pThis->clientQueryFeatures(pClient, hCall, cParms, paParms);
+            rc = pThis->clientQueryFeatures(hCall, cParms, paParms);
             break;
         case GUEST_MSG_PEEK_NOWAIT:
             LogFlowFunc(("[Client %RU32] GUEST_MSG_PEEK_NOWAIT\n", idClient));
@@ -2409,7 +2374,7 @@ int GstCtrlService::hostProcessMessage(uint32_t idMsg, uint32_t cParms, VBOXHGCM
 /*static*/ DECLCALLBACK(int)
 GstCtrlService::svcHostCall(void *pvService, uint32_t u32Function, uint32_t cParms, VBOXHGCMSVCPARM paParms[])
 {
-    AssertLogRelReturn(RT_VALID_PTR(pvService), VERR_INVALID_PARAMETER);
+    AssertLogRelReturn(VALID_PTR(pvService), VERR_INVALID_PARAMETER);
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
     AssertPtrReturn(pThis, VERR_INVALID_POINTER);
 
@@ -2425,7 +2390,7 @@ GstCtrlService::svcHostCall(void *pvService, uint32_t u32Function, uint32_t cPar
  * @interface_method_impl{VBOXHGCMSVCFNTABLE,pfnSaveState}
  */
 /*static*/ DECLCALLBACK(int)
-GstCtrlService::svcSaveState(void *pvService, uint32_t idClient, void *pvClient, PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM)
+GstCtrlService::svcSaveState(void *pvService, uint32_t idClient, void *pvClient, PSSMHANDLE pSSM)
 {
     RT_NOREF(pvClient);
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
@@ -2436,9 +2401,9 @@ GstCtrlService::svcSaveState(void *pvService, uint32_t idClient, void *pvClient,
              save/restore.  The Main objects aren't there.  Clients shuts down.
              Only the root service survives, so remember who that is and its mode. */
 
-    pVMM->pfnSSMR3PutU32(pSSM, 1);
-    pVMM->pfnSSMR3PutBool(pSSM, pThis->m_fLegacyMode);
-    return pVMM->pfnSSMR3PutBool(pSSM, idClient == pThis->m_idMasterClient);
+    SSMR3PutU32(pSSM, 1);
+    SSMR3PutBool(pSSM, pThis->m_fLegacyMode);
+    return SSMR3PutBool(pSSM, idClient == pThis->m_idMasterClient);
 }
 
 
@@ -2446,8 +2411,7 @@ GstCtrlService::svcSaveState(void *pvService, uint32_t idClient, void *pvClient,
  * @interface_method_impl{VBOXHGCMSVCFNTABLE,pfnLoadState}
  */
 /*static*/ DECLCALLBACK(int)
-GstCtrlService::svcLoadState(void *pvService, uint32_t idClient, void *pvClient,
-                             PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion)
+GstCtrlService::svcLoadState(void *pvService, uint32_t idClient, void *pvClient, PSSMHANDLE pSSM, uint32_t uVersion)
 {
     SELF *pThis = reinterpret_cast<SELF *>(pvService);
     AssertPtrReturn(pThis, VERR_INVALID_POINTER);
@@ -2458,18 +2422,18 @@ GstCtrlService::svcLoadState(void *pvService, uint32_t idClient, void *pvClient,
     if (uVersion >= HGCM_SAVED_STATE_VERSION)
     {
         uint32_t uSubVersion;
-        int rc = pVMM->pfnSSMR3GetU32(pSSM, &uSubVersion);
+        int rc = SSMR3GetU32(pSSM, &uSubVersion);
         AssertRCReturn(rc, rc);
         if (uSubVersion != 1)
-            return pVMM->pfnSSMR3SetLoadError(pSSM, VERR_SSM_DATA_UNIT_FORMAT_CHANGED, RT_SRC_POS,
+            return SSMR3SetLoadError(pSSM, VERR_SSM_DATA_UNIT_FORMAT_CHANGED, RT_SRC_POS,
                                      "sub version %u, expected 1\n", uSubVersion);
         bool fLegacyMode;
-        rc = pVMM->pfnSSMR3GetBool(pSSM, &fLegacyMode);
+        rc = SSMR3GetBool(pSSM, &fLegacyMode);
         AssertRCReturn(rc, rc);
         pThis->m_fLegacyMode = fLegacyMode;
 
         bool fIsMaster;
-        rc = pVMM->pfnSSMR3GetBool(pSSM, &fIsMaster);
+        rc = SSMR3GetBool(pSSM, &fIsMaster);
         AssertRCReturn(rc, rc);
 
         pClient->m_fIsMaster = fIsMaster;
@@ -2515,7 +2479,7 @@ GstCtrlService::svcLoadState(void *pvService, uint32_t idClient, void *pvClient,
 
 
 /**
- * @copydoc FNVBOXHGCMSVCLOAD
+ * @copydoc VBOXHGCMSVCLOAD
  */
 extern "C" DECLCALLBACK(DECLEXPORT(int)) VBoxHGCMSvcLoad(VBOXHGCMSVCFNTABLE *pTable)
 {
@@ -2523,8 +2487,10 @@ extern "C" DECLCALLBACK(DECLEXPORT(int)) VBoxHGCMSvcLoad(VBOXHGCMSVCFNTABLE *pTa
 
     LogFlowFunc(("pTable=%p\n", pTable));
 
-    if (!RT_VALID_PTR(pTable))
+    if (!VALID_PTR(pTable))
+    {
         rc = VERR_INVALID_PARAMETER;
+    }
     else
     {
         LogFlowFunc(("pTable->cbSize=%d, pTable->u32Version=0x%08X\n", pTable->cbSize, pTable->u32Version));

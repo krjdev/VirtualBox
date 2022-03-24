@@ -1,4 +1,4 @@
-; $Id: bootsector2-cpu-xcpt-2.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: bootsector2-cpu-xcpt-2.asm $
 ;; @file
 ; Bootsector test for debug exceptions.
 ;
@@ -7,7 +7,7 @@
 ;
 
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;

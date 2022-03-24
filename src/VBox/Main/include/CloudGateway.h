@@ -1,10 +1,10 @@
-/* $Id: CloudGateway.h 93312 2022-01-18 13:15:12Z vboxsync $ */
+/* $Id: CloudGateway.h $ */
 /** @file
  * Implementation of local and cloud gateway management.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,9 +24,9 @@
 struct GatewayInfo
 {
     Bstr    mTargetVM;
+    Utf8Str mGatewayVM;
     Utf8Str mGatewayInstanceId;
     Utf8Str mPublicSshKey;
-    Utf8Str mPrivateSshKey;
     Bstr    mCloudProvider;
     Bstr    mCloudProfile;
     Utf8Str mCloudPublicIp;
@@ -38,12 +38,16 @@ struct GatewayInfo
     HRESULT setCloudMacAddress(const Utf8Str& mac);
     HRESULT setLocalMacAddress(const Utf8Str& mac);
 
+    Utf8Str getCloudMacAddressWithoutColons() const;
+    Utf8Str getLocalMacAddressWithoutColons() const;
+    Utf8Str getLocalMacAddressWithColons() const;
+
     GatewayInfo() {}
 
     GatewayInfo(const GatewayInfo& other)
-        : mGatewayInstanceId(other.mGatewayInstanceId),
+        : mGatewayVM(other.mGatewayVM),
+          mGatewayInstanceId(other.mGatewayInstanceId),
           mPublicSshKey(other.mPublicSshKey),
-          mPrivateSshKey(other.mPrivateSshKey),
           mCloudProvider(other.mCloudProvider),
           mCloudProfile(other.mCloudProfile),
           mCloudPublicIp(other.mCloudPublicIp),
@@ -55,9 +59,9 @@ struct GatewayInfo
 
     GatewayInfo& operator=(const GatewayInfo& other)
     {
+        mGatewayVM = other.mGatewayVM;
         mGatewayInstanceId = other.mGatewayInstanceId;
         mPublicSshKey = other.mPublicSshKey;
-        mPrivateSshKey = other.mPrivateSshKey;
         mCloudProvider = other.mCloudProvider;
         mCloudProfile = other.mCloudProfile;
         mCloudPublicIp = other.mCloudPublicIp;
@@ -70,9 +74,9 @@ struct GatewayInfo
 
     void setNull()
     {
+        mGatewayVM.setNull();
         mGatewayInstanceId.setNull();
         mPublicSshKey.setNull();
-        mPrivateSshKey.setNull();
         mCloudProvider.setNull();
         mCloudProfile.setNull();
         mCloudPublicIp.setNull();
@@ -85,9 +89,8 @@ struct GatewayInfo
 
 class CloudNetwork;
 
-HRESULT startCloudGateway(ComPtr<IVirtualBox> virtualBox, ComPtr<ICloudNetwork> network, GatewayInfo& pGateways);
-HRESULT stopCloudGateway(ComPtr<IVirtualBox> virtualBox, GatewayInfo& gateways);
-HRESULT generateKeys(GatewayInfo& gateways);
+HRESULT startGateways(ComPtr<IVirtualBox> virtualBox, ComPtr<ICloudNetwork> network, GatewayInfo& pGateways);
+HRESULT stopGateways(ComPtr<IVirtualBox> virtualBox, const GatewayInfo& gateways);
 
 #endif /* !MAIN_INCLUDED_CloudGateway_h */
 

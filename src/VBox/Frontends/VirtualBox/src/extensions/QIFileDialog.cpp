@@ -1,10 +1,10 @@
-/* $Id: QIFileDialog.cpp 94061 2022-03-02 15:34:48Z vboxsync $ */
+/* $Id: QIFileDialog.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIFileDialog class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,10 +49,8 @@ QString QIFileDialog::getExistingDirectory(const QString &strDir,
     windowManager().registerNewParent(&dlg, pRealParent);
     dlg.setWindowTitle(strCaption);
     dlg.setDirectory(strDir);
-    dlg.setOption(DontResolveSymlinks, !fResolveSymLinks);
-    dlg.setFileMode(QFileDialog::Directory);
-    if (fDirOnly)
-        dlg.setOption(ShowDirsOnly, true);
+    dlg.setResolveSymlinks(fResolveSymLinks);
+    dlg.setFileMode(fDirOnly ? QFileDialog::DirectoryOnly : QFileDialog::Directory);
 
     QEventLoop eventLoop;
     QObject::connect(&dlg, &QFileDialog::finished,
@@ -110,8 +108,8 @@ QString QIFileDialog::getSaveFileName(const QString &strStartWith,
     dlg.setAcceptMode(QFileDialog::AcceptSave);
     if (pStrSelectedFilter)
         dlg.selectNameFilter(*pStrSelectedFilter);
-    dlg.setOption(DontResolveSymlinks, !fResolveSymLinks);
-    dlg.setOption(DontConfirmOverwrite, !fConfirmOverwrite);
+    dlg.setResolveSymlinks(fResolveSymLinks);
+    dlg.setConfirmOverwrite(fConfirmOverwrite);
 
     QEventLoop eventLoop;
     QObject::connect(&dlg, &QFileDialog::finished,
@@ -189,7 +187,7 @@ QStringList QIFileDialog::getOpenFileNames(const QString &strStartWith,
         dlg.setFileMode(QFileDialog::ExistingFiles);
     if (pStrSelectedFilter)
         dlg.selectNameFilter(*pStrSelectedFilter);
-    dlg.setOption(DontResolveSymlinks, !fResolveSymLinks);
+    dlg.setResolveSymlinks(fResolveSymLinks);
 
     QEventLoop eventLoop;
     QObject::connect(&dlg, &QFileDialog::finished,

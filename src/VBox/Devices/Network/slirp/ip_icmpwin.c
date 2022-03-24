@@ -1,10 +1,10 @@
-/* $Id: ip_icmpwin.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ip_icmpwin.c $ */
 /** @file
  * NAT - Windows ICMP API based ping proxy.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -144,11 +144,12 @@ icmpwin_ping(PNATState pData, struct mbuf *m, int hlen)
     IP_OPTION_INFORMATION opts;
     void *reqdata;
     int status;
+    size_t hdrsize;
 
     ttl = ip->ip_ttl;
     AssertReturnVoid(ttl > 0);
 
-    size_t hdrsize = hlen + sizeof(struct icmp_echo);
+    hdrsize = hlen + sizeof(struct icmp_echo);
     reqsize = ip->ip_len - hdrsize;
 
     bufsize = sizeof(ICMP_ECHO_REPLY);
@@ -478,10 +479,11 @@ icmpwin_get_error(struct pong *pong, int type, int code)
     struct ip *ip;
     struct icmp_echo *icmp;
     size_t reqsize;
+    size_t reqhlen;
 
     Log2(("NAT: ping error type %d/code %d\n", type, code));
 
-    size_t reqhlen = pong->reqiph.ip.ip_hl << 2;
+    reqhlen = pong->reqiph.ip.ip_hl << 2;
     reqsize = reqhlen + sizeof(pong->reqicmph);
 
     m = icmpwin_get_mbuf(pData, reqsize);

@@ -2,7 +2,6 @@
 Entry and initialization module for the browser.
 
 Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-(C) Copyright 2020 Hewlett Packard Enterprise Development LP<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -68,7 +67,6 @@ extern EFI_GUID        mCurrentFormSetGuid;
 extern EFI_HII_HANDLE  mCurrentHiiHandle;
 extern UINT16          mCurrentFormId;
 extern FORM_DISPLAY_ENGINE_FORM gDisplayFormData;
-extern BOOLEAN         mDynamicFormUpdated;
 
 /**
   Create a menu with specified formset GUID and form ID, and add it as a child
@@ -537,7 +535,6 @@ SendForm (
       }
       Selection->FormSet = FormSet;
       mSystemLevelFormSet = FormSet;
-      mDynamicFormUpdated = FALSE;
 
       //
       // Display this formset
@@ -549,11 +546,7 @@ SendForm (
       gCurrentSelection = NULL;
       mSystemLevelFormSet = NULL;
 
-      //
-      // If callback update form dynamically, it's not exiting of the formset for user so system do not reconnect driver hanlde
-      // this time.
-      //
-      if (!mDynamicFormUpdated && (gFlagReconnect || gCallbackReconnect)) {
+      if (gFlagReconnect || gCallbackReconnect) {
         RetVal = ReconnectController (FormSet->DriverHandle);
         if (!RetVal) {
           PopupErrorMessage(BROWSER_RECONNECT_FAIL, NULL, NULL, NULL);
@@ -5851,7 +5844,7 @@ GetIfrBinaryData (
           //
           // Try to compare against formset GUID
           //
-          if (IsZeroGuid (ComparingGuid) ||
+          if (IsZeroGuid (FormSetGuid) ||
               CompareGuid (ComparingGuid, (EFI_GUID *)(OpCodeData + sizeof (EFI_IFR_OP_HEADER)))) {
             break;
           }

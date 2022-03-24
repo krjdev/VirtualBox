@@ -1,10 +1,10 @@
-/* $Id: UICocoaSpecialControls.h 94067 2022-03-02 21:04:24Z vboxsync $ */
+/* $Id: UICocoaSpecialControls.h $ */
 /** @file
  * VBox Qt GUI - UICocoaSpecialControls class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,13 +20,10 @@
 #ifndef RT_WITHOUT_PRAGMA_ONCE
 # pragma once
 #endif
-#ifdef VBOX_DARWIN_USE_NATIVE_CONTROLS
 
 /* Qt includes: */
+#include <QMacCocoaViewContainer>
 #include <QWidget>
-#ifndef VBOX_IS_QT6_OR_LATER
-# include <QMacCocoaViewContainer>
-#endif
 
 /* GUI includes: */
 #include "VBoxCocoaHelper.h"
@@ -37,12 +34,7 @@ ADD_COCOA_NATIVE_REF(NSButton);
 
 /** QMacCocoaViewContainer extension,
   * used as cocoa button container. */
-class SHARED_LIBRARY_STUFF UICocoaButton
-#ifdef VBOX_IS_QT6_OR_LATER
-    : public QWidget
-#else
-    : public QMacCocoaViewContainer
-#endif
+class SHARED_LIBRARY_STUFF UICocoaButton : public QMacCocoaViewContainer
 {
     Q_OBJECT
 
@@ -84,6 +76,5 @@ private:
     NativeNSButtonRef nativeRef() const { return static_cast<NativeNSButtonRef>(cocoaView()); }
 };
 
-#endif /* VBOX_DARWIN_USE_NATIVE_CONTROLS */
 #endif /* !FEQT_INCLUDED_SRC_platform_darwin_UICocoaSpecialControls_h */
 

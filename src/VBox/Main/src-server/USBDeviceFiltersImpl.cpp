@@ -1,10 +1,10 @@
-/* $Id: USBDeviceFiltersImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBDeviceFiltersImpl.cpp $ */
 /** @file
  * Implementation of IUSBDeviceFilters.
  */
 
 /*
- * Copyright (C) 2005-2022 Oracle Corporation
+ * Copyright (C) 2005-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -264,7 +264,7 @@ public:
         VBOX_TWEAK_INTERFACE_ENTRY(IUSBDeviceFilter)
     END_COM_MAP()
 
-    DECLARE_COMMON_CLASS_METHODS(USBDeviceFilter)
+    DECLARE_EMPTY_CTOR_DTOR(USBDeviceFilter)
 
     // IUSBDeviceFilter properties
     STDMETHOD(COMGETTER(Name))(BSTR *aName);

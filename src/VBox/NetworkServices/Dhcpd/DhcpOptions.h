@@ -1,10 +1,10 @@
-/* $Id: DhcpOptions.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DhcpOptions.h $ */
 /** @file
  * DHCP server - DHCP options
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -446,7 +446,7 @@ protected:
             return -1;
 
         append(dst, m_String);
-        return (ssize_t)m_String.length();
+        return m_String.length();
     }
 
 public:
@@ -550,7 +550,7 @@ protected:
             cbValue += cbItem;
         }
 
-        return (ssize_t)cbValue;
+        return cbValue;
     }
 
 public:
@@ -705,13 +705,13 @@ protected:
     virtual ssize_t encodeValue(octets_t &dst) const
     {
         dst.insert(dst.end(), m_Data.begin(), m_Data.end());
-        return (ssize_t)m_Data.size();
+        return m_Data.size();
     }
 
     virtual int decodeValue(const octets_t &src, size_t cb)
     {
         octets_t::const_iterator beg(src.begin());
-        octets_t data(beg, beg + (ssize_t)cb);
+        octets_t data(beg, beg + cb);
         m_Data.swap(data);
 
         m_fPresent = true;

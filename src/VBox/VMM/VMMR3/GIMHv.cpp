@@ -1,10 +1,10 @@
-/* $Id: GIMHv.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: GIMHv.cpp $ */
 /** @file
  * GIM - Guest Interface Manager, Hyper-V implementation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,6 @@
 #include <iprt/mem.h>
 #include <iprt/semaphore.h>
 #include <iprt/spinlock.h>
-#include <iprt/zero.h>
 #ifdef DEBUG_ramshankar
 # include <iprt/udp.h>
 #endif
@@ -187,7 +186,7 @@ static int    gimR3HvInitHypercallSupport(PVM pVM);
 static void   gimR3HvTermHypercallSupport(PVM pVM);
 static int    gimR3HvInitDebugSupport(PVM pVM);
 static void   gimR3HvTermDebugSupport(PVM pVM);
-static DECLCALLBACK(void) gimR3HvTimerCallback(PVM pVM, TMTIMERHANDLE pTimer, void *pvUser);
+static DECLCALLBACK(void) gimR3HvTimerCallback(PVM pVM, PTMTIMER pTimer, void *pvUser);
 
 /**
  * Initializes the Hyper-V GIM provider.
@@ -202,17 +201,6 @@ VMMR3_INT_DECL(int) gimR3HvInit(PVM pVM, PCFGMNODE pGimCfg)
     AssertReturn(pVM->gim.s.enmProviderId == GIMPROVIDERID_HYPERV, VERR_INTERNAL_ERROR_5);
 
     PGIMHV pHv = &pVM->gim.s.u.Hv;
-
-    /*
-     * Initialize timer handles and such.
-     */
-    for (VMCPUID idCpu = 0; idCpu < pVM->cCpus; idCpu++)
-    {
-        PVMCPU       pVCpu     = pVM->apCpusR3[idCpu];
-        PGIMHVCPU    pHvCpu    = &pVCpu->gim.s.u.HvCpu;
-        for (uint8_t idxStimer = 0; idxStimer < RT_ELEMENTS(pHvCpu->aStimers); idxStimer++)
-            pHvCpu->aStimers[idxStimer].hTimer = NIL_TMTIMERHANDLE;
-    }
 
     /*
      * Read configuration.
@@ -318,18 +306,18 @@ VMMR3_INT_DECL(int) gimR3HvInit(PVM pVM, PCFGMNODE pGimCfg)
     for (size_t i = 0; i < RT_ELEMENTS(pHv->aMmio2Regions); i++)
         pHv->aMmio2Regions[i].hMmio2 = NIL_PGMMMIO2HANDLE;
 
-    AssertCompile(GIM_HV_PAGE_SIZE == GUEST_PAGE_SIZE);
+    AssertCompile(GIM_HV_PAGE_SIZE == PAGE_SIZE);
     PGIMMMIO2REGION pRegion = &pHv->aMmio2Regions[GIM_HV_HYPERCALL_PAGE_REGION_IDX];
     pRegion->iRegion    = GIM_HV_HYPERCALL_PAGE_REGION_IDX;
     pRegion->fRCMapping = false;
-    pRegion->cbRegion   = GIM_HV_PAGE_SIZE; /* Sanity checked in gimR3HvLoad(), gimR3HvEnableTscPage() & gimR3HvEnableHypercallPage() */
+    pRegion->cbRegion   = PAGE_SIZE;  /* Sanity checked in gimR3HvLoad(), gimR3HvEnableTscPage() & gimR3HvEnableHypercallPage() */
     pRegion->GCPhysPage = NIL_RTGCPHYS;
     RTStrCopy(pRegion->szDescription, sizeof(pRegion->szDescription), "Hyper-V hypercall page");
 
     pRegion = &pHv->aMmio2Regions[GIM_HV_REF_TSC_PAGE_REGION_IDX];
     pRegion->iRegion    = GIM_HV_REF_TSC_PAGE_REGION_IDX;
     pRegion->fRCMapping = false;
-    pRegion->cbRegion   = GIM_HV_PAGE_SIZE; /* Sanity checked in gimR3HvLoad(), gimR3HvEnableTscPage() & gimR3HvEnableHypercallPage() */
+    pRegion->cbRegion   = PAGE_SIZE;  /* Sanity checked in gimR3HvLoad(), gimR3HvEnableTscPage() & gimR3HvEnableHypercallPage() */
     pRegion->GCPhysPage = NIL_RTGCPHYS;
     RTStrCopy(pRegion->szDescription, sizeof(pRegion->szDescription), "Hyper-V TSC page");
 
@@ -518,11 +506,12 @@ VMMR3_INT_DECL(int) gimR3HvInit(PVM pVM, PCFGMNODE pGimCfg)
                 pHvStimer->idxStimer = idxStimer;
 
                 /* Create the timer and associate the context pointers. */
-                char szName[32];
-                RTStrPrintf(szName, sizeof(szName), "Hyper-V[%u] Timer%u", pVCpu->idCpu, idxStimer);
-                rc = TMR3TimerCreate(pVM, TMCLOCK_VIRTUAL_SYNC, gimR3HvTimerCallback, pHvStimer /* pvUser */,
-                                     TMTIMER_FLAGS_RING0, szName, &pHvStimer->hTimer);
+                RTStrPrintf(&pHvStimer->szTimerDesc[0], sizeof(pHvStimer->szTimerDesc), "Hyper-V[%u] Timer%u", pVCpu->idCpu,
+                            idxStimer);
+                rc = TMR3TimerCreateInternal(pVM, TMCLOCK_VIRTUAL_SYNC, gimR3HvTimerCallback, pHvStimer /* pvUser */,
+                                             pHvStimer->szTimerDesc, &pHvStimer->pTimerR3);
                 AssertLogRelRCReturn(rc, rc);
+                pHvStimer->pTimerR0 = TMTimerR0Ptr(pHvStimer->pTimerR3);
             }
         }
     }
@@ -615,8 +604,7 @@ VMMR3_INT_DECL(int) gimR3HvTerm(PVM pVM)
             for (uint8_t idxStimer = 0; idxStimer < RT_ELEMENTS(pHvCpu->aStimers); idxStimer++)
             {
                 PGIMHVSTIMER pHvStimer = &pHvCpu->aStimers[idxStimer];
-                TMR3TimerDestroy(pVM, pHvStimer->hTimer);
-                pHvStimer->hTimer = NIL_TMTIMERHANDLE;
+                TMR3TimerDestroy(pHvStimer->pTimerR3);
             }
         }
     }
@@ -918,9 +906,9 @@ VMMR3_INT_DECL(int) gimR3HvLoad(PVM pVM, PSSMHANDLE pSSM)
     rc = SSMR3GetStrZ(pSSM, pRegion->szDescription, sizeof(pRegion->szDescription));
     AssertRCReturn(rc, rc);
 
-    if (pRegion->cbRegion != GIM_HV_PAGE_SIZE)
-        return SSMR3SetCfgError(pSSM, RT_SRC_POS, N_("Hypercall page region size %#x invalid, expected %#x"),
-                                pRegion->cbRegion, GIM_HV_PAGE_SIZE);
+    if (pRegion->cbRegion != PAGE_SIZE)
+        return SSMR3SetCfgError(pSSM, RT_SRC_POS, N_("Hypercall page region size %u invalid, expected %u"),
+                                pRegion->cbRegion, PAGE_SIZE);
 
     if (MSR_GIM_HV_HYPERCALL_PAGE_IS_ENABLED(pHv->u64HypercallMsr))
     {
@@ -949,9 +937,9 @@ VMMR3_INT_DECL(int) gimR3HvLoad(PVM pVM, PSSMHANDLE pSSM)
     rc = SSMR3GetU32(pSSM, &uTscSequence);
     AssertRCReturn(rc, rc);
 
-    if (pRegion->cbRegion != GIM_HV_PAGE_SIZE)
-        return SSMR3SetCfgError(pSSM, RT_SRC_POS, N_("TSC page region size %#x invalid, expected %#x"),
-                                pRegion->cbRegion, GIM_HV_PAGE_SIZE);
+    if (pRegion->cbRegion != PAGE_SIZE)
+        return SSMR3SetCfgError(pSSM, RT_SRC_POS, N_("TSC page region size %u invalid, expected %u"),
+                                pRegion->cbRegion, PAGE_SIZE);
 
     if (MSR_GIM_HV_REF_TSC_IS_ENABLED(pHv->u64TscPageMsr))
     {
@@ -1053,19 +1041,28 @@ VMMR3_INT_DECL(int) gimR3HvEnableApicAssistPage(PVMCPU pVCpu, RTGCPHYS GCPhysApi
     /** @todo this is buggy when large pages are used due to a PGM limitation, see
      *        @bugref{7532}. Instead of the overlay style mapping, we just
      *        rewrite guest memory directly. */
-    AssertCompile(sizeof(g_abRTZero64K) >= GUEST_PAGE_SIZE);
-    int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysApicAssistPage, g_abRTZero64K, GUEST_PAGE_SIZE);
-    if (RT_SUCCESS(rc))
+    size_t const cbApicAssistPage = PAGE_SIZE;
+    void *pvApicAssist = RTMemAllocZ(cbApicAssistPage);
+    if (RT_LIKELY(pvApicAssist))
     {
-        /** @todo Inform APIC. */
-        LogRel(("GIM%u: HyperV: Enabled APIC-assist page at %#RGp\n", pVCpu->idCpu, GCPhysApicAssistPage));
+        int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysApicAssistPage, pvApicAssist, cbApicAssistPage);
+        if (RT_SUCCESS(rc))
+        {
+            /** @todo Inform APIC. */
+            LogRel(("GIM%u: HyperV: Enabled APIC-assist page at %#RGp\n", pVCpu->idCpu, GCPhysApicAssistPage));
+        }
+        else
+        {
+            LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
+            rc = VERR_GIM_OPERATION_FAILED;
+        }
+
+        RTMemFree(pvApicAssist);
+        return rc;
     }
-    else
-    {
-        LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
-        rc = VERR_GIM_OPERATION_FAILED;
-    }
-    return rc;
+
+    LogRelFunc(("GIM%u: HyperV: Failed to alloc %u bytes\n", pVCpu->idCpu, cbApicAssistPage));
+    return VERR_NO_MEMORY;
 }
 
 
@@ -1084,16 +1081,18 @@ VMMR3_INT_DECL(int) gimR3HvDisableApicAssistPage(PVMCPU pVCpu)
 
 
 /**
- * @callback_method_impl{FNTMTIMERINT, Hyper-V synthetic timer callback.}
+ * Hyper-V synthetic timer callback.
+ *
+ * @param   pVM         The cross context VM structure.
+ * @param   pTimer      Pointer to timer.
+ * @param   pvUser      Pointer to the synthetic timer.
  */
-static DECLCALLBACK(void) gimR3HvTimerCallback(PVM pVM, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) gimR3HvTimerCallback(PVM pVM, PTMTIMER pTimer, void *pvUser)
 {
     PGIMHVSTIMER pHvStimer = (PGIMHVSTIMER)pvUser;
     Assert(pHvStimer);
-    Assert(TMTimerIsLockOwner(pVM, hTimer));
+    Assert(TMTimerIsLockOwner(pTimer)); RT_NOREF(pTimer);
     Assert(pHvStimer->idCpu < pVM->cCpus);
-    Assert(pHvStimer->hTimer == hTimer);
-    RT_NOREF(hTimer);
 
     PVMCPU    pVCpu  = pVM->apCpusR3[pHvStimer->idCpu];
     PGIMHVCPU pHvCpu = &pVCpu->gim.s.u.HvCpu;
@@ -1139,19 +1138,28 @@ VMMR3_INT_DECL(int) gimR3HvEnableSiefPage(PVMCPU pVCpu, RTGCPHYS GCPhysSiefPage)
     /** @todo this is buggy when large pages are used due to a PGM limitation, see
      *        @bugref{7532}. Instead of the overlay style mapping, we just
      *        rewrite guest memory directly. */
-    AssertCompile(sizeof(g_abRTZero64K) >= GUEST_PAGE_SIZE);
-    int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysSiefPage, g_abRTZero64K, GUEST_PAGE_SIZE);
-    if (RT_SUCCESS(rc))
+    size_t const cbSiefPage = PAGE_SIZE;
+    void *pvSiefPage = RTMemAllocZ(cbSiefPage);
+    if (RT_LIKELY(pvSiefPage))
     {
-        /** @todo SIEF setup. */
-        LogRel(("GIM%u: HyperV: Enabled SIEF page at %#RGp\n", pVCpu->idCpu, GCPhysSiefPage));
+        int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysSiefPage, pvSiefPage, cbSiefPage);
+        if (RT_SUCCESS(rc))
+        {
+            /** @todo SIEF setup. */
+            LogRel(("GIM%u: HyperV: Enabled SIEF page at %#RGp\n", pVCpu->idCpu, GCPhysSiefPage));
+        }
+        else
+        {
+            LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
+            rc = VERR_GIM_OPERATION_FAILED;
+        }
+
+        RTMemFree(pvSiefPage);
+        return rc;
     }
-    else
-    {
-        LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
-        rc = VERR_GIM_OPERATION_FAILED;
-    }
-    return rc;
+
+    LogRelFunc(("GIM%u: HyperV: Failed to alloc %u bytes\n", pVCpu->idCpu, cbSiefPage));
+    return VERR_NO_MEMORY;
 }
 
 
@@ -1246,11 +1254,11 @@ VMMR3_INT_DECL(int) gimR3HvEnableTscPage(PVM pVM, RTGCPHYS GCPhysTscPage, bool f
         LogRelFunc(("gimR3Mmio2Map failed. rc=%Rrc\n", rc));
     return VERR_GIM_OPERATION_FAILED;
 #else
-    AssertReturn(pRegion->cbRegion == GUEST_PAGE_SIZE, VERR_GIM_IPE_2);
-    PGIMHVREFTSC pRefTsc = (PGIMHVREFTSC)RTMemAllocZ(GUEST_PAGE_SIZE);
+    AssertReturn(pRegion->cbRegion == PAGE_SIZE, VERR_GIM_IPE_2);
+    PGIMHVREFTSC pRefTsc = (PGIMHVREFTSC)RTMemAllocZ(PAGE_SIZE);
     if (RT_UNLIKELY(!pRefTsc))
     {
-        LogRelFunc(("Failed to alloc %#x bytes\n", GUEST_PAGE_SIZE));
+        LogRelFunc(("Failed to alloc %u bytes\n", PAGE_SIZE));
         return VERR_NO_MEMORY;
     }
 
@@ -1304,19 +1312,28 @@ VMMR3_INT_DECL(int) gimR3HvEnableSimPage(PVMCPU pVCpu, RTGCPHYS GCPhysSimPage)
     /** @todo this is buggy when large pages are used due to a PGM limitation, see
      *        @bugref{7532}. Instead of the overlay style mapping, we just
      *        rewrite guest memory directly. */
-    AssertCompile(sizeof(g_abRTZero64K) >= GUEST_PAGE_SIZE);
-    int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysSimPage, g_abRTZero64K, GUEST_PAGE_SIZE);
-    if (RT_SUCCESS(rc))
+    size_t const cbSimPage = PAGE_SIZE;
+    void *pvSimPage = RTMemAllocZ(cbSimPage);
+    if (RT_LIKELY(pvSimPage))
     {
-        /** @todo SIM setup. */
-        LogRel(("GIM%u: HyperV: Enabled SIM page at %#RGp\n", pVCpu->idCpu, GCPhysSimPage));
+        int rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysSimPage, pvSimPage, cbSimPage);
+        if (RT_SUCCESS(rc))
+        {
+            /** @todo SIM setup. */
+            LogRel(("GIM%u: HyperV: Enabled SIM page at %#RGp\n", pVCpu->idCpu, GCPhysSimPage));
+        }
+        else
+        {
+            LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
+            rc = VERR_GIM_OPERATION_FAILED;
+        }
+
+        RTMemFree(pvSimPage);
+        return rc;
     }
-    else
-    {
-        LogRelFunc(("GIM%u: HyperV: PGMPhysSimpleWriteGCPhys failed. rc=%Rrc\n", pVCpu->idCpu, rc));
-        rc = VERR_GIM_OPERATION_FAILED;
-    }
-    return rc;
+
+    LogRelFunc(("GIM%u: HyperV: Failed to alloc %u bytes\n", pVCpu->idCpu, cbSimPage));
+    return VERR_NO_MEMORY;
 }
 
 
@@ -1432,9 +1449,9 @@ VMMR3_INT_DECL(int) gimR3HvEnableHypercallPage(PVM pVM, RTGCPHYS GCPhysHypercall
          * Patch the hypercall-page.
          */
         size_t cbWritten = 0;
-        rc = VMMPatchHypercall(pVM, pRegion->pvPageR3, GUEST_PAGE_SIZE, &cbWritten);
+        rc = VMMPatchHypercall(pVM, pRegion->pvPageR3, PAGE_SIZE, &cbWritten);
         if (   RT_SUCCESS(rc)
-            && cbWritten < GUEST_PAGE_SIZE)
+            && cbWritten < PAGE_SIZE)
         {
             uint8_t *pbLast = (uint8_t *)pRegion->pvPageR3 + cbWritten;
             *pbLast = 0xc3;  /* RET */
@@ -1448,9 +1465,12 @@ VMMR3_INT_DECL(int) gimR3HvEnableHypercallPage(PVM pVM, RTGCPHYS GCPhysHypercall
             LogRel(("GIM: HyperV: Enabled hypercall page at %#RGp\n", GCPhysHypercallPage));
             return VINF_SUCCESS;
         }
-        if (rc == VINF_SUCCESS)
-            rc = VERR_GIM_OPERATION_FAILED;
-        LogRel(("GIM: HyperV: VMMPatchHypercall failed. rc=%Rrc cbWritten=%u\n", rc, cbWritten));
+        else
+        {
+            if (rc == VINF_SUCCESS)
+                rc = VERR_GIM_OPERATION_FAILED;
+            LogRel(("GIM: HyperV: VMMPatchHypercall failed. rc=%Rrc cbWritten=%u\n", rc, cbWritten));
+        }
 
         gimR3Mmio2Unmap(pVM, pRegion);
     }
@@ -1458,11 +1478,11 @@ VMMR3_INT_DECL(int) gimR3HvEnableHypercallPage(PVM pVM, RTGCPHYS GCPhysHypercall
     LogRel(("GIM: HyperV: gimR3Mmio2Map failed. rc=%Rrc\n", rc));
     return rc;
 #else
-    AssertReturn(pRegion->cbRegion == GUEST_PAGE_SIZE, VERR_GIM_IPE_3);
-    void *pvHypercallPage = RTMemAllocZ(GUEST_PAGE_SIZE);
+    AssertReturn(pRegion->cbRegion == PAGE_SIZE, VERR_GIM_IPE_3);
+    void *pvHypercallPage = RTMemAllocZ(PAGE_SIZE);
     if (RT_UNLIKELY(!pvHypercallPage))
     {
-        LogRelFunc(("Failed to alloc %#x bytes\n", GUEST_PAGE_SIZE));
+        LogRelFunc(("Failed to alloc %u bytes\n", PAGE_SIZE));
         return VERR_NO_MEMORY;
     }
 
@@ -1470,14 +1490,14 @@ VMMR3_INT_DECL(int) gimR3HvEnableHypercallPage(PVM pVM, RTGCPHYS GCPhysHypercall
      * Patch the hypercall-page.
      */
     size_t cbHypercall = 0;
-    int rc = GIMQueryHypercallOpcodeBytes(pVM, pvHypercallPage, GUEST_PAGE_SIZE, &cbHypercall, NULL /*puDisOpcode*/);
+    int rc = GIMQueryHypercallOpcodeBytes(pVM, pvHypercallPage, PAGE_SIZE, &cbHypercall, NULL /*puDisOpcode*/);
     if (   RT_SUCCESS(rc)
-        && cbHypercall < GUEST_PAGE_SIZE)
+        && cbHypercall < PAGE_SIZE)
     {
         uint8_t *pbLast = (uint8_t *)pvHypercallPage + cbHypercall;
         *pbLast = 0xc3;  /* RET */
 
-        rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysHypercallPage, pvHypercallPage, GUEST_PAGE_SIZE);
+        rc = PGMPhysSimpleWriteGCPhys(pVM, GCPhysHypercallPage, pvHypercallPage, PAGE_SIZE);
         if (RT_SUCCESS(rc))
         {
             pRegion->GCPhysPage = GCPhysHypercallPage;
@@ -1550,7 +1570,7 @@ static int gimR3HvInitDebugSupport(PVM pVM)
         || pHv->fIsInterfaceVs)
     {
         pHv->fDbgEnabled = true;
-        pHv->pvDbgBuffer = RTMemAllocZ(GIM_HV_PAGE_SIZE);
+        pHv->pvDbgBuffer = RTMemAllocZ(PAGE_SIZE);
         if (!pHv->pvDbgBuffer)
             return VERR_NO_MEMORY;
     }
@@ -2237,7 +2257,7 @@ VMMR3_INT_DECL(int) gimR3HvHypercallExtGetBootZeroedMem(PVM pVM, int *prcHv)
             return rc;
         }
 
-        RTGCPHYS const cbRange = RT_ALIGN(GCPhysEnd - GCPhysStart + 1, GUEST_PAGE_SIZE);
+        RTGCPHYS const cbRange = RT_ALIGN(GCPhysEnd - GCPhysStart + 1, PAGE_SIZE);
         pOut->cPages += cbRange >> GIM_HV_PAGE_SHIFT;
         if (iRange == 0)
             pOut->GCPhysStart = GCPhysStart;

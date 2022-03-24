@@ -1,10 +1,10 @@
-/* $Id: tstClipboardTransfers.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstClipboardTransfers.cpp $ */
 /** @file
  * Shared Clipboard transfers test case.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -234,7 +234,7 @@ static void testTransferObjOpenSingle(RTTEST hTest,
     int rc = ShClTransferCreate(&pTransfer);
     RTTESTI_CHECK_RC_OK(rc);
 
-    rc = ShClTransferInit(pTransfer, SHCLTRANSFERDIR_FROM_REMOTE, SHCLSOURCE_LOCAL);
+    rc = ShClTransferInit(pTransfer, 0 /* ID */, SHCLTRANSFERDIR_FROM_REMOTE, SHCLSOURCE_LOCAL);
     RTTESTI_CHECK_RC_OK(rc);
 
     char szTestTransferObjOpenDir[RTPATH_MAX];
@@ -272,24 +272,6 @@ static void testTransferObjOpenSingle(RTTEST hTest,
         RTTESTI_CHECK_RC_OK(rc);
     }
 
-    rc = ShClTransferDestroy(pTransfer);
-    RTTESTI_CHECK_RC_OK(rc);
-}
-
-static void testTransferBasics(RTTEST hTest)
-{
-    RT_NOREF(hTest);
-
-    RTTestISub("Testing transfer basics");
-
-    SHCLEVENTSOURCE Source;
-    int rc = ShClEventSourceCreate(&Source, 0);
-    RTTESTI_CHECK_RC_OK(rc);
-    rc = ShClEventSourceDestroy(&Source);
-    RTTESTI_CHECK_RC_OK(rc);
-    PSHCLTRANSFER pTransfer;
-    rc = ShClTransferCreate(&pTransfer);
-    RTTESTI_CHECK_RC_OK(rc);
     rc = ShClTransferDestroy(pTransfer);
     RTTESTI_CHECK_RC_OK(rc);
 }
@@ -364,7 +346,6 @@ int main(int argc, char *argv[])
         return rcExit;
     RTTestBanner(hTest);
 
-    testTransferBasics(hTest);
     testTransferRootsSet(hTest);
     testTransferObjOpen(hTest);
 

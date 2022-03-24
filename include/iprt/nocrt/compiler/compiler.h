@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,8 +33,6 @@
 # include <iprt/nocrt/compiler/gcc.h>
 #elif defined(_MSC_VER)
 # include <iprt/nocrt/compiler/msc.h>
-#elif defined(__WATCOMC__)
-# include <iprt/nocrt/compiler/watcom.h>
 #else
 # error "Unsupported compiler."
 #endif

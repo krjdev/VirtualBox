@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: schedulerbeci.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: schedulerbeci.py $
 
 """
 Test Manager - Best-Effort-Continuous-Integration (BECI) scheduler.
@@ -7,7 +7,7 @@ Test Manager - Best-Effort-Continuous-Integration (BECI) scheduler.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Validation Kit imports.
@@ -56,7 +56,7 @@ class SchdulerBeci(SchedulerBase): # pylint: disable=too-few-public-methods
             for oTestCase in oTestGroup.aoTestCases:
                 iPrio = oTestCase.iSchedPriority;
                 assert iPrio in range(32);
-                iPrio = iPrio // 4;
+                iPrio = iPrio / 4;
                 assert iPrio in range(8);
                 if iPrio > iMaxPriority:
                     iMaxPriority = iPrio;
@@ -74,7 +74,8 @@ class SchdulerBeci(SchedulerBase): # pylint: disable=too-few-public-methods
         # Generate the
         #
         cMaxItems = len(oData.aoArgsVariations) * 64;
-        cMaxItems = min(cMaxItems, 1048576);
+        if cMaxItems > 1048576:
+            cMaxItems = 1048576;
 
         aoItems   = list();
         cNotAtEnd = len(oData.aoTestCases);

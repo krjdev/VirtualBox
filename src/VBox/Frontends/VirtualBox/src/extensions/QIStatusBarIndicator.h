@@ -1,10 +1,10 @@
-/* $Id: QIStatusBarIndicator.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIStatusBarIndicator.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIStatusBarIndicator interface declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,13 +61,13 @@ protected:
 
 #ifdef VBOX_WS_MAC
     /** Handles mouse-press @a pEvent. */
-    virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QMouseEvent *pEvent) /* override */;
 #endif /* VBOX_WS_MAC */
     /** Handles mouse-double-click @a pEvent. */
-    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) /* override */;
 
     /** Handles context-menu @a pEvent. */
-    virtual void contextMenuEvent(QContextMenuEvent *pEvent) RT_OVERRIDE;
+    virtual void contextMenuEvent(QContextMenuEvent *pEvent) /* override */;
 
     /** Holds currently cached size. */
     QSize m_size;
@@ -102,7 +102,7 @@ public slots:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Draws contents using passed @a pPainter. */
     virtual void drawContents(QPainter *pPainter);

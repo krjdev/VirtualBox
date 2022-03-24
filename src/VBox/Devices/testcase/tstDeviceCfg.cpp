@@ -1,10 +1,10 @@
-/* $Id: tstDeviceCfg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstDeviceCfg.cpp $ */
 /** @file
  * tstDevice - Configuration loader.
  */
 
 /*
- * Copyright (C) 2020-2022 Oracle Corporation
+ * Copyright (C) 2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -308,12 +308,6 @@ static int tstDevCfgLoadTestcase(RTJSONVAL hJsonTestcase, const char **ppszTestc
                     }
                     else
                         rc = tstDevCfgErrorRc(pErrInfo, rc, "tstDevCfg/JSON: Failed to allocate %zu bytes for the test config structure", cbCfg);
-                }
-                else
-                {
-                    *ppszTestcaseId     = pszTestcaseId;
-                    *pcTestcaseCfgItems = 0;
-                    *ppTestcaseCfg      = NULL;
                 }
             }
             else

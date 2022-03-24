@@ -1,10 +1,10 @@
-/* $Id: HMSVMAll.cpp 93725 2022-02-14 13:46:16Z vboxsync $ */
+/* $Id: HMSVMAll.cpp $ */
 /** @file
  * HM SVM (AMD-V) - All contexts.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,9 +28,6 @@
 #include <VBox/vmm/vmcc.h>
 
 #include <VBox/err.h>
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-# include <iprt/asm-amd64-x86.h> /* ASMCpuId */
-#endif
 
 
 
@@ -141,7 +138,7 @@ VMM_INT_DECL(void) HMNotifySvmNstGstVmexit(PVMCPUCC pVCpu, PCPUMCTX pCtx)
          * restore these fields because currently none of them are written back to memory
          * by a physical CPU on #VMEXIT.
          */
-        PSVMVMCBCTRL pVmcbNstGstCtrl = &pCtx->hwvirt.svm.Vmcb.ctrl;
+        PSVMVMCBCTRL pVmcbNstGstCtrl = &pCtx->hwvirt.svm.CTX_SUFF(pVmcb)->ctrl;
         pVmcbNstGstCtrl->u16InterceptRdCRx                 = pVmcbNstGstCache->u16InterceptRdCRx;
         pVmcbNstGstCtrl->u16InterceptWrCRx                 = pVmcbNstGstCache->u16InterceptWrCRx;
         pVmcbNstGstCtrl->u16InterceptRdDRx                 = pVmcbNstGstCache->u16InterceptRdDRx;
@@ -183,14 +180,11 @@ VMM_INT_DECL(void) HMNotifySvmNstGstVmexit(PVMCPUCC pVCpu, PCPUMCTX pCtx)
  * @remarks This value returned by this functions is expected by the callers not
  *          to change throughout the lifetime of the VM.
  */
-VMM_INT_DECL(bool) HMIsSvmVGifActive(PCVMCC pVM)
+VMM_INT_DECL(bool) HMIsSvmVGifActive(PCVM pVM)
 {
-#ifdef IN_RING0
-    bool const fVGif    = RT_BOOL(g_fHmSvmFeatures & X86_CPUID_SVM_FEATURE_EDX_VGIF);
-#else
-    bool const fVGif    = RT_BOOL(pVM->hm.s.ForR3.svm.fFeatures & X86_CPUID_SVM_FEATURE_EDX_VGIF);
-#endif
-    return fVGif && pVM->hm.s.svm.fVGif;
+    bool const fVGif    = RT_BOOL(pVM->hm.s.svm.u32Features & X86_CPUID_SVM_FEATURE_EDX_VGIF);
+    bool const fUseVGif = fVGif && pVM->hm.s.svm.fVGif;
+    return fVGif && fUseVGif;
 }
 
 
@@ -218,7 +212,6 @@ VMM_INT_DECL(int) HMHCMaybeMovTprSvmHypercall(PVMCC pVM, PVMCPUCC pVCpu)
 }
 
 
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
 /**
  * Checks if the current AMD CPU is subject to erratum 170 "In SVM mode,
  * incorrect code bytes may be fetched after a world-switch".
@@ -258,7 +251,9 @@ VMM_INT_DECL(int) HMIsSubjectToSvmErratum170(uint32_t *pu32Family, uint32_t *pu3
     if (   u32Family == 0xf
         && !((u32Model == 0x68 || u32Model == 0x6b || u32Model == 0x7f) && u32Stepping >= 1)
         && !((u32Model == 0x6f || u32Model == 0x6c || u32Model == 0x7c) && u32Stepping >= 2))
+    {
         fErratumApplies = true;
+    }
 
     if (pu32Family)
         *pu32Family   = u32Family;
@@ -269,7 +264,7 @@ VMM_INT_DECL(int) HMIsSubjectToSvmErratum170(uint32_t *pu32Family, uint32_t *pu3
 
     return fErratumApplies;
 }
-#endif
+
 
 
 /**

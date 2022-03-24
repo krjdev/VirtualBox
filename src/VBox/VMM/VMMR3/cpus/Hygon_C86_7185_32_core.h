@@ -1,11 +1,11 @@
-/* $Id: Hygon_C86_7185_32_core.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Hygon_C86_7185_32_core.h $ */
 /** @file
  * CPU database entry "Hygon C86 7185 32-core".
  * Generated at 2019-09-25T11:07:33Z by VBoxCpuReport v6.1.0_BETA1r80830 on linux.amd64.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -149,8 +149,6 @@ static CPUMMSRRANGE const g_aMsrRanges_Hygon_C86_7185_32_core[] =
     MFN(0xc0000081, "AMD64_STAR", Amd64SyscallTarget, Amd64SyscallTarget), /* Might bite. value=0x230010`00000000 */
     MFN(0xc0000082, "AMD64_STAR64", Amd64LongSyscallTarget, Amd64LongSyscallTarget), /* Might bite. value=0xffffffff`9e574c70 */
     MFN(0xc0000083, "AMD64_STARCOMPAT", Amd64CompSyscallTarget, Amd64CompSyscallTarget), /* Might bite. value=0xffffffff`9e578de0 */
-    /** @todo r=bird: This seems wrong, all others CPUs \#GP if any of thie high
-     *        bits are set. */
     MFN(0xc0000084, "AMD64_SYSCALL_FLAG_MASK", Amd64SyscallFlagMask, Amd64SyscallFlagMask), /* Might bite. value=0x43700 */
     MVO(0xc00000e7, "TODO_c000_00e7", UINT64_C(0x11c7b9402a58)),
     MVO(0xc00000e8, "TODO_c000_00e8", UINT64_C(0x2f70233a93)),

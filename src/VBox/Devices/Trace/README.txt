@@ -1,4 +1,4 @@
-/* $Id: README.txt 82789 2020-01-19 12:19:24Z vboxsync $ */
+/* $Id: README.txt $ */
 Introduction:
 
     This is a simple tracing driver which hooks into a driver chain and logs all executed callbacks for a particular interface

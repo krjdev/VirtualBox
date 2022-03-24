@@ -1,10 +1,10 @@
-/* $Id: VBoxGuest.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuest.cpp $ */
 /** @file
  * VBoxGuest - Guest Additions Driver, Common Code.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -119,20 +119,20 @@ static const uint32_t g_cbChangeMemBalloonReq = RT_UOFFSETOF(VMMDevChangeMemBall
  * Drag in the rest of IRPT since we share it with the
  * rest of the kernel modules on Solaris.
  */
-struct CLANG11WEIRDNESS { PFNRT pfn; } g_apfnVBoxGuestIPRTDeps[] =
+PFNRT g_apfnVBoxGuestIPRTDeps[] =
 {
     /* VirtioNet */
-    { (PFNRT)RTRandBytes },
+    (PFNRT)RTRandBytes,
     /* RTSemMutex* */
-    { (PFNRT)RTSemMutexCreate },
-    { (PFNRT)RTSemMutexDestroy },
-    { (PFNRT)RTSemMutexRequest },
-    { (PFNRT)RTSemMutexRequestNoResume },
-    { (PFNRT)RTSemMutexRequestDebug },
-    { (PFNRT)RTSemMutexRequestNoResumeDebug },
-    { (PFNRT)RTSemMutexRelease },
-    { (PFNRT)RTSemMutexIsOwned },
-    { NULL }
+    (PFNRT)RTSemMutexCreate,
+    (PFNRT)RTSemMutexDestroy,
+    (PFNRT)RTSemMutexRequest,
+    (PFNRT)RTSemMutexRequestNoResume,
+    (PFNRT)RTSemMutexRequestDebug,
+    (PFNRT)RTSemMutexRequestNoResumeDebug,
+    (PFNRT)RTSemMutexRelease,
+    (PFNRT)RTSemMutexIsOwned,
+    NULL
 };
 #endif  /* RT_OS_DARWIN || RT_OS_SOLARIS  */
 

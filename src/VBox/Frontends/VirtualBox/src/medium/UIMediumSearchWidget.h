@@ -1,10 +1,10 @@
-/* $Id: UIMediumSearchWidget.h 94027 2022-03-01 11:03:06Z vboxsync $ */
+/* $Id: UIMediumSearchWidget.h $ */
 /** @file
  * VBox Qt GUI - UIMediumSearchWidget class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,8 +25,8 @@
 #include "QIWithRetranslateUI.h"
 
 /* Forward declarations: */
-class QComboBox;
 class QTreeWidgetItem;
+class QIComboBox;
 class QIToolButton;
 class QITreeWidget;
 class UISearchLineEdit;
@@ -59,12 +59,12 @@ public:
       * then the next marched item is selected. */
     void    search(QITreeWidget* pTreeWidget, bool fGotoNext = true);
 
-protected:
+ protected:
 
-    void retranslateUi() RT_OVERRIDE;
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    void retranslateUi() /* override */;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
-private slots:
+ private slots:
 
     void sltShowNextMatchingItem();
     void sltShowPreviousMatchingItem();
@@ -81,7 +81,7 @@ private:
     /** Updates the feedback text of th line edit that shows # of matches. */
     void    updateSearchLineEdit(int iMatchCount, int iScrollToIndex);
 
-    QComboBox        *m_pSearchComboxBox;
+    QIComboBox       *m_pSearchComboxBox;
     UISearchLineEdit *m_pSearchTermLineEdit;
     QIToolButton     *m_pShowNextMatchButton;
     QIToolButton     *m_pShowPreviousMatchButton;

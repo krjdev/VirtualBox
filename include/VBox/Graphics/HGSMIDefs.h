@@ -1,10 +1,10 @@
-/* $Id: HGSMIDefs.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HGSMIDefs.h $ */
 /** @file
  * VBox Host Guest Shared Memory Interface (HGSMI) - shared part - types and defines.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -118,10 +118,10 @@ typedef struct HGSMIENV
     void *pvEnv;
 
     /* Allocate system memory. */
-    DECLCALLBACKMEMBER(void *, pfnAlloc,(void *pvEnv, HGSMISIZE cb));
+    DECLCALLBACKMEMBER(void *, pfnAlloc)(void *pvEnv, HGSMISIZE cb);
 
     /* Free system memory. */
-    DECLCALLBACKMEMBER(void, pfnFree,(void *pvEnv, void *pv));
+    DECLCALLBACKMEMBER(void, pfnFree)(void *pvEnv, void *pv);
 } HGSMIENV;
 
 #endif /* !VBOX_INCLUDED_Graphics_HGSMIDefs_h */

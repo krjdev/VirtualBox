@@ -1,10 +1,10 @@
-/* $Id: DrvAudioVRDE.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: DrvAudioVRDE.cpp $ */
 /** @file
  * VRDE audio backend for Main.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,6 @@
 #include <VBox/vmm/pdmdrv.h>
 #include <VBox/vmm/pdmaudioifs.h>
 #include <VBox/vmm/pdmaudioinline.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <VBox/RemoteDesktop/VRDE.h>
 #include <VBox/err.h>
 
@@ -111,15 +110,17 @@ AudioVRDE::~AudioVRDE(void)
 }
 
 
-int AudioVRDE::configureDriver(PCFGMNODE pLunCfg, PCVMMR3VTABLE pVMM)
+/**
+ * @copydoc AudioDriver::configureDriver
+ */
+int AudioVRDE::configureDriver(PCFGMNODE pLunCfg)
 {
-    int rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "Object", (uintptr_t)this);
+    int rc = CFGMR3InsertInteger(pLunCfg, "Object", (uintptr_t)this);
+    AssertRCReturn(rc, rc);
+    CFGMR3InsertInteger(pLunCfg, "ObjectVRDPServer", (uintptr_t)mpConsole->i_consoleVRDPServer());
     AssertRCReturn(rc, rc);
 
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "ObjectVRDPServer", (uintptr_t)mpConsole->i_consoleVRDPServer());
-    AssertRCReturn(rc, rc);
-
-    return AudioDriver::configureDriver(pLunCfg, pVMM);
+    return AudioDriver::configureDriver(pLunCfg);
 }
 
 
@@ -747,7 +748,7 @@ DECLCALLBACK(int) AudioVRDE::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, ui
      * Get the ConsoleVRDPServer object pointer.
      */
     void *pvUser;
-    int rc = pDrvIns->pHlpR3->pfnCFGMQueryPtr(pCfg, "ObjectVRDPServer", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
+    int rc = CFGMR3QueryPtr(pCfg, "ObjectVRDPServer", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
     AssertMsgRCReturn(rc, ("Confguration error: No/bad \"ObjectVRDPServer\" value, rc=%Rrc\n", rc), rc);
 
     /* CFGM tree saves the pointer to ConsoleVRDPServer in the Object node of AudioVRDE. */
@@ -760,7 +761,7 @@ DECLCALLBACK(int) AudioVRDE::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, ui
      * Get the AudioVRDE object pointer.
      */
     pvUser = NULL;
-    rc = pDrvIns->pHlpR3->pfnCFGMQueryPtr(pCfg, "Object", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
+    rc = CFGMR3QueryPtr(pCfg, "Object", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
     AssertMsgRCReturn(rc, ("Confguration error: No/bad \"Object\" value, rc=%Rrc\n", rc), rc);
 
     pThis->pAudioVRDE = (AudioVRDE *)pvUser;

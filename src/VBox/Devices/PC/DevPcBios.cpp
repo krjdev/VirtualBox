@@ -1,10 +1,10 @@
-/* $Id: DevPcBios.cpp 94080 2022-03-03 17:59:42Z vboxsync $ */
+/* $Id: DevPcBios.cpp $ */
 /** @file
  * DevPcBios - PC BIOS Device.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -154,8 +154,8 @@ typedef struct DEVPCBIOS
 
     /** Boot devices (ordered). */
     DEVPCBIOSBOOT   aenmBootDevice[4];
-    /** Bochs control string index. */
-    uint32_t        iControl;
+    /** Bochs shutdown index. */
+    uint32_t        iShutdown;
     /** Floppy device. */
     char           *pszFDDevice;
     /** Harddisk device. */
@@ -337,39 +337,19 @@ pcbiosIOPortShutdownWrite(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, ui
     if (cb == 1)
     {
         static const unsigned char s_szShutdown[] = "Shutdown";
-        static const unsigned char s_szBootfail[] = "Bootfail";
-        AssertCompile(sizeof(s_szShutdown) == sizeof(s_szBootfail));
-
-        if (pThis->iControl < sizeof(s_szShutdown)) /* paranoia */
+        if (   pThis->iShutdown < sizeof(s_szShutdown) /* paranoia */
+            && u32 == s_szShutdown[pThis->iShutdown])
         {
-            if (u32 == s_szShutdown[pThis->iControl])
+            pThis->iShutdown++;
+            if (pThis->iShutdown >= 8)
             {
-
-                pThis->iControl++;
-                if (pThis->iControl >= 8)
-                {
-                    pThis->iControl = 0;
-                    LogRel(("PcBios: APM shutdown request\n"));
-                    return PDMDevHlpVMPowerOff(pDevIns);
-                }
+                pThis->iShutdown = 0;
+                LogRel(("PcBios: APM shutdown request\n"));
+                return PDMDevHlpVMPowerOff(pDevIns);
             }
-            else if (u32 == s_szBootfail[pThis->iControl])
-            {
-                pThis->iControl++;
-                if (pThis->iControl >= 8)
-                {
-                    pThis->iControl = 0;
-                    LogRel(("PcBios: Boot failure\n"));
-                    int rc = PDMDevHlpVMSetRuntimeError(pDevIns, 0 /*fFlags*/, "VMBootFail",
-                                                        N_("The VM failed to boot. This is possibly caused by not having an operating system installed or a misconfigured boot order. Maybe picking a guest OS install DVD will resolve the situation"));
-                    AssertRC(rc);
-                }
-            }
-            else
-                pThis->iControl = 0;
         }
         else
-            pThis->iControl = 0;
+            pThis->iShutdown = 0;
     }
     /* else: not in use. */
 
@@ -564,7 +544,7 @@ static int biosGuessDiskLCHS(PPDMIMEDIA pMedia, PPDMMEDIAGEOMETRY pLCHSGeometry)
         p = &aMBR[0x1be + i * 16];
         iEndHead = p[5];
         iEndSector = p[6] & 63;
-        if ((p[12] | p[13] | p[14] | p[15]) && iEndSector && iEndHead)
+        if ((p[12] | p[13] | p[14] | p[15]) && iEndSector & iEndHead)
         {
             /* Assumption: partition terminates on a cylinder boundary. */
             cLCHSHeads = iEndHead + 1;
@@ -768,12 +748,14 @@ static DECLCALLBACK(int) pcbiosInitComplete(PPDMDEVINS pDevIns)
     PDEVPCBIOS      pThis = PDMDEVINS_2_DATA(pDevIns, PDEVPCBIOS);
     uint32_t        u32;
     unsigned        i;
+    PUVM            pUVM = PDMDevHlpGetUVM(pDevIns); AssertRelease(pUVM);
     PPDMIMEDIA      apHDs[4] = {0};
     LogFlow(("pcbiosInitComplete:\n"));
 
-    uint64_t const  cbRamSize  = PDMDevHlpMMPhysGetRamSize(pDevIns);
-    uint32_t const  cbBelow4GB = PDMDevHlpMMPhysGetRamSizeBelow4GB(pDevIns);
-    uint64_t const  cbAbove4GB = PDMDevHlpMMPhysGetRamSizeAbove4GB(pDevIns);
+    PVM pVM                    = PDMDevHlpGetVM(pDevIns);
+    uint64_t const  cbRamSize  = MMR3PhysGetRamSize(pVM);
+    uint32_t const  cbBelow4GB = MMR3PhysGetRamSizeBelow4GB(pVM);
+    uint64_t const  cbAbove4GB = MMR3PhysGetRamSizeAbove4GB(pVM);
 
     /*
      * Memory sizes.
@@ -860,7 +842,7 @@ static DECLCALLBACK(int) pcbiosInitComplete(PPDMDEVINS pDevIns)
     for (i = 0; i < 2; i++)
     {
         PPDMIBASE pBase;
-        int rc = PDMDevHlpQueryLun(pDevIns, pThis->pszFDDevice, 0, i, &pBase);
+        int rc = PDMR3QueryLun(pUVM, pThis->pszFDDevice, 0, i, &pBase);
         if (RT_SUCCESS(rc))
         {
             PPDMIMEDIA pFD = PDMIBASE_QUERY_INTERFACE(pBase, PDMIMEDIA);
@@ -902,7 +884,7 @@ static DECLCALLBACK(int) pcbiosInitComplete(PPDMDEVINS pDevIns)
     for (i = 0; i < RT_ELEMENTS(apHDs); i++)
     {
         PPDMIBASE pBase;
-        int rc = PDMDevHlpQueryLun(pDevIns, pThis->pszHDDevice, 0, i, &pBase);
+        int rc = PDMR3QueryLun(pUVM, pThis->pszHDDevice, 0, i, &pBase);
         if (RT_SUCCESS(rc))
             apHDs[i] = PDMIBASE_QUERY_INTERFACE(pBase, PDMIMEDIA);
         if (   apHDs[i]
@@ -963,7 +945,7 @@ static DECLCALLBACK(int) pcbiosInitComplete(PPDMDEVINS pDevIns)
         for (i = 0; i < RT_ELEMENTS(apHDs); i++)
         {
             PPDMIBASE pBase;
-            int rc = PDMDevHlpQueryLun(pDevIns, pThis->pszSataDevice, 0, pThis->iSataHDLUN[i], &pBase);
+            int rc = PDMR3QueryLun(pUVM, pThis->pszSataDevice, 0, pThis->iSataHDLUN[i], &pBase);
             if (RT_SUCCESS(rc))
                 apHDs[i] = PDMIBASE_QUERY_INTERFACE(pBase, PDMIMEDIA);
             if (   apHDs[i]
@@ -1017,7 +999,7 @@ static DECLCALLBACK(int) pcbiosInitComplete(PPDMDEVINS pDevIns)
         for (i = 0; i < RT_ELEMENTS(apHDs); i++)
         {
             PPDMIBASE pBase;
-            int rc = PDMDevHlpQueryLun(pDevIns, pThis->pszScsiDevice, 0, pThis->iScsiHDLUN[i], &pBase);
+            int rc = PDMR3QueryLun(pUVM, pThis->pszScsiDevice, 0, pThis->iScsiHDLUN[i], &pBase);
             if (RT_SUCCESS(rc))
                 apHDs[i] = PDMIBASE_QUERY_INTERFACE(pBase, PDMIMEDIA);
             if (   apHDs[i]
@@ -1091,31 +1073,31 @@ static DECLCALLBACK(void) pcbiosMemSetup(PPDMDEVINS pDevIns, PDMDEVMEMSETUPCTX e
      * This is normally done by the BIOS code, but since we're currently lacking
      * the chipset support for this we do it here (and in the constructor).
      */
-    uint32_t    cPages = RT_ALIGN_64(pThis->cbLanBoot, GUEST_PAGE_SIZE) >> GUEST_PAGE_SHIFT;
+    uint32_t    cPages = RT_ALIGN_64(pThis->cbLanBoot, PAGE_SIZE) >> PAGE_SHIFT;
     RTGCPHYS    GCPhys = VBOX_LANBOOT_SEG << 4;
     while (cPages > 0)
     {
-        uint8_t abPage[GUEST_PAGE_SIZE];
+        uint8_t abPage[PAGE_SIZE];
         int     rc;
 
         /* Read the (original) ROM page and write it back to the RAM page. */
-        rc = PDMDevHlpROMProtectShadow(pDevIns, GCPhys, GUEST_PAGE_SIZE, PGMROMPROT_READ_ROM_WRITE_RAM);
+        rc = PDMDevHlpROMProtectShadow(pDevIns, GCPhys, PAGE_SIZE, PGMROMPROT_READ_ROM_WRITE_RAM);
         AssertLogRelRC(rc);
 
-        rc = PDMDevHlpPhysRead(pDevIns, GCPhys, abPage, GUEST_PAGE_SIZE);
+        rc = PDMDevHlpPhysRead(pDevIns, GCPhys, abPage, PAGE_SIZE);
         AssertLogRelRC(rc);
         if (RT_FAILURE(rc))
             memset(abPage, 0xcc, sizeof(abPage));
 
-        rc = PDMDevHlpPhysWrite(pDevIns, GCPhys, abPage, GUEST_PAGE_SIZE);
+        rc = PDMDevHlpPhysWrite(pDevIns, GCPhys, abPage, PAGE_SIZE);
         AssertLogRelRC(rc);
 
         /* Switch to the RAM/RAM mode. */
-        rc = PDMDevHlpROMProtectShadow(pDevIns, GCPhys, GUEST_PAGE_SIZE, PGMROMPROT_READ_RAM_WRITE_RAM);
+        rc = PDMDevHlpROMProtectShadow(pDevIns, GCPhys, PAGE_SIZE, PGMROMPROT_READ_RAM_WRITE_RAM);
         AssertLogRelRC(rc);
 
         /* Advance */
-        GCPhys += GUEST_PAGE_SIZE;
+        GCPhys += PAGE_SIZE;
         cPages--;
     }
 }
@@ -1499,7 +1481,8 @@ static DECLCALLBACK(int)  pcbiosConstruct(PPDMDEVINS pDevIns, int iInstance, PCF
     /*
      * Get the CPU arch so we can load the appropriate ROMs.
      */
-    CPUMMICROARCH const enmMicroarch = PDMDevHlpCpuGetGuestMicroarch(pDevIns);
+    PVM pVM = PDMDevHlpGetVM(pDevIns);
+    CPUMMICROARCH const enmMicroarch = pVM ? CPUMGetGuestMicroarch(pVM) : kCpumMicroarch_Intel_P6;
 
     if (pThis->pszPcBiosFile)
     {

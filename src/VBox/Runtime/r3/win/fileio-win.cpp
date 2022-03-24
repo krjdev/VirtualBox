@@ -1,10 +1,10 @@
-/* $Id: fileio-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fileio-win.cpp $ */
 /** @file
  * IPRT - File I/O, native implementation for the Windows host platform.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -511,9 +511,9 @@ RTR3DECL(int)  RTFileRead(RTFILE hFile, void *pvBuf, size_t cbToRead, size_t *pc
         cbRead = 0;
         while (cbToReadAdj > cbRead)
         {
-            ULONG cbToReadNow = RT_MIN(cbChunk, cbToReadAdj - cbRead);
-            ULONG cbReadPart  = 0;
-            if (!ReadFile((HANDLE)RTFileToNative(hFile), (char *)pvBuf + cbRead, cbToReadNow, &cbReadPart, NULL))
+            ULONG cbToRead   = RT_MIN(cbChunk, cbToReadAdj - cbRead);
+            ULONG cbReadPart = 0;
+            if (!ReadFile((HANDLE)RTFileToNative(hFile), (char *)pvBuf + cbRead, cbToRead, &cbReadPart, NULL))
             {
                 /* If we failed because the buffer is too big, shrink it and
                    try again. */
@@ -649,9 +649,9 @@ RTR3DECL(int)  RTFileWrite(RTFILE hFile, const void *pvBuf, size_t cbToWrite, si
         cbWritten = 0;
         while (cbWritten < cbToWriteAdj)
         {
-            ULONG cbToWriteNow  = RT_MIN(cbChunk, cbToWriteAdj - cbWritten);
+            ULONG cbToWrite     = RT_MIN(cbChunk, cbToWriteAdj - cbWritten);
             ULONG cbWrittenPart = 0;
-            if (!WriteFile((HANDLE)RTFileToNative(hFile), (const char *)pvBuf + cbWritten, cbToWriteNow, &cbWrittenPart, NULL))
+            if (!WriteFile((HANDLE)RTFileToNative(hFile), (const char *)pvBuf + cbWritten, cbToWrite, &cbWrittenPart, NULL))
             {
                 /* If we failed because the buffer is too big, shrink it and
                    try again. */
@@ -664,7 +664,7 @@ RTR3DECL(int)  RTFileWrite(RTFILE hFile, const void *pvBuf, size_t cbToWrite, si
                 }
                 int rc = RTErrConvertFromWin32(dwErr);
                 if (rc == VERR_DISK_FULL)
-                    rc = rtFileWinCheckIfDiskReallyFull(hFile, RTFileTell(hFile) + cbToWriteNow);
+                    rc = rtFileWinCheckIfDiskReallyFull(hFile, RTFileTell(hFile) + cbToWrite);
                 return rc;
             }
             cbWritten += cbWrittenPart;
@@ -892,17 +892,17 @@ static HANDLE rtFileReOpenAppendOnlyWithFullWriteAccess(HANDLE hFile)
                 OBJECT_ATTRIBUTES   ObjAttr;
                 InitializeObjectAttributes(&ObjAttr, &NtName, BasicInfo.Attributes & ~OBJ_INHERIT, NULL, NULL);
 
-                rcNt = NtCreateFile(&hDupFile,
-                                    BasicInfo.GrantedAccess | FILE_WRITE_DATA,
-                                    &ObjAttr,
-                                    &Ios,
-                                    NULL /* AllocationSize*/,
-                                    FILE_ATTRIBUTE_NORMAL,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                    FILE_OPEN,
-                                    FILE_OPEN_FOR_BACKUP_INTENT /*??*/,
-                                    NULL /*EaBuffer*/,
-                                    0 /*EaLength*/);
+                NTSTATUS rcNt = NtCreateFile(&hDupFile,
+                                             BasicInfo.GrantedAccess | FILE_WRITE_DATA,
+                                             &ObjAttr,
+                                             &Ios,
+                                             NULL /* AllocationSize*/,
+                                             FILE_ATTRIBUTE_NORMAL,
+                                             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                             FILE_OPEN,
+                                             FILE_OPEN_FOR_BACKUP_INTENT /*??*/,
+                                             NULL /*EaBuffer*/,
+                                             0 /*EaLength*/);
                 RTUtf16Free(NtName.Buffer);
                 if (NT_SUCCESS(rcNt))
                 {
@@ -1470,8 +1470,8 @@ RTDECL(int) RTFileRename(const char *pszSrc, const char *pszDst, unsigned fRenam
     /*
      * Validate input.
      */
-    AssertPtrReturn(pszSrc, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszDst, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszSrc), ("%p\n", pszSrc), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszDst), ("%p\n", pszDst), VERR_INVALID_POINTER);
     AssertMsgReturn(!(fRename & ~RTPATHRENAME_FLAGS_REPLACE), ("%#x\n", fRename), VERR_INVALID_PARAMETER);
 
     /*
@@ -1493,8 +1493,8 @@ RTDECL(int) RTFileMove(const char *pszSrc, const char *pszDst, unsigned fMove)
     /*
      * Validate input.
      */
-    AssertPtrReturn(pszSrc, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszDst, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszSrc), ("%p\n", pszSrc), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszDst), ("%p\n", pszDst), VERR_INVALID_POINTER);
     AssertMsgReturn(!(fMove & ~RTFILEMOVE_FLAGS_REPLACE), ("%#x\n", fMove), VERR_INVALID_PARAMETER);
 
     /*

@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedNoCrt-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPR3HardenedNoCrt-win.cpp $ */
 /** @file
  * VirtualBox Support Library - Hardened main(), windows bits.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -62,7 +62,6 @@ RTDATADECL(const char * volatile)    g_pszRTAssertFile;
 RTDATADECL(uint32_t volatile)        g_u32RTAssertLine;
 RTDATADECL(const char * volatile)    g_pszRTAssertFunction;
 
-
 RTDECL(bool) RTAssertMayPanic(void)
 {
     return true;
@@ -119,7 +118,7 @@ static struct
 } g_aSupR3HardenedEarlyHeaps[8];
 
 
-static uint32_t supR3HardenedEarlyFind(void *pv) RT_NOTHROW_DEF
+static uint32_t supR3HardenedEarlyFind(void *pv)
 {
     uint32_t iHeap = g_cSupR3HardenedEarlyHeaps;
     while (iHeap-- > 0)
@@ -129,7 +128,7 @@ static uint32_t supR3HardenedEarlyFind(void *pv) RT_NOTHROW_DEF
 }
 
 
-static void supR3HardenedEarlyCompact(void) RT_NOTHROW_DEF
+static void supR3HardenedEarlyCompact(void)
 {
     uint32_t iHeap = g_cSupR3HardenedEarlyHeaps;
     while (iHeap-- > 0)
@@ -148,7 +147,7 @@ static void supR3HardenedEarlyCompact(void) RT_NOTHROW_DEF
 }
 
 
-static void *supR3HardenedEarlyAlloc(size_t cb, bool fZero) RT_NOTHROW_DEF
+static void *supR3HardenedEarlyAlloc(size_t cb, bool fZero)
 {
     /*
      * Try allocate on existing heaps.
@@ -219,7 +218,7 @@ static void *supR3HardenedEarlyAlloc(size_t cb, bool fZero) RT_NOTHROW_DEF
  *
  * @returns Heap handle.
  */
-static HANDLE supR3HardenedHeapInit(void) RT_NOTHROW_DEF
+static HANDLE supR3HardenedHeapInit(void)
 {
     Assert(g_enmSupR3HardenedMainState >= SUPR3HARDENEDMAINSTATE_WIN_EP_CALLED);
     HANDLE hHeap = RtlCreateHeap(HEAP_GROWABLE | HEAP_CLASS_PRIVATE, NULL /*HeapBase*/,
@@ -248,28 +247,24 @@ DECLHIDDEN(void) supR3HardenedWinCompactHeaps(void)
 
 
 
-#undef RTMemTmpAllocTag
 RTDECL(void *) RTMemTmpAllocTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 {
     return RTMemAllocTag(cb, pszTag);
 }
 
 
-#undef RTMemTmpAllocZTag
 RTDECL(void *) RTMemTmpAllocZTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 {
     return RTMemAllocZTag(cb, pszTag);
 }
 
 
-#undef RTMemTmpFree
 RTDECL(void) RTMemTmpFree(void *pv) RT_NO_THROW_DEF
 {
     RTMemFree(pv);
 }
 
 
-#undef RTMemAllocTag
 RTDECL(void *) RTMemAllocTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 {
     RT_NOREF1(pszTag);
@@ -289,7 +284,6 @@ RTDECL(void *) RTMemAllocTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 }
 
 
-#undef RTMemAllocZTag
 RTDECL(void *) RTMemAllocZTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 {
     RT_NOREF1(pszTag);
@@ -309,7 +303,6 @@ RTDECL(void *) RTMemAllocZTag(size_t cb, const char *pszTag) RT_NO_THROW_DEF
 }
 
 
-#undef RTMemAllocVarTag
 RTDECL(void *) RTMemAllocVarTag(size_t cbUnaligned, const char *pszTag) RT_NO_THROW_DEF
 {
     size_t cbAligned;
@@ -321,7 +314,6 @@ RTDECL(void *) RTMemAllocVarTag(size_t cbUnaligned, const char *pszTag) RT_NO_TH
 }
 
 
-#undef RTMemAllocZVarTag
 RTDECL(void *) RTMemAllocZVarTag(size_t cbUnaligned, const char *pszTag) RT_NO_THROW_DEF
 {
     size_t cbAligned;
@@ -333,7 +325,6 @@ RTDECL(void *) RTMemAllocZVarTag(size_t cbUnaligned, const char *pszTag) RT_NO_T
 }
 
 
-#undef RTMemReallocTag
 RTDECL(void *) RTMemReallocTag(void *pvOld, size_t cbNew, const char *pszTag) RT_NO_THROW_DEF
 {
     if (!pvOld)
@@ -395,7 +386,6 @@ RTDECL(void *) RTMemReallocTag(void *pvOld, size_t cbNew, const char *pszTag) RT
 }
 
 
-#undef RTMemFree
 RTDECL(void) RTMemFree(void *pv) RT_NO_THROW_DEF
 {
     if (pv)

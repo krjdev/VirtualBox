@@ -1,10 +1,10 @@
-/* $Id: bs3-rm-InitAll.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-rm-InitAll.c $ */
 /** @file
  * BS3Kit - Initialize all components, real mode.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -68,7 +68,7 @@ BS3_DECL(void) Bs3InitAll_rm(void)
             ASMHalt();
     }
     ASMIntDisable();
-    Bs3PicSetup(false /*fForcedReInit*/);
+    Bs3PicSetup();
 
     /*
      * Initialize IDTs and such.

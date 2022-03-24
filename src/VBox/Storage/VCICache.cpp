@@ -1,10 +1,10 @@
-/* $Id: VCICache.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VCICache.cpp $ */
 /** @file
  * VCICacheCore - VirtualBox Cache Image, Core Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1529,7 +1529,7 @@ static DECLCALLBACK(int) vciOpen(const char *pszFilename, unsigned uOpenFlags,
     }
 
     /* Check remaining arguments. */
-    if (   !RT_VALID_PTR(pszFilename)
+    if (   !VALID_PTR(pszFilename)
         || !*pszFilename)
     {
         rc = VERR_INVALID_PARAMETER;
@@ -1590,7 +1590,7 @@ static DECLCALLBACK(int) vciCreate(const char *pszFilename, uint64_t cbSize,
     }
 
     /* Check remaining arguments. */
-    if (   !RT_VALID_PTR(pszFilename)
+    if (   !VALID_PTR(pszFilename)
         || !*pszFilename)
     {
         rc = VERR_INVALID_PARAMETER;

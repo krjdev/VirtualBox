@@ -104,9 +104,9 @@ DebugPrintMarker (
     // Convert the DEBUG() message to a Unicode String
     //
     if (BaseListMarker == NULL) {
-      UnicodeVSPrintAsciiFormat (Buffer, sizeof (Buffer), Format, VaListMarker);
+      UnicodeVSPrintAsciiFormat (Buffer, MAX_DEBUG_MESSAGE_LENGTH,  Format, VaListMarker);
     } else {
-      UnicodeBSPrintAsciiFormat (Buffer, sizeof (Buffer), Format, BaseListMarker);
+      UnicodeBSPrintAsciiFormat (Buffer, MAX_DEBUG_MESSAGE_LENGTH,  Format, BaseListMarker);
     }
 
 

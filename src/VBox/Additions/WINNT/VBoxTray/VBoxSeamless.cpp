@@ -1,10 +1,10 @@
-/* $Id: VBoxSeamless.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxSeamless.cpp $ */
 /** @file
  * VBoxSeamless - Seamless windows
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -194,7 +194,7 @@ void VBoxSeamlessDisable(void)
     VBoxDispIfSeamlessTerm(&gVBoxDispIfSeamless);
 }
 
-BOOL CALLBACK VBoxEnumFunc(HWND hwnd, LPARAM lParam) RT_NOTHROW_DEF
+BOOL CALLBACK VBoxEnumFunc(HWND hwnd, LPARAM lParam)
 {
     PVBOX_ENUM_PARAM    lpParam = (PVBOX_ENUM_PARAM)lParam;
     DWORD               dwStyle, dwExStyle;
@@ -402,7 +402,6 @@ static DECLCALLBACK(int) VBoxSeamlessWorker(void *pvInstance, bool volatile *pfS
             break;
         }
 
-        /** @todo r=andy We do duplicate code here (see VbglR3SeamlessWaitEvent()). */
         uint32_t fEvent = 0;
         rc = VbglR3WaitEvent(VMMDEV_EVENT_SEAMLESS_MODE_CHANGE_REQUEST, 5000 /*ms*/, &fEvent);
 

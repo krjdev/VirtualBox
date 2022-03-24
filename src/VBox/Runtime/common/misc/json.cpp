@@ -1,10 +1,10 @@
-/* $Id: json.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: json.cpp $ */
 /** @file
  * IPRT JSON parser API (JSON).
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,6 @@
 #include <iprt/stream.h>
 #include <iprt/string.h>
 #include <iprt/utf16.h>
-#include <iprt/vfs.h>
 
 #include <stdlib.h> /* strtod() */
 #include <errno.h>  /* errno */
@@ -145,8 +144,8 @@ typedef const RTJSONTOKEN *PCRTJSONTOKEN;
  * @param   cbBuf           How much to read.
  * @param   pcbRead         Where to store the amount of data read on succcess.
  */
-typedef DECLCALLBACKTYPE(int, FNRTJSONTOKENIZERREAD,(void *pvUser, size_t offInput, void *pvBuf, size_t cbBuf,
-                                                     size_t *pcbRead));
+typedef DECLCALLBACK(int) FNRTJSONTOKENIZERREAD(void *pvUser, size_t offInput, void *pvBuf, size_t cbBuf,
+                                                size_t *pcbRead);
 /** Pointer to a tokenizer read buffer callback. */
 typedef FNRTJSONTOKENIZERREAD *PFNRTJSONTOKENIZERREAD;
 
@@ -260,7 +259,6 @@ typedef struct RTJSONREADERARGS
     {
         PRTSTREAM           hStream;
         const uint8_t       *pbBuf;
-        RTVFSFILE           hVfsFile;
     } u;
 } RTJSONREADERARGS;
 /** Pointer to a readers argument. */
@@ -1430,25 +1428,6 @@ static DECLCALLBACK(int) rtJsonTokenizerParseFromFile(void *pvUser, size_t offIn
     return rc;
 }
 
-/**
- * Read callback for RTJsonParseFromVfsFile().
- */
-static DECLCALLBACK(int) rtJsonTokenizerParseFromVfsFile(void *pvUser, size_t offInput,
-                                                         void *pvBuf, size_t cbBuf,
-                                                         size_t *pcbRead)
-{
-    PRTJSONREADERARGS pArgs = (PRTJSONREADERARGS)pvUser;
-
-    RT_NOREF_PV(offInput);
-
-    size_t cbRead = 0;
-    int rc = RTVfsFileRead(pArgs->u.hVfsFile, pvBuf, cbBuf, &cbRead);
-    if (RT_SUCCESS(rc))
-        *pcbRead = cbRead;
-
-    return rc;
-}
-
 RTDECL(int) RTJsonParseFromBuf(PRTJSONVAL phJsonVal, const uint8_t *pbBuf, size_t cbBuf, PRTERRINFO pErrInfo)
 {
     AssertPtrReturn(phJsonVal, VERR_INVALID_POINTER);
@@ -1511,27 +1490,6 @@ RTDECL(int) RTJsonParseFromFile(PRTJSONVAL phJsonVal, const char *pszFilename, P
             rtJsonTokenizerDestroy(&Tokenizer);
         }
         RTStrmClose(Args.u.hStream);
-    }
-
-    return rc;
-}
-
-RTDECL(int) RTJsonParseFromVfsFile(PRTJSONVAL phJsonVal, RTVFSFILE hVfsFile, PRTERRINFO pErrInfo)
-{
-    AssertPtrReturn(phJsonVal, VERR_INVALID_POINTER);
-    AssertReturn(hVfsFile != NIL_RTVFSFILE, VERR_INVALID_POINTER);
-
-    int rc = VINF_SUCCESS;
-    RTJSONREADERARGS Args;
-    RTJSONTOKENIZER Tokenizer;
-
-    Args.cbData   = 0;
-    Args.u.hVfsFile = hVfsFile;
-    rc = rtJsonTokenizerInit(&Tokenizer, rtJsonTokenizerParseFromVfsFile, &Args, pErrInfo);
-    if (RT_SUCCESS(rc))
-    {
-        rc = rtJsonParse(&Tokenizer, phJsonVal);
-        rtJsonTokenizerDestroy(&Tokenizer);
     }
 
     return rc;

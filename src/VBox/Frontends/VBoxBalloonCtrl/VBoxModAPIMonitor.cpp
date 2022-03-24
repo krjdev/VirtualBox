@@ -1,10 +1,10 @@
-/* $Id: VBoxModAPIMonitor.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxModAPIMonitor.cpp $ */
 /** @file
  * VBoxModAPIMonitor - API monitor module for detecting host isolation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -136,12 +136,10 @@ static const char *apimonMachineStateToName(MachineState_T machineState, bool fS
             return fShort ? "poweroff"             : "powered off";
         case MachineState_Saved:
             return "saved";
-        case MachineState_Teleported:
-            return "teleported";
         case MachineState_Aborted:
             return "aborted";
-        case MachineState_AbortedSaved:
-            return "aborted-saved";
+        case MachineState_Teleported:
+            return "teleported";
         case MachineState_Running:
             return "running";
         case MachineState_Paused:
@@ -627,19 +625,17 @@ VBOXMODULE g_ModAPIMonitor =
     /* uPriority. */
     0 /* Not used */,
     /* pszUsage. */
-    "           [--apimon-groups=<string[,stringN]>]\n"
-    "           [--apimon-isln-response=<cmd>] [--apimon-isln-timeout=<ms>]\n"
-    "           [--apimon-resp-timeout=<ms>]",
+    " [--apimon-groups=<string[,stringN]>]\n"
+    " [--apimon-isln-response=<cmd>] [--apimon-isln-timeout=<ms>]\n"
+    " [--apimon-resp-timeout=<ms>]",
     /* pszOptions. */
-    "  --apimon-groups=<string[,...]>\n"
-    "      Sets the VM groups for monitoring (all), comma-separated list.\n"
-    "  --apimon-isln-response=<cmd>\n"
-    "      Sets the isolation response to one of: none, pause, poweroff,\n"
-    "      save, or shutdown.  Default: none\n"
-    "  --apimon-isln-timeout=<ms>\n"
-    "      Sets the isolation timeout in ms (30s).\n"
-    "  --apimon-resp-timeout=<ms>\n"
-    "      Sets the response timeout in ms (30s).\n",
+    "--apimon-groups        Sets the VM groups for monitoring (all),\n"
+    "                       comma-separated list.\n"
+    "--apimon-isln-response Sets the isolation response to one of:\n"
+    "                       none, pause, poweroff, save, shutdown\n"
+    "                       (none).\n"
+    "--apimon-isln-timeout  Sets the isolation timeout in ms (30s).\n"
+    "--apimon-resp-timeout  Sets the response timeout in ms (30s).\n",
     /* methods. */
     VBoxModAPIMonitorPreInit,
     VBoxModAPIMonitorOption,

@@ -1,10 +1,10 @@
-/** $Id: VBoxClient.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/** $Id: VBoxClient.cpp $ */
 /** @file
  * VBoxClient - User specific services, Darwin.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,14 +58,15 @@ static VBOXCLIENTSERVICE    g_aServices[] =
 static int vbclInitLogger(char *pszLogFileName)
 {
     static const char * const s_apszGroups[] = VBOX_LOGGROUP_NAMES;
-    int rc = RTLogCreateEx(&g_pLogger, "VBOXCLIENT_RELEASE_LOG", RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME_PROG, "all",
+    int rc = RTLogCreateEx(&g_pLogger, RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME_PROG, "all", "VBOXCLIENT_RELEASE_LOG",
                            RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX /*cMaxEntriesPerGroup*/,
-                           0 /*cBufDescs*/, NULL /*paBufDescs*/, RTLOGDEST_STDOUT,
+                           RTLOGDEST_STDOUT,
                            NULL /*pfnPhase*/,
                            pszLogFileName ? 10 : 0 /*cHistory*/,
                            pszLogFileName ? 100 * _1M : 0 /*cbHistoryFileMax*/,
                            pszLogFileName ? RT_SEC_1DAY : 0 /*cSecsHistoryTimeSlot*/,
                            NULL /*pErrInfo*/, "%s", pszLogFileName ? pszLogFileName : "");
+
     AssertRCReturn(rc, rc);
 
     /* Register this logger as the release logger */

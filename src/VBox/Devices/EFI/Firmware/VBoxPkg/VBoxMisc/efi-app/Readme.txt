@@ -1,4 +1,4 @@
-# $Id: Readme.txt 82972 2020-02-04 11:13:09Z vboxsync $ */
+# $Id: Readme.txt $ */
 #* @file
 # Readme.txt - Some description about using this module.
 

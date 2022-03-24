@@ -1,10 +1,10 @@
-/* $Id: ApplianceImplExport.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ApplianceImplExport.cpp $ */
 /** @file
  * IAppliance and IVirtualSystem COM class implementations.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 #define LOG_GROUP LOG_GROUP_MAIN_APPLIANCE
-#include <iprt/buildconfig.h>
 #include <iprt/path.h>
 #include <iprt/dir.h>
 #include <iprt/param.h>
@@ -186,7 +185,6 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
         int32_t lIDEControllerSecondaryIndex = 0;
         int32_t lSATAControllerIndex = 0;
         int32_t lSCSIControllerIndex = 0;
-        int32_t lVirtioSCSIControllerIndex = 0;
 
         /* Fetch all available storage controllers */
         com::SafeIfaceArray<IStorageController> nwControllers;
@@ -196,7 +194,6 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
         ComPtr<IStorageController> pIDEController;
         ComPtr<IStorageController> pSATAController;
         ComPtr<IStorageController> pSCSIController;
-        ComPtr<IStorageController> pVirtioSCSIController;
         ComPtr<IStorageController> pSASController;
         for (size_t j = 0; j < nwControllers.size(); ++j)
         {
@@ -215,9 +212,6 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
             else if (   eType == StorageBus_SAS
                      && pSASController.isNull())
                 pSASController = nwControllers[j];
-            else if (   eType == StorageBus_VirtioSCSI
-                     && pVirtioSCSIController.isNull())
-                pVirtioSCSIController = nwControllers[j];
         }
 
 //     <const name="HardDiskControllerIDE" value="6" />
@@ -298,28 +292,6 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
                                  strVBox);
         }
 
-        if (!pVirtioSCSIController.isNull())
-        {
-            StorageControllerType_T ctlr;
-            rc = pVirtioSCSIController->COMGETTER(ControllerType)(&ctlr);
-            if (SUCCEEDED(rc))
-            {
-                Utf8Str strVBox = "VirtioSCSI";       // the default in VBox
-                switch (ctlr)
-                {
-                    case StorageControllerType_VirtioSCSI: strVBox = "VirtioSCSI"; break;
-                    default: break; /* Shut up MSC. */
-                }
-                lVirtioSCSIControllerIndex = (int32_t)pNewDesc->m->maDescriptions.size();
-                pNewDesc->i_addEntry(VirtualSystemDescriptionType_HardDiskControllerVirtioSCSI,
-                                     Utf8StrFmt("%d", lVirtioSCSIControllerIndex),
-                                     strVBox,
-                                     strVBox);
-            }
-            else
-                throw rc;
-        }
-
 //     <const name="HardDiskImage" value="9" />
 //     <const name="Floppy" value="18" />
 //     <const name="CDROM" value="19" />
@@ -365,16 +337,13 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
             {
                 Utf8Str strStBus;
                 if ( storageBus == StorageBus_IDE)
-                    strStBus = "IDE";
+                strStBus = "IDE";
                 else if ( storageBus == StorageBus_SATA)
-                    strStBus = "SATA";
+                strStBus = "SATA";
                 else if ( storageBus == StorageBus_SCSI)
-                    strStBus = "SCSI";
+                strStBus = "SCSI";
                 else if ( storageBus == StorageBus_SAS)
-                    strStBus = "SAS";
-                else if ( storageBus == StorageBus_VirtioSCSI)
-                    strStBus = "VirtioSCSI";
-
+                strStBus = "SAS";
                 LogRel(("Warning: skip the medium (bus: %s, slot: %d, port: %d). No storage device attached.\n",
                 strStBus.c_str(), lDevice, lChannel));
                 continue;
@@ -543,11 +512,6 @@ HRESULT Machine::exportTo(const ComPtr<IAppliance> &aAppliance, const com::Utf8S
                 case StorageBus_SATA:
                     lChannelVsys = lChannel;        // should be between 0 and 29
                     lControllerVsys = lSATAControllerIndex;
-                    break;
-
-                case StorageBus_VirtioSCSI:
-                    lChannelVsys = lChannel;        // should be between 0 and 255
-                    lControllerVsys = lVirtioSCSIControllerIndex;
                     break;
 
                 case StorageBus_SCSI:
@@ -930,11 +894,13 @@ HRESULT Appliance::i_writeCloudImpl(const LocationInfo &aLocInfo, ComObjPtr<Prog
         LogRel(("profile name: %s\n", profileName.front()->strVBoxCurrent.c_str()));
     }
 
-    // Create a progress object here otherwise Task won't be created successfully
+    // we need to do that as otherwise Task won't be created successfully
+    /// @todo r=bird: What's 'that' here exactly?
     HRESULT hrc = aProgress.createObject();
     if (SUCCEEDED(hrc))
     {
         if (aLocInfo.strProvider.equals("OCI"))
+        {
             hrc = aProgress->init(mVirtualBox, static_cast<IAppliance *>(this),
                                   Utf8Str(tr("Exporting VM to Cloud...")),
                                   TRUE /* aCancelable */,
@@ -942,10 +908,11 @@ HRESULT Appliance::i_writeCloudImpl(const LocationInfo &aLocInfo, ComObjPtr<Prog
                                   1000, // ULONG ulTotalOperationsWeight,
                                   Utf8Str(tr("Exporting VM to Cloud...")), // aFirstOperationDescription
                                   10); // ULONG ulFirstOperationWeight
+        }
         else
-            hrc = setError(VBOX_E_NOT_SUPPORTED,
-                           tr("Only \"OCI\" cloud provider is supported for now. \"%s\" isn't supported."),
-                           aLocInfo.strProvider.c_str());
+            hrc = setErrorVrc(VBOX_E_NOT_SUPPORTED,
+                              tr("Only \"OCI\" cloud provider is supported for now. \"%s\" isn't supported."),
+                              aLocInfo.strProvider.c_str());
         if (SUCCEEDED(hrc))
         {
             /* Initialize the worker task: */
@@ -1510,8 +1477,6 @@ void Appliance::i_buildXMLForOneVirtualSystem(AutoWriteLockBase& writeLock,
     int32_t lSATAControllerIndex = 0;
     uint32_t idSCSIController = 0;
     int32_t lSCSIControllerIndex = 0;
-    uint32_t idVirtioSCSIController = 0;
-    int32_t lVirtioSCSIControllerIndex = 0;
 
     uint32_t ulInstanceID = 1;
 
@@ -1724,31 +1689,6 @@ void Appliance::i_buildXMLForOneVirtualSystem(AutoWriteLockBase& writeLock,
                     }
                     break;
 
-
-                case VirtualSystemDescriptionType_HardDiskControllerVirtioSCSI:
-                    /*  <Item>
-                            <rasd:Caption>VirtioSCSIController0</rasd:Caption>
-                            <rasd:Description>VirtioSCSI Controller</rasd:Description>
-                            <rasd:InstanceId>4</rasd:InstanceId>
-                            <rasd:ResourceType>20</rasd:ResourceType>
-                            <rasd:Address>0</rasd:Address>
-                            <rasd:BusNumber>0</rasd:BusNumber>
-                        </Item>
-                    */
-                    if (uLoop == 1)
-                    {
-                        strDescription = "VirtioSCSI Controller";
-                        strCaption = "virtioSCSIController0";
-                        type = ovf::ResourceType_OtherStorageDevice; // 20
-                        lAddress = 0;
-                        lBusNumber = 0;
-                        strResourceSubType = "VirtioSCSI";
-                        // remember this ID
-                        idVirtioSCSIController = ulInstanceID;
-                        lVirtioSCSIControllerIndex = lIndexThis;
-                    }
-                    break;
-
                 case VirtualSystemDescriptionType_HardDiskImage:
                     /*  <Item>
                             <rasd:Caption>disk1</rasd:Caption>
@@ -1785,8 +1725,6 @@ void Appliance::i_buildXMLForOneVirtualSystem(AutoWriteLockBase& writeLock,
                                 ulParent = idSCSIController;
                             else if (lControllerIndex == lSATAControllerIndex)
                                 ulParent = idSATAController;
-                            else if (lControllerIndex == lVirtioSCSIControllerIndex)
-                                ulParent = idVirtioSCSIController;
                         }
                         if (pos2 != Utf8Str::npos)
                             RTStrToInt32Ex(desc.strExtraConfigCurrent.c_str() + pos2 + 8, NULL, 0, &lAddressOnParent);
@@ -2310,8 +2248,8 @@ HRESULT Appliance::i_writeFSOVA(TaskOVF *pTask, AutoWriteLockBase &writeLock)
                                      : pTask->enFormat == ovf::OVFVersion_2_0 ? "vboxovf20"
                                      :                                          "vboxovf");
             RTZipTarFsStreamSetGroup(hVfsFssTar, VBOX_VERSION_MINOR,
-                                     Utf8StrFmt("vbox_v" RT_XSTR(VBOX_VERSION_MAJOR) "." RT_XSTR(VBOX_VERSION_MINOR) "."
-                                                RT_XSTR(VBOX_VERSION_BUILD) "r%RU32", RTBldCfgRevision()).c_str());
+                                     "vbox_v" RT_XSTR(VBOX_VERSION_MAJOR) "." RT_XSTR(VBOX_VERSION_MINOR) "."
+                                     RT_XSTR(VBOX_VERSION_BUILD) "r" RT_XSTR(VBOX_SVN_REV));
 
             hrc = i_writeFSImpl(pTask, writeLock, hVfsFssTar);
             RTVfsFsStrmRelease(hVfsFssTar);
@@ -2343,7 +2281,7 @@ HRESULT Appliance::i_exportCloudImpl(TaskCloud *pTask)
     ComPtr<ICloudProviderManager> cpm;
     hrc = mVirtualBox->COMGETTER(CloudProviderManager)(cpm.asOutParam());
     if (FAILED(hrc))
-        return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud provider manager object wasn't found"), __FUNCTION__);
+        return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%: Cloud provider manager object wasn't found"), __FUNCTION__);
 
     Utf8Str strProviderName = pTask->locInfo.strProvider;
     ComPtr<ICloudProvider> cloudProvider;
@@ -2351,7 +2289,7 @@ HRESULT Appliance::i_exportCloudImpl(TaskCloud *pTask)
     hrc = cpm->GetProviderByShortName(Bstr(strProviderName.c_str()).raw(), cloudProvider.asOutParam());
 
     if (FAILED(hrc))
-        return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud provider object wasn't found"), __FUNCTION__);
+        return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud provider object wasn't found"), __FUNCTION__);
 
     ComPtr<IVirtualSystemDescription> vsd = m->virtualSystemDescriptions.front();
 
@@ -2362,26 +2300,26 @@ HRESULT Appliance::i_exportCloudImpl(TaskCloud *pTask)
     com::SafeArray<BSTR> aExtraConfigValues;
 
     hrc = vsd->GetDescriptionByType(VirtualSystemDescriptionType_CloudProfileName,
-                                    ComSafeArrayAsOutParam(retTypes),
-                                    ComSafeArrayAsOutParam(aRefs),
-                                    ComSafeArrayAsOutParam(aOvfValues),
-                                    ComSafeArrayAsOutParam(aVBoxValues),
-                                    ComSafeArrayAsOutParam(aExtraConfigValues));
+                             ComSafeArrayAsOutParam(retTypes),
+                             ComSafeArrayAsOutParam(aRefs),
+                             ComSafeArrayAsOutParam(aOvfValues),
+                             ComSafeArrayAsOutParam(aVBoxValues),
+                             ComSafeArrayAsOutParam(aExtraConfigValues));
     if (FAILED(hrc))
         return hrc;
 
     Utf8Str profileName(aVBoxValues[0]);
     if (profileName.isEmpty())
-        return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud user profile name wasn't found"), __FUNCTION__);
+        return setErrorVrc(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud user profile name wasn't found"), __FUNCTION__);
 
     hrc = cloudProvider->GetProfileByName(aVBoxValues[0], cloudProfile.asOutParam());
     if (FAILED(hrc))
-        return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud profile object wasn't found"), __FUNCTION__);
+        return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud profile object wasn't found"), __FUNCTION__);
 
     ComObjPtr<ICloudClient> cloudClient;
     hrc = cloudProfile->CreateCloudClient(cloudClient.asOutParam());
     if (FAILED(hrc))
-        return setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s: Cloud client object wasn't found"), __FUNCTION__);
+        return setErrorVrc(VERR_COM_OBJECT_NOT_FOUND, tr("%s: Cloud client object wasn't found"), __FUNCTION__);
 
     if (m->virtualSystemDescriptions.size() == 1)
     {
@@ -2523,8 +2461,8 @@ HRESULT Appliance::i_writeFSOPC(TaskOPC *pTask)
                 RTZipTarFsStreamSetFileMode(hVfsFssTar, 0660, 0440);
                 RTZipTarFsStreamSetOwner(hVfsFssTar, VBOX_VERSION_MAJOR, "vboxopc10");
                 RTZipTarFsStreamSetGroup(hVfsFssTar, VBOX_VERSION_MINOR,
-                                         Utf8StrFmt("vbox_v" RT_XSTR(VBOX_VERSION_MAJOR) "." RT_XSTR(VBOX_VERSION_MINOR) "."
-                                         RT_XSTR(VBOX_VERSION_BUILD) "r%RU32", RTBldCfgRevision()).c_str());
+                                         "vbox_v" RT_XSTR(VBOX_VERSION_MAJOR) "." RT_XSTR(VBOX_VERSION_MINOR) "."
+                                         RT_XSTR(VBOX_VERSION_BUILD) "r" RT_XSTR(VBOX_SVN_REV));
 
                 /*
                  * Let the Medium code do the heavy work.

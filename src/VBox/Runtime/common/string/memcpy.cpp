@@ -1,10 +1,10 @@
-/* $Id: memcpy.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: memcpy.cpp $ */
 /** @file
  * IPRT - CRT Strings, memcpy().
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,7 +49,7 @@ void *memcpy(void *pvDst, const void *pvSrc, size_t cb)
 void *memcpy(void *pvDst, const void *pvSrc, size_t cb)
 #endif
 {
-    union
+    register union
     {
         uint8_t  *pu8;
         uint32_t *pu32;
@@ -57,7 +57,7 @@ void *memcpy(void *pvDst, const void *pvSrc, size_t cb)
     } uTrg;
     uTrg.pv = pvDst;
 
-    union
+    register union
     {
         uint8_t const  *pu8;
         uint32_t const *pu32;
@@ -66,7 +66,7 @@ void *memcpy(void *pvDst, const void *pvSrc, size_t cb)
     uSrc.pv = pvSrc;
 
     /* 32-bit word moves. */
-    size_t c = cb >> 2;
+    register size_t c = cb >> 2;
     while (c-- > 0)
         *uTrg.pu32++ = *uSrc.pu32++;
 

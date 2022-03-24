@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -138,7 +138,7 @@ typedef struct UVM
 #ifdef VMM_INCLUDED_SRC_include_STAMInternal_h
         struct STAMUSERPERVM    s;
 #endif
-        uint8_t                 padding[30208];
+        uint8_t                 padding[25056];
     } stam;
 
     /** The DBGF data. */
@@ -147,7 +147,7 @@ typedef struct UVM
 #ifdef VMM_INCLUDED_SRC_include_DBGFInternal_h
         struct DBGFUSERPERVM    s;
 #endif
-        uint8_t                 padding[1024];
+        uint8_t                 padding[384];
     } dbgf;
 
     /** Per virtual CPU data. */

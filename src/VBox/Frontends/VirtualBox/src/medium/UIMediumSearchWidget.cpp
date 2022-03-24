@@ -1,10 +1,10 @@
-/* $Id: UIMediumSearchWidget.cpp 94027 2022-03-01 11:03:06Z vboxsync $ */
+/* $Id: UIMediumSearchWidget.cpp $ */
 /** @file
  * VBox Qt GUI - UIMediumSearchWidget class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,13 +16,13 @@
  */
 
 /* Qt includes: */
-#include <QComboBox>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QPainter>
 #include <QHBoxLayout>
 
 /* GUI includes: */
+#include "QIComboBox.h"
 #include "QIToolButton.h"
 #include "QITreeWidget.h"
 #include "UIIconPool.h"
@@ -97,7 +97,7 @@ void UIMediumSearchWidget::prepareWidgets()
     pLayout->setContentsMargins(0, 0, 0, 0);
     pLayout->setSpacing(0);
 
-    m_pSearchComboxBox = new QComboBox;
+    m_pSearchComboxBox = new QIComboBox;
     if (m_pSearchComboxBox)
     {
         m_pSearchComboxBox->setEditable(false);
@@ -105,7 +105,7 @@ void UIMediumSearchWidget::prepareWidgets()
         m_pSearchComboxBox->insertItem(SearchByUUID, "Search By UUID");
         pLayout->addWidget(m_pSearchComboxBox);
 
-        connect(m_pSearchComboxBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        connect(m_pSearchComboxBox, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::currentIndexChanged),
                 this, &UIMediumSearchWidget::sigPerformSearch);
 
     }
@@ -261,5 +261,5 @@ void UIMediumSearchWidget::updateSearchLineEdit(int iMatchCount, int iScrollToIn
     if (!m_pSearchTermLineEdit)
         return;
     m_pSearchTermLineEdit->setMatchCount(iMatchCount);
-    m_pSearchTermLineEdit->setScrollToIndex(iScrollToIndex);
+    m_pSearchTermLineEdit->setScroolToIndex(iScrollToIndex);
 }

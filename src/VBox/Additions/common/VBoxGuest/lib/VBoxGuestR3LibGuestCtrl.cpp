@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestR3LibGuestCtrl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestR3LibGuestCtrl.cpp $ */
 /** @file
  * VBoxGuestR3Lib - Ring-3 Support Library for VirtualBox guest additions, guest control.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -791,8 +791,8 @@ VBGLR3DECL(int)  VbglR3GuestCtrlSessionStartupInfoInitEx(PVBGLR3GUESTCTRLSESSION
 VBGLR3DECL(int) VbglR3GuestCtrlSessionStartupInfoInit(PVBGLR3GUESTCTRLSESSIONSTARTUPINFO pStartupInfo)
 {
     return VbglR3GuestCtrlSessionStartupInfoInitEx(pStartupInfo,
-                                                   GUEST_PROC_DEF_USER_LEN, GUEST_PROC_DEF_PASSWORD_LEN,
-                                                   GUEST_PROC_DEF_DOMAIN_LEN);
+                                                   GUESTPROCESS_DEFAULT_USER_LEN, GUESTPROCESS_DEFAULT_PASSWORD_LEN,
+                                                   GUESTPROCESS_DEFAULT_DOMAIN_LEN);
 }
 
 /**
@@ -1050,37 +1050,6 @@ VBGLR3DECL(int) VbglR3GuestCtrlPathGetUserHome(PVBGLR3GUESTCTRLCMDCTX pCtx)
 }
 
 /**
- * Retrieves a HOST_MSG_SHUTDOWN message.
- *
- * @returns VBox status code.
- * @param   pCtx                Guest control command context to use.
- * @param   pfAction            Where to store the action flags on success.
- */
-VBGLR3DECL(int) VbglR3GuestCtrlGetShutdown(PVBGLR3GUESTCTRLCMDCTX pCtx, uint32_t *pfAction)
-{
-    AssertPtrReturn(pCtx, VERR_INVALID_POINTER);
-    AssertReturn(pCtx->uNumParms == 2, VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pfAction, VERR_INVALID_POINTER);
-
-    int rc;
-    do
-    {
-        HGCMMsgShutdown Msg;
-        VBGL_HGCM_HDR_INIT(&Msg.hdr, pCtx->uClientID, vbglR3GuestCtrlGetMsgFunctionNo(pCtx->uClientID), pCtx->uNumParms);
-        VbglHGCMParmUInt32Set(&Msg.context, HOST_MSG_SHUTDOWN);
-        VbglHGCMParmUInt32Set(&Msg.action,  0);
-
-        rc = VbglR3HGCMCall(&Msg.hdr, sizeof(Msg));
-        if (RT_SUCCESS(rc))
-        {
-            Msg.context.GetUInt32(&pCtx->uContextID);
-            Msg.action.GetUInt32(pfAction);
-        }
-    } while (rc == VERR_INTERRUPTED && g_fVbglR3GuestCtrlHavePeekGetCancel);
-    return rc;
-}
-
-/**
  * Initializes a process startup info, extended version.
  *
  * @returns VBox status code.
@@ -1142,11 +1111,11 @@ VBGLR3DECL(int) VbglR3GuestCtrlProcStartupInfoInitEx(PVBGLR3GUESTCTRLPROCSTARTUP
 VBGLR3DECL(int) VbglR3GuestCtrlProcStartupInfoInit(PVBGLR3GUESTCTRLPROCSTARTUPINFO pStartupInfo)
 {
     return VbglR3GuestCtrlProcStartupInfoInitEx(pStartupInfo,
-                                                GUEST_PROC_DEF_CMD_LEN,
-                                                GUEST_PROC_DEF_USER_LEN     /* Deprecated, now handled via session creation. */,
-                                                GUEST_PROC_DEF_PASSWORD_LEN /* Ditto. */,
-                                                GUEST_PROC_DEF_DOMAIN_LEN   /* Ditto. */,
-                                                GUEST_PROC_DEF_ARGS_LEN, GUEST_PROC_DEF_ENV_LEN);
+                                                GUESTPROCESS_DEFAULT_CMD_LEN,
+                                                GUESTPROCESS_DEFAULT_USER_LEN     /* Deprecated, now handled via session creation. */,
+                                                GUESTPROCESS_DEFAULT_PASSWORD_LEN /* Ditto. */,
+                                                GUESTPROCESS_DEFAULT_DOMAIN_LEN   /* Ditto. */,
+                                                GUESTPROCESS_DEFAULT_ARGS_LEN, GUESTPROCESS_DEFAULT_ENV_LEN);
 }
 
 /**
@@ -1276,8 +1245,6 @@ VBGLR3DECL(int) VbglR3GuestCtrlProcGetStart(PVBGLR3GUESTCTRLCMDCTX pCtx, PVBGLR3
 
     do
     {
-        LogRel(("VbglR3GuestCtrlProcGetStart: Retrieving\n"));
-
         HGCMMsgProcExec Msg;
         VBGL_HGCM_HDR_INIT(&Msg.hdr, pCtx->uClientID, vbglR3GuestCtrlGetMsgFunctionNo(pCtx->uClientID), pCtx->uNumParms);
         VbglHGCMParmUInt32Set(&Msg.context, HOST_MSG_EXEC_CMD);
@@ -1305,9 +1272,6 @@ VBGLR3DECL(int) VbglR3GuestCtrlProcGetStart(PVBGLR3GUESTCTRLCMDCTX pCtx, PVBGLR3
         rc = VbglR3HGCMCall(&Msg.hdr, sizeof(Msg));
         if (RT_FAILURE(rc))
         {
-            LogRel(("VbglR3GuestCtrlProcGetStart: 1 - %Rrc (retry %u, cbCmd=%RU32, cbArgs=%RU32, cbEnv=%RU32)\n",
-                    rc, cRetries, pStartupInfo->cbCmd, pStartupInfo->cbArgs, pStartupInfo->cbEnv));
-
             if (   rc == VERR_BUFFER_OVERFLOW
                 && cRetries++ < cMaxRetries)
             {
@@ -1318,14 +1282,11 @@ VBGLR3DECL(int) VbglR3GuestCtrlProcGetStart(PVBGLR3GUESTCTRLCMDCTX pCtx, PVBGLR3
         pStartupInfo->cb##a_Str  = RT_MIN(pStartupInfo->cb##a_Str * cGrowthFactor, a_cbMax);
 
                 /* We can't tell which parameter doesn't fit, so we have to resize all. */
-                GROW_STR(Cmd , GUEST_PROC_MAX_CMD_LEN);
-                GROW_STR(Args, GUEST_PROC_MAX_ARGS_LEN);
-                GROW_STR(Env,  GUEST_PROC_MAX_ENV_LEN);
+                GROW_STR(Cmd , GUESTPROCESS_MAX_CMD_LEN);
+                GROW_STR(Args, GUESTPROCESS_MAX_ARGS_LEN);
+                GROW_STR(Env,  GUESTPROCESS_MAX_ENV_LEN);
 
 #undef GROW_STR
-                LogRel(("VbglR3GuestCtrlProcGetStart: 2 - %Rrc (retry %u, cbCmd=%RU32, cbArgs=%RU32, cbEnv=%RU32)\n",
-                        rc, cRetries, pStartupInfo->cbCmd, pStartupInfo->cbArgs, pStartupInfo->cbEnv));
-                LogRel(("g_fVbglR3GuestCtrlHavePeekGetCancel=%RTbool\n", RT_BOOL(g_fVbglR3GuestCtrlHavePeekGetCancel)));
             }
             else
                 break;
@@ -1355,9 +1316,6 @@ VBGLR3DECL(int) VbglR3GuestCtrlProcGetStart(PVBGLR3GUESTCTRLCMDCTX pCtx, PVBGLR3
     }
     else
         VbglR3GuestCtrlProcStartupInfoFree(pStartupInfo);
-
-    LogRel(("VbglR3GuestCtrlProcGetStart: Returning %Rrc (retry %u, cbCmd=%RU32, cbArgs=%RU32, cbEnv=%RU32)\n",
-            rc, cRetries, pStartupInfo->cbCmd, pStartupInfo->cbArgs, pStartupInfo->cbEnv));
 
     LogFlowFuncLeaveRC(rc);
     return rc;

@@ -1,10 +1,10 @@
-/* $Id: SUPLibSem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLibSem.cpp $ */
 /** @file
  * VirtualBox Support Library - Semaphores, ring-3 implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,8 +34,6 @@
 #include <iprt/errcore.h>
 #include <VBox/param.h>
 #include <iprt/assert.h>
-#include <iprt/semaphore.h>
-#include <iprt/time.h>
 
 #include "SUPLibInternal.h"
 #include "SUPDrvIOC.h"
@@ -113,21 +111,10 @@ SUPDECL(int) SUPSemEventCreate(PSUPDRVSESSION pSession, PSUPSEMEVENT phEvent)
 {
     AssertPtrReturn(phEvent, VERR_INVALID_POINTER);
 
-    int rc;
-    if (!g_supLibData.fDriverless)
-    {
-        SUPSEMOP3 Req;
-        rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)NIL_SUPSEMEVENT, SUPSEMOP3_CREATE, &Req);
-        if (RT_SUCCESS(rc))
-            *phEvent = (SUPSEMEVENT)(uintptr_t)Req.u.Out.hSem;
-    }
-    else
-    {
-        RTSEMEVENT hEvent;
-        rc = RTSemEventCreate(&hEvent);
-        if (RT_SUCCESS(rc))
-            *phEvent = (SUPSEMEVENT)hEvent;
-    }
+    SUPSEMOP3 Req;
+    int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)NIL_SUPSEMEVENT, SUPSEMOP3_CREATE, &Req);
+    if (RT_SUCCESS(rc))
+        *phEvent = (SUPSEMEVENT)(uintptr_t)Req.u.Out.hSem;
     return rc;
 }
 
@@ -136,92 +123,41 @@ SUPDECL(int) SUPSemEventClose(PSUPDRVSESSION pSession, SUPSEMEVENT hEvent)
 {
     if (hEvent == NIL_SUPSEMEVENT)
         return VINF_SUCCESS;
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_CLOSE, 0);
-    else
-        rc = RTSemEventDestroy((RTSEMEVENT)hEvent);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_CLOSE, 0);
 }
 
 
 SUPDECL(int) SUPSemEventSignal(PSUPDRVSESSION pSession, SUPSEMEVENT hEvent)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_SIGNAL, 0);
-    else
-        rc = RTSemEventSignal((RTSEMEVENT)hEvent);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_SIGNAL, 0);
 }
 
 
 SUPDECL(int) SUPSemEventWaitNoResume(PSUPDRVSESSION pSession, SUPSEMEVENT hEvent, uint32_t cMillies)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_MS_REL, cMillies);
-    else
-        rc = RTSemEventWaitNoResume((RTSEMEVENT)hEvent, cMillies);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_MS_REL, cMillies);
 }
 
 
 SUPDECL(int) SUPSemEventWaitNsAbsIntr(PSUPDRVSESSION pSession, SUPSEMEVENT hEvent, uint64_t uNsTimeout)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_NS_ABS, uNsTimeout);
-    else
-    {
-#if 0
-        rc = RTSemEventWaitEx((RTSEMEVENT)hEvent,
-                              RTSEMWAIT_FLAGS_ABSOLUTE | RTSEMWAIT_FLAGS_NANOSECS | RTSEMWAIT_FLAGS_NORESUME, uNsTimeout);
-#else
-        uint64_t nsNow = RTTimeNanoTS();
-        if (nsNow < uNsTimeout)
-            rc = RTSemEventWaitNoResume((RTSEMEVENT)hEvent, (uNsTimeout - nsNow + RT_NS_1MS - 1) / RT_NS_1MS);
-        else
-            rc = VERR_TIMEOUT;
-#endif
-    }
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_NS_ABS, uNsTimeout);
 }
 
 
 SUPDECL(int) SUPSemEventWaitNsRelIntr(PSUPDRVSESSION pSession, SUPSEMEVENT hEvent, uint64_t cNsTimeout)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_NS_REL, cNsTimeout);
-    else
-    {
-#if 0
-        rc = RTSemEventWaitEx((RTSEMEVENT)hEvent,
-                              RTSEMWAIT_FLAGS_RELATIVE | RTSEMWAIT_FLAGS_NANOSECS | RTSEMWAIT_FLAGS_NORESUME, cNsTimeout);
-#else
-        rc = RTSemEventWaitNoResume((RTSEMEVENT)hEvent, (cNsTimeout + RT_NS_1MS - 1) / RT_NS_1MS);
-#endif
-    }
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)hEvent, SUPSEMOP2_WAIT_NS_REL, cNsTimeout);
 }
 
 
 SUPDECL(uint32_t) SUPSemEventGetResolution(PSUPDRVSESSION pSession)
 {
-    if (!g_supLibData.fDriverless)
-    {
-        SUPSEMOP3 Req;
-        int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)NIL_SUPSEMEVENT, SUPSEMOP3_GET_RESOLUTION, &Req);
-        if (RT_SUCCESS(rc))
-            return Req.u.Out.cNsResolution;
-        return 1000 / 100;
-    }
-#if 0
-    return RTSemEventGetResolution();
-#else
-    return RT_NS_1MS;
-#endif
+    SUPSEMOP3 Req;
+    int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT, (uintptr_t)NIL_SUPSEMEVENT, SUPSEMOP3_GET_RESOLUTION, &Req);
+    if (RT_SUCCESS(rc))
+        return Req.u.Out.cNsResolution;
+    return 1000 / 100;
 }
 
 
@@ -232,21 +168,10 @@ SUPDECL(int) SUPSemEventMultiCreate(PSUPDRVSESSION pSession, PSUPSEMEVENTMULTI p
 {
     AssertPtrReturn(phEventMulti, VERR_INVALID_POINTER);
 
-    int rc;
-    if (!g_supLibData.fDriverless)
-    {
-        SUPSEMOP3 Req;
-        rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)NIL_SUPSEMEVENTMULTI, SUPSEMOP3_CREATE, &Req);
-        if (RT_SUCCESS(rc))
-            *phEventMulti = (SUPSEMEVENTMULTI)(uintptr_t)Req.u.Out.hSem;
-    }
-    else
-    {
-        RTSEMEVENTMULTI hEventMulti;
-        rc = RTSemEventMultiCreate(&hEventMulti);
-        if (RT_SUCCESS(rc))
-            *phEventMulti = (SUPSEMEVENTMULTI)hEventMulti;
-    }
+    SUPSEMOP3 Req;
+    int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)NIL_SUPSEMEVENTMULTI, SUPSEMOP3_CREATE, &Req);
+    if (RT_SUCCESS(rc))
+        *phEventMulti = (SUPSEMEVENTMULTI)(uintptr_t)Req.u.Out.hSem;
     return rc;
 }
 
@@ -255,102 +180,46 @@ SUPDECL(int) SUPSemEventMultiClose(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEv
 {
     if (hEventMulti == NIL_SUPSEMEVENTMULTI)
         return VINF_SUCCESS;
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_CLOSE, 0);
-    else
-        rc = RTSemEventMultiDestroy((RTSEMEVENTMULTI)hEventMulti);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_CLOSE, 0);
 }
 
 
 SUPDECL(int) SUPSemEventMultiSignal(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEventMulti)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_SIGNAL, 0);
-    else
-        rc = RTSemEventMultiSignal((RTSEMEVENTMULTI)hEventMulti);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_SIGNAL, 0);
 }
 
 
 SUPDECL(int) SUPSemEventMultiReset(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEventMulti)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_RESET, 0);
-    else
-        rc = RTSemEventMultiReset((RTSEMEVENTMULTI)hEventMulti);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_RESET, 0);
 }
 
 
 SUPDECL(int) SUPSemEventMultiWaitNoResume(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEventMulti, uint32_t cMillies)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_MS_REL, cMillies);
-    else
-        rc = RTSemEventMultiWaitNoResume((RTSEMEVENTMULTI)hEventMulti, cMillies);
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_MS_REL, cMillies);
 }
 
 
 SUPDECL(int) SUPSemEventMultiWaitNsAbsIntr(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEventMulti, uint64_t uNsTimeout)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_NS_ABS, uNsTimeout);
-    else
-    {
-#if 0
-        rc = RTSemEventMultiWaitEx((RTSEMEVENTMULTI)hEventMulti,
-                                   RTSEMWAIT_FLAGS_ABSOLUTE | RTSEMWAIT_FLAGS_NANOSECS | RTSEMWAIT_FLAGS_NORESUME, uNsTimeout);
-#else
-        uint64_t nsNow = RTTimeNanoTS();
-        if (nsNow < uNsTimeout)
-            rc = RTSemEventMultiWaitNoResume((RTSEMEVENTMULTI)hEventMulti, (uNsTimeout - nsNow + RT_NS_1MS - 1) / RT_NS_1MS);
-        else
-            rc = VERR_TIMEOUT;
-#endif
-    }
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_NS_ABS, uNsTimeout);
 }
 
 
 SUPDECL(int) SUPSemEventMultiWaitNsRelIntr(PSUPDRVSESSION pSession, SUPSEMEVENTMULTI hEventMulti, uint64_t cNsTimeout)
 {
-    int rc;
-    if (!g_supLibData.fDriverless)
-        rc = supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_NS_REL, cNsTimeout);
-    else
-    {
-#if 0
-        rc = RTSemEventMultiWaitEx((RTSEMEVENTMULTI)hEventMulti,
-                                   RTSEMWAIT_FLAGS_RELATIVE | RTSEMWAIT_FLAGS_NANOSECS | RTSEMWAIT_FLAGS_NORESUME, cNsTimeout);
-#else
-        rc = RTSemEventMultiWaitNoResume((RTSEMEVENTMULTI)hEventMulti, (cNsTimeout + RT_NS_1MS - 1) / RT_NS_1MS);
-#endif
-    }
-    return rc;
+    return supSemOp2(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)hEventMulti, SUPSEMOP2_WAIT_NS_REL, cNsTimeout);
 }
 
 
 SUPDECL(uint32_t) SUPSemEventMultiGetResolution(PSUPDRVSESSION pSession)
 {
-    if (!g_supLibData.fDriverless)
-    {
-        SUPSEMOP3 Req;
-        int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)NIL_SUPSEMEVENTMULTI, SUPSEMOP3_GET_RESOLUTION, &Req);
-        if (RT_SUCCESS(rc))
-            return Req.u.Out.cNsResolution;
-        return 1000 / 100;
-    }
-#if 0
-    return RTSemEventMultiGetResolution();
-#else
-    return RT_NS_1MS;
-#endif
+    SUPSEMOP3 Req;
+    int rc = supSemOp3(pSession, SUP_SEM_TYPE_EVENT_MULTI, (uintptr_t)NIL_SUPSEMEVENTMULTI, SUPSEMOP3_GET_RESOLUTION, &Req);
+    if (RT_SUCCESS(rc))
+        return Req.u.Out.cNsResolution;
+    return 1000 / 100;
 }
 

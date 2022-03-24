@@ -802,27 +802,20 @@ Done:
 
 
 
+
 /**
   Uninstalls a list of protocol interface in the boot services environment.
-  This function calls UninstallProtocolInterface() in a loop. This is
+  This function calls UnisatllProtocolInterface() in a loop. This is
   basically a lib function to save space.
 
-  If any errors are generated while the protocol interfaces are being
-  uninstalled, then the protocol interfaces uninstalled prior to the error will
-  be reinstalled and EFI_INVALID_PARAMETER will be returned.
-
-  @param  Handle                 The handle to uninstall the protocol interfaces
-                                 from.
+  @param  Handle                 The handle to uninstall the protocol
   @param  ...                    EFI_GUID followed by protocol instance. A NULL
-                                 terminates the list. The pairs are the
+                                 terminates the  list. The pairs are the
                                  arguments to UninstallProtocolInterface(). All
                                  the protocols are added to Handle.
 
-  @retval EFI_SUCCESS            if all protocol interfaces where uninstalled.
-  @retval EFI_INVALID_PARAMETER  if any protocol interface could not be
-                                 uninstalled and an attempt was made to
-                                 reinstall previously uninstalled protocol
-                                 interfaces.
+  @return Status code
+
 **/
 EFI_STATUS
 EFIAPI
@@ -871,7 +864,6 @@ CoreUninstallMultipleProtocolInterfaces (
       CoreInstallProtocolInterface (&Handle, Protocol, EFI_NATIVE_INTERFACE, Interface);
     }
     VA_END (Args);
-    Status = EFI_INVALID_PARAMETER;
   }
 
   return Status;

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@
 #include <iprt/cpp/ministring.h>
 #include <iprt/cpp/list.h>
 
-typedef DECLCALLBACKTYPE(int, FNDNDPROGRESS,(uint32_t uState, uint32_t uPercentage, int rc, void *pvUser));
+typedef DECLCALLBACK(int) FNDNDPROGRESS(uint32_t uState, uint32_t uPercentage, int rc, void *pvUser);
 typedef FNDNDPROGRESS *PFNDNDPROGRESS;
 
 /**

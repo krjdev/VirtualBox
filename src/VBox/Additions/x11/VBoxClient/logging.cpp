@@ -1,10 +1,10 @@
-/* $Id: logging.cpp 93220 2022-01-13 11:45:40Z vboxsync $ */
+/* $Id: logging.cpp $ */
 /** @file
  * VirtualBox Guest Additions - X11 Client.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 
-#include <sys/wait.h>
 #include <stdlib.h>
 #include <iprt/buildconfig.h>
 #include <iprt/file.h>
@@ -33,9 +32,6 @@ static PRTLOGGER     g_pLoggerRelease = NULL;
 static uint32_t      g_cHistory = 10;                   /* Enable log rotation, 10 files. */
 static uint32_t      g_uHistoryFileTime = RT_SEC_1DAY;  /* Max 1 day per file. */
 static uint64_t      g_uHistoryFileSize = 100 * _1M;    /* Max 100MB per file. */
-
-/** Custom log prefix (to be set externally). */
-static char          *g_pszCustomLogPrefix;
 
 extern unsigned      g_cRespawn;
 extern unsigned      g_cVerbosity;
@@ -86,21 +82,6 @@ int vbclLogNotify(const char *pszMessage)
 }
 
 /**
- * Logs a verbose message.
- *
- * @param   pszFormat   The message text.
- * @param   va          Format arguments.
- */
-static void vbClLogV(const char *pszFormat, va_list va)
-{
-    char *psz = NULL;
-    RTStrAPrintfV(&psz, pszFormat, va);
-    AssertPtrReturnVoid(psz);
-    LogRel(("%s", psz));
-    RTStrFree(psz);
-}
-
-/**
  * Logs a fatal error, notifies the desktop environment via a message and
  * exits the application immediately.
  *
@@ -115,9 +96,9 @@ void VBClLogFatalError(const char *pszFormat, ...)
     RTStrAPrintfV(&psz, pszFormat, args);
     va_end(args);
 
-    AssertPtrReturnVoid(psz);
-    LogFunc(("Fatal Error: %s", psz));
-    LogRel(("Fatal Error: %s", psz));
+    AssertPtr(psz);
+    LogFlowFunc(("%s", psz));
+    LogRel(("%s", psz));
 
     vbclLogNotify(psz);
 
@@ -137,9 +118,9 @@ void VBClLogError(const char *pszFormat, ...)
     RTStrAPrintfV(&psz, pszFormat, args);
     va_end(args);
 
-    AssertPtrReturnVoid(psz);
-    LogFunc(("Error: %s", psz));
-    LogRel(("Error: %s", psz));
+    AssertPtr(psz);
+    LogFlowFunc(("%s", psz));
+    LogRel(("%s", psz));
 
     RTStrFree(psz);
 }
@@ -153,27 +134,15 @@ void  VBClLogInfo(const char *pszFormat, ...)
 {
     va_list args;
     va_start(args, pszFormat);
-    vbClLogV(pszFormat, args);
+    char *psz = NULL;
+    RTStrAPrintfV(&psz, pszFormat, args);
     va_end(args);
-}
 
-/**
- * Displays a verbose message based on the currently
- * set global verbosity level.
- *
- * @param   iLevel      Minimum log level required to display this message.
- * @param   pszFormat   The message text.
- * @param   ...         Format arguments.
- */
-void VBClLogVerbose(unsigned iLevel, const char *pszFormat, ...)
-{
-    if (iLevel <= g_cVerbosity)
-    {
-        va_list va;
-        va_start(va, pszFormat);
-        vbClLogV(pszFormat, va);
-        va_end(va);
-    }
+    AssertPtr(psz);
+    LogFlowFunc(("%s", psz));
+    LogRel(("%s", psz));
+
+    RTStrFree(psz);
 }
 
 /**
@@ -246,22 +215,6 @@ static DECLCALLBACK(void) vbClLogHeaderFooter(PRTLOGGER pLoggerRelease, RTLOGPHA
     }
 }
 
-static DECLCALLBACK(size_t) vbClLogPrefixCb(PRTLOGGER pLogger, char *pchBuf, size_t cchBuf, void *pvUser)
-{
-    size_t cbPrefix = 0;
-
-    RT_NOREF(pLogger);
-    RT_NOREF(pvUser);
-
-    if (g_pszCustomLogPrefix)
-    {
-        cbPrefix = RT_MIN(strlen(g_pszCustomLogPrefix), cchBuf);
-        memcpy(pchBuf, g_pszCustomLogPrefix, cbPrefix);
-    }
-
-    return cbPrefix;
-}
-
 /**
  * Creates the default release logger outputting to the specified file.
  *
@@ -277,13 +230,18 @@ int VBClLogCreate(const char *pszLogFile)
 
     /* Create release logger (stdout + file). */
     static const char * const s_apszGroups[] = VBOX_LOGGROUP_NAMES;
-    RTUINT fFlags = RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME | RTLOGFLAGS_PREFIX_CUSTOM;
+    RTUINT fFlags = RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME;
 #if defined(RT_OS_WINDOWS) || defined(RT_OS_OS2)
     fFlags |= RTLOGFLAGS_USECRLF;
 #endif
-    int rc = RTLogCreateEx(&g_pLoggerRelease, "VBOXCLIENT_RELEASE_LOG", fFlags, "all",
+    int rc = RTLogCreateEx(&g_pLoggerRelease, fFlags, "all",
+#ifdef DEBUG
+                           "VBOXCLIENT_LOG",
+#else
+                           "VBOXCLIENT_RELEASE_LOG",
+#endif
                            RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX /*cMaxEntriesPerGroup*/,
-                           0 /*cBufDescs*/, NULL /*paBufDescs*/, RTLOGDEST_STDOUT | RTLOGDEST_USER,
+                           RTLOGDEST_STDOUT | RTLOGDEST_USER,
                            vbClLogHeaderFooter, g_cHistory, g_uHistoryFileSize, g_uHistoryFileTime,
                            NULL /*pErrInfo*/, "%s", pszLogFile ? pszLogFile : "");
     if (RT_SUCCESS(rc))
@@ -291,25 +249,11 @@ int VBClLogCreate(const char *pszLogFile)
         /* register this logger as the release logger */
         RTLogRelSetDefaultInstance(g_pLoggerRelease);
 
-        rc = RTLogSetCustomPrefixCallback(g_pLoggerRelease, vbClLogPrefixCb, NULL);
-        if (RT_FAILURE(rc))
-            VBClLogError("unable to register custom log prefix callback\n");
-
         /* Explicitly flush the log in case of VBOXSERVICE_RELEASE_LOG=buffered. */
         RTLogFlush(g_pLoggerRelease);
     }
 
     return rc;
-}
-
-/**
- * Set custom log prefix.
- *
- * @param pszPrefix     Custom log prefix string.
- */
-void VBClLogSetLogPrefix(const char *pszPrefix)
-{
-    g_pszCustomLogPrefix = (char *)pszPrefix;
 }
 
 /**
@@ -320,3 +264,6 @@ void VBClLogDestroy(void)
     RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
 }
 
+void foo()
+{
+}

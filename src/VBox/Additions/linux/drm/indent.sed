@@ -2,7 +2,7 @@
 # VirtualBox to Linux kernel coding style conversion script.
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -101,8 +101,7 @@ s/\bAssertPtrReturn\b/assert_ptr_return/g
 s/\bAssertRC\b\([^;]*\);/WARN_ON_ONCE(RT_FAILURE\1);/g
 s/\bAssertRC\b/Assert_RC_statement_should_be_on_one_line/g
 s/\bDECLCALLBACK\b(\([^)]*\))/\1/g
-  s/\bDECLCALLBACKTYPE\b(\([^,)]*\), *\([^,)]*\), *(\([^;)]*\) *) *)/\1 \2(\3)/g
-s/\bDECLCALLBACKMEMBER\b(\([^,)]*\), *\([^,)]*\), *(\([^;)]*\) *) *)/\1 (*\2)(\3)/g
+s/\bDECLCALLBACKMEMBER\b(\([^,)]*\), *\([^,)]*\))/\1 (*\2)/g
 s/^\bDECLHIDDEN\b(\([^)]*\))/\1/g
 s/\bDECLINLINE\b(\([^)]*\))/static inline \1/g
 s/\bRT_BIT\b/BIT/g
@@ -111,7 +110,7 @@ s/\bRT_BOOL\b(\([^)]*\))/(!!(\1))/g
 s/\bUINT16_MAX\b/U16_MAX/g
 s/\bUINT32_MAX\b/U32_MAX/g
 s/\bUINT32_C\b(\(.*\))/\1u/g
-s/!RT_VALID_PTR(/WARN_ON(!/g
+s/!VALID_PTR(/WARN_ON(!/g
 s/\bRT_UNTRUSTED_VOLATILE_HOST\b//g
 s/\bRT_UNTRUSTED_VOLATILE_GUEST\b//g
 s/\bRT_UNTRUSTED_VOLATILE_HSTGST\b//g

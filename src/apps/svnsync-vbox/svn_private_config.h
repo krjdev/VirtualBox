@@ -1,4 +1,4 @@
-/* $Id: svn_private_config.h 76544 2018-12-30 06:40:15Z vboxsync $ */
+/* $Id: svn_private_config.h $ */
 /** @file
  *
  */

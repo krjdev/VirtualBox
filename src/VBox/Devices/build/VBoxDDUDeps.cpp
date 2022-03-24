@@ -1,10 +1,10 @@
-/* $Id: VBoxDDUDeps.cpp 93217 2022-01-13 07:29:50Z vboxsync $ */
+/* $Id: VBoxDDUDeps.cpp $ */
 /** @file
  * VBoxDDU - For dragging in library objects.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,23 +33,23 @@
 /** Just a dummy global structure containing a bunch of
  * function pointers to code which is wanted in the link.
  */
-struct CLANG11WEIRDNESS { PFNRT pfn; } g_apfnVBoxDDUDeps[] =
+PFNRT g_apfnVBoxDDUDeps[] =
 {
-    { (PFNRT)VDInit },
-    { (PFNRT)VDIfCreateVfsStream },
-    { (PFNRT)VDIfCreateFromVfsStream },
-    { (PFNRT)VDCreateVfsFileFromDisk },
-    { (PFNRT)VDIfTcpNetInstDefaultCreate },
+    (PFNRT)VDInit,
+    (PFNRT)VDIfCreateVfsStream,
+    (PFNRT)VDIfCreateFromVfsStream,
+    (PFNRT)VDCreateVfsFileFromDisk,
+    (PFNRT)VDIfTcpNetInstDefaultCreate,
 #ifdef VBOX_WITH_USB
-    { (PFNRT)USBFilterInit },
-    { (PFNRT)USBLibHashSerial },
+    (PFNRT)USBFilterInit,
+    (PFNRT)USBLibHashSerial,
 # ifdef RT_OS_OS2
-    { (PFNRT)UsbOpen },
+    (PFNRT)UsbOpen,
 # endif
-# if defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS) /* PORTME */
-    { (PFNRT)USBLibInit },
+# if defined(RT_OS_DARWIN) || defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS) /* PORTME */
+    (PFNRT)USBLibInit,
 # endif
 #endif /* VBOX_WITH_USB */
-    { NULL },
+    NULL
 };
 

@@ -1,10 +1,10 @@
-/* $Id: UIConverter.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIConverter.h $ */
 /** @file
  * VBox Qt GUI - UIConverter declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,10 +33,10 @@ public:
     /** Returns singleton instance. */
     static UIConverter *instance() { return s_pInstance; }
 
-    /** Creates singleton instance. */
-    static void create();
-    /** Destroys singleton instance. */
-    static void destroy();
+    /** Prepares everything. */
+    static void prepare();
+    /** Cleanups everything. */
+    static void cleanup();
 
     /** Converts QColor <= template class. */
     template<class T> QColor toColor(const T &data) const
@@ -118,9 +118,7 @@ public:
 private:
 
     /** Constructs converter. */
-    UIConverter() { s_pInstance = this; }
-    /** Destructs converter. */
-    virtual ~UIConverter() /* override final */ { s_pInstance = 0; }
+    UIConverter() {}
 
     /** Holds the static instance. */
     static UIConverter *s_pInstance;
@@ -130,3 +128,4 @@ private:
 #define gpConverter UIConverter::instance()
 
 #endif /* !FEQT_INCLUDED_SRC_converter_UIConverter_h */
+

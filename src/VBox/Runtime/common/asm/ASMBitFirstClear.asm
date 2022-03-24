@@ -1,10 +1,10 @@
-; $Id: ASMBitFirstClear.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMBitFirstClear.asm $
 ;; @file
 ; IPRT - ASMBitFirstClear().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ BEGINCODE
 ; @param   msc:rcx gcc:rdi pvBitmap    Pointer to the bitmap.
 ; @param   msc:edx gcc:rsi cBits       The number of bits in the bitmap. Multiple of 32.
 ;
-RT_BEGINPROC ASMBitFirstClear
+BEGINPROC_EXPORTED ASMBitFirstClear
         ;
         ; if (cBits)
         ; Put cBits in ecx first.

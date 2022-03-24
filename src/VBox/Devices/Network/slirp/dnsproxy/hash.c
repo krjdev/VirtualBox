@@ -1,4 +1,4 @@
-/* $Id: hash.c 45321 2013-04-04 04:47:30Z vboxsync $ */
+/* $Id: hash.c $ */
 /*
  * Copyright (c) 2003,2004 Armin Wolfermann
  *

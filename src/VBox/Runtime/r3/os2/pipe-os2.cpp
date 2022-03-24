@@ -1,10 +1,10 @@
-/* $Id: pipe-os2.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pipe-os2.cpp $ */
 /** @file
  * IPRT - Anonymous Pipes, OS/2 Implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,8 +67,6 @@ typedef struct RTPIPEINTERNAL
     HPIPE               hPipe;
     /** Set if this is the read end, clear if it's the write end. */
     bool                fRead;
-    /** RTPipeFromNative: Leave open. */
-    bool                fLeaveOpen;
     /** Whether the pipe is in blocking or non-blocking mode. */
     bool                fBlocking;
     /** Set if the pipe is broken. */
@@ -196,8 +194,6 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
                     pThisW->hev             = NULLHANDLE;
                     pThisR->fRead           = true;
                     pThisW->fRead           = false;
-                    pThisR->fLeaveOpen      = false;
-                    pThisW->fLeaveOpen      = false;
                     pThisR->fBlocking       = false;
                     pThisW->fBlocking       = true;
                     //pThisR->fBrokenPipe     = false;
@@ -230,7 +226,7 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
 }
 
 
-RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
+RTDECL(int)  RTPipeClose(RTPIPE hPipe)
 {
     RTPIPEINTERNAL *pThis = hPipe;
     if (pThis == NIL_RTPIPE)
@@ -246,8 +242,7 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
     Assert(pThis->cUsers == 0);
 
     /* Don't call DosDisConnectNPipe! */
-    if (!fLeaveOpen && !pThis->fLeaveOpen)
-        DosClose(pThis->hPipe);
+    DosClose(pThis->hPipe);
     pThis->hPipe = (HPIPE)-1;
 
     if (pThis->hev != NULLHANDLE)
@@ -265,16 +260,10 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
 }
 
 
-RTDECL(int)  RTPipeClose(RTPIPE hPipe)
-{
-    return RTPipeCloseEx(hPipe, false /*fLeaveOpen*/);
-}
-
-
 RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t fFlags)
 {
     AssertPtrReturn(phPipe, VERR_INVALID_POINTER);
-    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK_FN), VERR_INVALID_PARAMETER);
+    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK), VERR_INVALID_PARAMETER);
     AssertReturn(!!(fFlags & RTPIPE_N_READ) != !!(fFlags & RTPIPE_N_WRITE), VERR_INVALID_PARAMETER);
 
     /*
@@ -343,8 +332,7 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
         pThis->u32Magic        = RTPIPE_MAGIC;
         pThis->hPipe           = hNative;
         pThis->hev             = NULLHANDLE;
-        pThis->fRead           = RT_BOOL(fFlags & RTPIPE_N_READ);
-        pThis->fLeaveOpen      = RT_BOOL(fFlags & RTPIPE_N_LEAVE_OPEN);
+        pThis->fRead           = !!(fFlags & RTPIPE_N_READ);
         pThis->fBlocking       = !(fPipeState & NP_NOWAIT);
         //pThis->fBrokenPipe     = false;
         //pThis->cUsers          = 0;

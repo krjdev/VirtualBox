@@ -1,10 +1,10 @@
-/* $Id: UIDetailsElements.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIDetailsElements.h $ */
 /** @file
  * VBox Qt GUI - UIDetailsElement[Name] classes declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,17 +21,9 @@
 # pragma once
 #endif
 
-/* Qt includes: */
-#include <QMutex>
-
 /* GUI includes: */
 #include "UIDetailsElement.h"
 #include "UITask.h"
-
-/* COM includes: */
-#include "COMEnums.h"
-#include "CCloudMachine.h"
-#include "CMachine.h"
 
 /* Forward declarations: */
 class UIMachinePreview;
@@ -47,32 +39,6 @@ public:
 
     /** Constructs update task taking @a comMachine as data. */
     UIDetailsUpdateTask(const CMachine &comMachine);
-    /** Constructs update task taking @a comCloudMachine as data. */
-    UIDetailsUpdateTask(const CCloudMachine &comCloudMachine);
-
-    /** Returns the machine. */
-    CMachine machine() const;
-    /** Returns the cloud machine. */
-    CCloudMachine cloudMachine() const;
-
-    /** Returns the table. */
-    UITextTable table() const;
-    /** Defines the @a guiTable. */
-    void setTable(const UITextTable &guiTable);
-
-private:
-
-    /** Holds the mutex to access m_comMachine and m_comCloudMachine members. */
-    mutable QMutex  m_machineMutex;
-    /** Holds the machine being processed. */
-    CMachine        m_comMachine;
-    /** Holds the cloud machine being processed. */
-    CCloudMachine   m_comCloudMachine;
-
-    /** Holds the mutex to access m_guiTable member. */
-    mutable QMutex  m_tableMutex;
-    /** Holds the machine being filled. */
-    UITextTable     m_guiTable;
 };
 
 /** UIDetailsElement extension used as a wrapping interface to
@@ -122,9 +88,6 @@ public:
       * @param fOpened brings whether the details-element should be opened. */
     UIDetailsElementPreview(UIDetailsSet *pParent, bool fOpened);
 
-    /** Updates layout. */
-    virtual void updateLayout() RT_OVERRIDE;
-
 private slots:
 
     /** Handles preview size-hint changes. */
@@ -141,6 +104,8 @@ private:
       * @param fClosed allows to specify whether the hint should
       *                be calculated for the closed element. */
     int minimumHeightHintForElement(bool fClosed) const;
+    /** Updates layout. */
+    void updateLayout();
 
     /** Updates appearance. */
     void updateAppearance();
@@ -170,26 +135,6 @@ private:
     UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral m_fOptions;
 };
 
-/** UITask extension used as update task for the details-element type 'General' of cloud VM. */
-class UIDetailsUpdateTaskGeneralCloud : public UIDetailsUpdateTask
-{
-    Q_OBJECT;
-
-public:
-
-    /** Constructs update task passing @a comCloudMachine to the base-class. */
-    UIDetailsUpdateTaskGeneralCloud(const CCloudMachine &comCloudMachine, UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral fOptions)
-        : UIDetailsUpdateTask(comCloudMachine), m_fOptions(fOptions) {}
-
-private:
-
-    /** Contains update task body. */
-    void run();
-
-    /** Holds the options. */
-    UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral m_fOptions;
-};
-
 /** UIDetailsElementInterface extension for the details-element type 'General'. */
 class UIDetailsElementGeneral : public UIDetailsElementInterface
 {
@@ -205,7 +150,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -244,7 +189,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -283,7 +228,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -322,7 +267,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -361,7 +306,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -403,7 +348,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -442,7 +387,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -481,7 +426,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -520,7 +465,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -559,7 +504,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 
@@ -598,7 +543,7 @@ public:
 private:
 
     /** Creates update task for this element. */
-    virtual UITask *createUpdateTask() RT_OVERRIDE;
+    virtual UITask *createUpdateTask() /* override */;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_manager_details_UIDetailsElements_h */

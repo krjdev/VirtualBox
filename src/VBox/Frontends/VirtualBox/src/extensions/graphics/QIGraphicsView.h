@@ -1,10 +1,10 @@
-/* $Id: QIGraphicsView.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIGraphicsView.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIGraphicsView class declaration.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -44,7 +44,7 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
 private:
 

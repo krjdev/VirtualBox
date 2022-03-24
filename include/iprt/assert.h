@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2571,7 +2571,7 @@ RT_C_DECLS_END
  *
  * @param   pv      The pointer.
  */
-#define AssertPtr(pv)                   AssertMsg(RT_VALID_PTR(pv), ("%p\n", (pv)))
+#define AssertPtr(pv)                   AssertMsg(VALID_PTR(pv), ("%p\n", (pv)))
 
 /** @def AssertPtrReturn
  * Asserts that a pointer is valid.
@@ -2579,40 +2579,21 @@ RT_C_DECLS_END
  * @param   pv      The pointer.
  * @param   rcRet   What is to be presented to return.
  */
-#define AssertPtrReturn(pv, rcRet)      AssertMsgReturn(RT_VALID_PTR(pv), ("%p\n", (pv)), rcRet)
+#define AssertPtrReturn(pv, rcRet)      AssertMsgReturn(VALID_PTR(pv), ("%p\n", (pv)), rcRet)
 
 /** @def AssertPtrReturnVoid
  * Asserts that a pointer is valid.
  *
  * @param   pv      The pointer.
  */
-#define AssertPtrReturnVoid(pv)         AssertMsgReturnVoid(RT_VALID_PTR(pv), ("%p\n", (pv)))
-
-/** @def AssertPtrReturnStmt
- * Asserts that a pointer is valid.
- *
- * @param   pv      The pointer.
- * @param   stmt    Statement to execute before returninig in case of a failed
- *                  assertion.
- * @param   rcRet   What is to be presented to return.
- */
-#define AssertPtrReturnStmt(pv, stmt, rcRet) AssertMsgReturnStmt(RT_VALID_PTR(pv), ("%p\n", (pv)), stmt, rcRet)
-
-/** @def AssertPtrReturnVoidStmt
- * Asserts that a pointer is valid.
- *
- * @param   pv      The pointer.
- * @param   stmt    Statement to execute before returninig in case of a failed
- *                  assertion.
- */
-#define AssertPtrReturnVoidStmt(pv, stmt) AssertMsgReturnVoid(RT_VALID_PTR(pv), ("%p\n", (pv)), stmt)
+#define AssertPtrReturnVoid(pv)         AssertMsgReturnVoid(VALID_PTR(pv), ("%p\n", (pv)))
 
 /** @def AssertPtrBreak
  * Asserts that a pointer is valid.
  *
  * @param   pv      The pointer.
  */
-#define AssertPtrBreak(pv)              AssertMsgBreak(RT_VALID_PTR(pv), ("%p\n", (pv)))
+#define AssertPtrBreak(pv)              AssertMsgBreak(VALID_PTR(pv), ("%p\n", (pv)))
 
 /** @def AssertPtrBreakStmt
  * Asserts that a pointer is valid.
@@ -2620,14 +2601,14 @@ RT_C_DECLS_END
  * @param   pv      The pointer.
  * @param   stmt    Statement to execute before break in case of a failed assertion.
  */
-#define AssertPtrBreakStmt(pv, stmt)    AssertMsgBreakStmt(RT_VALID_PTR(pv), ("%p\n", (pv)), stmt)
+#define AssertPtrBreakStmt(pv, stmt)    AssertMsgBreakStmt(VALID_PTR(pv), ("%p\n", (pv)), stmt)
 
 /** @def AssertPtrNull
  * Asserts that a pointer is valid or NULL.
  *
  * @param   pv      The pointer.
  */
-#define AssertPtrNull(pv)               AssertMsg(RT_VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
+#define AssertPtrNull(pv)               AssertMsg(VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
 
 /** @def AssertPtrNullReturn
  * Asserts that a pointer is valid or NULL.
@@ -2635,21 +2616,21 @@ RT_C_DECLS_END
  * @param   pv      The pointer.
  * @param   rcRet   What is to be presented to return.
  */
-#define AssertPtrNullReturn(pv, rcRet)  AssertMsgReturn(RT_VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)), rcRet)
+#define AssertPtrNullReturn(pv, rcRet)  AssertMsgReturn(VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)), rcRet)
 
 /** @def AssertPtrNullReturnVoid
  * Asserts that a pointer is valid or NULL.
  *
  * @param   pv      The pointer.
  */
-#define AssertPtrNullReturnVoid(pv)     AssertMsgReturnVoid(RT_VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
+#define AssertPtrNullReturnVoid(pv)     AssertMsgReturnVoid(VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
 
 /** @def AssertPtrNullBreak
  * Asserts that a pointer is valid or NULL.
  *
  * @param   pv      The pointer.
  */
-#define AssertPtrNullBreak(pv)          AssertMsgBreak(RT_VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
+#define AssertPtrNullBreak(pv)          AssertMsgBreak(VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)))
 
 /** @def AssertPtrNullBreakStmt
  * Asserts that a pointer is valid or NULL.
@@ -2657,7 +2638,7 @@ RT_C_DECLS_END
  * @param   pv      The pointer.
  * @param   stmt    Statement to execute before break in case of a failed assertion.
  */
-#define AssertPtrNullBreakStmt(pv, stmt) AssertMsgBreakStmt(RT_VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)), stmt)
+#define AssertPtrNullBreakStmt(pv, stmt) AssertMsgBreakStmt(VALID_PTR(pv) || (pv) == NULL, ("%p\n", (pv)), stmt)
 
 /** @def AssertGCPhys32
  * Asserts that the high dword of a physical address is zero

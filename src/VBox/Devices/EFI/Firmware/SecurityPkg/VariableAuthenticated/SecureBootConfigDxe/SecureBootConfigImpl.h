@@ -93,27 +93,6 @@ extern  EFI_IFR_GUID_LABEL         *mEndLabel;
 #define HASHALG_RAW                            0x00000004
 #define HASHALG_MAX                            0x00000004
 
-//
-// Certificate public key minimum size (bytes)
-//
-#define CER_PUBKEY_MIN_SIZE     256
-
-//
-// Types of errors may occur during certificate enrollment.
-//
-typedef enum {
-  None_Error = 0,
-  //
-  // Unsupported_type indicates the certificate type is not supported.
-  //
-  Unsupported_Type,
-  //
-  // Unqualified_key indicates the key strength of certificate is not
-  // strong enough.
-  //
-  Unqualified_Key,
-  Enroll_Error_Max
-}ENROLL_KEY_ERROR;
 
 typedef struct {
   UINTN             Signature;
@@ -193,7 +172,7 @@ typedef struct {
   CURRENT_VARIABLE_NAME             VariableName;     // The variable name we are processing.
   UINT32                            ListCount;        // Record current variable has how many signature list.
   UINTN                             ListIndex;        // Record which signature list is processing.
-  BOOLEAN                           *CheckArray;      // Record which signature data checked.
+  BOOLEAN                           *CheckArray;      // Record whcih siganture data checked.
 } SECUREBOOT_CONFIG_PRIVATE_DATA;
 
 extern SECUREBOOT_CONFIG_PRIVATE_DATA      mSecureBootConfigPrivateDateTemplate;
@@ -203,7 +182,7 @@ extern SECUREBOOT_CONFIG_PRIVATE_DATA      *gSecureBootPrivateData;
 #define SECUREBOOT_CONFIG_PRIVATE_FROM_THIS(a)  CR (a, SECUREBOOT_CONFIG_PRIVATE_DATA, ConfigAccess, SECUREBOOT_CONFIG_PRIVATE_DATA_SIGNATURE)
 
 //
-// Cryptographic Key Information
+// Cryptograhpic Key Information
 //
 #pragma pack(1)
 typedef struct _CPL_KEY_INFO {
@@ -469,12 +448,12 @@ CleanUpPage (
 
 /**
   Read file content into BufferPtr, the size of the allocate buffer
-  is *FileSize plus AdditionAllocateSize.
+  is *FileSize plus AddtionAllocateSize.
 
   @param[in]       FileHandle            The file to be read.
   @param[in, out]  BufferPtr             Pointers to the pointer of allocated buffer.
   @param[out]      FileSize              Size of input file
-  @param[in]       AdditionAllocateSize   Addition size the buffer need to be allocated.
+  @param[in]       AddtionAllocateSize   Addtion size the buffer need to be allocated.
                                          In case the buffer need to contain others besides the file content.
 
   @retval   EFI_SUCCESS                  The file was read into the buffer.
@@ -488,7 +467,7 @@ ReadFileContent (
   IN      EFI_FILE_HANDLE           FileHandle,
   IN OUT  VOID                      **BufferPtr,
      OUT  UINTN                     *FileSize,
-  IN      UINTN                     AdditionAllocateSize
+  IN      UINTN                     AddtionAllocateSize
   );
 
 

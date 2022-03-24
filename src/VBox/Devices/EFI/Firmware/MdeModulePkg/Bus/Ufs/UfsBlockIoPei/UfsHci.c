@@ -977,10 +977,7 @@ UfsRwFlags (
   }
 
   if (Trd->Ocs == 0) {
-    //
-    // The 'FLAG VALUE' field is at byte offset 3 of QueryResp->Tsf.Value
-    //
-    *Value = *((UINT8*)&(QueryResp->Tsf.Value) + 3);
+    *Value = (UINT8)QueryResp->Tsf.Value;
   } else {
     Status = EFI_DEVICE_ERROR;
   }

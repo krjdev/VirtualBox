@@ -38,7 +38,6 @@
   BaseLib
   MemoryAllocationLib
   UefiBootServicesTableLib
-  UefiRuntimeServicesTableLib
   BaseMemoryLib
   DebugLib
   PcdLib
@@ -49,7 +48,7 @@
   NvVarsFileLib
   QemuFwCfgLib
   QemuFwCfgS3Lib
-  QemuLoadImageLib
+  LoadLinuxLib
   QemuBootOrderLib
   ReportStatusCodeLib
   UefiLib
@@ -80,6 +79,5 @@
 
 [Guids]
   gEfiEndOfDxeEventGroupGuid
-  gEfiGlobalVariableGuid
   gRootBridgesConnectedEventGroupGuid
   gUefiShellFileGuid

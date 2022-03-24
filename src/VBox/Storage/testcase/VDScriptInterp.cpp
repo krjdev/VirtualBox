@@ -1,10 +1,10 @@
-/* $Id: VDScriptInterp.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VDScriptInterp.cpp $ */
 /** @file
  * VBox HDD container test utility - scripting engine, interpreter.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -637,7 +637,7 @@ static int vdScriptInterpreterEvaluateStatement(PVDSCRIPTINTERPCTX pThis, PVDSCR
                 vdScriptStackPop(&pThis->StackCtrl);
                 pCtrl = (PVDSCRIPTINTERPCTRL)vdScriptStackGetUsed(&pThis->StackCtrl);
             }
-            AssertMsg(RT_VALID_PTR(pCtrl), ("Incorrect program, return outside of function\n"));
+            AssertMsg(VALID_PTR(pCtrl), ("Incorrect program, return outside of function\n"));
             break;
         }
         case VDSCRIPTSTMTTYPE_FOR:
@@ -661,7 +661,7 @@ static int vdScriptInterpreterEvaluateStatement(PVDSCRIPTINTERPCTX pThis, PVDSCR
                 vdScriptStackPop(&pThis->StackCtrl);
                 pCtrl = (PVDSCRIPTINTERPCTRL)vdScriptStackGetUsed(&pThis->StackCtrl);
             }
-            AssertMsg(RT_VALID_PTR(pCtrl), ("Incorrect program, continue outside of loop\n"));
+            AssertMsg(VALID_PTR(pCtrl), ("Incorrect program, continue outside of loop\n"));
 
             /* Put the conditionals for while and for loops onto the control stack again. */
             PVDSCRIPTASTSTMT pLoopStmt = (PVDSCRIPTASTSTMT)pCtrl->Ctrl.pAstNode;
@@ -692,7 +692,7 @@ static int vdScriptInterpreterEvaluateStatement(PVDSCRIPTINTERPCTX pThis, PVDSCR
                 vdScriptStackPop(&pThis->StackCtrl);
                 pCtrl = (PVDSCRIPTINTERPCTRL)vdScriptStackGetUsed(&pThis->StackCtrl);
             }
-            AssertMsg(RT_VALID_PTR(pCtrl), ("Incorrect program, break outside of loop\n"));
+            AssertMsg(VALID_PTR(pCtrl), ("Incorrect program, break outside of loop\n"));
             vdScriptStackPop(&pThis->StackCtrl); /* Remove loop control statement. */
             break;
         }

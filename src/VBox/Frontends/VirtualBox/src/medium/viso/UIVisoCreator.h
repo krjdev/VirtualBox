@@ -1,10 +1,10 @@
-/* $Id: UIVisoCreator.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVisoCreator.h $ */
 /** @file
  * VBox Qt GUI - UIVisoCreator class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,18 +26,14 @@
 
 /* GUI includes: */
 #include "QIMainDialog.h"
-#include "QIWithRestorableGeometry.h"
 #include "QIWithRetranslateUI.h"
-
-#include <iprt/stream.h>
 
 /* Forward declarations: */
 class QMenu;
 class QGridLayout;
 class QIDialogButtonBox;
 class UIDialogPanel;
-class QIToolBar;
-class UIActionPool;
+class UIToolBar;
 class UIVisoHostBrowser;
 class UIVisoContentBrowser;
 class UIVisoCreatorOptionsPanel;
@@ -46,19 +42,13 @@ class UIVisoConfigurationPanel;
 /** A QIMainDialog extension. It hosts two UIVisoBrowserBase extensions, one for host and one
   * for VISO file system. It has the main menu, main toolbar, and a vertical toolbar and corresponding
   * actions. */
-class SHARED_LIBRARY_STUFF UIVisoCreatorWidget : public QIWithRetranslateUI<QWidget>
+class UIVisoCreator : public QIWithRetranslateUI<QIMainDialog>
 {
     Q_OBJECT;
 
-signals:
-
-    void sigSetCancelButtonShortCut(QKeySequence keySequence);
-    void sigVisoNameChanged(const QString &strVisoName);
-
 public:
 
-    UIVisoCreatorWidget(UIActionPool *pActionPool, QWidget *pParent,
-                        bool fShowToolBar, const QString& strMachineName = QString());
+    UIVisoCreator(QWidget *pParent = 0, const QString& strMachineName = QString());
     /** Returns the content of the .viso file. Each element of the list corresponds to a line in the .viso file. */
     QStringList       entryList() const;
     const QString     &visoName() const;
@@ -67,36 +57,15 @@ public:
     /** Returns the current path that the host browser is listing. */
     QString currentPath() const;
     void    setCurrentPath(const QString &strPath);
-    QMenu *menu() const;
-
-    /** Creates a VISO by using the VISO creator dialog.
-      * @param  pParent           Passes the dialog parent.
-      * @param  strDefaultFolder  Passes the folder to save the VISO file.
-      * @param  strMachineName    Passes the name of the machine,
-      * returns the UUID of the created medium or a null QUuid. */
-    static QUuid createViso(UIActionPool *pActionPool, QWidget *pParent,
-                            const QString &strDefaultFolder = QString(),
-                            const QString &strMachineName  = QString());
 
 #ifdef VBOX_WS_MAC
     /** Returns the toolbar. */
-    QIToolBar *toolbar() const { return m_pToolBar; }
+    UIToolBar *toolbar() const { return m_pToolBar; }
 #endif
-
-    /**
-      * Helper for createVisoMediumWithVisoCreator.
-      * @returns IPRT status code.
-      * @param   pStrmDst            Where to write the quoted string.
-      * @param   pszPrefix           Stuff to put in front of it.
-      * @param   rStr                The string to quote and write out.
-      * @param   pszPrefix           Stuff to put after it.
-      */
-    static int visoWriteQuotedString(PRTSTREAM pStrmDst, const char *pszPrefix,
-                                     QString const &rStr, const char *pszPostFix);
 
 protected:
 
-    virtual void retranslateUi() final override;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 
@@ -160,65 +129,26 @@ private:
       * @{ */
         QAction              *m_pAddAction;
         QAction              *m_pRemoveAction;
-        QAction              *m_pCreateNewDirectoryAction;
+        QAction              *m_pNewDirectoryAction;
         QAction              *m_pRenameAction;
         QAction              *m_pResetAction;
     /** @} */
 
     QGridLayout          *m_pMainLayout;
     UIVisoHostBrowser    *m_pHostBrowser;
-    UIVisoContentBrowser *m_pVISOContentBrowser;
-
-    QIToolBar            *m_pToolBar;
-    QIToolBar            *m_pVerticalToolBar;
+    UIVisoContentBrowser *m_pVisoBrowser;
+    QIDialogButtonBox    *m_pButtonBox;
+    UIToolBar            *m_pToolBar;
+    UIToolBar            *m_pVerticalToolBar;
     VisoOptions           m_visoOptions;
     BrowserOptions        m_browserOptions;
+    QWidget              *m_pCentralWidget;
     QMenu                *m_pMainMenu;
     QString               m_strMachineName;
     UIVisoCreatorOptionsPanel *m_pCreatorOptionsPanel;
     UIVisoConfigurationPanel  *m_pConfigurationPanel;
     QMap<UIDialogPanel*, QAction*> m_panelActionMap;
     QList<UIDialogPanel*>          m_visiblePanelsList;
-    QPointer<UIActionPool> m_pActionPool;
-    bool                   m_fShowToolBar;
 };
 
-
-class SHARED_LIBRARY_STUFF UIVisoCreatorDialog : public QIWithRetranslateUI<QIWithRestorableGeometry<QIMainDialog> >
-{
-    Q_OBJECT;
-
-public:
-
-    UIVisoCreatorDialog(UIActionPool *pActionPool, QWidget *pParent, const QString& strMachineName = QString());
-
-    QStringList  entryList() const;
-    QString visoName() const;
-    QStringList customOptions() const;
-    QString currentPath() const;
-    void    setCurrentPath(const QString &strPath);
-
-protected:
-
-    virtual bool event(QEvent *pEvent) final override;
-
-private slots:
-
-    void sltSetCancelButtonShortCut(QKeySequence keySequence);
-    void sltsigVisoNameChanged(const QString &strName);
-
-private:
-    void prepareWidgets();
-    void prepareConnections();
-    virtual void retranslateUi() final override;
-    void loadSettings();
-    void saveDialogGeometry();
-    void updateWindowTitle();
-
-    QString m_strMachineName;
-    UIVisoCreatorWidget *m_pVisoCreatorWidget;
-    QIDialogButtonBox    *m_pButtonBox;
-    QPointer<UIActionPool> m_pActionPool;
-    int                   m_iGeometrySaveTimerId;
-};
 #endif /* !FEQT_INCLUDED_SRC_medium_viso_UIVisoCreator_h */

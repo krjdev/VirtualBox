@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,20 +48,20 @@ RT_C_DECLS_BEGIN
  * @param   pvElement2      The 2nd element.
  * @param   pvUser          The user argument passed to the sorting function.
  */
-typedef DECLCALLBACKTYPE(int, FNRTSORTCMP,(void const *pvElement1, void const *pvElement2, void *pvUser));
+typedef DECLCALLBACK(int) FNRTSORTCMP(void const *pvElement1, void const *pvElement2, void *pvUser);
 /** Pointer to a compare function. */
 typedef FNRTSORTCMP *PFNRTSORTCMP;
 
 /**
  * Sorter function for an array of variable sized elementes.
  *
- * @param   pvArray         The array to sort.
+ * @param   papvArray       The array to sort.
  * @param   cElements       The number of elements in the array.
  * @param   cbElement       The size of an array element.
  * @param   pfnCmp          Callback function comparing two elements.
  * @param   pvUser          User argument for the callback.
  */
-typedef DECLCALLBACKTYPE(void, FNRTSORT,(void *pvArray, size_t cElements, size_t cbElement, PFNRTSORTCMP pfnCmp, void *pvUser));
+typedef DECLCALLBACK(void) FNRTSORT(void *pvArray, size_t cElements, size_t cbElement, PFNRTSORTCMP pfnCmp, void *pvUser);
 /** Pointer to a sorter function for an array of variable sized elements. */
 typedef FNRTSORT *PFNRTSORT;
 
@@ -73,7 +73,7 @@ typedef FNRTSORT *PFNRTSORT;
  * @param   pfnCmp          Callback function comparing two elements.
  * @param   pvUser          User argument for the callback.
  */
-typedef DECLCALLBACKTYPE(void, FNRTSORTAPV,(void **papvArray, size_t cElements, PFNRTSORTCMP pfnCmp, void *pvUser));
+typedef DECLCALLBACK(void) FNRTSORTAPV(void **papvArray, size_t cElements, PFNRTSORTCMP pfnCmp, void *pvUser);
 /** Pointer to a pointer array sorter function. */
 typedef FNRTSORTAPV *PFNRTSORTAPV;
 

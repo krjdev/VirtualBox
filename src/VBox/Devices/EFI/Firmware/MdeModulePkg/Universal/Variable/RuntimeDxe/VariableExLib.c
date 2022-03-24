@@ -1,13 +1,12 @@
 /** @file
   Provides variable driver extended services.
 
-Copyright (c) 2015 - 2019, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #include "Variable.h"
-#include "VariableParsing.h"
 
 /**
   Finds variable in storage blocks of volatile and non-volatile storage areas.
@@ -56,8 +55,8 @@ VariableExLibFindVariable (
     return Status;
   }
 
-  AuthVariableInfo->DataSize        = DataSizeOfVariable (Variable.CurrPtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
-  AuthVariableInfo->Data            = GetVariableDataPtr (Variable.CurrPtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
+  AuthVariableInfo->DataSize        = DataSizeOfVariable (Variable.CurrPtr);
+  AuthVariableInfo->Data            = GetVariableDataPtr (Variable.CurrPtr);
   AuthVariableInfo->Attributes      = Variable.CurrPtr->Attributes;
   if (mVariableModuleGlobal->VariableGlobal.AuthFormat) {
     AuthVariable = (AUTHENTICATED_VARIABLE_HEADER *) Variable.CurrPtr;
@@ -98,18 +97,11 @@ VariableExLibFindNextVariable (
   EFI_STATUS                    Status;
   VARIABLE_HEADER               *VariablePtr;
   AUTHENTICATED_VARIABLE_HEADER *AuthVariablePtr;
-  VARIABLE_STORE_HEADER         *VariableStoreHeader[VariableStoreTypeMax];
-
-  VariableStoreHeader[VariableStoreTypeVolatile] = (VARIABLE_STORE_HEADER *) (UINTN) mVariableModuleGlobal->VariableGlobal.VolatileVariableBase;
-  VariableStoreHeader[VariableStoreTypeHob]      = (VARIABLE_STORE_HEADER *) (UINTN) mVariableModuleGlobal->VariableGlobal.HobVariableBase;
-  VariableStoreHeader[VariableStoreTypeNv]       = mNvVariableCache;
 
   Status = VariableServiceGetNextVariableInternal (
              VariableName,
              VendorGuid,
-             VariableStoreHeader,
-             &VariablePtr,
-             mVariableModuleGlobal->VariableGlobal.AuthFormat
+             &VariablePtr
              );
   if (EFI_ERROR (Status)) {
     AuthVariableInfo->VariableName = NULL;
@@ -123,10 +115,10 @@ VariableExLibFindNextVariable (
     return Status;
   }
 
-  AuthVariableInfo->VariableName    = GetVariableNamePtr (VariablePtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
-  AuthVariableInfo->VendorGuid      = GetVendorGuidPtr (VariablePtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
-  AuthVariableInfo->DataSize        = DataSizeOfVariable (VariablePtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
-  AuthVariableInfo->Data            = GetVariableDataPtr (VariablePtr, mVariableModuleGlobal->VariableGlobal.AuthFormat);
+  AuthVariableInfo->VariableName    = GetVariableNamePtr (VariablePtr);
+  AuthVariableInfo->VendorGuid      = GetVendorGuidPtr (VariablePtr);
+  AuthVariableInfo->DataSize        = DataSizeOfVariable (VariablePtr);
+  AuthVariableInfo->Data            = GetVariableDataPtr (VariablePtr);
   AuthVariableInfo->Attributes      = VariablePtr->Attributes;
   if (mVariableModuleGlobal->VariableGlobal.AuthFormat) {
     AuthVariablePtr = (AUTHENTICATED_VARIABLE_HEADER *) VariablePtr;

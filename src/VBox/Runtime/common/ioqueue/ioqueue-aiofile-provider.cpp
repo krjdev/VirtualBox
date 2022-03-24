@@ -1,10 +1,10 @@
-/* $Id: ioqueue-aiofile-provider.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ioqueue-aiofile-provider.cpp $ */
 /** @file
  * IPRT - I/O queue, Async I/O file provider.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -128,14 +128,6 @@ static DECLCALLBACK(void) rtIoQueueAioFileProv_QueueDestroy(RTIOQUEUEPROV hIoQue
     PRTIOQUEUEPROVINT pThis = hIoQueueProv;
 
     RTFileAioCtxDestroy(pThis->hAioCtx);
-
-    while (pThis->cReqsFree--)
-    {
-        RTFILEAIOREQ hReq = pThis->pahReqsFree[pThis->cReqsFree];
-        RTFileAioReqDestroy(hReq);
-        pThis->pahReqsFree[pThis->cReqsFree] = NULL;
-    }
-
     RTMemFree(pThis->pahReqsFree);
     RTMemFree(pThis->pahReqsToCommit);
     RT_BZERO(pThis, sizeof(*pThis));

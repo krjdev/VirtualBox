@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceControl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxServiceControl.cpp $ */
 /** @file
  * VBoxServiceControl - Host-driven Guest Control.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -246,8 +246,7 @@ static int vgsvcGstCtrlInvalidate(void)
          */
         const uint64_t fGuestFeatures = VBOX_GUESTCTRL_GF_0_SET_SIZE
                                       | VBOX_GUESTCTRL_GF_0_PROCESS_ARGV0
-                                      | VBOX_GUESTCTRL_GF_0_PROCESS_DYNAMIC_SIZES
-                                      | VBOX_GUESTCTRL_GF_0_SHUTDOWN;
+                                      | VBOX_GUESTCTRL_GF_0_PROCESS_DYNAMIC_SIZES;
 
         rc = VbglR3GuestCtrlReportFeatures(g_idControlSvcClient, fGuestFeatures, &g_fControlHostFeatures0);
         if (RT_SUCCESS(rc))

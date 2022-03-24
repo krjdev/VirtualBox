@@ -1,10 +1,10 @@
-/* $Id: QIAdvancedSlider.h 93992 2022-02-28 17:56:58Z vboxsync $ */
+/* $Id: QIAdvancedSlider.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIAdvancedSlider class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -102,9 +102,6 @@ public:
     void setWarningHint(int iMin, int iMax);
     /** Defines the error hint to be from @a iMin to @a iMax. */
     void setErrorHint(int iMin, int iMax);
-
-    /** Defines slider @a strToolTip. */
-    void setToolTip(const QString &strToolTip);
 
 public slots:
 

@@ -1,10 +1,10 @@
-/* $Id: UIStatusBarEditorWindow.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIStatusBarEditorWindow.cpp $ */
 /** @file
  * VBox Qt GUI - UIStatusBarEditorWindow class implementation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,13 +82,13 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Handles mouse-press @a pEvent. */
     virtual void mousePressEvent(QMouseEvent *pEvent);
@@ -138,10 +138,10 @@ public:
     UIAccessibilityInterfaceForUIStatusBarEditorButton(QWidget *pWidget);
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE;
+    virtual QAccessible::State state() const /* override */;
 
 private:
 
@@ -498,7 +498,7 @@ void UIStatusBarEditorWidget::paintEvent(QPaintEvent *)
     QPainter painter(this);
 
     /* Prepare palette colors: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     QColor color0 = pal.color(QPalette::Window);
     QColor color1 = pal.color(QPalette::Window).lighter(110);
     color1.setAlpha(0);

@@ -1,10 +1,10 @@
-/* $Id: VBoxMPVModes.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPVModes.cpp $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,8 +18,8 @@
 #include "VBoxMPWddm.h"
 #include "common/VBoxMPCommon.h"
 #include <iprt/param.h> /* PAGE_OFFSET_MASK */
-#include <iprt/utf16.h>
 
+#include <stdio.h> /* for swprintf */
 
 
 int VBoxVModesInit(VBOX_VMODES *pModes, uint32_t cTargets)
@@ -188,15 +188,15 @@ static void vboxWddmVModesSaveTransient(PVBOXMP_DEVEXT pExt, uint32_t u32Target,
     }
     else
     {
-        wchar_t wszKeyName[32];
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomXRes%d", u32Target);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, pResolution->cx);
+        wchar_t keyname[32];
+        swprintf(keyname, L"CustomXRes%d", u32Target);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, pResolution->cx);
         VBOXMP_WARN_VPS(rc);
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomYRes%d", u32Target);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, pResolution->cy);
+        swprintf(keyname, L"CustomYRes%d", u32Target);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, pResolution->cy);
         VBOXMP_WARN_VPS(rc);
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomBPP%d", u32Target);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, 32); /* <- just in case for older driver usage */
+        swprintf(keyname, L"CustomBPP%d", u32Target);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, 32); /* <- just in case for older driver usage */
         VBOXMP_WARN_VPS(rc);
     }
 
@@ -336,12 +336,12 @@ int voxWddmVModesInitForTarget(PVBOXMP_DEVEXT pExt, VBOXWDDM_VMODES *pModes, uin
     }
     else
     {
-        wchar_t wszKeyName[32];
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomXRes%d", u32Target);
-        vpRc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomXRes);
+        wchar_t keyname[32];
+        swprintf(keyname, L"CustomXRes%d", u32Target);
+        vpRc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomXRes);
         VBOXMP_WARN_VPS_NOBP(vpRc);
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomYRes%d", u32Target);
-        vpRc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomYRes);
+        swprintf(keyname, L"CustomYRes%d", u32Target);
+        vpRc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomYRes);
         VBOXMP_WARN_VPS_NOBP(vpRc);
     }
 
@@ -361,14 +361,14 @@ int voxWddmVModesInitForTarget(PVBOXMP_DEVEXT pExt, VBOXWDDM_VMODES *pModes, uin
 
     for (int curKey=0; curKey<128; curKey++)
     {
-        wchar_t wszKeyName[24];
+        wchar_t keyname[24];
 
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomMode%dWidth", curKey);
-        vpRc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomXRes);
+        swprintf(keyname, L"CustomMode%dWidth", curKey);
+        vpRc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomXRes);
         VBOXMP_CHECK_VPS_BREAK(vpRc);
 
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomMode%dHeight", curKey);
-        vpRc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomYRes);
+        swprintf(keyname, L"CustomMode%dHeight", curKey);
+        vpRc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomYRes);
         VBOXMP_CHECK_VPS_BREAK(vpRc);
 
         LOG(("got custom mode[%u]=%ux%u", curKey, CustomXRes, CustomYRes));

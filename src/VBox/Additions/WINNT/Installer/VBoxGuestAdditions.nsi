@@ -1,10 +1,10 @@
-; $Id: VBoxGuestAdditions.nsi 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: VBoxGuestAdditions.nsi $
 ; @file
 ; VBoxGuestAdditions.nsi - Main file for Windows Guest Additions installation.
 ;
 
 ;
-; Copyright (C) 2012-2022 Oracle Corporation
+; Copyright (C) 2012-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -15,7 +15,7 @@
 ; hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
 ;
 
-!if $%KBUILD_TYPE% == "debug"
+!if $%BUILD_TYPE% == "debug"
   !define _DEBUG     ; Turn this on to get extra output
 !endif
 
@@ -41,10 +41,10 @@
 ; Product defines
 !define PRODUCT_NAME                "$%VBOX_PRODUCT% Guest Additions"
 !define PRODUCT_DESC                "$%VBOX_PRODUCT% Guest Additions"
-!define PRODUCT_VERSION             "$%VBOX_VERSION_MAJOR%.$%VBOX_VERSION_MINOR%.$%VBOX_VERSION_BUILD%.$%VBOX_SVN_REV%"
+!define PRODUCT_VERSION             "$%VBOX_VERSION_MAJOR%.$%VBOX_VERSION_MINOR%.$%VBOX_VERSION_BUILD%.0"
 !define PRODUCT_PUBLISHER           "$%VBOX_VENDOR%"
 !define PRODUCT_COPYRIGHT           "(C) $%VBOX_C_YEAR% $%VBOX_VENDOR%"
-!define PRODUCT_OUTPUT              "VBoxWindowsAdditions-$%KBUILD_TARGET_ARCH%.exe"
+!define PRODUCT_OUTPUT              "VBoxWindowsAdditions-$%BUILD_TARGET_ARCH%.exe"
 !define PRODUCT_WEB_SITE            "http://www.virtualbox.org"
 !define PRODUCT_INSTALL_KEY         "${VENDOR_ROOT_KEY}\VirtualBox Guest Additions"
 !define PRODUCT_UNINST_KEY          "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -91,7 +91,7 @@ VIAddVersionKey "InternalName"      "${PRODUCT_OUTPUT}"
 !define REPLACEDLL_NOREGISTER ; Replace in use DLL function
 !include "ReplaceDLL.nsh"
 
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
   !include "x64.nsh"
 !endif
 
@@ -111,7 +111,7 @@ VIAddVersionKey "InternalName"      "${PRODUCT_OUTPUT}"
   !define SM_CLEANBOOT 67
 
   ; Icons
-  !if $%KBUILD_TARGET_ARCH% == "x86"       ; 32-bit
+  !if $%BUILD_TARGET_ARCH% == "x86"       ; 32-bit
     !define MUI_ICON "$%VBOX_NSIS_ICON_FILE%"
     !define MUI_UNICON "$%VBOX_NSIS_ICON_FILE%"
   !else   ; 64-bit
@@ -193,13 +193,13 @@ VIAddVersionKey "InternalName"      "${PRODUCT_OUTPUT}"
 Name "${PRODUCT_NAME} $%VBOX_VERSION_STRING%"
 !ifdef UNINSTALLER_ONLY
   !echo "Uninstaller only!"
-  OutFile "$%PATH_TARGET%\VBoxWindowsAdditions-$%KBUILD_TARGET_ARCH%-uninst.exe"
+  OutFile "$%PATH_TARGET%\VBoxWindowsAdditions-$%BUILD_TARGET_ARCH%-uninst.exe"
 !else
-  OutFile "VBoxWindowsAdditions-$%KBUILD_TARGET_ARCH%.exe"
+  OutFile "VBoxWindowsAdditions-$%BUILD_TARGET_ARCH%.exe"
 !endif ; UNINSTALLER_ONLY
 
 ; Define default installation directory
-!if $%KBUILD_TARGET_ARCH% == "x86" ; 32-bit
+!if $%BUILD_TARGET_ARCH% == "x86" ; 32-bit
   InstallDir  "$PROGRAMFILES32\$%VBOX_VENDOR_SHORT%\VirtualBox Guest Additions"
 !else       ; 64-bit
   InstallDir  "$PROGRAMFILES64\$%VBOX_VENDOR_SHORT%\VirtualBox Guest Additions"
@@ -251,7 +251,7 @@ Var g_bPostInstallStatus                ; Cmd line: Post the overall installatio
 !include "VBoxGuestAdditionsLog.nsh"
 !include "VBoxGuestAdditionsExternal.nsh"
 !include "VBoxGuestAdditionsCommon.nsh"
-!if $%KBUILD_TARGET_ARCH% == "x86"       ; 32-bit only
+!if $%BUILD_TARGET_ARCH% == "x86"       ; 32-bit only
   !include "VBoxGuestAdditionsNT4.nsh"
 !endif
 !include "VBoxGuestAdditionsW2KXP.nsh"
@@ -435,7 +435,7 @@ usage:
     Goto next_param
   ${EndIf}
   MessageBox MB_OK "${PRODUCT_NAME} Installer$\r$\n$\r$\n \
-                    Usage: VBoxWindowsAdditions-$%KBUILD_TARGET_ARCH% [OPTIONS] [/l] [/S] [/D=<PATH>]$\r$\n$\r$\n \
+                    Usage: VBoxWindowsAdditions-$%BUILD_TARGET_ARCH% [OPTIONS] [/l] [/S] [/D=<PATH>]$\r$\n$\r$\n \
                     Options:$\r$\n \
                     /depth=BPP$\tSets the guest's display color depth (bits per pixel)$\r$\n \
                     /extract$\t$\tOnly extract installation files$\r$\n \
@@ -621,7 +621,7 @@ Section $(VBOX_COMPONENT_MAIN) SEC01
   ${Else}
     ${LogVerbose} "No previous version of ${PRODUCT_NAME} detected"
   ${EndIf}
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
   ${LogVerbose} "Detected OS: Windows $g_strWinVersion (64-bit)"
 !else
   ${LogVerbose} "Detected OS: Windows $g_strWinVersion (32-bit)"
@@ -638,7 +638,7 @@ Section $(VBOX_COMPONENT_MAIN) SEC01
 
   ; Which OS are we using?
   ; @todo Use logic lib here
-!if $%KBUILD_TARGET_ARCH% == "x86"       ; 32-bit
+!if $%BUILD_TARGET_ARCH% == "x86"       ; 32-bit
   StrCmp $g_strWinVersion "NT4" nt4     ; Windows NT 4.0
 !endif
   StrCmp $g_strWinVersion "2000" w2k    ; Windows 2000
@@ -656,7 +656,7 @@ Section $(VBOX_COMPONENT_MAIN) SEC01
 
   Goto notsupported
 
-!if $%KBUILD_TARGET_ARCH% == "x86"       ; 32-bit
+!if $%BUILD_TARGET_ARCH% == "x86"       ; 32-bit
 nt4: ; Windows NT4
 
   Call GetServicePack
@@ -835,7 +835,7 @@ Section -Post
 
   ; Add Sun Ray  client info keys
   ; Note: We only need 32-bit keys (HKLM\Software / HKLM\Software\Wow6432Node)
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
   WriteRegStr HKLM "SOFTWARE\Wow6432Node\Oracle\Sun Ray\ClientInfoAgent\ReconnectActions" "" ""
   WriteRegStr HKLM "SOFTWARE\Wow6432Node\Oracle\Sun Ray\ClientInfoAgent\DisconnectActions" "" ""
 !else
@@ -1004,7 +1004,7 @@ Function .onInit
   Call CheckArchitecture
   Pop $0
   ${If} $0 <> 0 ; Wrong architecture? Tell the world
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
     MessageBox MB_ICONSTOP $(VBOX_NOTICE_ARCH_AMD64) /SD IDOK
 !else
     MessageBox MB_ICONSTOP $(VBOX_NOTICE_ARCH_X86) /SD IDOK

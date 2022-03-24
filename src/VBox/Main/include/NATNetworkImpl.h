@@ -1,10 +1,10 @@
-/* $Id: NATNetworkImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NATNetworkImpl.h $ */
 /** @file
  * INATNetwork implementation header, lives in VBoxSVC.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,7 +63,7 @@ class ATL_NO_VTABLE NATNetwork :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(NATNetwork)
+    DECLARE_EMPTY_CTOR_DTOR(NATNetwork)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -114,8 +114,6 @@ private:
     HRESULT stop();
 
     // Internal methods
-    HRESULT setErrorBusy();
-
     int i_recalculateIpv4AddressAssignments();
     int i_findFirstAvailableOffset(ADDRESSLOOKUPTYPE, uint32_t *);
     int i_recalculateIPv6Prefix();

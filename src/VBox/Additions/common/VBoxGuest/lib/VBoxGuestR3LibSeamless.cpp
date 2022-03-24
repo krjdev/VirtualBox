@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestR3LibSeamless.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestR3LibSeamless.cpp $ */
 /** @file
  * VBoxGuestR3Lib - Ring-3 Support Library for VirtualBox guest additions, Seamless mode.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,11 +66,11 @@ VBGLR3DECL(int) VbglR3SeamlessSetCap(bool fState)
  */
 VBGLR3DECL(int) VbglR3SeamlessWaitEvent(VMMDevSeamlessMode *pMode)
 {
-    AssertPtrReturn(pMode, VERR_INVALID_POINTER);
-
-    /** @todo r=andy The (similar / duplicate) Windows code does similar waiting. Merge / fix this. */
     uint32_t fEvent = 0;
-    int rc = VbglR3WaitEvent(VMMDEV_EVENT_SEAMLESS_MODE_CHANGE_REQUEST, 1000 /* ms */, &fEvent);
+    int rc;
+
+    AssertPtrReturn(pMode, VERR_INVALID_PARAMETER);
+    rc = VbglR3WaitEvent(VMMDEV_EVENT_SEAMLESS_MODE_CHANGE_REQUEST, RT_INDEFINITE_WAIT, &fEvent);
     if (RT_SUCCESS(rc))
     {
         /* did we get the right event? */

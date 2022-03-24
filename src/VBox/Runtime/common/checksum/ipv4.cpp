@@ -1,10 +1,10 @@
-/* $Id: ipv4.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ipv4.cpp $ */
 /** @file
  * IPRT - IPv4 Checksum calculation and validation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -298,6 +298,7 @@ RT_EXPORT_SYMBOL(RTNetIPv4AddTCPChecksum);
  */
 DECLINLINE(uint32_t) rtNetIPv4AddDataChecksum(void const *pvData, size_t cbData, uint32_t u32Sum, bool *pfOdd)
 {
+    uint16_t const *pw = (uint16_t const *)pvData;
     if (*pfOdd)
     {
 #ifdef RT_BIG_ENDIAN
@@ -315,7 +316,6 @@ DECLINLINE(uint32_t) rtNetIPv4AddDataChecksum(void const *pvData, size_t cbData,
     }
 
     /* iterate the data. */
-    uint16_t const *pw = (uint16_t const *)pvData;
     while (cbData > 1)
     {
         u32Sum += *pw;

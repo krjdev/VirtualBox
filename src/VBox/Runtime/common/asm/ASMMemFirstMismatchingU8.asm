@@ -1,10 +1,10 @@
-; $Id: ASMMemFirstMismatchingU8.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMMemFirstMismatchingU8.asm $
 ;; @file
 ; IPRT - ASMMemFirstMismatchingU8().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ BEGINCODE
 ; Variant of ASMMemFirstMismatchingU8 with a fixed @a u8 value.
 ; We repeat the prolog and join the generic function.
 ;
-RT_BEGINPROC ASMMemFirstNonZero
+BEGINPROC_EXPORTED  ASMMemFirstNonZero
         ;
         ; Prologue.
         ;
@@ -104,7 +104,7 @@ ENDPROC    ASMMemFirstNonZero
 ;
 ; @cproto DECLINLINE(void *) ASMMemFirstMismatchingU8(void const *pv, size_t cb, uint8_t u8)
 ;
-RT_BEGINPROC ASMMemFirstMismatchingU8
+BEGINPROC_EXPORTED ASMMemFirstMismatchingU8
         ;
         ; Prologue.
         ;

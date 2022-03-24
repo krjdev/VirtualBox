@@ -497,7 +497,7 @@ IsMemoryGuarded (
 /**
   Set the page at the given address to be a Guard page.
 
-  This is done by changing the page table attribute to be NOT PRESENT.
+  This is done by changing the page table attribute to be NOT PRSENT.
 
   @param[in]  BaseAddress     Page address to Guard at.
 
@@ -527,7 +527,7 @@ SetGuardPage (
 /**
   Unset the Guard page at the given address to the normal memory.
 
-  This is done by changing the page table attribute to be PRESENT.
+  This is done by changing the page table attribute to be PRSENT.
 
   @param[in]  BaseAddress     Page address to Guard at.
 

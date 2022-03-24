@@ -1,10 +1,10 @@
-/* $Id: tstRTMp-1.cpp 94091 2022-03-04 21:28:14Z vboxsync $ */
+/* $Id: tstRTMp-1.cpp $ */
 /** @file
  * IPRT Testcase - RTMp.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -218,40 +218,33 @@ int main(int argc, char **argv)
     else
         RTTestIFailed("RTMpGetPresentSet -> %p, expected %p\n", pSet, &Set);
 
-    /*
-     * Quick test of RTMpGetDescription on the first and last online CPUs.
-     */
+
+    /* Find an online cpu for the next test. */
     RTCPUID idCpuOnline;
     for (idCpuOnline = 0; idCpuOnline < RTCPUSET_MAX_CPUS; idCpuOnline++)
         if (RTMpIsCpuOnline(idCpuOnline))
             break;
-    RTCPUID aidCpuIds[2] = { idCpuOnline, idCpuOnline };
-    for (idCpuOnline++; idCpuOnline < RTCPUSET_MAX_CPUS; idCpuOnline++)
-        if (RTMpIsCpuOnline(idCpuOnline))
-            aidCpuIds[1] = idCpuOnline;
-    for (size_t i = 0; i < RT_ELEMENTS(aidCpuIds); i++)
+
+    /*
+     * Quick test of RTMpGetDescription.
+     */
+    char szBuf[64];
+    int rc = RTMpGetDescription(idCpuOnline, &szBuf[0], sizeof(szBuf));
+    if (RT_SUCCESS(rc))
     {
-        idCpuOnline = aidCpuIds[i];
-        char szBuf[64];
-        int rc = RTMpGetDescription(idCpuOnline, &szBuf[0], sizeof(szBuf));
-        if (RT_SUCCESS(rc))
-        {
-            RTTestIPrintf(RTTESTLVL_ALWAYS, "RTMpGetDescription(%d,,) -> '%s'\n", idCpuOnline, szBuf);
+        RTTestIPrintf(RTTESTLVL_ALWAYS, "RTMpGetDescription -> '%s'\n", szBuf);
 
-            size_t cch = strlen(szBuf);
-            rc = RTMpGetDescription(idCpuOnline, &szBuf[0], cch);
-            if (rc != VERR_BUFFER_OVERFLOW)
-                RTTestIFailed("RTMpGetDescription(%d,,) -> %Rrc, expected VERR_BUFFER_OVERFLOW\n", idCpuOnline, rc);
+        size_t cch = strlen(szBuf);
+        rc = RTMpGetDescription(idCpuOnline, &szBuf[0], cch);
+        if (rc != VERR_BUFFER_OVERFLOW)
+            RTTestIFailed("RTMpGetDescription -> %Rrc, expected VERR_BUFFER_OVERFLOW\n", rc);
 
-            rc = RTMpGetDescription(idCpuOnline, &szBuf[0], cch + 1);
-            if (RT_FAILURE(rc))
-                RTTestIFailed("RTMpGetDescription(%d,,) -> %Rrc, expected VINF_SUCCESS\n", idCpuOnline, rc);
-        }
-        else
-            RTTestIFailed("RTMpGetDescription(%d,,) -> %Rrc\n", idCpuOnline, rc);
+        rc = RTMpGetDescription(idCpuOnline, &szBuf[0], cch + 1);
+        if (RT_FAILURE(rc))
+            RTTestIFailed("RTMpGetDescription -> %Rrc, expected VINF_SUCCESS\n", rc);
     }
-
-    /* */
+    else
+        RTTestIFailed("RTMpGetDescription -> %Rrc\n", rc);
 
     return RTTestSummaryAndDestroy(hTest);
 }

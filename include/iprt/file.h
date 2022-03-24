@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -584,17 +584,13 @@ RTDECL(RTFOFF) RTFileGetMaxSize(RTFILE File);
 RTDECL(int) RTFileQueryMaxSizeEx(RTFILE File, PRTFOFF pcbMax);
 
 /**
- * Queries the sector size (/ logical block size) for a disk or similar.
+ * Determine the maximum file size depending on the file system the file is stored on.
  *
- * @returns IPRT status code.
- * @retval  VERR_INVALID_FUNCTION if not a disk/similar.  Could also be returned
- *          if not really implemented.
- * @param   hFile       Handle to the disk.  This must typically be a device
- *                      rather than a file or directory, though this may vary
- *                      from OS to OS.
- * @param   pcbSector   Where to store the sector size.
+ * @returns The max size of the file.
+ *          -1 on failure.
+ * @param   File        Handle to the file.
  */
-RTDECL(int) RTFileQuerySectorSize(RTFILE hFile, uint32_t *pcbSector);
+RTDECL(RTFOFF) RTFileGetMaxSize(RTFILE File);
 
 /**
  * Gets the current file position.

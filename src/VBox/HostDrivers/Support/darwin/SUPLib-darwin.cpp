@@ -1,10 +1,10 @@
-/* $Id: SUPLib-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPLib-darwin.cpp $ */
 /** @file
  * VirtualBox Support Library - Darwin specific parts.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -186,7 +186,7 @@ static int suplibDarwinOpenService(PSUPLIBDATA pThis)
 }
 
 
-DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
+int suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, bool fUnrestricted, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
 {
     RT_NOREF(penmWhat, pErrInfo);
 
@@ -197,22 +197,13 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
         return VINF_SUCCESS;
 
     /*
-     * Driverless?
-     */
-    if (fFlags & SUPR3INIT_F_DRIVERLESS)
-    {
-        pThis->fDriverless = true;
-        return VINF_SUCCESS;
-    }
-
-    /*
      * Do the job.
      */
     Assert(pThis->hDevice == (intptr_t)NIL_RTFILE);
     int rc = suplibDarwinOpenService(pThis);
     if (RT_SUCCESS(rc))
     {
-        rc = suplibDarwinOpenDevice(pThis, RT_BOOL(fFlags & SUPR3INIT_F_UNRESTRICTED));
+        rc = suplibDarwinOpenDevice(pThis, fUnrestricted);
         if (RT_FAILURE(rc))
         {
             kern_return_t kr = IOServiceClose((io_connect_t)pThis->uConnection);
@@ -224,19 +215,12 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
             pThis->uConnection = 0;
         }
     }
-    if (   RT_FAILURE(rc)
-        && fFlags & SUPR3INIT_F_DRIVERLESS_MASK)
-    {
-        LogRel(("Failed to open \"%s\", rc=%Rrc - Switching to driverless mode.\n", IOCLASS_NAME, rc));
-        pThis->fDriverless = true;
-        rc = VINF_SUCCESS;
-    }
 
     return rc;
 }
 
 
-DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
+int suplibOsTerm(PSUPLIBDATA pThis)
 {
     /*
      * Close the connection to the IOService.
@@ -269,19 +253,19 @@ DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
 
 #ifndef IN_SUP_HARDENED_R3
 
-DECLHIDDEN(int) suplibOsInstall(void)
+int suplibOsInstall(void)
 {
     return VERR_NOT_IMPLEMENTED;
 }
 
 
-DECLHIDDEN(int) suplibOsUninstall(void)
+int suplibOsUninstall(void)
 {
     return VERR_NOT_IMPLEMENTED;
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
+int suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
 {
     RT_NOREF(cbReq);
     if (RT_LIKELY(ioctl(pThis->hDevice, uFunction, pvReq) >= 0))
@@ -290,7 +274,7 @@ DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvRe
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
+int suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
 {
     int rc = ioctl(pThis->hDevice, uFunction, idCpu);
     if (rc == -1)
@@ -299,9 +283,9 @@ DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintpt
 }
 
 
-DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFlags, void **ppvPages)
+int suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, void **ppvPages)
 {
-    RT_NOREF(pThis, fFlags);
+    NOREF(pThis);
     *ppvPages = valloc(cPages << PAGE_SHIFT);
     if (*ppvPages)
     {
@@ -312,7 +296,7 @@ DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFl
 }
 
 
-DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
+int suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
 {
     NOREF(pThis);
     free(pvPages);

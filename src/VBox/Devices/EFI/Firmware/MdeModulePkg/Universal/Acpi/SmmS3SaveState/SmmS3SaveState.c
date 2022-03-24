@@ -808,7 +808,7 @@ BootScriptInsert (
   }
 
   if (!EFI_ERROR (Status)) {
-   Status = S3BootScriptMoveLastOpcode (BeforeOrAfter, (VOID **)Position);
+   Status = S3BootScriptMoveLastOpcode (BeforeOrAfter, Position);
   }
   return Status;
 }
@@ -849,7 +849,7 @@ BootScriptLabel (
   IN CONST CHAR8                                *Label
   )
 {
-  return S3BootScriptLabel (BeforeOrAfter, CreateIfNotFound, (VOID **)Position, Label);
+  return S3BootScriptLabel (BeforeOrAfter, CreateIfNotFound, Position, Label);
 }
 /**
   Compare two positions in the boot script table and return their relative position.
@@ -887,7 +887,7 @@ BootScriptCompare (
 
   @retval EFI_OUT_OF_RESOURCES  No enough resource
   @retval EFI_SUCCESS           Succesfully installed the ScriptSave driver.
-  @retval other                 Errors occurred.
+  @retval other                 Errors occured.
 
 **/
 EFI_STATUS

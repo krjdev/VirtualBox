@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -110,8 +110,8 @@ RTDECL(int)         RTTraceBufDumpToAssert(RTTRACEBUF hTraceBuf);
  * @param   pszMsg              The message text.
  * @param   pvUser              The user argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTTRACEBUFCALLBACK,(RTTRACEBUF hTraceBuf, uint32_t iEntry, uint64_t NanoTS,
-                                                    RTCPUID idCpu, const char *pszMsg, void *pvUser));
+typedef DECLCALLBACK(int) FNRTTRACEBUFCALLBACK(RTTRACEBUF hTraceBuf, uint32_t iEntry, uint64_t NanoTS,
+                                               RTCPUID idCpu, const char *pszMsg, void *pvUser);
 /** Pointer to trace buffer enumeration callback function. */
 typedef FNRTTRACEBUFCALLBACK *PFNRTTRACEBUFCALLBACK;
 

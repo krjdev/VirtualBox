@@ -1,10 +1,10 @@
-/* $Id: tstVBoxControl.cpp 94184 2022-03-11 18:24:17Z vboxsync $ */
+/* $Id: tstVBoxControl.cpp $ */
 /** @file
  * VBoxControl - Guest Additions Command Line Management Interface, test case
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -87,13 +87,13 @@ VBGLR3DECL(int)     VbglR3GuestPropRead(HGCMCLIENTID idClient,
              idClient, pszName);
     static char szValue[] = "Value";
     static char szFlags[] = "TRANSIENT";
-    if (ppszValue)
+    if (VALID_PTR(ppszValue))
         *ppszValue = szValue;
-    if (pu64Timestamp)
+    if (VALID_PTR(pu64Timestamp))
         *pu64Timestamp = 12345;
-    if (ppszFlags)
+    if (VALID_PTR(ppszFlags))
         *ppszFlags = szFlags;
-    if (pcbBufActual)
+    if (VALID_PTR(pcbBufActual))
         *pcbBufActual = 256;
     return VINF_SUCCESS;
 }
@@ -128,13 +128,13 @@ VBGLR3DECL(int)     VbglR3GuestPropEnum(HGCMCLIENTID idClient,
     static char szValue[] = "Value";
     static char szFlags[] = "TRANSIENT";
     *ppHandle = &Handle;
-    if (ppszName)
+    if (VALID_PTR(ppszName))
         *ppszName = szName;
-    if (ppszValue)
+    if (VALID_PTR(ppszValue))
         *ppszValue = szValue;
-    if (pu64Timestamp)
+    if (VALID_PTR(pu64Timestamp))
         *pu64Timestamp = 12345;
-    if (ppszFlags)
+    if (VALID_PTR(ppszFlags))
         *ppszFlags = szFlags;
     return VINF_SUCCESS;
 }
@@ -147,15 +147,15 @@ VBGLR3DECL(int)     VbglR3GuestPropEnumNext(PVBGLR3GUESTPROPENUM pHandle,
 {
     RT_NOREF1(pHandle);
     RTPrintf("Called enumerate next...\n");
-    AssertReturn(RT_VALID_PTR(ppszName) || RT_VALID_PTR(ppszValue) || RT_VALID_PTR(ppszFlags),
+    AssertReturn(VALID_PTR(ppszName) || VALID_PTR(ppszValue) || VALID_PTR(ppszFlags),
                  VERR_INVALID_POINTER);
-    if (ppszName)
+    if (VALID_PTR(ppszName))
         *ppszName = NULL;
-    if (ppszValue)
+    if (VALID_PTR(ppszValue))
         *ppszValue = NULL;
-    if (pu64Timestamp)
+    if (VALID_PTR(pu64Timestamp))
         *pu64Timestamp = 0;
-    if (ppszFlags)
+    if (VALID_PTR(ppszFlags))
         *ppszFlags = NULL;
     return VINF_SUCCESS;
 }
@@ -176,8 +176,7 @@ VBGLR3DECL(int)     VbglR3GuestPropWait(HGCMCLIENTID idClient,
                                         char **ppszValue,
                                         uint64_t *pu64Timestamp,
                                         char **ppszFlags,
-                                        uint32_t *pcbBufActual,
-                                        bool *pfWasDeleted)
+                                        uint32_t *pcbBufActual)
 {
     RT_NOREF2(pvBuf, cbBuf);
     if (u32Timeout == RT_INDEFINITE_WAIT)
@@ -191,18 +190,16 @@ VBGLR3DECL(int)     VbglR3GuestPropWait(HGCMCLIENTID idClient,
     static char szName[] = "Name";
     static char szValue[] = "Value";
     static char szFlags[] = "TRANSIENT";
-    if (ppszName)
+    if (VALID_PTR(ppszName))
         *ppszName = szName;
-    if (ppszValue)
+    if (VALID_PTR(ppszValue))
         *ppszValue = szValue;
-    if (pu64Timestamp)
+    if (VALID_PTR(pu64Timestamp))
         *pu64Timestamp = 12345;
-    if (ppszFlags)
+    if (VALID_PTR(ppszFlags))
         *ppszFlags = szFlags;
-    if (pcbBufActual)
+    if (VALID_PTR(pcbBufActual))
         *pcbBufActual = 256;
-    if (pfWasDeleted)
-        *pfWasDeleted = false;
     return VINF_SUCCESS;
 }
 

@@ -1,10 +1,10 @@
-/* $Id: UIDetailsModel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIDetailsModel.h $ */
 /** @file
  * VBox Qt GUI - UIDetailsModel class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -70,7 +70,7 @@ public:
       * @param  pParent  Brings the details container to embed into. */
     UIDetailsModel(UIDetails *pParent);
     /** Destructs a details model. */
-    virtual ~UIDetailsModel() RT_OVERRIDE;
+    virtual ~UIDetailsModel() /* override */;
 
     /** Inits model. */
     void init();
@@ -178,7 +178,7 @@ public slots:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
 private slots:
 
@@ -205,6 +205,12 @@ private:
           * @note enmType equal to DetailsElementType_Invalid means load everything. */
         void loadDetailsOptions(DetailsElementType enmType = DetailsElementType_Invalid);
 
+        /** Saves details options. */
+        void saveDetailsOptions();
+        /** Saves details categories. */
+        void saveDetailsCategories();
+        /** Saves settings. */
+        void saveSettings();
         /** Cleanups context-menu. */
         void cleanupContextMenu();
         /** Cleanups root. */
@@ -268,14 +274,14 @@ signals:
 
     /** Notifies listeners about all animations finished.
       * @param  enmType   Brings the type of element item which was animated.
-      * @param  fToggled  Brings whether elements being toggled to be closed or opened. */
+      * @param  fToggled  Brigns whether elements being toggled to be closed or opened. */
     void sigAllAnimationFinished(DetailsElementType enmType, bool fToggled);
 
 public:
 
     /** Constructors details element animation callback passing @a pParent to the base-class.
       * @param  enmType   Brings the type of element item which was animated.
-      * @param  fToggled  Brings whether elements being toggled to be closed or opened. */
+      * @param  fToggled  Brigns whether elements being toggled to be closed or opened. */
     UIDetailsElementAnimationCallback(QObject *pParent, DetailsElementType enmType, bool fToggled);
 
     /** Adds notifier for a certain details @a pItem. */

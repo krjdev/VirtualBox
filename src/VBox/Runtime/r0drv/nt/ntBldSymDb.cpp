@@ -1,10 +1,10 @@
-﻿/* $Id: ntBldSymDb.cpp 93301 2022-01-18 11:24:43Z vboxsync $ */
+﻿/* $Id: ntBldSymDb.cpp $ */
 /** @file
  * IPRT - RTDirCreateUniqueNumbered, generic implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -966,10 +966,10 @@ static bool isInterestingName(const char *pszName, size_t cchName)
 {
     static struct { const char *psz; size_t cch; } const s_aNames[] =
     {
-        { RT_STR_TUPLE("ntoskrnl.pdb") },
-        { RT_STR_TUPLE("ntkrnlmp.pdb") },
-        { RT_STR_TUPLE("ntkrnlpa.pdb") },
-        { RT_STR_TUPLE("ntkrpamp.pdb") },
+        RT_STR_TUPLE("ntoskrnl.pdb"),
+        RT_STR_TUPLE("ntkrnlmp.pdb"),
+        RT_STR_TUPLE("ntkrnlpa.pdb"),
+        RT_STR_TUPLE("ntkrpamp.pdb"),
     };
 
     if (   cchName == s_aNames[0].cch
@@ -1155,7 +1155,7 @@ int main(int argc, char **argv)
                 break;
 
             case 'V':
-                RTPrintf("$Revision: 93301 $");
+                RTPrintf("$Revision: 143400 $");
                 break;
 
             case 'h':

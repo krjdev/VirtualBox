@@ -1,10 +1,10 @@
-/* $Id: VBoxVideo3D.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVideo3D.h $ */
 /** @file
  * VirtualBox 3D common tooling
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,7 +49,7 @@
 # define VBoxTlsRefAssertImpl(_a) do {} while (0)
 #endif
 
-typedef DECLCALLBACKTYPE(void, FNVBOXTLSREFDTOR,(void *));
+typedef DECLCALLBACK(void) FNVBOXTLSREFDTOR(void*);
 typedef FNVBOXTLSREFDTOR *PFNVBOXTLSREFDTOR;
 
 typedef enum {
@@ -148,14 +148,11 @@ typedef enum
     VBOX3D_NOTIFY_TYPE_3DDATA_VISIBLE  = 4,
     VBOX3D_NOTIFY_TYPE_3DDATA_HIDDEN   = 5,
 
-    VBOX3D_NOTIFY_TYPE_HW_SCREEN_FIRST        = 100,
     VBOX3D_NOTIFY_TYPE_HW_SCREEN_IS_SUPPORTED = 100,
     VBOX3D_NOTIFY_TYPE_HW_SCREEN_CREATED      = 101,
     VBOX3D_NOTIFY_TYPE_HW_SCREEN_DESTROYED    = 102,
     VBOX3D_NOTIFY_TYPE_HW_SCREEN_UPDATE_BEGIN = 103,
     VBOX3D_NOTIFY_TYPE_HW_SCREEN_UPDATE_END   = 104,
-    VBOX3D_NOTIFY_TYPE_HW_SCREEN_BIND_SURFACE = 105,
-    VBOX3D_NOTIFY_TYPE_HW_SCREEN_LAST         = 105,
 
     VBOX3D_NOTIFY_TYPE_HW_OVERLAY_CREATED   = 200,
     VBOX3D_NOTIFY_TYPE_HW_OVERLAY_DESTROYED = 201,

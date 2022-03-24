@@ -1,10 +1,10 @@
-/* $Id: vbox.dsl 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vbox.dsl $ */
 /** @file
  * VirtualBox ACPI
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -371,8 +371,8 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "VBOX  ", "VBOXBIOS", 2)
         PP1I,  32, // Parallel1 IRQ
         PMNX,  32, // limit of 64-bit prefetch window (64KB units)
         NVMA,  32, // Primary NVMe controller PCI address
-        IOMA,  32, // AMD IOMMU
-        SIOA,  32, // Southbridge IO APIC (when AMD IOMMU is present)
+        Offset (0x80),
+        ININ, 32,
         Offset (0x200),
         VAIN, 32,
     }
@@ -1191,24 +1191,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "VBOX  ", "VBOXBIOS", 2)
                   {
                      Return (CRS)
                   }
-                }
-
-                // AMD IOMMU (AMD-Vi), I/O Virtualization Reporting Structure
-                Device (IVRS)
-                {
-                    Method(_ADR, 0, NotSerialized)
-                    {
-                        Return (IOMA)
-                    }
-                    Method (_STA, 0, NotSerialized)
-                    {
-                        if (LEqual (IOMA, Zero)) {
-                            Return (0x00)
-                        }
-                        else {
-                            Return (0x0F)
-                        }
-                    }
                 }
 
                 // System Management Controller

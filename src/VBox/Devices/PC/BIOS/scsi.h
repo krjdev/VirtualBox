@@ -1,10 +1,10 @@
-/* $Id: scsi.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: scsi.h $ */
 /** @file
  * PC BIOS - SCSI definitions.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,24 +55,6 @@ typedef struct {
 
 ct_assert(sizeof(cdb_rw10) == 10);
 ct_assert(sizeof(cdb_rw16) == 16);
-
-extern int lsilogic_scsi_init(void __far *pvHba, uint8_t u8Bus, uint8_t u8DevFn);
-extern int lsilogic_scsi_cmd_data_out(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                      uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
-extern int lsilogic_scsi_cmd_data_in(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                     uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
-
-extern int buslogic_scsi_init(void __far *pvHba, uint8_t u8Bus, uint8_t u8DevFn);
-extern int buslogic_scsi_cmd_data_out(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                      uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
-extern int buslogic_scsi_cmd_data_in(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                     uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
-
-extern int virtio_scsi_init(void __far *pvHba, uint8_t u8Bus, uint8_t u8DevFn);
-extern int virtio_scsi_cmd_data_out(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                    uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
-extern int virtio_scsi_cmd_data_in(void __far *pvHba, uint8_t idTgt, uint8_t __far *aCDB,
-                                   uint8_t cbCDB, uint8_t __far *buffer, uint32_t length);
 
 #endif /* !VBOX_INCLUDED_SRC_PC_BIOS_scsi_h */
 

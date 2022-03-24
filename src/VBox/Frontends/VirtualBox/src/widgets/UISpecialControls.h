@@ -1,10 +1,10 @@
-/* $Id: UISpecialControls.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISpecialControls.h $ */
 /** @file
  * VBox Qt GUI - UISpecialControls declarations.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,9 +64,9 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE { Q_UNUSED(pEvent); }
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */ { Q_UNUSED(pEvent); }
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
 private:
 
@@ -94,7 +94,7 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE { Q_UNUSED(pEvent); }
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */ { Q_UNUSED(pEvent); }
 
 private:
 
@@ -117,7 +117,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE {};
+    virtual void retranslateUi() /* override */ {};
 };
 
 
@@ -152,14 +152,14 @@ protected:
     bool hitButton(const QPoint &position) const;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Handles mouse-press @a pEvent. */
-    virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse-release @a pEvent. */
-    virtual void mouseReleaseEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseReleaseEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse-leave @a pEvent. */
-    virtual void leaveEvent(QEvent *pEvent) RT_OVERRIDE;
+    virtual void leaveEvent(QEvent *pEvent) /* override */;
 
 private:
 

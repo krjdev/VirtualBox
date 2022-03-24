@@ -1,10 +1,10 @@
-/* $Id: ValidationKitCodingGuidelines.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ValidationKitCodingGuidelines.cpp $ */
 /** @file
  * VirtualBox Validation Kit - Coding Guidelines.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,7 +53,7 @@
  * Collection qualifiers:
  *      - 'a' for a list or an array.
  *      - 'd' for a dictionary.
- *      - 'h' for a set (hashed).
+ *      - 'h' for a hash.
  *      - 't' for a tuple.
  *
  * Other qualifiers:

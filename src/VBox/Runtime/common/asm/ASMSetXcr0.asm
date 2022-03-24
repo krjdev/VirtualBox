@@ -1,10 +1,10 @@
-; $Id: ASMSetXcr0.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMSetXcr0.asm $
 ;; @file
 ; IPRT - ASMSetXcr0().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ BEGINCODE
 ; @param   uXcr0    The new XCR0 content.
 ;                   msc=rcx, gcc=rdi, x86=[esp+4]
 ;
-RT_BEGINPROC ASMSetXcr0
+BEGINPROC_EXPORTED ASMSetXcr0
 SEH64_END_PROLOGUE
 %ifdef ASM_CALL64_MSC
         mov     rdx, rcx

@@ -1,10 +1,10 @@
-# $Id: Config.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Config.kmk $
 ## @file
 # kBuild Configuration file for the Devices.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -29,8 +29,6 @@ endif
 
 VBOX_PATH_DEVICES_SRC := $(PATH_ROOT)/src/VBox/Devices
 
-VBOX_PATH_VMSVGA_DEVICE_INC := $(VBOX_PATH_DEVICES_SRC)/Graphics/vmsvga_include
-
 #
 # VBoxBios - Template for building 16-bit BIOS code.
 #
@@ -47,8 +45,6 @@ TEMPLATE_VBoxBios_ASTOOL       = OPENWATCOM-16
 TEMPLATE_VBoxBios_BLD_TRG      = os-agnostic
 TEMPLATE_VBoxBios_BLD_TRG_ARCH = x86
 TEMPLATE_VBoxBios_BINSUFF      = .rom
-TEMPLATE_VBoxBios_CDEFS        = IN_RING0
-TEMPLATE_VBoxBios_CXXDEFS      = IN_RING0
 TEMPLATE_VBoxBios_INCS         = . $(VBOX_PATH_DEVICES_SRC)/BiosCommonCode
 TEMPLATE_VBoxBios_ASFLAGS      = -q -wx -d1 -0
 TEMPLATE_VBoxBios_CFLAGS       = -q -0 -wx -zl -zu -s -oafs -ms -hc -d1+

@@ -1,10 +1,10 @@
-/* $Id: UITakeSnapshotDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UITakeSnapshotDialog.cpp $ */
 /** @file
  * VBox Qt GUI - UITakeSnapshotDialog class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 #include "QIDialogButtonBox.h"
 #include "QILabel.h"
 #include "VBoxUtils.h"
-#include "UICommon.h"
 #include "UIDesktopWidgetWatchdog.h"
 #include "UIMessageCenter.h"
 #include "UITakeSnapshotDialog.h"
@@ -101,23 +100,6 @@ void UITakeSnapshotDialog::retranslateUi()
     m_pLabelInfo->setText(tr("Warning: You are taking a snapshot of a running machine which has %n immutable image(s) "
                              "attached to it. As long as you are working from this snapshot the immutable image(s) "
                              "will not be reset to avoid loss of data.", "", m_cImmutableMedia));
-
-    if (m_pButtonBox)
-    {
-        m_pButtonBox->button(QDialogButtonBox::Ok)->setText(tr("Ok"));
-        m_pButtonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
-        m_pButtonBox->button(QDialogButtonBox::Help)->setText(tr("Help"));
-
-        m_pButtonBox->button(QDialogButtonBox::Ok)->setStatusTip(tr("Take Snapshot and close the dialog"));
-        m_pButtonBox->button(QDialogButtonBox::Cancel)->setStatusTip(tr("Close dialog without taking a snapshot"));
-        m_pButtonBox->button(QDialogButtonBox::Help)->setStatusTip(tr("Show dialog help"));
-
-        m_pButtonBox->button(QDialogButtonBox::Help)->setShortcut(QKeySequence::HelpContents);
-
-        m_pButtonBox->button(QDialogButtonBox::Ok)->setToolTip(tr("Accept (%1)").arg(m_pButtonBox->button(QDialogButtonBox::Ok)->shortcut().toString()));
-        m_pButtonBox->button(QDialogButtonBox::Cancel)->setToolTip(tr("Cancel (%1)").arg(m_pButtonBox->button(QDialogButtonBox::Cancel)->shortcut().toString()));
-        m_pButtonBox->button(QDialogButtonBox::Help)->setToolTip(tr("Show Help (%1)").arg(m_pButtonBox->button(QDialogButtonBox::Help)->shortcut().toString()));
-    }
 }
 
 void UITakeSnapshotDialog::sltHandleNameChanged(const QString &strName)
@@ -297,10 +279,9 @@ void UITakeSnapshotDialog::prepareContents()
                     this, &UITakeSnapshotDialog::accept);
             connect(m_pButtonBox, &QIDialogButtonBox::rejected,
                     this, &UITakeSnapshotDialog::reject);
-            connect(m_pButtonBox->button(QIDialogButtonBox::Help), &QPushButton::pressed,
-                    &(msgCenter()), &UIMessageCenter::sltHandleHelpRequest);
-            m_pButtonBox->button(QDialogButtonBox::Help)->setShortcut(QKeySequence::HelpContents);
-            uiCommon().setHelpKeyword(m_pButtonBox->button(QIDialogButtonBox::Help), "snapshots");
+            connect(m_pButtonBox, &QIDialogButtonBox::helpRequested,
+                    &msgCenter(), &UIMessageCenter::sltShowHelpHelpDialog);
+
             /* Add into layout: */
             pLayout->addWidget(m_pButtonBox, 3, 0, 1, 2);
         }

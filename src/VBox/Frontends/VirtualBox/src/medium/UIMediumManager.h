@@ -1,10 +1,10 @@
-/* $Id: UIMediumManager.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMediumManager.h $ */
 /** @file
  * VBox Qt GUI - UIMediumManager class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ class UIMedium;
 class UIMediumDetailsWidget;
 class UIMediumItem;
 class UIMediumSearchWidget;
-class QIToolBar;
+class UIToolBar;
 
 
 /** Functor interface allowing to check if passed UIMediumItem is suitable. */
@@ -119,7 +119,7 @@ public:
 
 #ifdef VBOX_WS_MAC
     /** Returns the toolbar. */
-    QIToolBar *toolbar() const { return m_pToolBar; }
+    UIToolBar *toolbar() const { return m_pToolBar; }
 #endif
 
     /** Defines @a pProgressBar reference. */
@@ -130,7 +130,7 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
 public slots:
@@ -186,14 +186,6 @@ private slots:
         void sltRefreshAll();
     /** @} */
 
-    /** @name Menu/action handler stuff.
-      * @{ */
-        /** Handles medium move progress finished signal. */
-        void sltHandleMoveProgressFinished();
-        /** Handles medium resize progress finished signal. */
-        void sltHandleResizeProgressFinished();
-    /** @} */
-
     /** @name Tab-widget stuff.
       * @{ */
         /** Handles tab change case. */
@@ -210,16 +202,10 @@ private slots:
         void sltPerformTablesAdjustment();
     /** @} */
 
-    /** @name Medium search stuff.
+   /** @name Medium search stuff.
       * @{ */
         /** Adjusts tree-widgets according content. */
         void sltHandlePerformSearch();
-    /** @} */
-
-    /** @name Medium search stuff.
-      * @{ */
-        /** Handles command to detach COM stuff. */
-        void sltDetachCOM();
     /** @} */
 
 private:
@@ -377,7 +363,7 @@ private:
     /** @name Toolbar and menu variables.
       * @{ */
         /** Holds the toolbar widget instance. */
-        QIToolBar *m_pToolBar;
+        UIToolBar *m_pToolBar;
     /** @} */
 
     /** @name Progress-bar variables.
@@ -408,7 +394,7 @@ protected:
 
     /** Creates derived @a pDialog instance.
       * @param  pCenterWidget  Brings the widget reference to center according to. */
-    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) RT_OVERRIDE;
+    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) /* override */;
 
     /** Holds the action-pool reference. */
     UIActionPool *m_pActionPool;
@@ -437,7 +423,7 @@ private slots:
 
 private:
 
-    /** Constructs Medium Manager dialog.
+    /** Constructs Host Network Manager dialog.
       * @param  pCenterWidget  Brings the widget reference to center according to.
       * @param  pActionPool    Brings the action-pool reference. */
     UIMediumManager(QWidget *pCenterWidget, UIActionPool *pActionPool);
@@ -445,25 +431,25 @@ private:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
     /** @name Prepare/cleanup cascade.
       * @{ */
         /** Configures all. */
-        virtual void configure() RT_OVERRIDE;
+        virtual void configure() /* override */;
         /** Configures central-widget. */
-        virtual void configureCentralWidget() RT_OVERRIDE;
+        virtual void configureCentralWidget() /* override */;
         /** Configures button-box. */
-        virtual void configureButtonBox() RT_OVERRIDE;
+        virtual void configureButtonBox() /* override */;
         /** Perform final preparations. */
-        virtual void finalize() RT_OVERRIDE;
+        virtual void finalize() /* override */;
     /** @} */
 
     /** @name Widget stuff.
       * @{ */
         /** Returns the widget. */
-        virtual UIMediumManagerWidget *widget() RT_OVERRIDE;
+        virtual UIMediumManagerWidget *widget() /* override */;
     /** @} */
 
     /** @name Action related variables.

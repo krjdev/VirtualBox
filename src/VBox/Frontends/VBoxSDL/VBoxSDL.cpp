@@ -1,11 +1,11 @@
-/* $Id: VBoxSDL.cpp 93901 2022-02-23 15:35:26Z vboxsync $ */
+/* $Id: VBoxSDL.cpp $ */
 /** @file
  * VBox frontends: VBoxSDL (simple frontend based on SDL):
  * Main code
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -167,9 +167,9 @@ static void    UpdateTitlebar(TitlebarMode mode, uint32_t u32User = 0);
 static void    SetPointerShape(const PointerShapeChangeData *data);
 static void    HandleGuestCapsChanged(void);
 static int     HandleHostKey(const SDL_KeyboardEvent *pEv);
-static Uint32  StartupTimer(Uint32 interval, void *param) RT_NOTHROW_PROTO;
-static Uint32  ResizeTimer(Uint32 interval, void *param) RT_NOTHROW_PROTO;
-static Uint32  QuitTimer(Uint32 interval, void *param) RT_NOTHROW_PROTO;
+static Uint32  StartupTimer(Uint32 interval, void *param);
+static Uint32  ResizeTimer(Uint32 interval, void *param);
+static Uint32  QuitTimer(Uint32 interval, void *param);
 static int     WaitSDLEvent(SDL_Event *event);
 static void    SetFullscreen(bool enable);
 
@@ -479,9 +479,8 @@ public:
 
                 if (     machineState == MachineState_Aborted
                          ||   machineState == MachineState_Teleported
-                         ||  (machineState == MachineState_Saved        && !m_fIgnorePowerOffEvents)
-                         ||  (machineState == MachineState_AbortedSaved && !m_fIgnorePowerOffEvents)
-                         ||  (machineState == MachineState_PoweredOff   && !m_fIgnorePowerOffEvents)
+                         ||  (machineState == MachineState_Saved      && !m_fIgnorePowerOffEvents)
+                         ||  (machineState == MachineState_PoweredOff && !m_fIgnorePowerOffEvents)
                          )
                 {
                     /*
@@ -615,7 +614,6 @@ public:
             case MachineState_Saved:                return "Saved";
             case MachineState_Teleported:           return "Teleported";
             case MachineState_Aborted:              return "Aborted";
-            case MachineState_AbortedSaved:         return "Aborted-Saved";
             case MachineState_Running:              return "Running";
             case MachineState_Teleporting:          return "Teleporting";
             case MachineState_LiveSnapshotting:     return "LiveSnapshotting";
@@ -682,7 +680,11 @@ static void show_usage()
              "  --seclabelbgcol <rgb>    Secure label background color RGB value in 6 digit hexadecimal (eg: FF0000)\n"
 #endif
 #ifdef VBOXSDL_ADVANCED_OPTIONS
-             "  --warpdrive <pct>        Sets the warp driver rate in percent (100 = normal)\n"
+             "  --[no]rawr0              Enable or disable raw ring 3\n"
+             "  --[no]rawr3              Enable or disable raw ring 0\n"
+             "  --[no]patm               Enable or disable PATM\n"
+             "  --[no]csam               Enable or disable CSAM\n"
+             "  --[no]hwvirtex           Permit or deny the usage of VT-x/AMD-V\n"
 #endif
              "\n"
              "Key bindings:\n"
@@ -700,6 +702,10 @@ static void show_usage()
              "Further key bindings useful for debugging:\n"
              "  LCtrl + Alt + F12        Reset statistics counter\n"
              "  LCtrl + Alt + F11        Dump statistics to logfile\n"
+             "  Alt         + F12        Toggle R0 recompiler\n"
+             "  Alt         + F11        Toggle R3 recompiler\n"
+             "  Alt         + F10        Toggle PATM\n"
+             "  Alt         + F9         Toggle CSAM\n"
              "  Alt         + F8         Toggle single step mode\n"
              "  LCtrl/RCtrl + F12        Toggle logger\n"
              "  F12                      Write log marker to logfile\n"
@@ -901,6 +907,11 @@ DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
     uint32_t secureLabelColorBG = 0x00FFFF00;
 #endif
 #ifdef VBOXSDL_ADVANCED_OPTIONS
+    unsigned fRawR0 = ~0U;
+    unsigned fRawR3 = ~0U;
+    unsigned fPATM  = ~0U;
+    unsigned fCSAM  = ~0U;
+    unsigned fHWVirt = ~0U;
     uint32_t u32WarpDrive = 0;
 #endif
 #ifdef VBOX_WIN32_UI
@@ -1333,6 +1344,36 @@ DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         }
 #endif
 #ifdef VBOXSDL_ADVANCED_OPTIONS
+        else if (   !strcmp(argv[curArg], "--rawr0")
+                 || !strcmp(argv[curArg], "-rawr0"))
+            fRawR0 = true;
+        else if (   !strcmp(argv[curArg], "--norawr0")
+                 || !strcmp(argv[curArg], "-norawr0"))
+            fRawR0 = false;
+        else if (   !strcmp(argv[curArg], "--rawr3")
+                 || !strcmp(argv[curArg], "-rawr3"))
+            fRawR3 = true;
+        else if (   !strcmp(argv[curArg], "--norawr3")
+                 || !strcmp(argv[curArg], "-norawr3"))
+            fRawR3 = false;
+        else if (   !strcmp(argv[curArg], "--patm")
+                 || !strcmp(argv[curArg], "-patm"))
+            fPATM = true;
+        else if (   !strcmp(argv[curArg], "--nopatm")
+                 || !strcmp(argv[curArg], "-nopatm"))
+            fPATM = false;
+        else if (   !strcmp(argv[curArg], "--csam")
+                 || !strcmp(argv[curArg], "-csam"))
+            fCSAM = true;
+        else if (   !strcmp(argv[curArg], "--nocsam")
+                 || !strcmp(argv[curArg], "-nocsam"))
+            fCSAM = false;
+        else if (   !strcmp(argv[curArg], "--hwvirtex")
+                 || !strcmp(argv[curArg], "-hwvirtex"))
+            fHWVirt = true;
+        else if (   !strcmp(argv[curArg], "--nohwvirtex")
+                 || !strcmp(argv[curArg], "-nohwvirtex"))
+            fHWVirt = false;
         else if (   !strcmp(argv[curArg], "--warpdrive")
                  || !strcmp(argv[curArg], "-warpdrive"))
         {
@@ -1850,7 +1891,7 @@ DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
          */
         MachineState_T machineState;
         gpMachine->COMGETTER(State)(&machineState);
-        if (machineState == MachineState_Saved || machineState == MachineState_AbortedSaved)
+        if (machineState == MachineState_Saved)
         {
             CHECK_ERROR(gpMachine, DiscardSavedState(true /* fDeleteFile */));
         }
@@ -2116,6 +2157,46 @@ DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
 
     rc = E_FAIL;
 #ifdef VBOXSDL_ADVANCED_OPTIONS
+    if (fRawR0 != ~0U)
+    {
+        if (!gpMachineDebugger)
+        {
+            RTPrintf("Error: No debugger object; -%srawr0 cannot be executed!\n", fRawR0 ? "" : "no");
+            goto leave;
+        }
+        gpMachineDebugger->COMSETTER(RecompileSupervisor)(!fRawR0);
+    }
+    if (fRawR3 != ~0U)
+    {
+        if (!gpMachineDebugger)
+        {
+            RTPrintf("Error: No debugger object; -%srawr3 cannot be executed!\n", fRawR3 ? "" : "no");
+            goto leave;
+        }
+        gpMachineDebugger->COMSETTER(RecompileUser)(!fRawR3);
+    }
+    if (fPATM != ~0U)
+    {
+        if (!gpMachineDebugger)
+        {
+            RTPrintf("Error: No debugger object; -%spatm cannot be executed!\n", fPATM ? "" : "no");
+            goto leave;
+        }
+        gpMachineDebugger->COMSETTER(PATMEnabled)(fPATM);
+    }
+    if (fCSAM != ~0U)
+    {
+        if (!gpMachineDebugger)
+        {
+            RTPrintf("Error: No debugger object; -%scsam cannot be executed!\n", fCSAM ? "" : "no");
+            goto leave;
+        }
+        gpMachineDebugger->COMSETTER(CSAMEnabled)(fCSAM);
+    }
+    if (fHWVirt != ~0U)
+    {
+        gpMachine->SetHWVirtExProperty(HWVirtExPropertyType_Enabled, fHWVirt);
+    }
     if (u32WarpDrive != 0)
     {
         if (!gpMachineDebugger)
@@ -2997,8 +3078,7 @@ leave:
      * not be flushed to the permanent configuration
      */
     if (   gpMachine
-        && machineState != MachineState_Saved
-        && machineState != MachineState_AbortedSaved)
+        && machineState != MachineState_Saved)
     {
         rc = gpMachine->DiscardSettings();
         AssertMsg(SUCCEEDED(rc), ("DiscardSettings %Rhrc, machineState %d\n", rc, machineState));
@@ -3136,7 +3216,7 @@ int main(int argc, char **argv)
     /*
      * Before we do *anything*, we initialize the runtime.
      */
-    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
     if (RT_FAILURE(rc))
         return RTMsgInitFailure(rc);
     return TrustedMain(argc, argv, NULL);
@@ -3696,14 +3776,46 @@ static void ProcessKey(SDL_KeyboardEvent *ev)
         {
             switch (ev->keysym.sym)
             {
-                // pressing Alt-F8 toggles singlestepping mode
+                // pressing Alt-F12 toggles the supervisor recompiler
+                case SDLK_F12:
+                    {
+                        BOOL recompileSupervisor;
+                        gpMachineDebugger->COMGETTER(RecompileSupervisor)(&recompileSupervisor);
+                        gpMachineDebugger->COMSETTER(RecompileSupervisor)(!recompileSupervisor);
+                        break;
+                    }
+                    // pressing Alt-F11 toggles the user recompiler
+                case SDLK_F11:
+                    {
+                        BOOL recompileUser;
+                        gpMachineDebugger->COMGETTER(RecompileUser)(&recompileUser);
+                        gpMachineDebugger->COMSETTER(RecompileUser)(!recompileUser);
+                        break;
+                    }
+                    // pressing Alt-F10 toggles the patch manager
+                case SDLK_F10:
+                    {
+                        BOOL patmEnabled;
+                        gpMachineDebugger->COMGETTER(PATMEnabled)(&patmEnabled);
+                        gpMachineDebugger->COMSETTER(PATMEnabled)(!patmEnabled);
+                        break;
+                    }
+                    // pressing Alt-F9 toggles CSAM
+                case SDLK_F9:
+                    {
+                        BOOL csamEnabled;
+                        gpMachineDebugger->COMGETTER(CSAMEnabled)(&csamEnabled);
+                        gpMachineDebugger->COMSETTER(CSAMEnabled)(!csamEnabled);
+                        break;
+                    }
+                    // pressing Alt-F8 toggles singlestepping mode
                 case SDLK_F8:
-                {
-                    BOOL singlestepEnabled;
-                    gpMachineDebugger->COMGETTER(SingleStep)(&singlestepEnabled);
-                    gpMachineDebugger->COMSETTER(SingleStep)(!singlestepEnabled);
-                    break;
-                }
+                    {
+                        BOOL singlestepEnabled;
+                        gpMachineDebugger->COMGETTER(SingleStep)(&singlestepEnabled);
+                        gpMachineDebugger->COMSETTER(SingleStep)(!singlestepEnabled);
+                        break;
+                    }
                 default:
                     break;
             }
@@ -4285,21 +4397,27 @@ static void UpdateTitlebar(TitlebarMode mode, uint32_t u32User)
             if (gpMachineDebugger)
             {
                 // query the machine state
+                BOOL recompileSupervisor = FALSE;
+                BOOL recompileUser = FALSE;
+                BOOL patmEnabled = FALSE;
+                BOOL csamEnabled = FALSE;
                 BOOL singlestepEnabled = FALSE;
                 BOOL logEnabled = FALSE;
-                VMExecutionEngine_T enmExecEngine = VMExecutionEngine_NotSet;
+                BOOL hwVirtEnabled = FALSE;
                 ULONG virtualTimeRate = 100;
+                gpMachineDebugger->COMGETTER(RecompileSupervisor)(&recompileSupervisor);
+                gpMachineDebugger->COMGETTER(RecompileUser)(&recompileUser);
+                gpMachineDebugger->COMGETTER(PATMEnabled)(&patmEnabled);
+                gpMachineDebugger->COMGETTER(CSAMEnabled)(&csamEnabled);
                 gpMachineDebugger->COMGETTER(LogEnabled)(&logEnabled);
                 gpMachineDebugger->COMGETTER(SingleStep)(&singlestepEnabled);
-                gpMachineDebugger->COMGETTER(ExecutionEngine)(&enmExecEngine);
+                gpMachineDebugger->COMGETTER(HWVirtExEnabled)(&hwVirtEnabled);
                 gpMachineDebugger->COMGETTER(VirtualTimeRate)(&virtualTimeRate);
                 RTStrPrintf(szTitle + strlen(szTitle), sizeof(szTitle) - strlen(szTitle),
-                            " [STEP=%d LOG=%d EXEC=%s",
-                            singlestepEnabled == TRUE, logEnabled == TRUE,
-                            enmExecEngine == VMExecutionEngine_NotSet      ? "NotSet"
-                            : enmExecEngine == VMExecutionEngine_Emulated  ? "IEM"
-                            : enmExecEngine == VMExecutionEngine_HwVirt    ? "HM"
-                            : enmExecEngine == VMExecutionEngine_NativeApi ? "NEM" : "UNK");
+                            " [STEP=%d CS=%d PAT=%d RR0=%d RR3=%d LOG=%d HWVirt=%d",
+                            singlestepEnabled == TRUE, csamEnabled == TRUE, patmEnabled == TRUE,
+                            recompileSupervisor == FALSE, recompileUser == FALSE,
+                            logEnabled == TRUE, hwVirtEnabled == TRUE);
                 char *psz = strchr(szTitle, '\0');
                 if (virtualTimeRate != 100)
                     RTStrPrintf(psz, &szTitle[sizeof(szTitle)] - psz, " WD=%d%%]", virtualTimeRate);
@@ -4949,7 +5067,7 @@ static int HandleHostKey(const SDL_KeyboardEvent *pEv)
 /**
  * Timer callback function for startup processing
  */
-static Uint32 StartupTimer(Uint32 interval, void *param) RT_NOTHROW_DEF
+static Uint32 StartupTimer(Uint32 interval, void *param)
 {
     RT_NOREF(param);
 
@@ -4965,7 +5083,7 @@ static Uint32 StartupTimer(Uint32 interval, void *param) RT_NOTHROW_DEF
 /**
  * Timer callback function to check if resizing is finished
  */
-static Uint32 ResizeTimer(Uint32 interval, void *param) RT_NOTHROW_DEF
+static Uint32 ResizeTimer(Uint32 interval, void *param)
 {
     RT_NOREF(interval, param);
 
@@ -4981,7 +5099,7 @@ static Uint32 ResizeTimer(Uint32 interval, void *param) RT_NOTHROW_DEF
 /**
  * Timer callback function to check if an ACPI power button event was handled by the guest.
  */
-static Uint32 QuitTimer(Uint32 interval, void *param) RT_NOTHROW_DEF
+static Uint32 QuitTimer(Uint32 interval, void *param)
 {
     RT_NOREF(interval, param);
 

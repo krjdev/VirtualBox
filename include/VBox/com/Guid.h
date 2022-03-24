@@ -1,10 +1,10 @@
-/* $Id: Guid.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Guid.h $ */
 /** @file
  * MS COM / XPCOM Abstraction Layer - Guid class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -322,10 +322,6 @@ public:
     bool operator<(const Guid &that) const { return ::RTUuidCompare(&mUuid, &that.mUuid)    < 0; }
     bool operator<(const GUID &guid) const { return ::RTUuidCompare(&mUuid, (PRTUUID)&guid) < 0; }
     bool operator<(const RTUUID &guid) const { return ::RTUuidCompare(&mUuid, &guid) < 0; }
-
-    /** Compare with a UUID string representation.
-     * @note Not an operator as that could lead to confusion.  */
-    bool equalsString(const char *pszUuid2) const { return ::RTUuidCompareStr(&mUuid, pszUuid2) == 0; }
 
     /**
      * To directly copy the contents to a GUID, or for passing it as an input

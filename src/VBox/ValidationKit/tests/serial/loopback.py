@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: loopback.py 94127 2022-03-08 14:44:28Z vboxsync $
+# $Id: loopback.py $
 
 """
 VirtualBox Validation Kit - Serial loopback module.
@@ -7,7 +7,7 @@ VirtualBox Validation Kit - Serial loopback module.
 
 __copyright__ = \
 """
-Copyright (C) 2018-2022 Oracle Corporation
+Copyright (C) 2018-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94127 $"
+__version__ = "$Revision: 135976 $"
 
 # Standard Python imports.
 #import os;
@@ -223,16 +223,18 @@ class SerialLoopback(object):
         """
         Shutdown any connection and wait for it to become idle.
         """
-        with self.oLock:
-            self.fShutdown = True;
+        self.oLock.acquire();
+        self.fShutdown = True;
+        self.oLock.release();
         self.oIoPumper.shutdown();
 
     def isShutdown(self):
         """
         Returns whether the I/O pumping thread should shut down.
         """
-        with self.oLock:
-            fShutdown = self.fShutdown;
+        self.oLock.acquire();
+        fShutdown = self.fShutdown;
+        self.oLock.release();
 
         return fShutdown;
 

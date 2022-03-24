@@ -1,10 +1,10 @@
-/* $Id: TRPMInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: TRPMInternal.h $ */
 /** @file
  * TRPM - Internal header file.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,8 +43,12 @@ RT_C_DECLS_BEGIN
  */
 typedef struct TRPM
 {
-    /** Statistics for interrupt handlers. */
-    STAMCOUNTER             aStatForwardedIRQ[256];
+#ifdef VBOX_WITH_STATISTICS
+    /** Statistics for interrupt handlers (allocated on the hypervisor heap) - R3
+     * pointer. */
+    R3PTRTYPE(PSTAMCOUNTER) paStatForwardedIRQR3;
+#endif
+    uint64_t                u64Dummy;
 } TRPM;
 
 /** Pointer to TRPM Data. */

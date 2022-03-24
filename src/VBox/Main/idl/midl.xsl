@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- $Id: midl.xsl 82969 2020-02-04 10:54:12Z vboxsync $ -->
+<!-- $Id: midl.xsl $ -->
 
 <!--
  *  A template to generate a MS IDL compatible interface definition file

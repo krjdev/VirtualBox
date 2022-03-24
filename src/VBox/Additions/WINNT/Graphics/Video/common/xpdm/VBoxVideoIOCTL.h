@@ -1,10 +1,10 @@
-/* $Id: VBoxVideoIOCTL.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVideoIOCTL.h $ */
 /** @file
  * VBox Miniport IOCTL related header
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -68,17 +68,16 @@
 typedef void* HVBOXVIDEOHGSMI;
 
 /** Complete host commands addressed to the display */
-typedef DECLCALLBACKTYPE(void, FNVBOXVIDEOHGSMICOMPLETION,(HVBOXVIDEOHGSMI hHGSMI,
-                                                           struct VBVAHOSTCMD RT_UNTRUSTED_VOLATILE_HOST * pCmd));
+typedef DECLCALLBACK(void) FNVBOXVIDEOHGSMICOMPLETION(HVBOXVIDEOHGSMI hHGSMI, struct VBVAHOSTCMD RT_UNTRUSTED_VOLATILE_HOST * pCmd);
 typedef FNVBOXVIDEOHGSMICOMPLETION *PFNVBOXVIDEOHGSMICOMPLETION;
 
 /** request the host commands addressed to the display */
-typedef DECLCALLBACKTYPE(int, FNVBOXVIDEOHGSMICOMMANDS,(HVBOXVIDEOHGSMI hHGSMI, uint8_t u8Channel, uint32_t iDevice,
-                                                        struct VBVAHOSTCMD RT_UNTRUSTED_VOLATILE_HOST ** ppCmd));
+typedef DECLCALLBACK(int) FNVBOXVIDEOHGSMICOMMANDS(HVBOXVIDEOHGSMI hHGSMI, uint8_t u8Channel, uint32_t iDevice,
+                                                   struct VBVAHOSTCMD RT_UNTRUSTED_VOLATILE_HOST ** ppCmd);
 typedef FNVBOXVIDEOHGSMICOMMANDS *PFNVBOXVIDEOHGSMICOMMANDS;
 
 /** post guest command (offset) to the host */
-typedef DECLCALLBACKTYPE(void, FNVBOXVIDEOHGSMIPOSTCOMMAND,(HVBOXVIDEOHGSMI hHGSMI, HGSMIOFFSET offCmd));
+typedef DECLCALLBACK(void) FNVBOXVIDEOHGSMIPOSTCOMMAND(HVBOXVIDEOHGSMI hHGSMI, HGSMIOFFSET offCmd);
 typedef FNVBOXVIDEOHGSMIPOSTCOMMAND *PFNVBOXVIDEOHGSMIPOSTCOMMAND;
 
 #pragma pack(1)

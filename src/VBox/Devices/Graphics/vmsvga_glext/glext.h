@@ -40,7 +40,7 @@ extern "C" {
 */
 
 /* Header file version number, required by OpenGL ABI for Linux */
-/* glext.h last updated $Date: 2019-01-01 05:23:20 +0100 (Di, 01. Jän 2019) $ */
+/* glext.h last updated $Date: 2019-01-01 05:23:20 +0100 (Tue, 01 Jan 2019) $ */
 /* Current version at http://www.opengl.org/registry/ */
 #define GL_GLEXT_VERSION 87
 /* Function declaration macros - to move into glplatform.h */

@@ -1,11 +1,11 @@
-/* $Id: seamless.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: seamless.h $ */
 /** @file
  * X11 Guest client - seamless mode, missing proper description while using the
  * potentially confusing word 'host'.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -83,17 +83,34 @@ public:
     RTMEM_IMPLEMENT_NEW_AND_DELETE();
 #endif
 
-    /** @copydoc VBCLSERVICE::pfnInit */
+    /**
+      * Initialise the service.
+      */
     int init(void);
 
-    /** @copydoc VBCLSERVICE::pfnWorker */
-    int worker(bool volatile *pfShutdown);
+    /**
+      * Run the service.
+      * @returns iprt status value
+      */
+    int run(void);
 
-    /** @copydoc VBCLSERVICE::pfnStop */
-    void stop(void);
+    /**
+     * Stops the service.
+     */
+    void stop();
 
-    /** @copydoc VBCLSERVICE::pfnTerm */
-    int term(void);
+    /** Pause the service loop.  This must be safe to call on a different thread
+     * and potentially before @a run is or after it exits.
+     * This is called by the VT monitoring thread to allow the service to disable
+     * itself when the X server is switched out.  If the monitoring functionality
+     * is available then @a pause or @a resume will be called as soon as it starts
+     * up. */
+    int pause();
+    /** Resume after pausing.  The same applies here as for @a pause. */
+    int resume();
+
+    /** Run a few tests to be sure everything is working as intended. */
+    int selfTest();
 };
 
 #endif /* !GA_INCLUDED_SRC_x11_VBoxClient_seamless_h */

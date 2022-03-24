@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-setproperty" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-13 20:17:33 +0100 (So, 13. Mär 2022) $</pubdate>
+    <pubdate>August 2019</pubdate>
     <title>VBoxManage setproperty</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-setproperty</refname>
     <refpurpose>change global settings</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -94,17 +94,6 @@
                 implications.
               </para></listitem>
           </itemizedlist></listitem>
-      </varlistentry>
-      <varlistentry>
-        <term><literal>language</literal></term>
-        <listitem><para>
-            Specifies the user language used to translate API messages.
-            Valid values are <literal>C</literal>, which means no
-            translation or language code in form either <literal>ll</literal>
-            or <literal>ll_CC</literal>, where <literal>ll</literal> is
-            language 2 letters code in lower case and
-            <literal>CC</literal> is country 2 letter code in upper case.
-          </para></listitem>
       </varlistentry>
       <varlistentry>
         <term><literal>logginglevel</literal></term>

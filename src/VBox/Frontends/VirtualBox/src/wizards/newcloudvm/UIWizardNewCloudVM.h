@@ -1,10 +1,10 @@
-/* $Id: UIWizardNewCloudVM.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIWizardNewCloudVM.h $ */
 /** @file
  * VBox Qt GUI - UIWizardNewCloudVM class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #endif
 
 /* GUI includes: */
-#include "UINativeWizard.h"
+#include "UIWizard.h"
 
 /* COM includes: */
 #include "COMEnums.h"
@@ -31,66 +31,87 @@
 #include "CVirtualSystemDescriptionForm.h"
 
 /** New Cloud VM wizard. */
-class UIWizardNewCloudVM : public UINativeWizard
+class UIWizardNewCloudVM : public UIWizard
 {
     Q_OBJECT;
 
 public:
 
-    /** Constructs New Cloud VM wizard passing @a pParent & @a enmMode to the base-class.
-      * @param  strFullGroupName  Brings full group name (/provider/profile) to create VM in. */
-    UIWizardNewCloudVM(QWidget *pParent, const QString &strFullGroupName);
+    /** Basic page IDs. */
+    enum
+    {
+        Page1,
+        Page2
+    };
 
-    /** Returns provider short name. */
-    QString providerShortName() const { return m_strProviderShortName; }
-    /** Returns profile name. */
-    QString profileName() const { return m_strProfileName; }
+    /** Expert page IDs. */
+    enum
+    {
+        PageExpert
+    };
+
+    /** Constructs New Cloud VM wizard passing @a pParent to the base-class.
+      * @param  comClient       Brings the Cloud Client object to work with.
+      * @param  comDescription  Brings the Virtual System Description object to use. */
+    UIWizardNewCloudVM(QWidget *pParent,
+                       const CCloudClient &comClient = CCloudClient(),
+                       const CVirtualSystemDescription &comDescription = CVirtualSystemDescription(),
+                       WizardMode enmMode = WizardMode_Auto);
+
+    /** Prepares all. */
+    virtual void prepare() /* override */;
+
+    /** Sets whether the final step is @a fPrevented. */
+    void setFinalStepPrevented(bool fPrevented) { m_fFinalStepPrevented = fPrevented; }
+
+    /** Defines Cloud @a comClient object. */
+    void setClient(const CCloudClient &comClient) { m_comClient = comClient; }
     /** Returns Cloud Client object. */
     CCloudClient client() const { return m_comClient; }
+
+    /** Defines Virtual System @a comDescription object. */
+    void setVSD(const CVirtualSystemDescription &comDescription) { m_comVSD = comDescription; }
     /** Returns Virtual System Description object. */
     CVirtualSystemDescription vsd() const { return m_comVSD; }
+
+    /** Defines Virtual System Description @a comForm object. */
+    void setVSDForm(const CVirtualSystemDescriptionForm &comForm) { m_comVSDForm = comForm; }
     /** Returns Virtual System Description Form object. */
     CVirtualSystemDescriptionForm vsdForm() const { return m_comVSDForm; }
 
     /** Creates VSD Form. */
-    void createVSDForm();
+    bool createVSDForm();
 
     /** Creates New Cloud VM. */
     bool createCloudVM();
 
-public slots:
-
-    /** Defines @a strProviderShortName. */
-    void setProviderShortName(const QString &strProviderShortName) { m_strProviderShortName = strProviderShortName; }
-    /** Defines @a strProfileName. */
-    void setProfileName(const QString &strProfileName) { m_strProfileName = strProfileName; }
-    /** Defines Cloud @a comClient object. */
-    void setClient(const CCloudClient &comClient) { m_comClient = comClient; }
-    /** Defines Virtual System @a comVSD object. */
-    void setVSD(const CVirtualSystemDescription &comVSD) { m_comVSD = comVSD; }
-    /** Defines Virtual System Description @a comForm object. */
-    void setVSDForm(const CVirtualSystemDescriptionForm &comForm) { m_comVSDForm = comForm; }
+    /** Schedules Finish button trigger for
+      * the next event-loop cicle. */
+    void scheduleAutoFinish();
 
 protected:
 
-    /** Populates pages. */
-    virtual void populatePages() /* override final */;
-
     /** Handles translation event. */
-    virtual void retranslateUi() /* override final */;
+    virtual void retranslateUi() /* override */;
+
+private slots:
+
+    /** Triggers Finish button. */
+    void sltTriggerFinishButton();
 
 private:
 
-    /** Holds the short provider name. */
-    QString                        m_strProviderShortName;
-    /** Holds the profile name. */
-    QString                        m_strProfileName;
     /** Holds the Cloud Client object reference. */
     CCloudClient                   m_comClient;
     /** Holds the Virtual System Description object reference. */
     CVirtualSystemDescription      m_comVSD;
     /** Holds the Virtual System Description Form object reference. */
     CVirtualSystemDescriptionForm  m_comVSDForm;
+
+    /** Holds whether we want full wizard form or short one. */
+    bool  m_fFullWizard;
+    /** Holds whether the final step is prevented. */
+    bool  m_fFinalStepPrevented;
 };
 
 /** Safe pointer to new cloud vm wizard. */

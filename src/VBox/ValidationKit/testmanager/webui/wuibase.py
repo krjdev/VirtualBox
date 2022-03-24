@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuibase.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: wuibase.py $
 
 """
 Test Manager Web-UI - Base Classes.
@@ -7,7 +7,7 @@ Test Manager Web-UI - Base Classes.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -96,8 +96,6 @@ class WuiDispatcherBase(object):
     ksParamChangeLogPageNo          = 'ChangeLogPageNo';
     ## The name of the parameter indicate number of change log entries per page.
     ksParamChangeLogEntriesPerPage  = 'ChangeLogEntriesPerPage';
-    ## The change log related parameters.
-    kasChangeLogParams = (ksParamChangeLogEnabled, ksParamChangeLogPageNo, ksParamChangeLogEntriesPerPage,);
 
     ## @name Dispatcher debugging parameters.
     ## {@
@@ -237,12 +235,14 @@ class WuiDispatcherBase(object):
 
         # Provide basic auth log out for browsers that supports it.
         sUserAgent = self._oSrvGlue.getUserAgent();
-        if sUserAgent.startswith('Mozilla/') and sUserAgent.find('Firefox') > 0:
+        if   (sUserAgent.startswith('Mozilla/') and sUserAgent.find('Firefox') > 0) \
+          or False:
             # Log in as the logout user in the same realm, the browser forgets
             # the old login and the job is done. (see apache sample conf)
             sLogOut = ' (<a href="%s://logout:logout@%s%slogout.py">logout</a>)' \
                 % (self._oSrvGlue.getUrlScheme(), self._oSrvGlue.getUrlNetLoc(), self._oSrvGlue.getUrlBasePath());
-        elif sUserAgent.startswith('Mozilla/') and sUserAgent.find('Safari') > 0:
+        elif (sUserAgent.startswith('Mozilla/') and sUserAgent.find('Safari') > 0) \
+          or False:
             # For a 401, causing the browser to forget the old login. Works
             # with safari as well as the two above. Since safari consider the
             # above method a phishing attempt and displays a warning to that
@@ -251,7 +251,8 @@ class WuiDispatcherBase(object):
             # till he/she/it hits escape, because it always works.
             sLogOut = ' (<a href="logout2.py">logout</a>)'
         elif (sUserAgent.startswith('Mozilla/') and sUserAgent.find('MSIE') > 0) \
-          or (sUserAgent.startswith('Mozilla/') and sUserAgent.find('Chrome') > 0):
+          or (sUserAgent.startswith('Mozilla/') and sUserAgent.find('Chrome') > 0) \
+          or False:
             ## There doesn't seem to be any way to make IE really log out
             # without using a cookie and systematically 401 accesses based on
             # some logout state associated with it.  Not sure how secure that
@@ -311,8 +312,9 @@ class WuiDispatcherBase(object):
         #
         # Load the template.
         #
-        with open(os.path.join(self._oSrvGlue.pathTmWebUI(), self._sTemplate)) as oFile:
-            sTmpl = oFile.read();
+        oFile = open(os.path.join(self._oSrvGlue.pathTmWebUI(), self._sTemplate));
+        sTmpl = oFile.read();
+        oFile.close();
 
         #
         # Process the template, outputting each part we process.
@@ -352,19 +354,6 @@ class WuiDispatcherBase(object):
     #
     # Interface for WuiContentBase classes.
     #
-
-    def getUrlNoParams(self):
-        """
-        Returns the base URL without any parameters (no trailing '?' or &).
-        """
-        return self._sUrlBase[:self._sUrlBase.rindex('?')];
-
-    def getUrlBase(self):
-        """
-        Returns the base URL, ending with '?' or '&'.
-        This may already include some debug parameters.
-        """
-        return self._sUrlBase;
 
     def getParameters(self):
         """
@@ -629,7 +618,7 @@ class WuiDispatcherBase(object):
         # Relative timestamp. Validate and convert it to a fixed timestamp.
         #
         chSign = sValue[0];
-        (sValue, sError) = ModelDataBase.validateTs(sValue[1:], fRelative = True);
+        (sValue, sError) = ModelDataBase.validateTs(sValue[1:]);
         if sError is not None:
             raise WuiException('%s parameter "%s" ("%s") is invalid: %s' % (self._sAction, sName, sValue, sError));
         if sValue[-6] in ['-', '+']:
@@ -781,7 +770,7 @@ class WuiDispatcherBase(object):
         """
 
         sHtml  = '<div id="debug-panel">\n' \
-                 ' <form id="debug-panel-form" method="get" action="#">\n';
+                 ' <form id="debug-panel-form" type="get" action="#">\n';
 
         for sKey, oValue in self._dParams.items():
             if sKey not in self.kasDbgParams:
@@ -829,7 +818,7 @@ class WuiDispatcherBase(object):
         oListContentType is a child of WuiListContentBase.
         """
         tsEffective     = self.getEffectiveDateParam();
-        cItemsPerPage   = self.getIntParam(self.ksParamItemsPerPage, iMin = 2, iMax =   9999, iDefault = 384);
+        cItemsPerPage   = self.getIntParam(self.ksParamItemsPerPage, iMin = 2, iMax =   9999, iDefault = 300);
         iPage           = self.getIntParam(self.ksParamPageNo,       iMin = 0, iMax = 999999, iDefault = 0);
         aiSortColumnsDup = self.getListOfIntParams(self.ksParamSortColumns,
                                                    iMin = -getattr(oLogicType, 'kcMaxSortColumns', 0) + 1,
@@ -840,15 +829,6 @@ class WuiDispatcherBase(object):
                 aiSortColumns.append(iSortColumn);
         self._checkForUnknownParameters();
 
-        ## @todo fetchForListing could be made more useful if it returned a tuple
-        # that includes the total number of entries, thus making paging more user
-        # friendly (known number of pages).  So, the return should be:
-        #       (aoEntries, cAvailableEntries)
-        #
-        # In addition, we could add a new parameter to include deleted entries,
-        # making it easier to find old deleted testboxes/testcases/whatever and
-        # clone them back to life.  The temporal navigation is pretty usless here.
-        #
         aoEntries  = oLogicType(self._oDb).fetchForListing(iPage * cItemsPerPage, cItemsPerPage + 1, tsEffective, aiSortColumns);
         oContent   = oListContentType(aoEntries, iPage, cItemsPerPage, tsEffective,
                                       fnDPrint = self._oSrvGlue.dprint, oDisp = self, aiSelectedSortColumns = aiSortColumns);
@@ -1231,5 +1211,5 @@ class WuiDispatcherBase(object):
 
     def dprint(self, sText):
         """ Debug printing. """
-        if config.g_kfWebUiDebug:
+        if config.g_kfWebUiDebug and True:
             self._oSrvGlue.dprint(sText);

@@ -1,10 +1,10 @@
-/* $Id: bs3-cmn-GetCpuVendor.c 93515 2022-01-31 22:17:19Z vboxsync $ */
+/* $Id: bs3-cmn-GetCpuVendor.c $ */
 /** @file
  * BS3Kit - Bs3GetCpuVendor
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,15 +36,15 @@ BS3_CMN_DEF(BS3CPUVENDOR, Bs3GetCpuVendor,(void))
     {
         uint32_t uEbx, uEcx, uEdx;
         ASMCpuIdExSlow(0, 0, 0, 0, NULL, &uEbx, &uEcx, &uEdx);
-        if (RTX86IsIntelCpu(uEbx, uEcx, uEdx))
+        if (ASMIsIntelCpuEx(uEbx, uEcx, uEdx))
             return BS3CPUVENDOR_INTEL;
-        if (RTX86IsAmdCpu(uEbx, uEcx, uEdx))
+        if (ASMIsAmdCpuEx(uEbx, uEcx, uEdx))
             return BS3CPUVENDOR_AMD;
-        if (RTX86IsViaCentaurCpu(uEbx, uEcx, uEdx))
+        if (ASMIsViaCentaurCpuEx(uEbx, uEcx, uEdx))
             return BS3CPUVENDOR_VIA;
-        if (RTX86IsShanghaiCpu(uEbx, uEcx, uEdx))
+        if (ASMIsShanghaiCpuEx(uEbx, uEcx, uEdx))
             return BS3CPUVENDOR_SHANGHAI;
-        if (RTX86IsHygonCpu(uEbx, uEcx, uEdx))
+        if (ASMIsHygonCpuEx(uEbx, uEcx, uEdx))
             return BS3CPUVENDOR_HYGON;
         return BS3CPUVENDOR_UNKNOWN;
     }

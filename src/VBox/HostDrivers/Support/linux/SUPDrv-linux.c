@@ -1,10 +1,10 @@
-/* $Id: SUPDrv-linux.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPDrv-linux.c $ */
 /** @file
  * VBoxDrv - The VirtualBox Support Driver - Linux specifics.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -100,21 +100,6 @@
 
 
 /*********************************************************************************************************************************
-*   Structures and Typedefs                                                                                                      *
-*********************************************************************************************************************************/
-#if RTLNX_VER_MIN(5,0,0)
-/** Wrapper module list entry. */
-typedef struct SUPDRVLNXMODULE
-{
-    RTLISTNODE      ListEntry;
-    struct module  *pModule;
-} SUPDRVLNXMODULE;
-/** Pointer to a wrapper module list entry. */
-typedef SUPDRVLNXMODULE *PSUPDRVLNXMODULE;
-#endif
-
-
-/*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
 static int  __init VBoxDrvLinuxInit(void);
@@ -139,10 +124,6 @@ static int  VBoxDrvSuspend(struct platform_device *pDev, pm_message_t State);
 static int  VBoxDrvResume(struct platform_device *pDev);
 # endif
 static void VBoxDevRelease(struct device *pDev);
-#endif
-#if RTLNX_VER_MIN(5,0,0)
-static int  supdrvLinuxLdrModuleNotifyCallback(struct notifier_block *pBlock,
-                                               unsigned long uModuleState, void *pvModule);
 #endif
 
 
@@ -243,7 +224,6 @@ static struct miscdevice gMiscDeviceUsr =
 
 
 #ifdef VBOX_WITH_SUSPEND_NOTIFICATION
-
 # if RTLNX_VER_MIN(2,6,30)
 static struct dev_pm_ops gPlatformPMOps =
 {
@@ -279,29 +259,14 @@ static struct platform_device gPlatformDevice =
         .release = VBoxDevRelease
     }
 };
-
 #endif /* VBOX_WITH_SUSPEND_NOTIFICATION */
 
-#if RTLNX_VER_MIN(5,0,0)
-/** Module load/unload notification registration record. */
-static struct notifier_block    g_supdrvLinuxModuleNotifierBlock =
-{
-    .notifier_call = supdrvLinuxLdrModuleNotifyCallback,
-    .priority      = 0
-};
-/** Spinlock protecting g_supdrvLinuxWrapperModuleList. */
-static spinlock_t               g_supdrvLinuxWrapperModuleSpinlock;
-/** List of potential wrapper modules (PSUPDRVLNXMODULE). */
-static RTLISTANCHOR             g_supdrvLinuxWrapperModuleList;
-#endif
 
-
-/** Get the kernel UID for the current process. */
-DECLINLINE(RTUID) vboxdrvLinuxKernUid(void)
+DECLINLINE(RTUID) vboxdrvLinuxUid(void)
 {
 #if RTLNX_VER_MIN(2,6,29)
 # if RTLNX_VER_MIN(3,5,0)
-    return __kuid_val(current->cred->uid);
+    return from_kuid(current_user_ns(), current->cred->uid);
 # else
     return current->cred->uid;
 # endif
@@ -310,13 +275,11 @@ DECLINLINE(RTUID) vboxdrvLinuxKernUid(void)
 #endif
 }
 
-
-/** Get the kernel GID for the current process. */
-DECLINLINE(RTGID) vboxdrvLinuxKernGid(void)
+DECLINLINE(RTGID) vboxdrvLinuxGid(void)
 {
 #if RTLNX_VER_MIN(2,6,29)
 # if RTLNX_VER_MIN(3,5,0)
-    return __kgid_val(current->cred->gid);
+    return from_kgid(current_user_ns(), current->cred->gid);
 # else
     return current->cred->gid;
 # endif
@@ -325,23 +288,18 @@ DECLINLINE(RTGID) vboxdrvLinuxKernGid(void)
 #endif
 }
 
-
-#ifdef VBOX_WITH_HARDENING
-/** Get the effective UID within the current user namespace. */
-DECLINLINE(RTUID) vboxdrvLinuxEuidInNs(void)
+DECLINLINE(RTUID) vboxdrvLinuxEuid(void)
 {
-# if RTLNX_VER_MIN(2,6,29)
-#  if RTLNX_VER_MIN(3,5,0)
+#if RTLNX_VER_MIN(2,6,29)
+# if RTLNX_VER_MIN(3,5,0)
     return from_kuid(current_user_ns(), current->cred->euid);
-#  else
-    return current->cred->euid;
-#  endif
 # else
-    return current->euid;
+    return current->cred->euid;
 # endif
-}
+#else
+    return current->euid;
 #endif
-
+}
 
 /**
  * Initialize module.
@@ -352,15 +310,10 @@ static int __init VBoxDrvLinuxInit(void)
 {
     int       rc;
 
-#if RTLNX_VER_MIN(5,0,0)
-    spin_lock_init(&g_supdrvLinuxWrapperModuleSpinlock);
-    RTListInit(&g_supdrvLinuxWrapperModuleList);
-#endif
-
     /*
      * Check for synchronous/asynchronous TSC mode.
      */
-    printk(KERN_DEBUG "vboxdrv: Found %u processor cores/threads\n", (unsigned)RTMpGetOnlineCount());
+    printk(KERN_DEBUG "vboxdrv: Found %u processor cores\n", (unsigned)RTMpGetOnlineCount());
     rc = misc_register(&gMiscDeviceSys);
     if (rc)
     {
@@ -408,16 +361,6 @@ static int __init VBoxDrvLinuxInit(void)
                     if (rc == 0)
 #endif
                     {
-#if RTLNX_VER_MIN(5,0,0)
-                        /*
-                         * Register the module notifier.
-                         */
-                        int rc2 = register_module_notifier(&g_supdrvLinuxModuleNotifierBlock);
-                        if (rc2)
-                            printk(KERN_WARNING "vboxdrv: failed to register module notifier! rc2=%d\n", rc2);
-#endif
-
-
                         printk(KERN_INFO "vboxdrv: TSC mode is %s, tentative frequency %llu Hz\n",
                                SUPGetGIPModeName(g_DevExt.pGip), g_DevExt.pGip->u64CpuHz);
                         LogFlow(("VBoxDrv::ModuleInit returning %#x\n", rc));
@@ -463,26 +406,6 @@ static void __exit VBoxDrvLinuxUnload(void)
     platform_driver_unregister(&gPlatformDriver);
 #endif
 
-#if RTLNX_VER_MIN(5,0,0)
-    /*
-     * Kick the list of potential wrapper modules.
-     */
-    unregister_module_notifier(&g_supdrvLinuxModuleNotifierBlock);
-
-    spin_lock(&g_supdrvLinuxWrapperModuleSpinlock);
-    while (!RTListIsEmpty(&g_supdrvLinuxWrapperModuleList))
-    {
-        PSUPDRVLNXMODULE pCur = RTListRemoveFirst(&g_supdrvLinuxWrapperModuleList, SUPDRVLNXMODULE, ListEntry);
-        spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-
-        pCur->pModule = NULL;
-        RTMemFree(pCur);
-
-        spin_lock(&g_supdrvLinuxWrapperModuleSpinlock);
-    }
-    spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-#endif
-
     /*
      * I Don't think it's possible to unload a driver which processes have
      * opened, at least we'll blindly assume that here.
@@ -516,9 +439,9 @@ static int vboxdrvLinuxCreateCommon(struct inode *pInode, struct file *pFilp, bo
      * Only root is allowed to access the unrestricted device, enforce it!
      */
     if (   fUnrestricted
-        && vboxdrvLinuxEuidInNs() != 0 /* root */ )
+        && vboxdrvLinuxEuid() != 0 /* root */ )
     {
-        Log(("VBoxDrvLinuxCreate: euid=%d, expected 0 (root)\n", vboxdrvLinuxEuidInNs()));
+        Log(("VBoxDrvLinuxCreate: euid=%d, expected 0 (root)\n", vboxdrvLinuxEuid()));
         return -EPERM;
     }
 #endif /* VBOX_WITH_HARDENING */
@@ -529,8 +452,8 @@ static int vboxdrvLinuxCreateCommon(struct inode *pInode, struct file *pFilp, bo
     rc = supdrvCreateSession(&g_DevExt, true /* fUser */, fUnrestricted, &pSession);
     if (!rc)
     {
-        pSession->Uid = vboxdrvLinuxKernUid();
-        pSession->Gid = vboxdrvLinuxKernGid();
+        pSession->Uid = vboxdrvLinuxUid();
+        pSession->Gid = vboxdrvLinuxGid();
     }
 
     pFilp->private_data = pSession;
@@ -815,13 +738,13 @@ int VBOXCALL SUPDrvLinuxIDC(uint32_t uReq, PSUPDRVIDCREQHDR pReq)
     /*
      * Some quick validations.
      */
-    if (RT_UNLIKELY(!RT_VALID_PTR(pReq)))
+    if (RT_UNLIKELY(!VALID_PTR(pReq)))
         return VERR_INVALID_POINTER;
 
     pSession = pReq->pSession;
     if (pSession)
     {
-        if (RT_UNLIKELY(!RT_VALID_PTR(pSession)))
+        if (RT_UNLIKELY(!VALID_PTR(pSession)))
             return VERR_INVALID_PARAMETER;
         if (RT_UNLIKELY(pSession->pDevExt != &g_DevExt))
             return VERR_INVALID_PARAMETER;
@@ -834,181 +757,8 @@ int VBOXCALL SUPDrvLinuxIDC(uint32_t uReq, PSUPDRVIDCREQHDR pReq)
      */
     return supdrvIDC(uReq, &g_DevExt, pSession, pReq);
 }
+
 EXPORT_SYMBOL(SUPDrvLinuxIDC);
-
-
-#if RTLNX_VER_MIN(5,0,0)
-
-/**
- * Checks if the given module is one of our potential wrapper modules or not.
- */
-static bool supdrvLinuxLdrIsPotentialWrapperModule(struct module const *pModule)
-{
-    if (   pModule
-        && strncmp(pModule->name, RT_STR_TUPLE("vbox_")) == 0)
-        return true;
-    return false;
-}
-
-/**
- * Called when a kernel module changes state.
- *
- * We use this to listen for wrapper modules being loaded, since some evil
- * bugger removed the find_module() export in 5.13.
- */
-static int supdrvLinuxLdrModuleNotifyCallback(struct notifier_block *pBlock, unsigned long uModuleState, void *pvModule)
-{
-    struct module *pModule = (struct module *)pvModule;
-    switch (uModuleState)
-    {
-        case MODULE_STATE_UNFORMED: /* Setting up the module... */
-            break;
-
-        /*
-         * The module is about to have its ctors & init functions called.
-         *
-         * Add anything that looks like a wrapper module to our tracker list.
-         */
-        case MODULE_STATE_COMING:
-            if (supdrvLinuxLdrIsPotentialWrapperModule(pModule))
-            {
-                PSUPDRVLNXMODULE pTracker = (PSUPDRVLNXMODULE)RTMemAlloc(sizeof(*pTracker));
-                if (pTracker)
-                {
-                    pTracker->pModule = pModule;
-                    spin_lock(&g_supdrvLinuxWrapperModuleSpinlock);
-                    RTListPrepend(&g_supdrvLinuxWrapperModuleList, &pTracker->ListEntry);
-                    spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-                }
-            }
-            break;
-
-        case MODULE_STATE_LIVE:
-            break;
-
-        /*
-         * The module has been uninited and is going away.
-         *
-         * Remove the tracker entry for the module, if we have one.
-         */
-        case MODULE_STATE_GOING:
-        {
-            PSUPDRVLNXMODULE pCur;
-            spin_lock(&g_supdrvLinuxWrapperModuleSpinlock);
-            RTListForEach(&g_supdrvLinuxWrapperModuleList, pCur, SUPDRVLNXMODULE, ListEntry)
-            {
-                if (pCur->pModule == pModule)
-                {
-                    RTListNodeRemove(&pCur->ListEntry);
-                    spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-
-                    pCur->pModule = NULL;
-                    RTMemFree(pCur);
-
-                    spin_lock(&g_supdrvLinuxWrapperModuleSpinlock); /* silly */
-                    break;
-                }
-            }
-            spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-            break;
-        }
-    }
-    RT_NOREF(pBlock);
-    return NOTIFY_OK;
-}
-
-/**
- * Replacement for find_module() that's no longer exported with 5.13.
- */
-static struct module *supdrvLinuxLdrFindModule(const char *pszLnxModName)
-{
-    PSUPDRVLNXMODULE pCur;
-
-    spin_lock(&g_supdrvLinuxWrapperModuleSpinlock);
-    RTListForEach(&g_supdrvLinuxWrapperModuleList, pCur, SUPDRVLNXMODULE, ListEntry)
-    {
-        struct module * const pModule = pCur->pModule;
-        if (   pModule
-            && strcmp(pszLnxModName, pModule->name) == 0)
-        {
-            spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-            return pModule;
-        }
-    }
-    spin_unlock(&g_supdrvLinuxWrapperModuleSpinlock);
-    return NULL;
-}
-
-#endif /* >= 5.0.0 */
-
-
-/**
- * Used by native wrapper modules, forwarding to supdrvLdrRegisterWrappedModule
- * with device extension prepended to the argument list.
- */
-SUPR0DECL(int)  SUPDrvLinuxLdrRegisterWrappedModule(PCSUPLDRWRAPPEDMODULE pWrappedModInfo,
-                                                    const char *pszLnxModName, void **phMod)
-{
-    AssertPtrReturn(pszLnxModName, VERR_INVALID_POINTER);
-    AssertReturn(*pszLnxModName, VERR_INVALID_NAME);
-
-    /* Locate the module structure for the caller so can later reference
-       and dereference it to prevent unloading while it is being used.
-
-       Before Linux v5.9 this could be done by address (__module_address()
-       or __module_text_address()), but someone (guess who) apparently on
-       a mission to make life miserable for out-of-tree modules or something,
-       decided it was only used by build-in code and unexported both of them.
-
-       I could find no init callouts getting a struct module pointer either,
-       nor any module name hint anywhere I could see.  So, we're left with
-       hardcoding the module name via the compiler and pass it along to
-       SUPDrv so we can call find_module() here.
-
-       Sigh^2.
-
-       Update 5.13:
-       The find_module() and module_mutex symbols are no longer exported,
-       probably the doing of the same evil bugger mentioned above.  So, we now
-       register a module notification callback and track the modules we're
-       interested in that way. */
-
-#if RTLNX_VER_MIN(5,0,0)
-    struct module *pLnxModule = supdrvLinuxLdrFindModule(pszLnxModName);
-    if (pLnxModule)
-        return supdrvLdrRegisterWrappedModule(&g_DevExt, pWrappedModInfo, pLnxModule, phMod);
-    printk("vboxdrv: supdrvLinuxLdrFindModule(%s) failed in SUPDrvLinuxLdrRegisterWrappedModule!\n", pszLnxModName);
-    return VERR_MODULE_NOT_FOUND;
-
-#elif RTLNX_VER_MIN(2,6,30)
-    if (mutex_lock_interruptible(&module_mutex) == 0)
-    {
-        struct module *pLnxModule = find_module(pszLnxModName);
-        mutex_unlock(&module_mutex);
-        if (pLnxModule)
-            return supdrvLdrRegisterWrappedModule(&g_DevExt, pWrappedModInfo, pLnxModule, phMod);
-        printk("vboxdrv: find_module(%s) failed in SUPDrvLinuxLdrRegisterWrappedModule!\n", pszLnxModName);
-        return VERR_MODULE_NOT_FOUND;
-    }
-    return VERR_INTERRUPTED;
-
-#else
-    printk("vboxdrv: wrapper modules are not supported on 2.6.29 and earlier. sorry.\n");
-    return VERR_NOT_SUPPORTED;
-#endif
-}
-EXPORT_SYMBOL(SUPDrvLinuxLdrRegisterWrappedModule);
-
-
-/**
- * Used by native wrapper modules, forwarding to supdrvLdrDeregisterWrappedModule
- * with device extension prepended to the argument list.
- */
-SUPR0DECL(int) SUPDrvLinuxLdrDeregisterWrappedModule(PCSUPLDRWRAPPEDMODULE pWrappedModInfo, void **phMod)
-{
-    return supdrvLdrDeregisterWrappedModule(&g_DevExt, pWrappedModInfo, phMod);
-}
-EXPORT_SYMBOL(SUPDrvLinuxLdrDeregisterWrappedModule);
 
 
 RTCCUINTREG VBOXCALL supdrvOSChangeCR4(RTCCUINTREG fOrMask, RTCCUINTREG fAndMask)
@@ -1500,28 +1250,6 @@ int  VBOXCALL   supdrvOSLdrQuerySymbol(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pI
 }
 
 
-void VBOXCALL   supdrvOSLdrRetainWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    struct module *pLnxMod = (struct module *)pImage->pvWrappedNative;
-    Assert(!pImage->fLnxWrapperRef);
-    AssertReturnVoid(pLnxMod);
-    pImage->fLnxWrapperRef = try_module_get(pLnxMod);
-    RT_NOREF(pDevExt);
-}
-
-
-void VBOXCALL   supdrvOSLdrReleaseWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    if (pImage->fLnxWrapperRef)
-    {
-        struct module *pLnxMod = (struct module *)pImage->pvWrappedNative;
-        pImage->fLnxWrapperRef = false;
-        module_put(pLnxMod);
-    }
-    RT_NOREF(pDevExt);
-}
-
-
 #ifdef SUPDRV_WITH_MSR_PROBER
 
 int VBOXCALL    supdrvOSMsrProberRead(uint32_t uMsr, RTCPUID idCpu, uint64_t *puValue)
@@ -1690,7 +1418,6 @@ SUPR0DECL(int) SUPR0HCPhysToVirt(RTHCPHYS HCPhys, void **ppv)
     *ppv = phys_to_virt(HCPhys);
     return VINF_SUCCESS;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0HCPhysToVirt);
 
 
 RTDECL(int) SUPR0PrintfV(const char *pszFormat, va_list va)
@@ -1706,7 +1433,6 @@ RTDECL(int) SUPR0PrintfV(const char *pszFormat, va_list va)
     IPRT_LINUX_RESTORE_EFL_AC();
     return 0;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0PrintfV);
 
 
 SUPR0DECL(uint32_t) SUPR0GetKernelFeatures(void)
@@ -1726,7 +1452,6 @@ SUPR0DECL(uint32_t) SUPR0GetKernelFeatures(void)
 #endif
     return fFlags;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0GetKernelFeatures);
 
 
 int VBOXCALL    supdrvOSGetCurrentGdtRw(RTHCUINTPTR *pGdtRw)

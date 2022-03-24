@@ -1,10 +1,10 @@
-/* $Id: VBoxDbgStatsQt.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDbgStatsQt.h $ */
 /** @file
  * VBox Debugger GUI - Statistics.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,20 +81,7 @@ public:
      */
     void resizeColumnsToContent();
 
-    /**
-     * Expands the trees matching the given expression.
-     *
-     * @param   rPatStr      Selection pattern.
-     */
-    void expandMatching(const QString &rPatStr);
-
 protected:
-    /**
-     * @callback_method_impl{VBoxDbgStatsModel::FNITERATOR,
-     * Worker for expandMatching}.
-     */
-    static bool expandMatchingCallback(PDBGGUISTATSNODE pNode, QModelIndex const &a_rIndex, const char *pszFullName, void *pvUser);
-
     /**
      * Expands or collapses a sub-tree.
      *
@@ -199,15 +186,11 @@ public:
      * Creates a VM statistics list view widget.
      *
      * @param   a_pDbgGui       Pointer to the debugger gui object.
-     * @param   pszFilter       Initial selection pattern. NULL means everything.
-     *                          (See STAM for details.)
-     * @param   pszExpand       Initial expansion pattern. NULL means nothing is
-     *                          expanded.
+     * @param   pszPat          Initial selection pattern. NULL means everything. (See STAM for details.)
      * @param   uRefreshRate    The refresh rate. 0 means not to refresh and is the default.
      * @param   pParent         Parent widget.
      */
-    VBoxDbgStats(VBoxDbgGui *a_pDbgGui, const char *pszFilter = NULL, const char *pszExpand = NULL,
-                 unsigned uRefreshRate = 0, QWidget *pParent = NULL);
+    VBoxDbgStats(VBoxDbgGui *a_pDbgGui, const char *pszPat = NULL, unsigned uRefreshRate= 0, QWidget *pParent = NULL);
 
     /** Destructor. */
     virtual ~VBoxDbgStats();
@@ -254,7 +237,7 @@ protected:
     VBoxDbgStatsView   *m_pView;
 
     /** Move to pattern field action. */
-    QAction            *m_pFocusToPat;
+    QAction *m_pFocusToPat;
 };
 
 

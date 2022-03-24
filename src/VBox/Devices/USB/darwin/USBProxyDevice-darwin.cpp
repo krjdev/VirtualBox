@@ -1,10 +1,10 @@
-/* $Id: USBProxyDevice-darwin.cpp 93944 2022-02-24 21:15:14Z vboxsync $ */
+/* $Id: USBProxyDevice-darwin.cpp $ */
 /** @file
  * USB device proxy - the Darwin backend.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,10 +29,6 @@
 #include <mach/mach_error.h>
 #include <IOKit/usb/IOUSBLib.h>
 #include <IOKit/IOCFPlugIn.h>
-#ifndef __MAC_10_10 /* Quick hack: The following two masks appeared in 10.10. */
-# define kUSBReEnumerateReleaseDeviceMask   RT_BIT_32(29)
-# define kUSBReEnumerateCaptureDeviceMask   RT_BIT_32(30)
-#endif
 
 #include <VBox/log.h>
 #include <VBox/err.h>
@@ -98,8 +94,8 @@ typedef struct USBPROXYISOCBUFCOL
     void                       *pvFrames;
     /** The buffers.
      * The number of buffers here is decided by pvFrame begin allocated in
-     * GUEST_PAGE_SIZE chunks. The size of IOUSBLowLatencyIsocFrame is 16 bytes
-     * and we require 8 of those per buffer. GUEST_PAGE_SIZE / (16 * 8) = 32.
+     * PAGE_SIZE chunks. The size of IOUSBLowLatencyIsocFrame is 16 bytes
+     * and we require 8 of those per buffer. PAGE_SIZE / (16 * 8) = 32.
      * @remarks  Don't allocate too many as it may temporarily halt the system if
      *           some pool is low / exhausted. (Contiguous memory woes on mach.)
      */
@@ -449,16 +445,15 @@ static int usbProxyDarwinUrbAllocIsocBuf(PUSBPROXYURBOSX pUrbOsX, PUSBPROXYIFOSX
     AssertReturn(pNew, VERR_NO_MEMORY);
 
     IOReturn irc = (*pIf->ppIfI)->LowLatencyCreateBuffer(pIf->ppIfI, &pNew->pvBuffer, 8192 * RT_ELEMENTS(pNew->aBuffers), enmLLType);
-    if ((irc == kIOReturnSuccess) != RT_VALID_PTR(pNew->pvBuffer))
+    if (irc == kIOReturnSuccess != VALID_PTR(pNew->pvBuffer))
     {
         AssertPtr(pNew->pvBuffer);
         irc = kIOReturnNoMemory;
     }
     if (irc == kIOReturnSuccess)
     {
-        /** @todo GUEST_PAGE_SIZE or HOST_PAGE_SIZE or just 4K? */
-        irc = (*pIf->ppIfI)->LowLatencyCreateBuffer(pIf->ppIfI, &pNew->pvFrames, GUEST_PAGE_SIZE, kUSBLowLatencyFrameListBuffer);
-        if ((irc == kIOReturnSuccess) != RT_VALID_PTR(pNew->pvFrames))
+        irc = (*pIf->ppIfI)->LowLatencyCreateBuffer(pIf->ppIfI, &pNew->pvFrames, PAGE_SIZE, kUSBLowLatencyFrameListBuffer);
+        if (irc == kIOReturnSuccess != VALID_PTR(pNew->pvFrames))
         {
             AssertPtr(pNew->pvFrames);
             irc = kIOReturnNoMemory;
@@ -1092,6 +1087,7 @@ static DECLCALLBACK(void) usbProxyDarwinPerformWakeup(void *pInfo)
 
 /* -=-=-=-=-=- The exported methods -=-=-=-=-=- */
 
+
 /**
  * Opens the USB Device.
  *
@@ -1127,7 +1123,7 @@ static DECLCALLBACK(int) usbProxyDarwinOpen(PUSBPROXYDEV pProxyDev, const char *
      * this subject further right now. Maybe check this later.
      */
     CFMutableDictionaryRef RefMatchingDict = IOServiceMatching(kIOUSBDeviceClassName);
-    AssertReturn(RefMatchingDict != NULL, VERR_OPEN_FAILED);
+    AssertReturn(RefMatchingDict != IO_OBJECT_NULL, VERR_OPEN_FAILED);
 
     uint64_t u64SessionId = 0;
     uint32_t u32LocationId = 0;
@@ -1208,6 +1204,14 @@ static DECLCALLBACK(int) usbProxyDarwinOpen(PUSBPROXYDEV pProxyDev, const char *
     }
 
     /*
+     * Call the USBLib init to make sure we're a valid VBoxUSB client.
+     * For now we'll ignore failures here and just plunge on, it might still work...
+     */
+    vrc = USBLibInit();
+    if (RT_FAILURE(vrc))
+        LogRel(("USB: USBLibInit failed - %Rrc\n", vrc));
+
+    /*
      * Create a plugin interface for the device and query its IOUSBDeviceInterface.
      */
     SInt32 Score = 0;
@@ -1229,9 +1233,6 @@ static DECLCALLBACK(int) usbProxyDarwinOpen(PUSBPROXYDEV pProxyDev, const char *
              * If we fail, we'll try figure out who is using the device and
              * convince them to let go of it...
              */
-            irc = (*ppDevI)->USBDeviceReEnumerate(ppDevI, kUSBReEnumerateCaptureDeviceMask);
-            Log(("USBDeviceReEnumerate (capture) returned irc=%#x\n", irc));
-
             irc = (*ppDevI)->USBDeviceOpenSeize(ppDevI);
             if (irc == kIOReturnExclusiveAccess)
             {
@@ -1346,6 +1347,7 @@ static DECLCALLBACK(int) usbProxyDarwinOpen(PUSBPROXYDEV pProxyDev, const char *
         vrc = RTErrConvertFromDarwin(irc);
     }
 
+    USBLibTerm();
     return vrc;
 }
 
@@ -1400,9 +1402,6 @@ static DECLCALLBACK(void) usbProxyDarwinClose(PUSBPROXYDEV pProxyDev)
         AssertMsgFailed(("irc=%#x\n", irc));
     }
 
-    irc = (*pDevOsX->ppDevI)->USBDeviceReEnumerate(pDevOsX->ppDevI, kUSBReEnumerateReleaseDeviceMask);
-    Log(("USBDeviceReEnumerate (release) returned irc=%#x\n", irc));
-
     (*pDevOsX->ppDevI)->Release(pDevOsX->ppDevI);
     pDevOsX->ppDevI = NULL;
     kern_return_t krc = IOObjectRelease(pDevOsX->USBDevice); Assert(krc == KERN_SUCCESS); NOREF(krc);
@@ -1421,6 +1420,7 @@ static DECLCALLBACK(void) usbProxyDarwinClose(PUSBPROXYDEV pProxyDev)
         RTMemFree(pUrbOsX);
     }
 
+    USBLibTerm();
     LogFlow(("usbProxyDarwinClose: returns\n"));
 }
 

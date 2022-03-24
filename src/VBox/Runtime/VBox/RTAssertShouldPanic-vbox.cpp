@@ -1,10 +1,10 @@
-/* $Id: RTAssertShouldPanic-vbox.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTAssertShouldPanic-vbox.cpp $ */
 /** @file
  * IPRT - Assertions, generic RTAssertShouldPanic.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,6 @@
 #if defined(DOXYGEN_RUNNING) \
  || (   !defined(VBOX_RTASSERT_WITH_GDB) \
      && !defined(IN_GUEST) \
-     && !defined(IN_RT_STATIC) /* valkit too big, sorry */ \
      && !defined(RT_OS_OS2) \
      && !defined(RT_OS_WINDOWS))
 # define VBOX_RTASSERT_WITH_GDB

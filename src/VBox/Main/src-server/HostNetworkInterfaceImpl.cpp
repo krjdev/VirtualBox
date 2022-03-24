@@ -1,10 +1,10 @@
-/* $Id: HostNetworkInterfaceImpl.cpp 93576 2022-02-03 12:18:25Z vboxsync $ */
+/* $Id: HostNetworkInterfaceImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -160,13 +160,13 @@ void HostNetworkInterface::i_unregisterMetrics(PerformanceCollector *aCollector,
 HRESULT HostNetworkInterface::saveAdapterConfigParameter(const char *szParamName, const Utf8Str &strValue)
 {
     AssertReturn(mVirtualBox != NULL, E_POINTER);
-    return mVirtualBox->SetExtraData(BstrFmt("HostOnly/{%RTuuid}/%s", mGuid.raw(), szParamName).raw(), Bstr(strValue).raw());
+    return mVirtualBox->SetExtraData(BstrFmt("HostOnly/{%RTuuid}/%s", mGuid, szParamName).raw(), Bstr(strValue).raw());
 }
 
 HRESULT HostNetworkInterface::eraseAdapterConfigParameter(const char *szParamName)
 {
     AssertReturn(mVirtualBox != NULL, E_POINTER);
-    return mVirtualBox->SetExtraData(BstrFmt("HostOnly/{%RTuuid}/%s", mGuid.raw(), szParamName).raw(), NULL);
+    return mVirtualBox->SetExtraData(BstrFmt("HostOnly/{%RTuuid}/%s", mGuid, szParamName).raw(), NULL);
 }
 
 HRESULT HostNetworkInterface::saveAdapterConfigIPv4Dhcp()
@@ -203,7 +203,7 @@ bool HostNetworkInterface::isInConfigFile(void)
     if (mVirtualBox == NULL)
         return false; /* Trigger config update, which will fail with proper return code */
     Bstr tmpName;
-    mVirtualBox->GetExtraData(BstrFmt("HostOnly/{%RTuuid}/Name", mGuid.raw()).raw(), tmpName.asOutParam());
+    mVirtualBox->GetExtraData(BstrFmt("HostOnly/{%RTuuid}/Name", mGuid).raw(), tmpName.asOutParam());
     return (tmpName.isNotEmpty() && tmpName == mInterfaceName);
 
 }
@@ -257,7 +257,7 @@ HRESULT HostNetworkInterface::updateConfig()
         else
             m.realIPV6Address = m.IPV6Address = Utf8Str::Empty;
         RTNetMaskToPrefixIPv6(&info.IPv6NetMask, &iPrefixIPv6);
-        m.realIPV6PrefixLength = m.IPV6NetworkMaskPrefixLength = (ULONG)iPrefixIPv6;
+        m.realIPV6PrefixLength = m.IPV6NetworkMaskPrefixLength = iPrefixIPv6;
         m.hardwareAddress = Utf8StrFmt("%RTmac", &info.MACAddress);
         AssertCompile((unsigned)NETIF_T_UNKNOWN == (unsigned)HostNetworkInterfaceMediumType_Unknown);
         m.mediumType = (HostNetworkInterfaceMediumType_T)info.enmMediumType;
@@ -317,7 +317,7 @@ HRESULT HostNetworkInterface::init(Utf8Str aInterfaceName, HostNetworkInterfaceT
     else
         m.realIPV6Address = m.IPV6Address = Utf8Str::Empty;
     RTNetMaskToPrefixIPv6(&pIf->IPv6NetMask, &iPrefixIPv6);
-    m.realIPV6PrefixLength = m.IPV6NetworkMaskPrefixLength = (ULONG)iPrefixIPv6;
+    m.realIPV6PrefixLength = m.IPV6NetworkMaskPrefixLength = iPrefixIPv6;
     m.dhcpEnabled = pIf->fDhcpEnabled;
     m.hardwareAddress = Utf8StrFmt("%RTmac", &pIf->MACAddress);
     AssertCompile((unsigned)NETIF_T_UNKNOWN == (unsigned)HostNetworkInterfaceMediumType_Unknown);
@@ -542,8 +542,6 @@ HRESULT HostNetworkInterface::enableStaticIPConfig(const com::Utf8Str &aIPAddres
 #ifndef VBOX_WITH_HOSTNETIF_API
     return E_NOTIMPL;
 #else
-    HRESULT hrc;
-
     if (aIPAddress.isEmpty())
     {
         if (m.IPAddress)
@@ -604,20 +602,7 @@ HRESULT HostNetworkInterface::enableStaticIPConfig(const com::Utf8Str &aIPAddres
             else
             {
                 LogRel(("Failed to EnableStaticIpConfig with rc=%Rrc\n", rc));
-                /* Global::vboxStatusCodeToCOM assert things we can guarantee */
-                switch (rc)
-                {
-                    case VERR_NOT_IMPLEMENTED:
-                        hrc = E_NOTIMPL;
-                        break;
-                    case VERR_ACCESS_DENIED:
-                        hrc = E_ACCESSDENIED;
-                        break;
-                    default:
-                        hrc = E_FAIL;
-                        break;
-                }
-                return hrc;
+                return rc == VERR_NOT_IMPLEMENTED ? E_NOTIMPL : (rc == VERR_ACCESS_DENIED ? E_ACCESSDENIED : E_FAIL);
             }
 
         }
@@ -634,9 +619,8 @@ HRESULT HostNetworkInterface::enableStaticIPConfigV6(const com::Utf8Str &aIPV6Ad
 #else
     if (aIPV6NetworkMaskPrefixLength > 128)
         return mVirtualBox->setErrorBoth(E_INVALIDARG, VERR_INVALID_PARAMETER,
-                   tr("Invalid IPv6 prefix length"));
+                   "Invalid IPv6 prefix length");
 
-    HRESULT hrc;
     int rc;
 
     RTNETADDRIPV6 AddrOld, AddrNew;
@@ -646,7 +630,7 @@ HRESULT HostNetworkInterface::enableStaticIPConfigV6(const com::Utf8Str &aIPV6Ad
     rc = RTNetStrToIPv6Addr(aIPV6Address.c_str(), &AddrNew, &pszZoneIgnored);
     if (RT_FAILURE(rc))
     {
-        return mVirtualBox->setErrorBoth(E_INVALIDARG, rc, tr("Invalid IPv6 address"));
+        return mVirtualBox->setErrorBoth(E_INVALIDARG, rc, "Invalid IPv6 address");
     }
 
     rc = RTNetStrToIPv6Addr(com::Utf8Str(m.realIPV6Address).c_str(), &AddrOld, &pszZoneIgnored);
@@ -670,20 +654,7 @@ HRESULT HostNetworkInterface::enableStaticIPConfigV6(const com::Utf8Str &aIPV6Ad
         if (RT_FAILURE(rc))
         {
             LogRel(("Failed to EnableStaticIpConfigV6 with rc=%Rrc\n", rc));
-            /* Global::vboxStatusCodeToCOM assert things we can guarantee */
-            switch (rc)
-            {
-                case VERR_NOT_IMPLEMENTED:
-                    hrc = E_NOTIMPL;
-                    break;
-                case VERR_ACCESS_DENIED:
-                    hrc = E_ACCESSDENIED;
-                    break;
-                default:
-                    hrc = E_FAIL;
-                    break;
-            }
-            return hrc;
+            return rc == VERR_NOT_IMPLEMENTED ? E_NOTIMPL : E_FAIL;
         }
         else
         {

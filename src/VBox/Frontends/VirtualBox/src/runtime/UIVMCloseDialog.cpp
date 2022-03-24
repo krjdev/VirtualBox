@@ -1,10 +1,10 @@
-/* $Id: UIVMCloseDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVMCloseDialog.cpp $ */
 /** @file
  * VBox Qt GUI - UIVMCloseDialog class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,6 +58,7 @@ UIVMCloseDialog::UIVMCloseDialog(QWidget *pParent, CMachine &comMachine,
     , m_pLabelIconSave(0), m_pRadioButtonSave(0)
     , m_pLabelIconShutdown(0), m_pRadioButtonShutdown(0)
     , m_pLabelIconPowerOff(0), m_pRadioButtonPowerOff(0)
+    , m_pCheckBoxDiscard(0)
     , m_enmLastCloseAction(MachineCloseAction_Invalid)
 {
     prepare();
@@ -171,6 +172,19 @@ void UIVMCloseDialog::retranslateUi()
                                             "procedure which may result in <i>data loss</i> inside the virtual machine. "
                                             "Selecting this action is recommended only if the virtual machine does not respond "
                                             "to the <b>Send the shutdown signal</b> action.</p>"));
+
+    /* Translate check-box: */
+    m_pCheckBoxDiscard->setText(tr("&Restore current snapshot '%1'").arg(m_strDiscardCheckBoxText));
+    m_pCheckBoxDiscard->setToolTip(tr("Restore the machine state stored in the current snapshot"));
+    m_pCheckBoxDiscard->setWhatsThis(tr("<p>When checked, the machine will be returned to the state stored in the current "
+                                        "snapshot after it is turned off. This is useful if you are sure that you want to "
+                                        "discard the results of your last sessions and start again at that snapshot.</p>"));
+}
+
+void UIVMCloseDialog::sltUpdateWidgetAvailability()
+{
+    /* Discard option should be enabled only on power-off action: */
+    m_pCheckBoxDiscard->setEnabled(m_pRadioButtonPowerOff->isChecked());
 }
 
 void UIVMCloseDialog::accept()
@@ -183,7 +197,12 @@ void UIVMCloseDialog::accept()
     else if (m_pRadioButtonShutdown->isChecked())
         setResult(MachineCloseAction_Shutdown);
     else if (m_pRadioButtonPowerOff->isChecked())
-        setResult(MachineCloseAction_PowerOff);
+    {
+        if (!m_pCheckBoxDiscard->isChecked() || !m_pCheckBoxDiscard->isVisible())
+            setResult(MachineCloseAction_PowerOff);
+        else
+            setResult(MachineCloseAction_PowerOff_RestoringSnapshot);
+    }
 
     /* Memorize the last user's choice for the given VM: */
     MachineCloseAction newCloseAction = static_cast<MachineCloseAction>(result());
@@ -243,6 +262,11 @@ void UIVMCloseDialog::setButtonVisiblePowerOff(bool fVisible)
 {
     m_pLabelIconPowerOff->setVisible(fVisible);
     m_pRadioButtonPowerOff->setVisible(fVisible);
+}
+
+void UIVMCloseDialog::setCheckBoxVisibleDiscard(bool fVisible)
+{
+    m_pCheckBoxDiscard->setVisible(fVisible);
 }
 
 void UIVMCloseDialog::prepare()
@@ -396,6 +420,7 @@ void UIVMCloseDialog::prepareChoiceLayout()
         {
             /* Configure button: */
             m_pRadioButtonDetach->installEventFilter(this);
+            connect(m_pRadioButtonDetach, &QRadioButton::toggled, this, &UIVMCloseDialog::sltUpdateWidgetAvailability);
             /* Add into layout: */
             m_pChoiceLayout->addWidget(m_pRadioButtonDetach, 0, 1);
         }
@@ -415,6 +440,7 @@ void UIVMCloseDialog::prepareChoiceLayout()
         {
             /* Configure button: */
             m_pRadioButtonSave->installEventFilter(this);
+            connect(m_pRadioButtonSave, &QRadioButton::toggled, this, &UIVMCloseDialog::sltUpdateWidgetAvailability);
             /* Add into layout: */
             m_pChoiceLayout->addWidget(m_pRadioButtonSave, 1, 1);
         }
@@ -434,6 +460,7 @@ void UIVMCloseDialog::prepareChoiceLayout()
         {
             /* Configure button: */
             m_pRadioButtonShutdown->installEventFilter(this);
+            connect(m_pRadioButtonShutdown, &QRadioButton::toggled, this, &UIVMCloseDialog::sltUpdateWidgetAvailability);
             /* Add into layout: */
             m_pChoiceLayout->addWidget(m_pRadioButtonShutdown, 2, 1);
         }
@@ -453,8 +480,17 @@ void UIVMCloseDialog::prepareChoiceLayout()
         {
             /* Configure button: */
             m_pRadioButtonPowerOff->installEventFilter(this);
+            connect(m_pRadioButtonPowerOff, &QRadioButton::toggled, this, &UIVMCloseDialog::sltUpdateWidgetAvailability);
             /* Add into layout: */
             m_pChoiceLayout->addWidget(m_pRadioButtonPowerOff, 3, 1);
+        }
+
+        /* Create 'discard' check-box: */
+        m_pCheckBoxDiscard = new QCheckBox;
+        if (m_pCheckBoxDiscard)
+        {
+            /* Add into layout: */
+            m_pChoiceLayout->addWidget(m_pCheckBoxDiscard, 4, 1);
         }
 
         /* Add into layout: */
@@ -475,10 +511,7 @@ void UIVMCloseDialog::prepareButtonBox()
                                        | QDialogButtonBox::Ok);
         connect(pButtonBox, &QIDialogButtonBox::accepted, this, &UIVMCloseDialog::accept);
         connect(pButtonBox, &QIDialogButtonBox::rejected, this, &UIVMCloseDialog::reject);
-        connect(pButtonBox->button(QIDialogButtonBox::Help), &QPushButton::pressed,
-                &msgCenter(), &UIMessageCenter::sltHandleHelpRequest);
-        pButtonBox->button(QIDialogButtonBox::Help)->setShortcut(QKeySequence::HelpContents);
-        uiCommon().setHelpKeyword(pButtonBox->button(QIDialogButtonBox::Help), "intro-save-machine-state");
+        connect(pButtonBox, &QIDialogButtonBox::helpRequested, &msgCenter(), &UIMessageCenter::sltShowHelpHelpDialog);
 
         /* Add into layout: */
         m_pMainLayout->addWidget(pButtonBox);
@@ -495,6 +528,7 @@ void UIVMCloseDialog::configure()
     bool fIsStateSavingAllowed = !(m_restictedCloseActions & MachineCloseAction_SaveState);
     bool fIsACPIShutdownAllowed = !(m_restictedCloseActions & MachineCloseAction_Shutdown);
     bool fIsPowerOffAllowed = !(m_restictedCloseActions & MachineCloseAction_PowerOff);
+    bool fIsPowerOffAndRestoreAllowed = fIsPowerOffAllowed && !(m_restictedCloseActions & MachineCloseAction_PowerOff_RestoringSnapshot);
 
     /* Make 'Detach' button visible/hidden depending on restriction: */
     setButtonVisibleDetach(fIsDetachAllowed);
@@ -513,6 +547,11 @@ void UIVMCloseDialog::configure()
 
     /* Make 'Power off' button visible/hidden depending on restriction: */
     setButtonVisiblePowerOff(fIsPowerOffAllowed);
+    /* Make the Restore Snapshot checkbox visible/hidden depending on snapshot count & restrictions: */
+    setCheckBoxVisibleDiscard(fIsPowerOffAndRestoreAllowed && m_comMachine.GetSnapshotCount() > 0);
+    /* Assign Restore Snapshot checkbox text: */
+    if (!m_comMachine.GetCurrentSnapshot().isNull())
+        m_strDiscardCheckBoxText = m_comMachine.GetCurrentSnapshot().GetName();
 
     /* Check which radio-button should be initially chosen: */
     QRadioButton *pRadioButtonToChoose = 0;
@@ -534,6 +573,11 @@ void UIVMCloseDialog::configure()
     {
         pRadioButtonToChoose = m_pRadioButtonPowerOff;
     }
+    else if (m_enmLastCloseAction == MachineCloseAction_PowerOff_RestoringSnapshot && fIsPowerOffAndRestoreAllowed)
+    {
+        pRadioButtonToChoose = m_pRadioButtonPowerOff;
+        m_pCheckBoxDiscard->setChecked(true);
+    }
     /* Else 'default choice' will be used: */
     else
     {
@@ -553,6 +597,7 @@ void UIVMCloseDialog::configure()
         /* Check and focus it: */
         pRadioButtonToChoose->setChecked(true);
         pRadioButtonToChoose->setFocus();
+        sltUpdateWidgetAvailability();
         m_fValid = true;
     }
 }

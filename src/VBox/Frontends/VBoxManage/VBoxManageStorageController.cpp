@@ -1,10 +1,10 @@
-/* $Id: VBoxManageStorageController.cpp 94236 2022-03-15 09:26:01Z vboxsync $ */
+/* $Id: VBoxManageStorageController.cpp $ */
 /** @file
  * VBoxManage - The storage controller related commands.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -14,6 +14,8 @@
  * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
+
+#ifndef VBOX_ONLY_DOCS
 
 
 /*********************************************************************************************************************************
@@ -36,7 +38,6 @@
 #include "VBoxManage.h"
 using namespace com;
 
-DECLARE_TRANSLATION_CONTEXT(Storage);
 
 // funcs
 ///////////////////////////////////////////////////////////////////////////////
@@ -163,7 +164,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                     else if (!RTStrICmp(ValueUnion.psz, "dvddrive"))
                         devTypeRequested = DeviceType_DVD;
                     else
-                        return errorArgument(Storage::tr("Invalid --type argument '%s'"), ValueUnion.psz);
+                        return errorArgument("Invalid --type argument '%s'", ValueUnion.psz);
                 }
                 else
                     rc = E_FAIL;
@@ -302,7 +303,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
             {
                 int vrc = parseMediumType(ValueUnion.psz, &enmMediumType);
                 if (RT_FAILURE(vrc))
-                    return errorArgument(Storage::tr("Invalid medium type '%s'"), ValueUnion.psz);
+                    return errorArgument("Invalid medium type '%s'", ValueUnion.psz);
                 fSetMediumType = true;
                 break;
             }
@@ -313,7 +314,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
 
             default:
             {
-                errorGetOpt(c, &ValueUnion);
+                errorGetOpt(USAGE_STORAGEATTACH, c, &ValueUnion);
                 rc = E_FAIL;
                 break;
             }
@@ -324,7 +325,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
         return RTEXITCODE_FAILURE;
 
     if (!pszCtl)
-        return errorSyntax(Storage::tr("Storage controller name not specified"));
+        return errorSyntax(USAGE_STORAGEATTACH, "Storage controller name not specified");
 
     /* get the virtualbox system properties */
     CHECK_ERROR_RET(a->virtualBox, COMGETTER(SystemProperties)(systemProperties.asOutParam()), RTEXITCODE_FAILURE);
@@ -344,16 +345,16 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
         if (fRunTime)
         {
             if (pszPassThrough)
-                throw Utf8Str(Storage::tr("Drive passthrough state cannot be changed while the VM is running\n"));
+                throw Utf8Str("Drive passthrough state cannot be changed while the VM is running\n");
             else if (pszBandwidthGroup)
-                throw Utf8Str(Storage::tr("Bandwidth group cannot be changed while the VM is running\n"));
+                throw Utf8Str("Bandwidth group cannot be changed while the VM is running\n");
         }
 
         /* check if the storage controller is present */
         rc = machine->GetStorageControllerByName(Bstr(pszCtl).raw(),
                                                  storageCtl.asOutParam());
         if (FAILED(rc))
-            throw Utf8StrFmt(Storage::tr("Could not find a controller named '%s'\n"), pszCtl);
+            throw Utf8StrFmt("Could not find a controller named '%s'\n", pszCtl);
 
         StorageBus_T storageBus = StorageBus_Null;
         CHECK_ERROR_RET(storageCtl, COMGETTER(Bus)(&storageBus), RTEXITCODE_FAILURE);
@@ -367,14 +368,14 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
             if (maxPorts == 1)
                 port = 0;
             else
-                return errorSyntax(Storage::tr("Port not specified"));
+                return errorSyntax(USAGE_STORAGEATTACH, "Port not specified");
         }
         if (device == ~0U)
         {
             if (maxDevices == 1)
                 device = 0;
             else
-                return errorSyntax(Storage::tr("Device not specified"));
+                return errorSyntax(USAGE_STORAGEATTACH, "Device not specified");
         }
 
         /* for sata controller check if the port count is big enough
@@ -438,8 +439,8 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                     || !(   deviceType == DeviceType_DVD
                          || deviceType == DeviceType_Floppy)
                    )
-                    throw Utf8StrFmt(Storage::tr("No DVD/Floppy Drive attached to the controller '%s'"
-                                                 "at the port: %u, device: %u"), pszCtl, port, device);
+                    throw Utf8StrFmt("No DVD/Floppy Drive attached to the controller '%s'"
+                                     "at the port: %u, device: %u", pszCtl, port, device);
 
             }
             else
@@ -458,7 +459,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                 }
 
                 if (!driveCheck)
-                    throw Utf8StrFmt(Storage::tr("The attachment is not supported by the storage controller '%s'"), pszCtl);
+                    throw Utf8StrFmt("The attachment is not supported by the storage controller '%s'", pszCtl);
 
                 if (storageBus == StorageBus_Floppy)
                     deviceType = DeviceType_Floppy;
@@ -513,7 +514,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                 CHECK_ERROR(pProperties, COMGETTER(DefaultAdditionsISO)(bstrIso.asOutParam()));
                                 strIso = Utf8Str(bstrIso);
                                 if (strIso.isEmpty())
-                                    throw Utf8Str(Storage::tr("Cannot find the Guest Additions ISO image\n"));
+                                    throw Utf8Str("Cannot find the Guest Additions ISO image\n");
                                 pszMedium = strIso.c_str();
                                 if (devTypeRequested == DeviceType_Null)
                                     devTypeRequested = DeviceType_DVD;
@@ -539,7 +540,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
             }
 
             if (devTypeRequested == DeviceType_Null)        // still the initializer value?
-                throw Utf8Str(Storage::tr("Argument --type must be specified\n"));
+                throw Utf8Str("Argument --type must be specified\n");
 
             /* check if the device type is supported by the controller */
             {
@@ -553,7 +554,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                         if (saDeviceTypes[i] == devTypeRequested)
                             driveCheck++;
                     if (!driveCheck)
-                        throw Utf8StrFmt(Storage::tr("The given attachment is not supported by the storage controller '%s'"), pszCtl);
+                        throw Utf8StrFmt("The given attachment is not supported by the storage controller '%s'", pszCtl);
                 }
                 else
                     goto leave;
@@ -575,11 +576,11 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                         /* 2nd try: try with the real name, important on Linux+libhal */
                         char szPathReal[RTPATH_MAX];
                         if (RT_FAILURE(RTPathReal(pszMedium + 5, szPathReal, sizeof(szPathReal))))
-                            throw Utf8StrFmt(Storage::tr("Invalid host DVD drive name \"%s\""), pszMedium + 5);
+                            throw Utf8StrFmt("Invalid host DVD drive name \"%s\"", pszMedium + 5);
                         rc = host->FindHostDVDDrive(Bstr(szPathReal).raw(),
                                                     pMedium2Mount.asOutParam());
                         if (!pMedium2Mount)
-                            throw Utf8StrFmt(Storage::tr("Invalid host DVD drive name \"%s\""), pszMedium + 5);
+                            throw Utf8StrFmt("Invalid host DVD drive name \"%s\"", pszMedium + 5);
                     }
                 }
                 else
@@ -588,14 +589,14 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                     rc = host->FindHostFloppyDrive(Bstr(pszMedium + 5).raw(),
                                                    pMedium2Mount.asOutParam());
                     if (!pMedium2Mount)
-                        throw Utf8StrFmt(Storage::tr("Invalid host floppy drive name \"%s\""), pszMedium + 5);
+                        throw Utf8StrFmt("Invalid host floppy drive name \"%s\"", pszMedium + 5);
                 }
             }
             else if (!RTStrICmp(pszMedium, "iSCSI"))
             {
                 /* check for required options */
                 if (bstrServer.isEmpty() || bstrTarget.isEmpty())
-                    throw Utf8StrFmt(Storage::tr("Parameters --server and --target are required for iSCSI media"));
+                    throw Utf8StrFmt("Parameters --server and --target are required for iSCSI media");
 
                 /** @todo move the location stuff to Main, which can use pfnComposeName
                  * from the disk backends to construct the location properly. Also do
@@ -662,7 +663,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                 Bstr guid;
                 CHECK_ERROR(pMedium2Mount, COMGETTER(Id)(guid.asOutParam()));
                 if (FAILED(rc)) goto leave;
-                RTPrintf(Storage::tr("iSCSI disk created. UUID: %s\n"), Utf8Str(guid).c_str());
+                RTPrintf("iSCSI disk created. UUID: %s\n", Utf8Str(guid).c_str());
             }
             else
             {
@@ -673,7 +674,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                       device,
                                                       mediumAttachment.asOutParam());
                     if (FAILED(rc))
-                        throw Utf8Str(Storage::tr("Missing --medium argument"));
+                        throw Utf8Str("Missing --medium argument");
                 }
                 else
                 {
@@ -682,7 +683,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                     AccessMode_ReadWrite, pMedium2Mount,
                                     fSetNewUuid, false /* fSilent */);
                     if (FAILED(rc) || !pMedium2Mount)
-                        throw Utf8StrFmt(Storage::tr("Invalid UUID or filename \"%s\""), pszMedium);
+                        throw Utf8StrFmt("Invalid UUID or filename \"%s\"", pszMedium);
                 }
             }
 
@@ -692,7 +693,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                 CHECK_ERROR(pMedium2Mount, SetIds(fSetNewUuid, bstrNewUuid.raw(),
                                                   fSetNewParentUuid, bstrNewParentUuid.raw()));
                 if (FAILED(rc))
-                    throw  Utf8Str(Storage::tr("Failed to set the medium/parent medium UUID"));
+                    throw  Utf8Str("Failed to set the medium/parent medium UUID");
             }
 
             // set medium type, if so desired
@@ -706,7 +707,7 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                     {
                         CHECK_ERROR(pMedium2Mount, COMSETTER(Type)(enmMediumType));
                         if (FAILED(rc))
-                            throw  Utf8Str(Storage::tr("Failed to set the medium type"));
+                            throw  Utf8Str("Failed to set the medium type");
                     }
                 }
             }
@@ -801,10 +802,10 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                            port, device, FALSE));
                 }
                 else
-                    throw Utf8StrFmt(Storage::tr("Invalid --passthrough argument '%s'"), pszPassThrough);
+                    throw Utf8StrFmt("Invalid --passthrough argument '%s'", pszPassThrough);
             }
             else
-                throw Utf8StrFmt(Storage::tr("Couldn't find the controller attachment for the controller '%s'\n"), pszCtl);
+                throw Utf8StrFmt("Couldn't find the controller attachment for the controller '%s'\n", pszCtl);
         }
 
         if (   pszTempEject
@@ -827,10 +828,10 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                               port, device, FALSE));
                 }
                 else
-                    throw Utf8StrFmt(Storage::tr("Invalid --tempeject argument '%s'"), pszTempEject);
+                    throw Utf8StrFmt("Invalid --tempeject argument '%s'", pszTempEject);
             }
             else
-                throw Utf8StrFmt(Storage::tr("Couldn't find the controller attachment for the controller '%s'\n"), pszCtl);
+                throw Utf8StrFmt("Couldn't find the controller attachment for the controller '%s'\n", pszCtl);
         }
 
         if (   pszNonRotational
@@ -853,10 +854,10 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                              port, device, FALSE));
                 }
                 else
-                    throw Utf8StrFmt(Storage::tr("Invalid --nonrotational argument '%s'"), pszNonRotational);
+                    throw Utf8StrFmt("Invalid --nonrotational argument '%s'", pszNonRotational);
             }
             else
-                throw Utf8StrFmt(Storage::tr("Couldn't find the controller attachment for the controller '%s'\n"), pszCtl);
+                throw Utf8StrFmt("Couldn't find the controller attachment for the controller '%s'\n", pszCtl);
         }
 
         if (   pszDiscard
@@ -879,10 +880,10 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                                  port, device, FALSE));
                 }
                 else
-                    throw Utf8StrFmt(Storage::tr("Invalid --discard argument '%s'"), pszDiscard);
+                    throw Utf8StrFmt("Invalid --discard argument '%s'", pszDiscard);
             }
             else
-                throw Utf8StrFmt(Storage::tr("Couldn't find the controller attachment for the controller '%s'\n"), pszCtl);
+                throw Utf8StrFmt("Couldn't find the controller attachment for the controller '%s'\n", pszCtl);
         }
 
         if (   pszHotPluggable
@@ -905,10 +906,10 @@ RTEXITCODE handleStorageAttach(HandlerArg *a)
                                                                   port, device, FALSE));
                 }
                 else
-                    throw Utf8StrFmt(Storage::tr("Invalid --hotpluggable argument '%s'"), pszHotPluggable);
+                    throw Utf8StrFmt("Invalid --hotpluggable argument '%s'", pszHotPluggable);
             }
             else
-                throw Utf8StrFmt(Storage::tr("Couldn't find the controller attachment for the controller '%s'\n"), pszCtl);
+                throw Utf8StrFmt("Couldn't find the controller attachment for the controller '%s'\n", pszCtl);
         }
 
         if (   pszBandwidthGroup
@@ -987,7 +988,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
     RTGETOPTSTATE     GetState;
 
     if (a->argc < 4)
-        return errorSyntax(Storage::tr("Too few parameters"));
+        return errorSyntax(USAGE_STORAGECONTROLLER, "Too few parameters");
 
     RTGetOptInit (&GetState, a->argc, a->argv, g_aStorageControllerOptions,
                   RT_ELEMENTS(g_aStorageControllerOptions), 1, RTGETOPTINIT_FLAGS_NO_STD_OPTS);
@@ -1033,7 +1034,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
                 break;
 
             default:
-                return errorGetOpt(c, &ValueUnion);
+                return errorGetOpt(USAGE_STORAGECONTROLLER, c, &ValueUnion);
         }
     }
 
@@ -1053,7 +1054,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
     {
         /* it's important to always close sessions */
         a->session->UnlockMachine();
-        return errorSyntax(Storage::tr("Storage controller name not specified\n"));
+        return errorSyntax(USAGE_STORAGECONTROLLER, "Storage controller name not specified\n");
     }
 
     if (fRemoveCtl)
@@ -1116,7 +1117,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
             }
             else
             {
-                errorArgument(Storage::tr("Invalid --add argument '%s'"), pszBusType);
+                errorArgument("Invalid --add argument '%s'", pszBusType);
                 rc = E_FAIL;
             }
         }
@@ -1177,13 +1178,13 @@ RTEXITCODE handleStorageController(HandlerArg *a)
                 }
                 else
                 {
-                    errorArgument(Storage::tr("Invalid --type argument '%s'"), pszCtlType);
+                    errorArgument("Invalid --type argument '%s'", pszCtlType);
                     rc = E_FAIL;
                 }
             }
             else
             {
-                errorArgument(Storage::tr("Couldn't find the controller with the name: '%s'\n"), pszCtl);
+                errorArgument("Couldn't find the controller with the name: '%s'\n", pszCtl);
                 rc = E_FAIL;
             }
         }
@@ -1202,7 +1203,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
             }
             else
             {
-                errorArgument(Storage::tr("Couldn't find the controller with the name: '%s'\n"), pszCtl);
+                errorArgument("Couldn't find the controller with the name: '%s'\n", pszCtl);
                 rc = E_FAIL;
             }
         }
@@ -1227,13 +1228,13 @@ RTEXITCODE handleStorageController(HandlerArg *a)
                 }
                 else
                 {
-                    errorArgument(Storage::tr("Invalid --hostiocache argument '%s'"), pszHostIOCache);
+                    errorArgument("Invalid --hostiocache argument '%s'", pszHostIOCache);
                     rc = E_FAIL;
                 }
             }
             else
             {
-                errorArgument(Storage::tr("Couldn't find the controller with the name: '%s'\n"), pszCtl);
+                errorArgument("Couldn't find the controller with the name: '%s'\n", pszCtl);
                 rc = E_FAIL;
             }
         }
@@ -1253,13 +1254,13 @@ RTEXITCODE handleStorageController(HandlerArg *a)
                 }
                 else
                 {
-                    errorArgument(Storage::tr("Invalid --bootable argument '%s'"), pszBootable);
+                    errorArgument("Invalid --bootable argument '%s'", pszBootable);
                     rc = E_FAIL;
                 }
             }
             else
             {
-                errorArgument(Storage::tr("Couldn't find the controller with the name: '%s'\n"), pszCtl);
+                errorArgument("Couldn't find the controller with the name: '%s'\n", pszCtl);
                 rc = E_FAIL;
             }
         }
@@ -1278,7 +1279,7 @@ RTEXITCODE handleStorageController(HandlerArg *a)
             }
             else
             {
-                errorArgument(Storage::tr("Couldn't find the controller with the name: '%s'\n"), pszCtl);
+                errorArgument("Couldn't find the controller with the name: '%s'\n", pszCtl);
                 rc = E_FAIL;
             }
         }
@@ -1294,3 +1295,6 @@ RTEXITCODE handleStorageController(HandlerArg *a)
 
     return SUCCEEDED(rc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
+
+#endif /* !VBOX_ONLY_DOCS */
+

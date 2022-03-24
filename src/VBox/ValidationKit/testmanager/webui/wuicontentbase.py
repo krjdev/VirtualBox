@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuicontentbase.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: wuicontentbase.py $
 
 """
 Test Manager Web-UI - Content Base Classes.
@@ -7,7 +7,7 @@ Test Manager Web-UI - Content Base Classes.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -34,7 +34,7 @@ import copy;
 import sys;
 
 # Validation Kit imports.
-from common                         import utils, webutils;
+from common                         import webutils;
 from testmanager                    import config;
 from testmanager.webui.wuibase      import WuiDispatcherBase, WuiException;
 from testmanager.webui.wuihlpform   import WuiHlpForm;
@@ -116,45 +116,11 @@ class WuiLinkBase(WuiHtmlBase): # pylint: disable=too-few-public-methods
             sFmt = '<a %shref="%s">%s</a>';
         return sFmt % (sExtraAttrs, webutils.escapeAttr(self.sUrl), webutils.escapeElem(self.sName));
 
-    @staticmethod
-    def estimateStringWidth(sString):
-        """
-        Takes a string and estimate it's width so the caller can pad with
-        U+2002 before tab in a title text.  This is very very rough.
-        """
-        cchWidth = 0;
-        for ch in sString:
-            if ch.isupper() or ch in u'wm\u2007\u2003\u2001\u3000':
-                cchWidth += 2;
-            else:
-                cchWidth += 1;
-        return cchWidth;
-
-    @staticmethod
-    def getStringWidthPaddingEx(cchWidth, cchMaxWidth):
-        """ Works with estiamteStringWidth(). """
-        if cchWidth + 2 <= cchMaxWidth:
-            return u'\u2002' * ((cchMaxWidth - cchWidth) * 2 // 3)
-        return u'';
-
-    @staticmethod
-    def getStringWidthPadding(sString, cchMaxWidth):
-        """ Works with estiamteStringWidth(). """
-        return WuiLinkBase.getStringWidthPaddingEx(WuiLinkBase.estimateStringWidth(sString), cchMaxWidth);
-
-    @staticmethod
-    def padStringToWidth(sString, cchMaxWidth):
-        """ Works with estimateStringWidth. """
-        cchWidth = WuiLinkBase.estimateStringWidth(sString);
-        if cchWidth < cchMaxWidth:
-            return sString + WuiLinkBase.getStringWidthPaddingEx(cchWidth, cchMaxWidth);
-        return sString;
-
 
 class WuiTmLink(WuiLinkBase): # pylint: disable=too-few-public-methods
     """ Local link to the test manager. """
 
-    kdDbgParams = [];
+    kdDbgParams = None;
 
     def __init__(self, sName, sUrlBase, dParams = None, sConfirm = None, sTitle = None,
                  sFragmentId = None, fBracketed = True):
@@ -518,26 +484,15 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
         return 'Modified by %s.' % (sAuthor,);
 
     @staticmethod
-    def formatChangeLogEntry(aoEntries, iEntry, sUrl, dParams):
+    def formatChangeLogEntry(aoEntries, iEntry):
         """
         Formats one change log entry into one or more HTML table rows.
-
-        The sUrl and dParams arguments are used to construct links to historical
-        data using the tsEffective value.  If no links wanted, they'll both be None.
 
         Note! The parameters are given as array + index in case someone wishes
               to access adjacent entries later in order to generate better
               change descriptions.
         """
         oEntry = aoEntries[iEntry];
-
-        # Turn the effective date into a URL if we can:
-        if sUrl:
-            dParams[WuiDispatcherBase.ksParamEffectiveDate] = oEntry.tsEffective;
-            sEffective = WuiLinkBase(WuiFormContentBase.formatTsShort(oEntry.tsEffective), sUrl,
-                                     dParams, fBracketed = False).toHtml();
-        else:
-            sEffective = webutils.escapeElem(WuiFormContentBase.formatTsShort(oEntry.tsEffective))
 
         # The primary row.
         sRowClass = 'tmodd' if (iEntry + 1) & 1 else 'tmeven';
@@ -547,7 +502,7 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
                    '      <td colspan="3">%s%s</td>\n' \
                    '    </tr>\n' \
                  % ( sRowClass,
-                     len(oEntry.aoChanges) + 1, sEffective,
+                     len(oEntry.aoChanges) + 1, webutils.escapeElem(WuiFormContentBase.formatTsShort(oEntry.tsEffective)),
                      len(oEntry.aoChanges) + 1, webutils.escapeElem(WuiFormContentBase.formatTsShort(oEntry.tsExpire)),
                      WuiFormContentBase._guessChangeLogEntryDescription(aoEntries, iEntry),
                      ' '.join(oLink.toHtml() for oLink in WuiFormContentBase._calcChangeLogEntryLinks(aoEntries, iEntry)),);
@@ -557,16 +512,12 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
         for oChange in oEntry.aoChanges:
             if isinstance(oChange, AttributeChangeEntryPre):
                 sContent += '        <tr class="%s%s"><td>%s</td>'\
-                            '<td><div class="tdpre">%s%s%s</div></td>' \
-                            '<td><div class="tdpre">%s%s%s</div></td></tr>\n' \
+                            '<td><div class="tdpre"><pre>%s</pre></div></td>' \
+                            '<td><div class="tdpre"><pre>%s</pre></div></td></tr>\n' \
                           % ( sRowClass, 'odd' if j & 1 else 'even',
                               webutils.escapeElem(oChange.sAttr),
-                              '<pre>' if oChange.sOldText else '',
-                               webutils.escapeElem(oChange.sOldText),
-                              '</pre>' if oChange.sOldText else '',
-                              '<pre>' if oChange.sNewText else '',
-                              webutils.escapeElem(oChange.sNewText),
-                              '</pre>' if oChange.sNewText else '', );
+                              webutils.escapeElem(oChange.sOldText),
+                              webutils.escapeElem(oChange.sNewText), );
             else:
                 sContent += '        <tr class="%s%s"><td>%s</td><td>%s</td><td>%s</td></tr>\n' \
                           % ( sRowClass, 'odd' if j & 1 else 'even',
@@ -592,7 +543,7 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
             dParams[WuiDispatcherBase.ksParamEffectiveDate]       = tsNow;
 
         # Prev and combo box in one cell. Both inside the form for formatting reasons.
-        sNavigation += '    <td>\n' \
+        sNavigation += '    <td align="left">\n' \
                        '    <form name="ChangeLogEntriesPerPageForm" method="GET">\n'
 
         # Prev
@@ -629,10 +580,10 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
         # Next
         if fMoreEntries:
             dParams[WuiDispatcherBase.ksParamChangeLogPageNo] = iPageNo + 1;
-            sNavigation += '      <td><a href="?%s#tmchangelog">Next</a></td>\n' \
+            sNavigation += '    <td align="right"><a href="?%s#tmchangelog">Next</a></td>\n' \
                          % (webutils.encodeUrlParams(dParams),);
         else:
-            sNavigation += '      <td>Next</td>\n';
+            sNavigation += '      <td align="right">Next</td>\n';
 
         sNavigation += '    </tr>\n' \
                        '  </table>\n' \
@@ -672,17 +623,10 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
                     '    </thead>\n' \
                     '    <tbody>\n';
 
-        if self._sMode == self.ksMode_Show:
-            sUrl    = self._oDisp.getUrlNoParams();
-            dParams = self._oDisp.getParameters();
-        else:
-            sUrl    = None;
-            dParams = None;
-
         for iEntry, _ in enumerate(aoEntries):
-            sContent += self.formatChangeLogEntry(aoEntries, iEntry, sUrl, dParams);
+            sContent += self.formatChangeLogEntry(aoEntries, iEntry);
 
-        sContent += '    </tbody>\n' \
+        sContent += '    <tbody>\n' \
                     '  </table>\n';
         if fShowNavigation and len(aoEntries) >= 8:
             sContent += self._showChangeLogNavi(fMoreEntries, iPageNo, cEntriesPerPage, tsNow, 'bottom');
@@ -696,26 +640,22 @@ class WuiFormContentBase(WuiSingleContentBase): # pylint: disable=too-few-public
         aoActions = [];
         if self._sMode == self.ksMode_Show and self._fEditable:
             # Remove _idGen and effective date since we're always editing the current data,
-            # and make sure the primary ID is present.  Also remove change log stuff.
+            # and make sure the primary ID is present.
             dParams = self._oDisp.getParameters();
             if hasattr(oData, 'ksIdGenAttr'):
                 sIdGenParam = getattr(oData, 'ksParam_' + oData.ksIdGenAttr);
                 if sIdGenParam in dParams:
                     del dParams[sIdGenParam];
-            for sParam in [ WuiDispatcherBase.ksParamEffectiveDate, ] + list(WuiDispatcherBase.kasChangeLogParams):
-                if sParam in dParams:
-                    del dParams[sParam];
+            if WuiDispatcherBase.ksParamEffectiveDate in dParams:
+                del dParams[WuiDispatcherBase.ksParamEffectiveDate];
             dParams[getattr(oData, 'ksParam_' + oData.ksIdAttr)] = getattr(oData, oData.ksIdAttr);
 
             dParams[WuiDispatcherBase.ksParamAction] = getattr(self._oDisp, self._sActionBase + 'Edit');
             aoActions.append(WuiTmLink('Edit', '', dParams));
 
-            # Add clone operation if available. This uses the same data selection as for showing details.  No change log.
+            # Add clone operation if available. This uses the same data selection as for showing details.
             if hasattr(self._oDisp, self._sActionBase + 'Clone'):
                 dParams = self._oDisp.getParameters();
-                for sParam in WuiDispatcherBase.kasChangeLogParams:
-                    if sParam in dParams:
-                        del dParams[sParam];
                 dParams[WuiDispatcherBase.ksParamAction] = getattr(self._oDisp, self._sActionBase + 'Clone');
                 aoActions.append(WuiTmLink('Clone', '', dParams));
 
@@ -804,13 +744,12 @@ class WuiListContentBase(WuiContentBase):
     """
 
     def __init__(self, aoEntries, iPage, cItemsPerPage, tsEffectiveDate, sTitle, # pylint: disable=too-many-arguments
-                 sId = None, fnDPrint = None, oDisp = None, aiSelectedSortColumns = None, fTimeNavigation = True):
+                 sId = None, fnDPrint = None, oDisp = None, aiSelectedSortColumns = None):
         WuiContentBase.__init__(self, fnDPrint = fnDPrint, oDisp = oDisp);
         self._aoEntries         = aoEntries; ## @todo should replace this with a Logic object and define methods for querying.
         self._iPage             = iPage;
         self._cItemsPerPage     = cItemsPerPage;
         self._tsEffectiveDate   = tsEffectiveDate;
-        self._fTimeNavigation   = fTimeNavigation;
         self._sTitle            = sTitle;       assert len(sTitle) > 1;
         if sId is None:
             sId                 = sTitle.strip().replace(' ', '').lower();
@@ -908,157 +847,61 @@ class WuiListContentBase(WuiContentBase):
 
         return sRow + u'  </tr>\n';
 
-    @staticmethod
-    def generateTimeNavigationComboBox(sWhere, dParams, tsEffective):
-        """
-        Generates the HTML for the xxxx ago combo box form.
-        """
-        sNavigation  = '<form name="TmTimeNavCombo-%s" method="GET">\n' % (sWhere,);
-        sNavigation += '  <select name="%s" onchange="window.location=' % (WuiDispatcherBase.ksParamEffectiveDate);
-        sNavigation += '\'?%s&%s=\' + ' % (webutils.encodeUrlParams(dParams), WuiDispatcherBase.ksParamEffectiveDate)
-        sNavigation += 'this.options[this.selectedIndex].value;" title="Effective date">\n';
-
-        aoWayBackPoints = [
-            ('+0000-00-00 00:00:00.00', 'Now', ' title="Present Day. Present Time."'), # lain :)
-
-            ('-0000-00-00 01:00:00.00', '1 hour ago', ''),
-            ('-0000-00-00 02:00:00.00', '2 hours ago', ''),
-            ('-0000-00-00 03:00:00.00', '3 hours ago', ''),
-
-            ('-0000-00-01 00:00:00.00', '1 day ago', ''),
-            ('-0000-00-02 00:00:00.00', '2 days ago', ''),
-            ('-0000-00-03 00:00:00.00', '3 days ago', ''),
-
-            ('-0000-00-07 00:00:00.00', '1 week ago', ''),
-            ('-0000-00-14 00:00:00.00', '2 weeks ago', ''),
-            ('-0000-00-21 00:00:00.00', '3 weeks ago', ''),
-
-            ('-0000-01-00 00:00:00.00', '1 month ago', ''),
-            ('-0000-02-00 00:00:00.00', '2 months ago', ''),
-            ('-0000-03-00 00:00:00.00', '3 months ago', ''),
-            ('-0000-04-00 00:00:00.00', '4 months ago', ''),
-            ('-0000-05-00 00:00:00.00', '5 months ago', ''),
-            ('-0000-06-00 00:00:00.00', 'Half a year ago', ''),
-
-            ('-0001-00-00 00:00:00.00', '1 year ago', ''),
-        ]
-        fSelected = False;
-        for sTimestamp, sWayBackPointCaption, sExtraAttrs in aoWayBackPoints:
-            if sTimestamp == tsEffective:
-                fSelected = True;
-            sNavigation += '    <option value="%s"%s%s>%s</option>\n' \
-                         % (webutils.quoteUrl(sTimestamp),
-                            ' selected="selected"' if sTimestamp == tsEffective else '',
-                            sExtraAttrs, sWayBackPointCaption, );
-        if not fSelected and tsEffective != '':
-            sNavigation += '    <option value="%s" selected>%s</option>\n' \
-                         % (webutils.quoteUrl(tsEffective), WuiContentBase.formatTsShort(tsEffective))
-
-        sNavigation += '  </select>\n' \
-                       '</form>\n';
-        return sNavigation;
-
-    @staticmethod
-    def generateTimeNavigationDateTime(sWhere, dParams, sNow):
-        """
-        Generates HTML for a form with date + time input fields.
-
-        Note! Modifies dParams!
-        """
-
-        #
-        # Date + time input fields.  We use a java script helper to combine the two
-        # into a hidden field as there is no portable datetime input field type.
-        #
-        sNavigation = '<form method="get" action="?" onchange="timeNavigationUpdateHiddenEffDate(this,\'%s\')">' % (sWhere,);
-        if sNow is None:
-            sNow = utils.getIsoTimestamp();
-        else:
-            sNow = utils.normalizeIsoTimestampToZulu(sNow);
-        asSplit = sNow.split('T');
-        sNavigation += '  <input type="date" value="%s" id="EffDate%s"/> ' % (asSplit[0], sWhere, );
-        sNavigation += '  <input type="time" value="%s" id="EffTime%s"/> ' % (asSplit[1][:8], sWhere,);
-        sNavigation += '  <input type="hidden" name="%s" value="%s" id="EffDateTime%s"/>' \
-                     % (WuiDispatcherBase.ksParamEffectiveDate, webutils.escapeAttr(sNow), sWhere);
-        for sKey in dParams:
-            sNavigation += '  <input type="hidden" name="%s" value="%s"/>' \
-                % (webutils.escapeAttr(sKey), webutils.escapeAttrToStr(dParams[sKey]));
-        sNavigation += '  <input type="submit" value="Set"/>\n' \
-                       '</form>\n';
-        return sNavigation;
-
-    ## @todo move to better place! WuiMain uses it.
-    @staticmethod
-    def generateTimeNavigation(sWhere, dParams, tsEffectiveAbs, sPreamble = '', sPostamble = '', fKeepPageNo = False):
+    def _generateTimeNavigation(self, sWhere):
         """
         Returns HTML for time navigation.
 
-        Note! Modifies dParams!
         Note! Views without a need for a timescale just stubs this method.
         """
-        sNavigation = '<div class="tmtimenav-%s tmtimenav">%s' % (sWhere, sPreamble,);
+        _ = sWhere;
+        sNavigation = '';
 
-        #
-        # Prepare the URL parameters.
-        #
-        if WuiDispatcherBase.ksParamPageNo in dParams: # Forget about page No when changing a period
-            del dParams[WuiDispatcherBase.ksParamPageNo]
-        if not fKeepPageNo and WuiDispatcherBase.ksParamEffectiveDate in dParams:
-            tsEffectiveParam = dParams[WuiDispatcherBase.ksParamEffectiveDate];
+        dParams = self._oDisp.getParameters();
+        dParams[WuiDispatcherBase.ksParamItemsPerPage] = self._cItemsPerPage;
+        dParams[WuiDispatcherBase.ksParamPageNo]       = self._iPage;
+
+        if WuiDispatcherBase.ksParamEffectiveDate in dParams:
             del dParams[WuiDispatcherBase.ksParamEffectiveDate];
-        else:
-            tsEffectiveParam = ''
+        sNavigation += ' [<a href="?%s">Now</a>]' % (webutils.encodeUrlParams(dParams),);
 
-        #
-        # Generate the individual parts.
-        #
-        sNavigation += WuiListContentBase.generateTimeNavigationDateTime(sWhere, dParams, tsEffectiveAbs);
-        sNavigation += WuiListContentBase.generateTimeNavigationComboBox(sWhere, dParams, tsEffectiveParam);
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-00 01:00:00.00';
+        sNavigation += ' [<a href="?%s">1</a>' % (webutils.encodeUrlParams(dParams),);
 
-        sNavigation += '%s</div>' % (sPostamble,);
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-00 02:00:00.00';
+        sNavigation += ', <a href="?%s">2</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-00 06:00:00.00';
+        sNavigation += ', <a href="?%s">6</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-00 12:00:00.00';
+        sNavigation += ', <a href="?%s">12</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-01 00:00:00.00';
+        sNavigation += ', or <a href="?%s">24</a> hours ago]' % (webutils.encodeUrlParams(dParams),);
+
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-02 00:00:00.00';
+        sNavigation += ' [<a href="?%s">2</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-03 00:00:00.00';
+        sNavigation += ', <a href="?%s">3</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-05 00:00:00.00';
+        sNavigation += ', <a href="?%s">5</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-07 00:00:00.00';
+        sNavigation += ', <a href="?%s">7</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-14 00:00:00.00';
+        sNavigation += ', <a href="?%s">14</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-21 00:00:00.00';
+        sNavigation += ', <a href="?%s">21</a>' % (webutils.encodeUrlParams(dParams),);
+
+        dParams[WuiDispatcherBase.ksParamEffectiveDate] = '-0000-00-28 00:00:00.00';
+        sNavigation += ', or <a href="?%s">28</a> days ago]' % (webutils.encodeUrlParams(dParams),);
+
         return sNavigation;
-
-    def _generateTimeNavigation(self, sWhere, sPreamble = '', sPostamble = ''):
-        """
-        Returns HTML for time navigation.
-
-        Note! Views without a need for a timescale just stubs this method.
-        """
-        return self.generateTimeNavigation(sWhere, self._oDisp.getParameters(), self._oDisp.getEffectiveDateParam(),
-                                           sPreamble, sPostamble)
-
-    @staticmethod
-    def generateItemPerPageSelector(sWhere, dParams, cCurItemsPerPage):
-        """
-        Generate HTML code for items per page selector.
-        Note! Modifies dParams!
-        """
-
-        # Drop the current page count parameter.
-        if WuiDispatcherBase.ksParamItemsPerPage in dParams:
-            del dParams[WuiDispatcherBase.ksParamItemsPerPage];
-
-        # Remove the current page number.
-        if WuiDispatcherBase.ksParamPageNo in dParams:
-            del dParams[WuiDispatcherBase.ksParamPageNo];
-
-        sHtmlItemsPerPageSelector = '<form name="TmItemsPerPageForm-%s" method="GET" class="tmitemsperpage-%s tmitemsperpage">\n'\
-                                    '  <select name="%s" onchange="window.location=\'?%s&%s=\' + ' \
-                                    'this.options[this.selectedIndex].value;" title="Max items per page">\n' \
-                                  % (sWhere, WuiDispatcherBase.ksParamItemsPerPage, sWhere,
-                                     webutils.encodeUrlParams(dParams),
-                                     WuiDispatcherBase.ksParamItemsPerPage)
-
-        acItemsPerPage = [16, 32, 64, 128, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
-        for cItemsPerPage in acItemsPerPage:
-            sHtmlItemsPerPageSelector += '    <option value="%d" %s>%d per page</option>\n' \
-                                       % (cItemsPerPage,
-                                          'selected="selected"' if cItemsPerPage == cCurItemsPerPage else '',
-                                          cItemsPerPage)
-        sHtmlItemsPerPageSelector += '  </select>\n' \
-                                     '</form>\n';
-
-        return sHtmlItemsPerPageSelector
 
 
     def _generateNavigation(self, sWhere):
@@ -1087,19 +930,17 @@ class WuiListContentBase(WuiContentBase):
             sNavigation += '      <td></td>\n';
 
         # Time scale.
-        if self._fTimeNavigation:
-            sNavigation += '<td align="center" class="tmtimenav">';
-            sNavigation += self._generateTimeNavigation(sWhere);
-            sNavigation += '</td>';
+        sNavigation += '<td align="center" class="tmtimenav">';
+        sNavigation += self._generateTimeNavigation(sWhere);
+        sNavigation += '</td>';
 
-        # page count and next.
-        sNavigation += '<td align="right" class="tmnextanditemsperpage">\n';
-
+        # Next
         if len(self._aoEntries) > self._cItemsPerPage:
             dParams[WuiDispatcherBase.ksParamPageNo] = self._iPage + 1;
-            sNavigation += '    <a href="?%s">Next</a>\n' % (webutils.encodeUrlParams(dParams),);
-        sNavigation += self.generateItemPerPageSelector(sWhere, dParams, self._cItemsPerPage);
-        sNavigation += '</td>\n';
+            sNavigation += '    <td align="right"><a href="?%s">Next</a></td>\n' % (webutils.encodeUrlParams(dParams),);
+        else:
+            sNavigation += '      <td></td>\n';
+
         sNavigation += '    </tr>\n' \
                        '  </table>\n' \
                        '</div>\n';
@@ -1114,7 +955,7 @@ class WuiListContentBase(WuiContentBase):
         """
         if len(aiColumns) <= len(self._aiSelectedSortColumns):
             aiColumns    = list(aiColumns);
-            aiNegColumns = list([-i for i in aiColumns]);   # pylint: disable=consider-using-generator
+            aiNegColumns = list([-i for i in aiColumns]);
             i = 0;
             while i + len(aiColumns) <= len(self._aiSelectedSortColumns):
                 aiSub = list(self._aiSelectedSortColumns[i : i + len(aiColumns)]);
@@ -1189,7 +1030,7 @@ class WuiListContentBase(WuiContentBase):
         if self._iPage != 0:
             sTitle += ' (page ' + unicode(self._iPage + 1) + ')'
         if self._tsEffectiveDate is not None:
-            sTitle += ' as per ' + unicode(self.formatTsShort(self._tsEffectiveDate));
+            sTitle += ' as per ' + unicode(self._tsEffectiveDate); ## @todo shorten this.
         return sTitle;
 
 

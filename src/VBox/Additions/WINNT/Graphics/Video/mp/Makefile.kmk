@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93265 2022-01-17 10:51:43Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Makefile for the Windows guest miniport driver.
 #
 
 #
-# Copyright (C) 2011-2022 Oracle Corporation
+# Copyright (C) 2011-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -38,11 +38,7 @@ VBoxVideo_DEFS         += VBOX_SVN_REV=$(VBOX_SVN_REV)
 ifdef VBOX_WITH_VIDEOHWACCEL
  VBoxVideo_DEFS        += VBOX_WITH_VIDEOHWACCEL
 endif
-VBoxVideo_INCS          = \
-        ../../../include \
-        .. \
-        . \
-        $(VBOX_GRAPHICS_INCS)
+VBoxVideo_INCS          = ../../../include .. . $(VBOX_GRAPHICS_INCS)
 VBoxVideo_LDFLAGS.x86   = /Entry:DriverEntry@8
 VBoxVideo_LDFLAGS.amd64 = /Entry:DriverEntry
 VBoxVideo_SOURCES       = \
@@ -62,20 +58,14 @@ VBoxVideo_SOURCES       = \
 	$(PATH_ROOT)/src/VBox/Additions/common/VBoxVideo/HGSMIHostCmd.cpp \
 	$(PATH_ROOT)/src/VBox/Additions/common/VBoxVideo/Modesetting.cpp
 VBoxVideo_LIBS          = \
-	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/videoprt.lib \
-	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/ntoskrnl.lib \
-	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/hal.lib \
+	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/videoprt.lib \
+	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/ntoskrnl.lib \
+	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/hal.lib \
 	$(VBOX_LIB_VBGL_R0) \
 	$(VBOX_LIB_IPRT_GUEST_R0_NT4) \
 	$(VBOX_PATH_ADDITIONS_LIB)/HGSMIGuestR0Lib$(VBOX_SUFF_LIB)
-ifeq ($(KBUILD_TARGET_ARCH),x86)
- VBoxVideo_LIBS         += \
- 	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/exsup.lib \
-	$(PATH_SDK_$(VBOX_WINDDK_GST)_LIB)/BufferOverflowK.lib # Needed for ___security_cookie.
-endif
-VBoxVideo_USES.win = vboximportchecker
-VBoxVideo_VBOX_IMPORT_CHECKER.win.x86 = nt4/r0
-VBoxVideo_VBOX_IMPORT_CHECKER.win.amd64 = xp64/r0
+VBoxVideo_LIBS.x86      = \
+	$(PATH_SDK_$(VBOX_WINDDK_GST_NT4)_LIB)/exsup.lib
 
 ifdef VBOX_WITH_WDDM
  #

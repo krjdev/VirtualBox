@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-snapshot" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-02-11 21:10:19 +0100 (Fr, 11. Feb 2022) $</pubdate>
+    <pubdate>March 2019</pubdate>
     <title>VBoxManage snapshot</title>
   </refentryinfo>
 
@@ -30,8 +30,8 @@
 
   <refnamediv>
     <refname>VBoxManage-snapshot</refname>
-    <refpurpose>manage virtual machine snapshots</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refpurpose>manage &product-name; virtual machine snapshots</refpurpose>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -103,7 +103,7 @@
 
       <arg choice="plain">list</arg>
 
-      <group><arg>--details</arg><arg>--machinereadable</arg></group>
+      <group choice="opt"><arg choice="opt">--details</arg><arg choice="opt">--machinereadable</arg></group>
     </cmdsynopsis>
 
     <cmdsynopsis id="synopsis-vboxmanage-snapshot-showvminfo">

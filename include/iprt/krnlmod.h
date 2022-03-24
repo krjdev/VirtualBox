@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -150,39 +150,6 @@ RTDECL(RTR0UINTPTR) RTKrnlModInfoGetLoadAddr(RTKRNLMODINFO hKrnlModInfo);
  */
 RTDECL(int) RTKrnlModInfoQueryRefModInfo(RTKRNLMODINFO hKrnlModInfo, uint32_t idx,
                                          PRTKRNLMODINFO phKrnlModInfoRef);
-
-/**
- * Tries to load a kernel module by the given name.
- *
- * @returns IPRT status code.
- * @retval  VERR_NOT_SUPPORTED if not supported by or implemented for the platform.
- * @param   pszName         The name of the kernel module. This is highly platform
- *                          dependent.
- *
- * @note On macOS for example the name is the bundle ID.
- */
-RTDECL(int) RTKrnlModLoadByName(const char *pszName);
-
-/**
- * Tries to load a kernel module by the given file path.
- *
- * @returns IPRT status code.
- * @retval  VERR_NOT_SUPPORTED if not supported by or implemented for the platform.
- * @param   pszPath         The path of the kernel module.
- */
-RTDECL(int) RTKrnlModLoadByPath(const char *pszPath);
-
-/**
- * Tries to unload a kernel module by the given name.
- *
- * @returns IPRT status code.
- * @param   pszName         The name of the kernel module. This is highly platform
- *                          dependent and should be queried with RTKrnlModInfoGetName()
- *                          when checking whether the module was actually loaded.
- *
- * @note On macOS for example the name is the bundle ID.
- */
-RTDECL(int) RTKrnlModUnloadByName(const char *pszName);
 
 /** @} */
 

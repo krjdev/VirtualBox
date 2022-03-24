@@ -1,10 +1,10 @@
-/* $Id: poll.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: poll.cpp $ */
 /** @file
  * IPRT - Polling I/O Handles, Windows+Posix Implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -155,20 +155,18 @@ static int rtPollNoResumeWorker(RTPOLLSETINTERNAL *pThis, uint64_t MsStart, RTMS
 {
     int rc;
 
+    if (RT_UNLIKELY(pThis->cHandles == 0 && cMillies == RT_INDEFINITE_WAIT))
+        return VERR_DEADLOCK;
+
     /*
      * Check for special case, RTThreadSleep...
      */
     uint32_t const  cHandles = pThis->cHandles;
     if (cHandles == 0)
     {
-        if (RT_LIKELY(cMillies != RT_INDEFINITE_WAIT))
-        {
-            rc = RTThreadSleep(cMillies);
-            if (RT_SUCCESS(rc))
-                rc = VERR_TIMEOUT;
-        }
-        else
-            rc = VERR_DEADLOCK;
+        rc = RTThreadSleep(cMillies);
+        if (RT_SUCCESS(rc))
+            rc = VERR_TIMEOUT;
         return rc;
     }
 

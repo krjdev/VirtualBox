@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsGeneral.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGlobalSettingsGeneral.h $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsGeneral class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,66 +23,56 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIGlobalSettingsGeneral.gen.h"
 
 /* Forward declarations: */
-class UIDefaultMachineFolderEditor;
-class UIVRDEAuthLibraryEditor;
 struct UIDataSettingsGlobalGeneral;
 typedef UISettingsCache<UIDataSettingsGlobalGeneral> UISettingsCacheGlobalGeneral;
 
 /** Global settings: General page. */
-class SHARED_LIBRARY_STUFF UIGlobalSettingsGeneral : public UISettingsPageGlobal
+class SHARED_LIBRARY_STUFF UIGlobalSettingsGeneral : public UISettingsPageGlobal,
+                                                     public Ui::UIGlobalSettingsGeneral
 {
     Q_OBJECT;
 
 public:
 
-    /** Constructs settings page. */
+    /** Constructs General settings page. */
     UIGlobalSettingsGeneral();
-    /** Destructs settings page. */
-    virtual ~UIGlobalSettingsGeneral() RT_OVERRIDE;
+    /** Destructs General settings page. */
+    ~UIGlobalSettingsGeneral();
 
 protected:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
     /** Cleanups all. */
     void cleanup();
 
-    /** Saves existing data from cache. */
-    bool saveData();
+    /** Saves existing general data from the cache. */
+    bool saveGeneralData();
 
     /** Holds the page data cache instance. */
     UISettingsCacheGlobalGeneral *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds 'default machine folder' editor instance. */
-        UIDefaultMachineFolderEditor *m_pEditorDefaultMachineFolder;
-        /** Holds 'VRDE auth library' editor instance. */
-        UIVRDEAuthLibraryEditor      *m_pEditorVRDEAuthLibrary;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_global_UIGlobalSettingsGeneral_h */

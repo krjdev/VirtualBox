@@ -1,10 +1,10 @@
-/* $Id: QITreeView.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QITreeView.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QITreeView class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,24 +53,24 @@ public:
     {}
 
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE;
+    virtual QAccessibleInterface *parent() const /* override */;
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const /* override */;
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE;
+    virtual QRect rect() const /* override */;
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE;
+    virtual QAccessible::Role role() const /* override */;
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE;
+    virtual QAccessible::State state() const /* override */;
 
 private:
 
@@ -101,14 +101,14 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const /* override */;
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
 private:
 
@@ -157,7 +157,7 @@ QAccessibleInterface *QIAccessibilityInterfaceForQITreeViewItem::child(int iInde
     /* Acquire item model-index: */
     const QModelIndex itemIndex = item()->modelIndex();
     /* Acquire child model-index: */
-    const QModelIndex childIndex = item()->parentTree()->model()->index(iIndex, 0, itemIndex);
+    const QModelIndex childIndex = itemIndex.child(iIndex, 0);
 
     /* Check whether we have proxy model set or source one otherwise: */
     const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(item()->parentTree()->model());
@@ -248,7 +248,6 @@ QAccessibleInterface *QIAccessibilityInterfaceForQITreeView::child(int iIndex) c
 {
     /* Sanity check: */
     AssertPtrReturn(tree(), 0);
-    AssertPtrReturn(tree()->model(), 0);
     AssertReturn(iIndex >= 0, 0);
     if (iIndex >= childCount())
     {
@@ -262,6 +261,9 @@ QAccessibleInterface *QIAccessibilityInterfaceForQITreeView::child(int iIndex) c
         // visible children like they are a part of the list, not tree.
         // printf("Invalid index: %d\n", iIndex);
 
+        // Sanity check:
+        AssertPtrReturn(tree()->model(), 0);
+
         // Take into account we also have header with 'column count' indexes,
         // so we should start enumerating tree indexes since 'column count'.
         const int iColumnCount = tree()->model()->columnCount();
@@ -270,8 +272,8 @@ QAccessibleInterface *QIAccessibilityInterfaceForQITreeView::child(int iIndex) c
         // Set iterator to root model-index initially:
         QModelIndex index = tree()->rootIndex();
         // But if it has child, go deeper:
-        if (tree()->model()->index(0, 0, index).isValid())
-            index = tree()->model()->index(0, 0, index);
+        if (index.child(0, 0).isValid())
+            index = index.child(0, 0);
 
         // Search for sibling with corresponding index:
         while (index.isValid() && iCurrentIndex < iIndex)
@@ -297,7 +299,7 @@ QAccessibleInterface *QIAccessibilityInterfaceForQITreeView::child(int iIndex) c
     /* Acquire root model-index: */
     const QModelIndex rootIndex = tree()->rootIndex();
     /* Acquire child model-index: */
-    const QModelIndex childIndex = tree()->model()->index(iIndex, 0, rootIndex);
+    const QModelIndex childIndex = rootIndex.child(iIndex, 0);
 
     /* Check whether we have proxy model set or source one otherwise: */
     const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(tree()->model());
@@ -365,7 +367,7 @@ QModelIndex QITreeViewItem::modelIndex() const
     for (int i = 0; i < pModel->rowCount(parentIndex); ++i)
     {
         /* Acquire child model-index: */
-        const QModelIndex childIndex = pModel->index(i, 0, parentIndex);
+        const QModelIndex childIndex = parentIndex.child(i, 0);
         /* Acquire source child model-index, which can be the same as child model-index: */
         const QModelIndex sourceChildModelIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
 
@@ -382,7 +384,7 @@ QModelIndex QITreeViewItem::modelIndex() const
         return QModelIndex();
 
     /* Return model-index as child of parent model-index: */
-    return pModel->index(iPositionInParent, 0, parentIndex);
+    return parentIndex.child(iPositionInParent, 0);
 }
 
 

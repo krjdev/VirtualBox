@@ -66,14 +66,14 @@ QemuFwCfgInitialize (
 
   QemuFwCfgSelectItem (QemuFwCfgItemSignature);
   Signature = QemuFwCfgRead32 ();
-  DEBUG ((DEBUG_INFO, "FW CFG Signature: 0x%x\n", Signature));
+  DEBUG ((EFI_D_INFO, "FW CFG Signature: 0x%x\n", Signature));
   QemuFwCfgSelectItem (QemuFwCfgItemInterfaceVersion);
   Revision = QemuFwCfgRead32 ();
-  DEBUG ((DEBUG_INFO, "FW CFG Revision: 0x%x\n", Revision));
+  DEBUG ((EFI_D_INFO, "FW CFG Revision: 0x%x\n", Revision));
   if ((Signature != SIGNATURE_32 ('Q', 'E', 'M', 'U')) ||
       (Revision < 1)
      ) {
-    DEBUG ((DEBUG_INFO, "QemuFwCfg interface not supported.\n"));
+    DEBUG ((EFI_D_INFO, "QemuFwCfg interface not supported.\n"));
     mQemuFwCfgSupported = FALSE;
     return RETURN_SUCCESS;
   }
@@ -164,7 +164,7 @@ AllocFwCfgDmaAccessBuffer (
 
   //
   // As per UEFI spec, in order to map a host address with
-  // BusMasterCommonBuffer64, the buffer must be allocated using the IOMMU
+  // BusMasterCommomBuffer64, the buffer must be allocated using the IOMMU
   // AllocateBuffer()
   //
   Status = mIoMmuProtocol->AllocateBuffer (

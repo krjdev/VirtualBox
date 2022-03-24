@@ -1,10 +1,10 @@
-/* $Id: VBoxSharedClipboardSvc-darwin.cpp 93919 2022-02-24 13:59:11Z vboxsync $ */
+/* $Id: VBoxSharedClipboardSvc-darwin.cpp $ */
 /** @file
  * Shared Clipboard Service - Mac OS X host.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -119,9 +119,9 @@ static DECLCALLBACK(int) vboxClipboardThread(RTTHREAD ThreadSelf, void *pvUser)
 }
 
 
-int ShClBackendInit(PSHCLBACKEND pBackend, VBOXHGCMSVCFNTABLE *pTable)
+int ShClSvcImplInit(VBOXHGCMSVCFNTABLE *pTable)
 {
-    RT_NOREF(pBackend, pTable);
+    RT_NOREF(pTable);
     g_ctx.fTerminate = false;
 
     int rc = initPasteboard(&g_ctx.hPasteboard);
@@ -138,10 +138,8 @@ int ShClBackendInit(PSHCLBACKEND pBackend, VBOXHGCMSVCFNTABLE *pTable)
     return rc;
 }
 
-void ShClBackendDestroy(PSHCLBACKEND pBackend)
+void ShClSvcImplDestroy(void)
 {
-    RT_NOREF(pBackend);
-
     /*
      * Signal the termination of the polling thread and wait for it to respond.
      */
@@ -159,9 +157,9 @@ void ShClBackendDestroy(PSHCLBACKEND pBackend)
     g_ctx.pClient = NULL;
 }
 
-int ShClBackendConnect(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, bool fHeadless)
+int ShClSvcImplConnect(PSHCLCLIENT pClient, bool fHeadless)
 {
-    RT_NOREF(pBackend, fHeadless);
+    RT_NOREF(fHeadless);
 
     if (g_ctx.pClient != NULL)
     {
@@ -179,10 +177,8 @@ int ShClBackendConnect(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, bool fHeadles
     return VINF_SUCCESS;
 }
 
-int ShClBackendSync(PSHCLBACKEND pBackend, PSHCLCLIENT pClient)
+int ShClSvcImplSync(PSHCLCLIENT pClient)
 {
-    RT_NOREF(pBackend);
-
     /* Sync the host clipboard content with the client. */
     ShClSvcLock();
 
@@ -193,10 +189,8 @@ int ShClBackendSync(PSHCLBACKEND pBackend, PSHCLCLIENT pClient)
     return rc;
 }
 
-int ShClBackendDisconnect(PSHCLBACKEND pBackend, PSHCLCLIENT pClient)
+int ShClSvcImplDisconnect(PSHCLCLIENT pClient)
 {
-    RT_NOREF(pBackend);
-
     ShClSvcLock();
 
     pClient->State.pCtx->pClient = NULL;
@@ -206,14 +200,11 @@ int ShClBackendDisconnect(PSHCLBACKEND pBackend, PSHCLCLIENT pClient)
     return VINF_SUCCESS;
 }
 
-int ShClBackendReportFormats(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, SHCLFORMATS fFormats)
+int ShClSvcImplFormatAnnounce(PSHCLCLIENT pClient, SHCLFORMATS fFormats)
 {
-    RT_NOREF(pBackend);
-
     LogFlowFunc(("fFormats=%02X\n", fFormats));
 
     /** @todo r=bird: BUGBUG: The following is probably a mistake. */
-    /** @todo r=andy: BUGBUG: Has been there since forever; needs investigation first before removing. */
     if (fFormats == VBOX_SHCL_FMT_NONE)
     {
         /* This is just an automatism, not a genuine announcement */
@@ -251,10 +242,10 @@ int ShClBackendReportFormats(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, SHCLFOR
     /*
      * Now, request the data from the guest.
      */
-    return ShClSvcGuestDataRequest(pClient, fFormats, NULL /* pidEvent */);
+    return ShClSvcDataReadRequest(pClient, fFormats, NULL /* pidEvent */);
 }
 
-int ShClBackendReadData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLCLIENTCMDCTX pCmdCtx, SHCLFORMAT fFormat,
+int ShClSvcImplReadData(PSHCLCLIENT pClient, PSHCLCLIENTCMDCTX pCmdCtx, SHCLFORMAT fFormat,
                         void *pvData, uint32_t cbData, uint32_t *pcbActual)
 {
     AssertPtrReturn(pClient,   VERR_INVALID_POINTER);
@@ -262,7 +253,7 @@ int ShClBackendReadData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLCLIENTC
     AssertPtrReturn(pvData,    VERR_INVALID_POINTER);
     AssertPtrReturn(pcbActual, VERR_INVALID_POINTER);
 
-    RT_NOREF(pBackend, pCmdCtx);
+    RT_NOREF(pCmdCtx);
 
     ShClSvcLock();
 
@@ -270,19 +261,15 @@ int ShClBackendReadData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLCLIENTC
     *pcbActual = 0;
 
     int rc = readFromPasteboard(pClient->State.pCtx->hPasteboard, fFormat, pvData, cbData, pcbActual);
-    if (RT_FAILURE(rc))
-        LogRel(("Shared Clipboard: Error reading host clipboard data from macOS, rc=%Rrc\n", rc));
 
     ShClSvcUnlock();
 
     return rc;
 }
 
-int ShClBackendWriteData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLCLIENTCMDCTX pCmdCtx, SHCLFORMAT fFormat, void *pvData, uint32_t cbData)
+int ShClSvcImplWriteData(PSHCLCLIENT pClient, PSHCLCLIENTCMDCTX pCmdCtx, SHCLFORMAT fFormat, void *pvData, uint32_t cbData)
 {
-    RT_NOREF(pBackend, pCmdCtx);
-
-    LogFlowFuncEnter();
+    RT_NOREF(pCmdCtx);
 
     ShClSvcLock();
 
@@ -290,45 +277,44 @@ int ShClBackendWriteData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLCLIENT
 
     ShClSvcUnlock();
 
-    LogFlowFuncLeaveRC(VINF_SUCCESS);
     return VINF_SUCCESS;
 }
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
 
-int ShClBackendTransferReadDir(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLDIRDATA pDirData)
+int ShClSvcImplTransferReadDir(PSHCLCLIENT pClient, PSHCLDIRDATA pDirData)
 {
-    RT_NOREF(pBackend, pClient, pDirData);
+    RT_NOREF(pClient, pDirData);
     return VERR_NOT_IMPLEMENTED;
 }
 
-int ShClBackendTransferWriteDir(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLDIRDATA pDirData)
+int ShClSvcImplTransferWriteDir(PSHCLCLIENT pClient, PSHCLDIRDATA pDirData)
 {
-    RT_NOREF(pBackend, pClient, pDirData);
+    RT_NOREF(pClient, pDirData);
     return VERR_NOT_IMPLEMENTED;
 }
 
-int ShClBackendTransferReadFileHdr(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLFILEHDR pFileHdr)
+int ShClSvcImplTransferReadFileHdr(PSHCLCLIENT pClient, PSHCLFILEHDR pFileHdr)
 {
-    RT_NOREF(pBackend, pClient, pFileHdr);
+    RT_NOREF(pClient, pFileHdr);
     return VERR_NOT_IMPLEMENTED;
 }
 
-int ShClBackendTransferWriteFileHdr(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLFILEHDR pFileHdr)
+int ShClSvcImplTransferWriteFileHdr(PSHCLCLIENT pClient, PSHCLFILEHDR pFileHdr)
 {
-    RT_NOREF(pBackend, pClient, pFileHdr);
+    RT_NOREF(pClient, pFileHdr);
     return VERR_NOT_IMPLEMENTED;
 }
 
-int ShClBackendTransferReadFileData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLFILEDATA pFileData)
+int ShClSvcImplTransferReadFileData(PSHCLCLIENT pClient, PSHCLFILEDATA pFileData)
 {
-    RT_NOREF(pBackend, pClient, pFileData);
+    RT_NOREF(pClient, pFileData);
     return VERR_NOT_IMPLEMENTED;
 }
 
-int ShClBackendTransferWriteFileData(PSHCLBACKEND pBackend, PSHCLCLIENT pClient, PSHCLFILEDATA pFileData)
+int ShClSvcImplTransferWriteFileData(PSHCLCLIENT pClient, PSHCLFILEDATA pFileData)
 {
-    RT_NOREF(pBackend, pClient, pFileData);
+    RT_NOREF(pClient, pFileData);
     return VERR_NOT_IMPLEMENTED;
 }
 

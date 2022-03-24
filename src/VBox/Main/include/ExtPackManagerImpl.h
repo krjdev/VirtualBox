@@ -1,10 +1,10 @@
-/* $Id: ExtPackManagerImpl.h 93449 2022-01-26 19:57:06Z vboxsync $ */
+/* $Id: ExtPackManagerImpl.h $ */
 /** @file
  * VirtualBox Main - interface for Extension Packs, VBoxSVC & VBoxC.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,7 +43,7 @@ class ATL_NO_VTABLE ExtPackFile :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(ExtPackFile)
+    DECLARE_EMPTY_CTOR_DTOR(ExtPackFile)
 
     HRESULT     FinalConstruct();
     void        FinalRelease();
@@ -101,7 +101,7 @@ class ATL_NO_VTABLE ExtPack :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(ExtPack)
+    DECLARE_EMPTY_CTOR_DTOR(ExtPack)
 
     HRESULT     FinalConstruct();
     void        FinalRelease();
@@ -124,10 +124,9 @@ public:
     bool        i_callVmCreatedHook(IVirtualBox *a_pVirtualBox, IMachine *a_pMachine, AutoWriteLock *a_pLock);
 #endif
 #ifdef VBOX_COM_INPROC
-    bool        i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM,
-                                         AutoWriteLock *a_pLock, int *a_pvrc);
-    bool        i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM, AutoWriteLock *a_pLock, int *a_pvrc);
-    bool        i_callVmPowerOffHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM, AutoWriteLock *a_pLock);
+    bool        i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock, int *a_pvrc);
+    bool        i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock, int *a_pvrc);
+    bool        i_callVmPowerOffHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock);
 #endif
     HRESULT     i_checkVrde(void);
     HRESULT     i_getVrdpLibraryName(Utf8Str *a_pstrVrdeLibrary);
@@ -174,20 +173,7 @@ protected:
                                                          uint32_t cTimeoutMS);
     static DECLCALLBACK(uint32_t) i_hlpCompleteProgress(PCVBOXEXTPACKHLP pHlp, VBOXEXTPACK_IF_CS(IProgress) *pProgress,
                                                         uint32_t uResultCode);
-    static DECLCALLBACK(uint32_t) i_hlpCreateEvent(PCVBOXEXTPACKHLP pHlp,
-                                                   VBOXEXTPACK_IF_CS(IEventSource) *aSource,
-                                                   /* VBoxEventType_T */ uint32_t aType, bool aWaitable,
-                                                   VBOXEXTPACK_IF_CS(IEvent) **ppEventOut);
-    static DECLCALLBACK(uint32_t) i_hlpCreateVetoEvent(PCVBOXEXTPACKHLP pHlp,
-                                                       VBOXEXTPACK_IF_CS(IEventSource) *aSource,
-                                                       /* VBoxEventType_T */ uint32_t aType,
-                                                       VBOXEXTPACK_IF_CS(IVetoEvent) **ppEventOut);
-    static DECLCALLBACK(const char *) i_hlpTranslate(PCVBOXEXTPACKHLP pHlp,
-                                                     const char  *pszComponent,
-                                                     const char  *pszSourceText,
-                                                     const char  *pszComment = NULL,
-                                                     const size_t aNum = ~(size_t)0);
-    static DECLCALLBACK(int)      i_hlpReservedN(PCVBOXEXTPACKHLP pHlp);
+    static DECLCALLBACK(int)    i_hlpReservedN(PCVBOXEXTPACKHLP pHlp);
     /** @}  */
 
 private:
@@ -231,7 +217,7 @@ class ATL_NO_VTABLE ExtPackManager :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(ExtPackManager)
+    DECLARE_EMPTY_CTOR_DTOR(ExtPackManager)
 
     HRESULT     FinalConstruct();
     void        FinalRelease();
@@ -254,9 +240,9 @@ public:
     void        i_callAllVmCreatedHooks(IMachine *a_pMachine);
 #endif
 #ifdef VBOX_COM_INPROC
-    int         i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM);
-    int         i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM);
-    void        i_callAllVmPowerOffHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM);
+    int         i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM);
+    int         i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM);
+    void        i_callAllVmPowerOffHooks(IConsole *a_pConsole, PVM a_pVM);
 #endif
     HRESULT     i_checkVrdeExtPack(Utf8Str const *a_pstrExtPack);
     int         i_getVrdeLibraryPathForExtPack(Utf8Str const *a_pstrExtPack, Utf8Str *a_pstrVrdeLibrary);

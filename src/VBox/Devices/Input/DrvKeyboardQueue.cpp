@@ -1,10 +1,10 @@
-/* $Id: DrvKeyboardQueue.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvKeyboardQueue.cpp $ */
 /** @file
  * VBox input devices: Keyboard queue driver
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,9 +30,8 @@
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
-
 /** Keyboard usage page bits to be OR-ed into the code. */
-#define HID_PG_KB_BITS  RT_MAKE_U32(0, USB_HID_KB_PAGE)
+#define HID_PG_KB_BITS  0x070000
 
 
 /*********************************************************************************************************************************
@@ -65,7 +64,7 @@ typedef struct DRVKBDQUEUE
     /** Our keyboard port interface. */
     PDMIKEYBOARDPORT            IPort;
     /** The queue handle. */
-    PDMQUEUEHANDLE              hQueue;
+    PPDMQUEUE                   pQueue;
     /** State of the scancode translation. */
     scan_state_t                XlatState;
     /** Discard input when this flag is set. */
@@ -152,7 +151,7 @@ static scan_state_t ScancodeToHidUsage(scan_state_t state, uint8_t scanCode, uin
     Assert(pUsage);
 
     /* Isolate the scan code and key break flag. */
-    keyUp = (scanCode & 0x80) ? PDMIKBDPORT_KEY_UP : 0;
+    keyUp = (scanCode & 0x80) << 24;
 
     switch (state) {
     case SS_IDLE:
@@ -162,14 +161,12 @@ static scan_state_t ScancodeToHidUsage(scan_state_t state, uint8_t scanCode, uin
             state = SS_EXT1;
         } else {
             usage = aScancode2Hid[scanCode & 0x7F];
-            AssertMsg(usage, ("SS_IDLE: scanCode=%02X\n", scanCode));
             *pUsage = usage | keyUp | HID_PG_KB_BITS;
             /* Remain in SS_IDLE state. */
         }
         break;
     case SS_EXT:
         usage = aExtScan2Hid[scanCode & 0x7F];
-        AssertMsg(usage, ("SS_EXT: scanCode=%02X\n", scanCode));
         *pUsage = usage | keyUp | HID_PG_KB_BITS;
         state = SS_IDLE;
         break;
@@ -231,7 +228,7 @@ static DECLCALLBACK(int) drvKbdQueuePutEventScan(PPDMIKEYBOARDPORT pInterface, u
 
     if (pDrv->XlatState == SS_IDLE)
     {
-        PDRVKBDQUEUEITEM pItem = (PDRVKBDQUEUEITEM)PDMDrvHlpQueueAlloc(pDrv->pDrvIns, pDrv->hQueue);
+        PDRVKBDQUEUEITEM pItem = (PDRVKBDQUEUEITEM)PDMQueueAlloc(pDrv->pQueue);
         if (pItem)
         {
             /*
@@ -239,10 +236,9 @@ static DECLCALLBACK(int) drvKbdQueuePutEventScan(PPDMIKEYBOARDPORT pInterface, u
              * only send break events for Hangul/Hanja keys -- convert a lone
              * key up into a key up/key down sequence.
              */
-            if (   (idUsage == (PDMIKBDPORT_KEY_UP | HID_PG_KB_BITS | 0x90))
-                || (idUsage == (PDMIKBDPORT_KEY_UP | HID_PG_KB_BITS | 0x91)))
+            if (idUsage == UINT32_C(0x80000090) || idUsage == UINT32_C(0x80000091))
             {
-                PDRVKBDQUEUEITEM pItem2 = (PDRVKBDQUEUEITEM)PDMDrvHlpQueueAlloc(pDrv->pDrvIns, pDrv->hQueue);
+                PDRVKBDQUEUEITEM pItem2 = (PDRVKBDQUEUEITEM)PDMQueueAlloc(pDrv->pQueue);
                 /*
                  * NB: If there's no room in the queue, we will drop the faked
                  * key down event. Probably less bad than the alternatives.
@@ -250,13 +246,13 @@ static DECLCALLBACK(int) drvKbdQueuePutEventScan(PPDMIKEYBOARDPORT pInterface, u
                 if (pItem2)
                 {
                     /* Manufacture a key down event. */
-                    pItem2->idUsage = idUsage & ~PDMIKBDPORT_KEY_UP;
-                    PDMDrvHlpQueueInsert(pDrv->pDrvIns, pDrv->hQueue, &pItem2->Core);
+                    pItem2->idUsage = idUsage & ~UINT32_C(0x80000000);
+                    PDMQueueInsert(pDrv->pQueue, &pItem2->Core);
                 }
             }
 
             pItem->idUsage = idUsage;
-            PDMDrvHlpQueueInsert(pDrv->pDrvIns, pDrv->hQueue, &pItem->Core);
+            PDMQueueInsert(pDrv->pQueue, &pItem->Core);
 
             return VINF_SUCCESS;
         }
@@ -264,7 +260,8 @@ static DECLCALLBACK(int) drvKbdQueuePutEventScan(PPDMIKEYBOARDPORT pInterface, u
             AssertMsgFailed(("drvKbdQueuePutEventScan: Queue is full!!!!\n"));
         return VERR_PDM_NO_QUEUE_ITEMS;
     }
-    return VINF_SUCCESS;
+    else
+        return VINF_SUCCESS;
 }
 
 
@@ -281,46 +278,16 @@ static DECLCALLBACK(int) drvKbdQueuePutEventHid(PPDMIKEYBOARDPORT pInterface, ui
     if (pDrv->fInactive)
         return VINF_SUCCESS;
 
-    PDRVKBDQUEUEITEM pItem = (PDRVKBDQUEUEITEM)PDMDrvHlpQueueAlloc(pDrv->pDrvIns, pDrv->hQueue);
+    PDRVKBDQUEUEITEM pItem = (PDRVKBDQUEUEITEM)PDMQueueAlloc(pDrv->pQueue);
     if (pItem)
     {
         pItem->idUsage = idUsage;
-        PDMDrvHlpQueueInsert(pDrv->pDrvIns, pDrv->hQueue, &pItem->Core);
+        PDMQueueInsert(pDrv->pQueue, &pItem->Core);
 
         return VINF_SUCCESS;
     }
-    AssertMsg(pDrv->fSuspended, ("drvKbdQueuePutEventHid: Queue is full!!!!\n"));
-    return VERR_PDM_NO_QUEUE_ITEMS;
-}
-
-
-/**
- * @interface_method_impl{PDMIKEYBOARDPORT,pfnReleaseKeys}
- *
- * Because of the event queueing the EMT context requirement is lifted.
- * @thread  Any thread.
- */
-static DECLCALLBACK(int) drvKbdQueueReleaseKeys(PPDMIKEYBOARDPORT pInterface)
-{
-    PDRVKBDQUEUE pDrv = IKEYBOARDPORT_2_DRVKBDQUEUE(pInterface);
-
-    /* Ignore any attempt to send events if queue is inactive. */
-    if (pDrv->fInactive)
-        return VINF_SUCCESS;
-
-    PDRVKBDQUEUEITEM pItem = (PDRVKBDQUEUEITEM)PDMDrvHlpQueueAlloc(pDrv->pDrvIns, pDrv->hQueue);
-    if (pItem)
-    {
-        /* Send a special key event that forces all keys to be released.
-         * Goes through the queue so that it would take effect only after
-         * any key events that might already be queued up.
-         */
-        pItem->idUsage = PDMIKBDPORT_RELEASE_KEYS | HID_PG_KB_BITS;
-        PDMDrvHlpQueueInsert(pDrv->pDrvIns, pDrv->hQueue, &pItem->Core);
-
-        return VINF_SUCCESS;
-    }
-    AssertMsg(pDrv->fSuspended, ("drvKbdQueueReleaseKeys: Queue is full!!!!\n"));
+    if (!pDrv->fSuspended)
+        AssertMsgFailed(("drvKbdQueuePutEventHid: Queue is full!!!!\n"));
     return VERR_PDM_NO_QUEUE_ITEMS;
 }
 
@@ -365,7 +332,8 @@ static DECLCALLBACK(void) drvKbdFlushQueue(PPDMIKEYBOARDCONNECTOR pInterface)
 {
     PDRVKBDQUEUE pDrv = PPDMIKEYBOARDCONNECTOR_2_DRVKBDQUEUE(pInterface);
 
-    PDMDrvHlpQueueFlushIfNecessary(pDrv->pDrvIns, pDrv->hQueue);
+    AssertPtr(pDrv->pQueue);
+    PDMQueueFlushIfNecessary(pDrv->pQueue);
 }
 
 
@@ -384,7 +352,7 @@ static DECLCALLBACK(bool) drvKbdQueueConsumer(PPDMDRVINS pDrvIns, PPDMQUEUEITEMC
     PDRVKBDQUEUE        pThis = PDMINS_2_DATA(pDrvIns, PDRVKBDQUEUE);
     PDRVKBDQUEUEITEM    pItem = (PDRVKBDQUEUEITEM)pItemCore;
     int rc = pThis->pUpPort->pfnPutEventHid(pThis->pUpPort, pItem->idUsage);
-    return rc != VERR_TRY_AGAIN;
+    return RT_SUCCESS(rc);
 }
 
 
@@ -463,22 +431,19 @@ static DECLCALLBACK(void) drvKbdQueuePowerOff(PPDMDRVINS pDrvIns)
  */
 static DECLCALLBACK(int) drvKbdQueueConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVKBDQUEUE    pDrv = PDMINS_2_DATA(pDrvIns, PDRVKBDQUEUE);
-    PCPDMDRVHLPR3   pHlp = pDrvIns->pHlpR3;
-
+    PDRVKBDQUEUE pDrv = PDMINS_2_DATA(pDrvIns, PDRVKBDQUEUE);
     LogFlow(("drvKbdQueueConstruct: iInstance=%d\n", pDrvIns->iInstance));
-
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
      * Validate configuration.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "QueueSize|Interval", "");
+    if (!CFGMR3AreValuesValid(pCfg, "QueueSize\0Interval\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
 
     /*
      * Init basic data members and interfaces.
      */
-    pDrv->pDrvIns                           = pDrvIns;
     pDrv->fInactive                         = true;
     pDrv->fSuspended                        = false;
     pDrv->XlatState                         = SS_IDLE;
@@ -491,45 +456,63 @@ static DECLCALLBACK(int) drvKbdQueueConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
     /* IKeyboardPort. */
     pDrv->IPort.pfnPutEventScan             = drvKbdQueuePutEventScan;
     pDrv->IPort.pfnPutEventHid              = drvKbdQueuePutEventHid;
-    pDrv->IPort.pfnReleaseKeys              = drvKbdQueueReleaseKeys;
 
     /*
      * Get the IKeyboardPort interface of the above driver/device.
      */
     pDrv->pUpPort = PDMIBASE_QUERY_INTERFACE(pDrvIns->pUpBase, PDMIKEYBOARDPORT);
-    AssertMsgReturn(pDrv->pUpPort, ("Configuration error: No keyboard port interface above!\n"), VERR_PDM_MISSING_INTERFACE_ABOVE);
+    if (!pDrv->pUpPort)
+    {
+        AssertMsgFailed(("Configuration error: No keyboard port interface above!\n"));
+        return VERR_PDM_MISSING_INTERFACE_ABOVE;
+    }
 
     /*
      * Attach driver below and query it's connector interface.
      */
     PPDMIBASE pDownBase;
     int rc = PDMDrvHlpAttach(pDrvIns, fFlags, &pDownBase);
-    AssertMsgRCReturn(rc, ("Failed to attach driver below us! rc=%Rra\n", rc), rc);
-
+    if (RT_FAILURE(rc))
+    {
+        AssertMsgFailed(("Failed to attach driver below us! rc=%Rra\n", rc));
+        return rc;
+    }
     pDrv->pDownConnector = PDMIBASE_QUERY_INTERFACE(pDownBase, PDMIKEYBOARDCONNECTOR);
-    AssertMsgReturn(pDrv->pDownConnector, ("Configuration error: No keyboard connector interface below!\n"),
-                    VERR_PDM_MISSING_INTERFACE_BELOW);
+    if (!pDrv->pDownConnector)
+    {
+        AssertMsgFailed(("Configuration error: No keyboard connector interface below!\n"));
+        return VERR_PDM_MISSING_INTERFACE_BELOW;
+    }
 
     /*
      * Create the queue.
      */
     uint32_t cMilliesInterval = 0;
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "Interval", &cMilliesInterval);
+    rc = CFGMR3QueryU32(pCfg, "Interval", &cMilliesInterval);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         cMilliesInterval = 0;
-    else
-        AssertMsgRCReturn(rc, ("Configuration error: 32-bit \"Interval\" -> rc=%Rrc\n", rc), rc);
+    else if (RT_FAILURE(rc))
+    {
+        AssertMsgFailed(("Configuration error: 32-bit \"Interval\" -> rc=%Rrc\n", rc));
+        return rc;
+    }
 
     uint32_t cItems = 0;
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "QueueSize", &cItems);
+    rc = CFGMR3QueryU32(pCfg, "QueueSize", &cItems);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         cItems = 128;
-    else
-        AssertMsgRCReturn(rc, ("Configuration error: 32-bit \"QueueSize\" -> rc=%Rrc\n", rc), rc);
+    else if (RT_FAILURE(rc))
+    {
+        AssertMsgFailed(("Configuration error: 32-bit \"QueueSize\" -> rc=%Rrc\n", rc));
+        return rc;
+    }
 
-    rc = PDMDrvHlpQueueCreate(pDrvIns, sizeof(DRVKBDQUEUEITEM), cItems, cMilliesInterval,
-                              drvKbdQueueConsumer, "Keyboard", &pDrv->hQueue);
-    AssertMsgRCReturn(rc, ("Failed to create driver: cItems=%d cMilliesInterval=%d rc=%Rrc\n", cItems, cMilliesInterval, rc), rc);
+    rc = PDMDrvHlpQueueCreate(pDrvIns, sizeof(DRVKBDQUEUEITEM), cItems, cMilliesInterval, drvKbdQueueConsumer, "Keyboard", &pDrv->pQueue);
+    if (RT_FAILURE(rc))
+    {
+        AssertMsgFailed(("Failed to create driver: cItems=%d cMilliesInterval=%d rc=%Rrc\n", cItems, cMilliesInterval, rc));
+        return rc;
+    }
 
     return VINF_SUCCESS;
 }

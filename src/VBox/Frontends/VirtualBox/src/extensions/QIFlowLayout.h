@@ -1,10 +1,10 @@
-/* $Id: QIFlowLayout.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIFlowLayout.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIFlowLayout class declaration.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,34 +81,34 @@ public:
     QIFlowLayout(int iMargin = -1, int iSpacingH = -1, int iSpacingV = -1);
 
     /** Destructs flow-layout. */
-    virtual ~QIFlowLayout() RT_OVERRIDE;
+    virtual ~QIFlowLayout() /* override */;
 
     /** Returns the number of layout items. */
-    virtual int count() const RT_OVERRIDE;
+    virtual int count() const /* override */;
     /** Adds @a pItem into layout. */
-    virtual void addItem(QLayoutItem *pItem) RT_OVERRIDE;
+    virtual void addItem(QLayoutItem *pItem) /* override */;
     /** Returns the layout item at passed @a iIndex. */
-    virtual QLayoutItem *itemAt(int iIndex) const RT_OVERRIDE;
+    virtual QLayoutItem *itemAt(int iIndex) const /* override */;
     /** Removes the layout item at passed @a iIndex and returns it. */
-    virtual QLayoutItem *takeAt(int index) RT_OVERRIDE;
+    virtual QLayoutItem *takeAt(int index) /* override */;
 
     /** Returns whether this layout can make use of more space than sizeHint().
       * A value of Qt::Vertical or Qt::Horizontal means that it wants to grow in only one dimension,
       * whereas Qt::Vertical | Qt::Horizontal means that it wants to grow in both dimensions. */
-    virtual Qt::Orientations expandingDirections() const RT_OVERRIDE;
+    virtual Qt::Orientations expandingDirections() const /* override */;
 
     /** Returns whether this layout's preferred height depends on its width. */
-    virtual bool hasHeightForWidth() const RT_OVERRIDE;
+    virtual bool hasHeightForWidth() const /* override */;
     /** Returns the preferred height for this layout item, given the width. */
-    virtual int heightForWidth(int) const RT_OVERRIDE;
+    virtual int heightForWidth(int) const /* override */;
 
     /** Returns the minimum layout size. */
-    virtual QSize minimumSize() const RT_OVERRIDE;
+    virtual QSize minimumSize() const /* override */;
     /** Returns this item's preferred size. */
-    virtual QSize sizeHint() const RT_OVERRIDE;
+    virtual QSize sizeHint() const /* override */;
 
     /** Defines this item's geometry to @a rect. */
-    virtual void setGeometry(const QRect &rect) RT_OVERRIDE;
+    virtual void setGeometry(const QRect &rect) /* override */;
 
 private:
 

@@ -1,10 +1,10 @@
-/* $Id: UIEmptyFilePathSelector.cpp 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: UIEmptyFilePathSelector.cpp $ */
 /** @file
  * VBox Qt GUI - UIEmptyFilePathSelector class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -246,7 +246,7 @@ void UIEmptyFilePathSelector::choose()
     if (path.isEmpty())
         return;
 
-    path.remove(QRegularExpression("[\\\\/]$"));
+    path.remove (QRegExp ("[\\\\/]$"));
     setPath (path);
 }
 

@@ -91,7 +91,7 @@
     <?include PublicProperties.wxi ?>
 
     <!-- Make sure installation will not start on anything other but the NT family -->
-<?if $(env.KBUILD_TARGET_ARCH) = "amd64" ?>
+<?if $(env.BUILD_TARGET_ARCH) = "amd64" ?>
     <Condition Message="!(loc.Only64Bit)">
         VersionNT64
     </Condition>
@@ -179,7 +179,7 @@
     <!-- Custom actions -->
 
     <!-- Figure out where a previous installation was, if any -->
-<?if $(env.KBUILD_TARGET_ARCH) = "amd64" ?>
+<?if $(env.BUILD_TARGET_ARCH) = "amd64" ?>
     <CustomAction Id="ca_OriginalTargetDir" Execute="firstSequence" Property="INSTALLDIR"
                   Value="[ProgramFiles64Folder]\$(env.VBOX_VENDOR_SHORT)\VirtualBox" />
 
@@ -200,9 +200,6 @@
 <?endif ?>
     <CustomAction Id="ca_UninstallTAPInstances" BinaryKey="VBoxInstallHelper"
                   DllEntry="UninstallTAPInstances" Execute="deferred" Return="check" Impersonate="no"/>
-
-    <CustomAction Id="ca_UninstallVBoxDrv" BinaryKey="VBoxInstallHelper"
-                  DllEntry="UninstallVBoxDrv" Execute="deferred" Return="ignore" Impersonate="no"/>
 
     <Property Id="VBOXDEPENDENCY" Secure="yes">
         <DirectorySearch Id="VBoxInstallDir" Path="[EXISTINGINSTALLDIR]">
@@ -493,10 +490,10 @@
         <ComponentRef Id="cp_UnattendedTemplates" />
     <?endif ?>
     <?if $(env.VBOX_SIGNING_MODE) != none ?>
-        <ComponentRef Id="cp_VBoxSupCat_PreW10" />
-        <ComponentRef Id="cp_VBoxSupCat_W10" />
+        <ComponentRef Id="cp_VBoxDrvCat_PreW10" />
+        <ComponentRef Id="cp_VBoxDrvCat_W10" />
     <?endif ?>
-    <ComponentRef Id="cp_VBoxSup" />
+    <ComponentRef Id="cp_VBoxDrv" />
 <?endif ?>
 
 <?if $(env.VBOX_WITH_USB) = "yes" ?>
@@ -563,7 +560,7 @@
 <?endif ?>
 
 <?if $(env.VBOX_WITH_PYTHON) = "yes" ?>
-        <Feature Id="VBoxPython" Title="VirtualBox Python Support" Level="1"
+        <Feature Id="VBoxPython" Title="VirtualBox Python 2.x Support" Level="1"
                  Description="!(loc.VB_Python)"
                  ConfigurableDirectory="INSTALLDIR" TypicalDefault="install" Display="expand"
                  Absent="allow" AllowAdvertise="no" >
@@ -625,9 +622,6 @@
 
         <!-- Check + unininstall old TAP instances - we  don't need them anymore -->
         <Custom Action="ca_UninstallTAPInstances" Before="InstallFiles" >1</Custom>
-
-        <!-- Check + uninstall old VBoxDrv service - it was renamed to VBoxSup.  -->
-        <Custom Action="ca_UninstallVBoxDrv" Before="InstallFiles" >1</Custom>
 
         <Custom Action="ca_InstallBrandingArgs" Before="ca_InstallBranding" ><![CDATA[NOT REMOVE]]></Custom>
         <Custom Action="ca_InstallBranding" Before="InstallFinalize" ><![CDATA[NOT REMOVE]]></Custom>

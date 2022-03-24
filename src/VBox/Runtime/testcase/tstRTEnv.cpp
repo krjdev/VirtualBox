@@ -1,10 +1,10 @@
-/* $Id: tstRTEnv.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTEnv.cpp $ */
 /** @file
  * IPRT Testcase - Environment.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -314,12 +314,6 @@ int main()
     CHECK(papsz != NULL);
 
     CHECK_RC(RTEnvDestroy(Env), VINF_SUCCESS);
-
-    /*
-     * Cleanups.
-     */
-    RTTESTI_CHECK_RC(RTEnvDestroy(hEnvEq), VINF_SUCCESS);
-    RTTESTI_CHECK_RC(RTEnvDestroy(hEnvNoEq), VINF_SUCCESS);
 
     /*
      * Summary

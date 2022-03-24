@@ -1,10 +1,10 @@
-; $Id: ASMSetIDTR.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMSetIDTR.asm $
 ;; @file
 ; IPRT - ASMSetIDTR().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@ BEGINCODE
 ; @param   pIdtr    Where to load the IDTR contents from.
 ;                   msc=rcx, gcc=rdi, x86=[esp+4]
 ;
-RT_BEGINPROC ASMSetIDTR
+BEGINPROC_EXPORTED ASMSetIDTR
 %ifdef ASM_CALL64_MSC
         mov     rax, rcx
 %elifdef ASM_CALL64_GCC

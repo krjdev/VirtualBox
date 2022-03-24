@@ -1,10 +1,10 @@
-/* $Id: semeventmulti-r0drv-solaris.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semeventmulti-r0drv-solaris.c $ */
 /** @file
  * IPRT - Multiple Release Event Semaphores, Ring-0 Driver, Solaris.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -351,12 +351,5 @@ RTDECL(int)  RTSemEventMultiWaitExDebug(RTSEMEVENTMULTI hEventMultiSem, uint32_t
 RTDECL(uint32_t) RTSemEventMultiGetResolution(void)
 {
     return rtR0SemSolWaitGetResolution();
-}
-
-
-RTR0DECL(bool) RTSemEventMultiIsSignalSafe(void)
-{
-    /* Don't trust solaris not to preempt us. */
-    return false;
 }
 

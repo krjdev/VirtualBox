@@ -31,7 +31,7 @@ LockTpmPhysicalPresence (
   );
 
 //
-// Global definitions for lock physical presence PPI and its descriptor.
+// Gobal defintions for lock physical presence PPI and its descriptor.
 //
 PEI_LOCK_PHYSICAL_PRESENCE_PPI    mLockPhysicalPresencePpi = {
   LockTpmPhysicalPresence

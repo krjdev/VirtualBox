@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1569,14 +1569,14 @@ typedef VRDECALLBACKS_3 VRDECALLBACKS_4;
  * @return IPRT status code.
  */
 DECLEXPORT(int) VRDECreateServer (const VRDEINTERFACEHDR *pCallbacks,
-                                  void *pvCallback,
-                                  VRDEINTERFACEHDR **ppEntryPoints,
-                                  HVRDESERVER *phServer);
+                                    void *pvCallback,
+                                    VRDEINTERFACEHDR **ppEntryPoints,
+                                    HVRDESERVER *phServer);
 
-typedef DECLCALLBACKTYPE(int, FNVRDECREATESERVER,(const VRDEINTERFACEHDR *pCallbacks,
-                                                  void *pvCallback,
-                                                  VRDEINTERFACEHDR **ppEntryPoints,
-                                                  HVRDESERVER *phServer));
+typedef DECLCALLBACK(int) FNVRDECREATESERVER (const VRDEINTERFACEHDR *pCallbacks,
+                                              void *pvCallback,
+                                              VRDEINTERFACEHDR **ppEntryPoints,
+                                              HVRDESERVER *phServer);
 typedef FNVRDECREATESERVER *PFNVRDECREATESERVER;
 
 /**
@@ -1595,7 +1595,7 @@ typedef FNVRDECREATESERVER *PFNVRDECREATESERVER;
  */
 DECLEXPORT(const char * const *) VRDESupportedProperties (void);
 
-typedef DECLCALLBACKTYPE(const char * const *, FNVRDESUPPORTEDPROPERTIES,(void));
+typedef DECLCALLBACK(const char * const *) FNVRDESUPPORTEDPROPERTIES (void);
 typedef FNVRDESUPPORTEDPROPERTIES *PFNVRDESUPPORTEDPROPERTIES;
 
 RT_C_DECLS_END

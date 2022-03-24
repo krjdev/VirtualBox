@@ -1,10 +1,10 @@
-/* $Id: VBoxDrvCfg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDrvCfg.cpp $ */
 /** @file
  * VBoxDrvCfg.cpp - Windows Driver Manipulation API implementation
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -296,7 +296,7 @@ static HRESULT vboxDrvCfgInfQueryModelsSectionName(HINF hInf, LPWSTR *lppszValue
 
     for (DWORD i = 2; (hr = vboxDrvCfgInfQueryKeyValue(&InfCtx, i, &lpszPlatformCur, &cPlatformCur)) == S_OK; ++i)
     {
-        if (wcsicmp(lpszPlatformCur, L"NT" VBOXDRVCFG_ARCHSTR))
+        if (wcsicmp(lpszPlatformCur, L"NT"VBOXDRVCFG_ARCHSTR))
         {
             if (bNt)
             {
@@ -498,11 +498,9 @@ static HRESULT vboxDrvCfgCollectInfsSetupDi(const GUID * pGuid, LPCWSTR pPnPId, 
                             &dwReq /*OUT PDWORD RequiredSize OPTIONAL*/
                             ))
                     {
-                        for (WCHAR *pwszHwId = pDrvDetail->HardwareID;
-                             pwszHwId && *pwszHwId && (uintptr_t)pwszHwId < (uintptr_t)DetailBuf + sizeof(DetailBuf);
-                             pwszHwId += wcslen(pwszHwId) + 1)
+                        for (WCHAR * pHwId = pDrvDetail->HardwareID; pHwId && *pHwId && pHwId < (TCHAR*)(DetailBuf + sizeof(DetailBuf)/sizeof(DetailBuf[0])) ;pHwId += wcslen(pHwId) + 1)
                         {
-                            if (!wcsicmp(pwszHwId, pPnPId))
+                            if (!wcsicmp(pHwId, pPnPId))
                             {
                                 NonStandardAssert(pDrvDetail->InfFileName[0]);
                                 if (pDrvDetail->InfFileName)
@@ -515,16 +513,16 @@ static HRESULT vboxDrvCfgCollectInfsSetupDi(const GUID * pGuid, LPCWSTR pPnPId, 
                     }
                     else
                     {
-                        DWORD dwErr2 = GetLastError();
-                        NonStandardLogRelCrap((__FUNCTION__": SetupDiGetDriverInfoDetail fail dwErr=%ld, size(%d)", dwErr2, dwReq));
+                        DWORD dwErr = GetLastError();
+                        NonStandardLogRelCrap((__FUNCTION__": SetupDiGetDriverInfoDetail fail dwErr=%ld, size(%d)", dwErr, dwReq));
 //                        NonStandardAssert(0);
                     }
 
                 }
                 else
                 {
-                    DWORD dwErr2 = GetLastError();
-                    if (dwErr2 == ERROR_NO_MORE_ITEMS)
+                    DWORD dwErr = GetLastError();
+                    if (dwErr == ERROR_NO_MORE_ITEMS)
                     {
                         NonStandardLogRelCrap((__FUNCTION__": dwErr == ERROR_NO_MORE_ITEMS -> search was finished "));
                         break;

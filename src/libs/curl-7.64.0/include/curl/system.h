@@ -408,15 +408,9 @@
 /* CURL_PULL_WS2TCPIP_H is defined above when inclusion of header file  */
 /* ws2tcpip.h is required here to properly make type definitions below. */
 #ifdef CURL_PULL_WS2TCPIP_H
-# ifdef VBOX
-#  include <iprt/win/winsock2.h>
-#  include <iprt/win/windows.h>
-#  include <iprt/win/ws2tcpip.h>
-# else
 #  include <winsock2.h>
 #  include <windows.h>
 #  include <ws2tcpip.h>
-# endif
 #endif
 
 /* CURL_PULL_SYS_TYPES_H is defined above when inclusion of header file  */

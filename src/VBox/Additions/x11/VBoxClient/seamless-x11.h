@@ -1,10 +1,10 @@
-/* $Id: seamless-x11.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: seamless-x11.h $ */
 /** @file
  * Seamless mode - X11 guests.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,8 +48,7 @@ typedef FNSENDREGIONUPDATE *PFNSENDREGIONUPDATE;
 
 /** Structure containing information about a guest window's position and visible area.
     Used inside of VBoxGuestWindowList. */
-struct VBoxGuestWinInfo
-{
+struct VBoxGuestWinInfo {
 public:
     /** Header structure for insertion into an AVL tree */
     AVLU32NODECORE Core;
@@ -66,10 +65,10 @@ public:
      * is destroyed. */
     XRectangle *mpRects;
     /** Constructor. */
-    VBoxGuestWinInfo(bool hasShape, int x, int y, int w, int h, int cRects, XRectangle *pRects)
-        : mhasShape(hasShape), mX(x), mY(y), mWidth(w), mHeight(h)
-        , mcRects(cRects), mpRects(pRects)
-    {}
+    VBoxGuestWinInfo(bool hasShape, int x, int y, int w, int h, int cRects,
+                     XRectangle *pRects)
+            : mhasShape(hasShape), mX(x), mY(y), mWidth(w), mHeight(h),
+              mcRects(cRects), mpRects(pRects) {}
 
     /** Destructor */
     ~VBoxGuestWinInfo()
@@ -83,16 +82,16 @@ public:
 
 private:
     // We don't want a copy constructor or assignment operator
-    VBoxGuestWinInfo(const VBoxGuestWinInfo &);
-    VBoxGuestWinInfo &operator=(const VBoxGuestWinInfo &);
+    VBoxGuestWinInfo(const VBoxGuestWinInfo&);
+    VBoxGuestWinInfo& operator=(const VBoxGuestWinInfo&);
 };
 
 /** Callback type used for "DoWithAll" calls */
-typedef DECLCALLBACKTYPE(int, FNVBOXGUESTWINCALLBACK,(VBoxGuestWinInfo *, void *));
+typedef DECLCALLBACK(int) VBOXGUESTWINCALLBACK(VBoxGuestWinInfo *, void *);
 /** Pointer to VBOXGUESTWINCALLBACK */
-typedef FNVBOXGUESTWINCALLBACK *PFNVBOXGUESTWINCALLBACK;
+typedef VBOXGUESTWINCALLBACK *PVBOXGUESTWINCALLBACK;
 
-static inline DECLCALLBACK(int) VBoxGuestWinCleanup(VBoxGuestWinInfo *pInfo, void *)
+DECLCALLBACK(int) inline VBoxGuestWinCleanup(VBoxGuestWinInfo *pInfo, void *)
 {
     delete pInfo;
     return VINF_SUCCESS;
@@ -136,14 +135,15 @@ public:
         return (VBoxGuestWinInfo *)RTAvlU32Get(&mWindows, hWin);
     }
 
-    void detachAll(PFNVBOXGUESTWINCALLBACK pfnCallback, void *pvParam)
+    void detachAll(PVBOXGUESTWINCALLBACK pCallback, void *pvParam)
     {
-        RTAvlU32Destroy(&mWindows, (PAVLU32CALLBACK)pfnCallback, pvParam);
+        RTAvlU32Destroy(&mWindows, (PAVLU32CALLBACK)pCallback, pvParam);
     }
 
-    int doWithAll(PFNVBOXGUESTWINCALLBACK pfnCallback, void *pvParam)
+    int doWithAll(PVBOXGUESTWINCALLBACK pCallback, void *pvParam)
     {
-        return RTAvlU32DoWithAll(&mWindows, 1, (PAVLU32CALLBACK)pfnCallback, pvParam);
+        return RTAvlU32DoWithAll(&mWindows, 1, (PAVLU32CALLBACK)pCallback,
+                                 pvParam);
     }
 
     bool addWindow(Window hWin, bool isMapped, int x, int y, int w, int h, int cRects,
@@ -151,7 +151,8 @@ public:
     {
         LogRelFlowFunc(("hWin=%lu, isMapped=%RTbool, x=%d, y=%d, w=%d, h=%d, cRects=%d\n",
                         (unsigned long) hWin, isMapped, x, y, w, h, cRects));
-        VBoxGuestWinInfo *pInfo = new VBoxGuestWinInfo(isMapped, x, y, w, h, cRects, pRects);
+        VBoxGuestWinInfo *pInfo = new VBoxGuestWinInfo(isMapped, x, y, w, h, cRects,
+                                                       pRects);
         pInfo->Core.Key = hWin;
         LogRelFlowFuncLeave();
         return RTAvlU32Insert(&mWindows, &pInfo->Core);
@@ -223,7 +224,15 @@ public:
     /**
      * Shutdown seamless event monitoring.
      */
-    void uninit(void);
+    void uninit(void)
+    {
+        if (mHostCallback)
+            stop();
+        mHostCallback = NULL;
+        if (mDisplay)
+            XCloseDisplay(mDisplay);
+        mDisplay = NULL;
+    }
 
     /**
      * Initialise seamless event reporting in the guest.

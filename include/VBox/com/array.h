@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1011,10 +1011,10 @@ public:
         AssertFailedReturn(*this);
     }
 
-    HRESULT cloneTo(SafeArray<T>& aOther) const
+    void cloneTo(SafeArray<T>& aOther) const
     {
         aOther.reset(size());
-        return aOther.initFrom(*this);
+        aOther.initFrom(*this);
     }
 
 
@@ -1087,8 +1087,8 @@ public:
         return list;
     }
 
-    inline HRESULT initFrom(const com::SafeArray<T> & aRef);
-    inline HRESULT initFrom(const T* aPtr, size_t aSize);
+    inline void initFrom(const com::SafeArray<T> & aRef);
+    inline void initFrom(const T* aPtr, size_t aSize);
 
     // Public methods for internal purposes only.
 
@@ -1294,92 +1294,60 @@ protected:
 
 /* Few fast specializations for primitive array types */
 template<>
-inline HRESULT com::SafeArray<BYTE>::initFrom(const com::SafeArray<BYTE> & aRef)
+inline void com::SafeArray<BYTE>::initFrom(const com::SafeArray<BYTE> & aRef)
 {
     size_t sSize = aRef.size();
-    if (resize(sSize))
-    {
-        ::memcpy(raw(), aRef.raw(), sSize);
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(sSize);
+    ::memcpy(raw(), aRef.raw(), sSize);
 }
 template<>
-inline HRESULT com::SafeArray<BYTE>::initFrom(const BYTE *aPtr, size_t aSize)
+inline void com::SafeArray<BYTE>::initFrom(const BYTE* aPtr, size_t aSize)
 {
-    if (resize(aSize))
-    {
-        ::memcpy(raw(), aPtr, aSize);
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(aSize);
+    ::memcpy(raw(), aPtr, aSize);
 }
 
 
 template<>
-inline HRESULT com::SafeArray<SHORT>::initFrom(const com::SafeArray<SHORT> & aRef)
+inline void com::SafeArray<SHORT>::initFrom(const com::SafeArray<SHORT> & aRef)
 {
     size_t sSize = aRef.size();
-    if (resize(sSize))
-    {
-        ::memcpy(raw(), aRef.raw(), sSize * sizeof(SHORT));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(sSize);
+    ::memcpy(raw(), aRef.raw(), sSize * sizeof(SHORT));
 }
 template<>
-inline HRESULT com::SafeArray<SHORT>::initFrom(const SHORT *aPtr, size_t aSize)
+inline void com::SafeArray<SHORT>::initFrom(const SHORT* aPtr, size_t aSize)
 {
-    if (resize(aSize))
-    {
-        ::memcpy(raw(), aPtr, aSize * sizeof(SHORT));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(aSize);
+    ::memcpy(raw(), aPtr, aSize * sizeof(SHORT));
 }
 
 template<>
-inline HRESULT com::SafeArray<USHORT>::initFrom(const com::SafeArray<USHORT> & aRef)
+inline void com::SafeArray<USHORT>::initFrom(const com::SafeArray<USHORT> & aRef)
 {
     size_t sSize = aRef.size();
-    if (resize(sSize))
-    {
-        ::memcpy(raw(), aRef.raw(), sSize * sizeof(USHORT));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(sSize);
+    ::memcpy(raw(), aRef.raw(), sSize * sizeof(USHORT));
 }
 template<>
-inline HRESULT com::SafeArray<USHORT>::initFrom(const USHORT *aPtr, size_t aSize)
+inline void com::SafeArray<USHORT>::initFrom(const USHORT* aPtr, size_t aSize)
 {
-    if (resize(aSize))
-    {
-        ::memcpy(raw(), aPtr, aSize * sizeof(USHORT));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(aSize);
+    ::memcpy(raw(), aPtr, aSize * sizeof(USHORT));
 }
 
 template<>
-inline HRESULT com::SafeArray<LONG>::initFrom(const com::SafeArray<LONG> & aRef)
+inline void com::SafeArray<LONG>::initFrom(const com::SafeArray<LONG> & aRef)
 {
     size_t sSize = aRef.size();
-    if (resize(sSize))
-    {
-        ::memcpy(raw(), aRef.raw(), sSize * sizeof(LONG));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(sSize);
+    ::memcpy(raw(), aRef.raw(), sSize * sizeof(LONG));
 }
 template<>
-inline HRESULT com::SafeArray<LONG>::initFrom(const LONG *aPtr, size_t aSize)
+inline void com::SafeArray<LONG>::initFrom(const LONG* aPtr, size_t aSize)
 {
-    if (resize(aSize))
-    {
-        ::memcpy(raw(), aPtr, aSize * sizeof(LONG));
-        return S_OK;
-    }
-    return E_OUTOFMEMORY;
+    resize(aSize);
+    ::memcpy(raw(), aPtr, aSize * sizeof(LONG));
 }
 
 

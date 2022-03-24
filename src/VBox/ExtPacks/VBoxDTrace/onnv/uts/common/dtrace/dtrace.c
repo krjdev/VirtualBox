@@ -106,9 +106,6 @@
 # include <iprt/timer.h>
 # include <limits.h>
 
-# undef offsetof
-# define offsetof RT_OFFSETOF
-
 /*
  * Use asm.h to implemente some of the simple stuff in dtrace_asm.s.
  */

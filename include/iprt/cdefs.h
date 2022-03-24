@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,8 +63,6 @@
 # define RT_ARCH_X86
 # define RT_ARCH_SPARC
 # define RT_ARCH_SPARC64
-# define RT_ARCH_ARM32
-# define RT_ARCH_ARM64
 # define IN_RING0
 # define IN_RING3
 # define IN_RC
@@ -85,7 +83,6 @@
 # define RT_LITTLE_ENDIAN
 # define RT_COMPILER_GROKS_64BIT_BITFIELDS
 # define RT_COMPILER_WITH_80BIT_LONG_DOUBLE
-# define RT_COMPILER_WITH_128BIT_INT_TYPES
 # define RT_NO_VISIBILITY_HIDDEN
 # define RT_GCC_SUPPORTS_VISIBILITY_HIDDEN
 # define RT_COMPILER_SUPPORTS_VA_ARGS
@@ -107,22 +104,11 @@
 /** @def RT_ARCH_SPARC64
  * Indicates that we're compiling for the SPARC V9 architecture (64-bit).
  */
-
-/** @def RT_ARCH_ARM32
- * Indicates that we're compiling for the 32-bit ARM architecture, the value
- * is the version (i.e. 6 for ARMv6).
- */
-
-/** @def RT_ARCH_ARM64
- * Indicates that we're compiling for the 64-bit ARM architecture.
- */
-
 #if !defined(RT_ARCH_X86) \
  && !defined(RT_ARCH_AMD64) \
  && !defined(RT_ARCH_SPARC) \
  && !defined(RT_ARCH_SPARC64) \
- && !defined(RT_ARCH_ARM32) \
- && !defined(RT_ARCH_ARM64)
+ && !defined(RT_ARCH_ARM)
 # if defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || defined(__AMD64__)
 #  define RT_ARCH_AMD64
 # elif defined(__i386__) || defined(_M_IX86) || defined(__X86__)
@@ -131,12 +117,8 @@
 #  define RT_ARCH_SPARC64
 # elif defined(__sparc__)
 #  define RT_ARCH_SPARC
-# elif defined(__arm64__) || defined(__aarch64__)
-#  define RT_ARCH_ARM64 __ARM_ARCH
-# elif defined(__arm__)
-#  define RT_ARCH_ARM32 __ARM_ARCH
-# elif defined(__arm32__)
-#  define RT_ARCH_ARM32 __ARM_ARCH
+# elif defined(__arm__) || defined(__arm32__)
+#  define RT_ARCH_ARM
 # else /* PORTME: append test for new archs. */
 #  error "Check what predefined macros your compiler uses to indicate architecture."
 # endif
@@ -153,27 +135,14 @@
 # error "Both RT_ARCH_AMD64 and RT_ARCH_SPARC64 cannot be defined at the same time!"
 #elif defined(RT_ARCH_SPARC) && defined(RT_ARCH_SPARC64)
 # error "Both RT_ARCH_SPARC and RT_ARCH_SPARC64 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM32) && defined(RT_ARCH_AMD64)
-# error "Both RT_ARCH_ARM32 and RT_ARCH_AMD64 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM32) && defined(RT_ARCH_X86)
-# error "Both RT_ARCH_ARM32 and RT_ARCH_X86 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM32) && defined(RT_ARCH_SPARC64)
-# error "Both RT_ARCH_ARM32 and RT_ARCH_SPARC64 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM32) && defined(RT_ARCH_SPARC)
-# error "Both RT_ARCH_ARM32 and RT_ARCH_SPARC cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM64) && defined(RT_ARCH_AMD64)
-# error "Both RT_ARCH_ARM64 and RT_ARCH_AMD64 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM64) && defined(RT_ARCH_X86)
-# error "Both RT_ARCH_ARM64 and RT_ARCH_X86 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM64) && defined(RT_ARCH_SPARC64)
-# error "Both RT_ARCH_ARM64 and RT_ARCH_SPARC64 cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM64) && defined(RT_ARCH_SPARC)
-# error "Both RT_ARCH_ARM64 and RT_ARCH_SPARC cannot be defined at the same time!"
-#elif defined(RT_ARCH_ARM64) && defined(RT_ARCH_ARM32)
-# error "Both RT_ARCH_ARM64 and RT_ARCH_ARM32 cannot be defined at the same time!"
-#endif
-#ifdef RT_ARCH_ARM
-# error "RT_ARCH_ARM is now RT_ARCH_ARM32!"
+#elif defined(RT_ARCH_ARM) && defined(RT_ARCH_AMD64)
+# error "Both RT_ARCH_ARM and RT_ARCH_AMD64 cannot be defined at the same time!"
+#elif defined(RT_ARCH_ARM) && defined(RT_ARCH_X86)
+# error "Both RT_ARCH_ARM and RT_ARCH_X86 cannot be defined at the same time!"
+#elif defined(RT_ARCH_ARM) && defined(RT_ARCH_SPARC64)
+# error "Both RT_ARCH_ARM and RT_ARCH_SPARC64 cannot be defined at the same time!"
+#elif defined(RT_ARCH_ARM) && defined(RT_ARCH_SPARC)
+# error "Both RT_ARCH_ARM and RT_ARCH_SPARC cannot be defined at the same time!"
 #endif
 
 /* Final check (PORTME). */
@@ -181,8 +150,7 @@
      + (defined(RT_ARCH_AMD64) != 0) \
      + (defined(RT_ARCH_SPARC) != 0) \
      + (defined(RT_ARCH_SPARC64) != 0) \
-     + (defined(RT_ARCH_ARM32) != 0) \
-     + (defined(RT_ARCH_ARM64) != 0) \
+     + (defined(RT_ARCH_ARM) != 0) \
   != 1
 # error "Exactly one RT_ARCH_XXX macro shall be defined"
 #endif
@@ -243,34 +211,24 @@
  * @remarks The VCxxx values are derived from the CRT DLLs shipping with the
  *          compilers.
  * @{ */
-#define RT_MSC_VER_VC50         (1100)                  /**< Visual C++ 5.0. */
-#define RT_MSC_VER_VC60         (1200)                  /**< Visual C++ 6.0. */
-#define RT_MSC_VER_VC70         (1300)                  /**< Visual C++ 7.0. */
-#define RT_MSC_VER_VC70         (1300)                  /**< Visual C++ 7.0. */
-#define RT_MSC_VER_VS2003       (1310)                  /**< Visual Studio 2003, aka Visual C++ 7.1. */
-#define RT_MSC_VER_VC71         RT_MSC_VER_VS2003       /**< Visual C++ 7.1, aka Visual Studio 2003. */
-#define RT_MSC_VER_VS2005       (1400)                  /**< Visual Studio 2005. */
-#define RT_MSC_VER_VC80         RT_MSC_VER_VS2005       /**< Visual C++ 8.0, aka Visual Studio 2008. */
-#define RT_MSC_VER_VS2008       (1500)                  /**< Visual Studio 2008. */
-#define RT_MSC_VER_VC90         RT_MSC_VER_VS2008       /**< Visual C++ 9.0, aka Visual Studio 2008. */
-#define RT_MSC_VER_VS2010       (1600)                  /**< Visual Studio 2010. */
-#define RT_MSC_VER_VC100        RT_MSC_VER_VS2010       /**< Visual C++ 10.0, aka Visual Studio 2010. */
-#define RT_MSC_VER_VS2012       (1700)                  /**< Visual Studio 2012. */
-#define RT_MSC_VER_VC110        RT_MSC_VER_VS2012       /**< Visual C++ 11.0, aka Visual Studio 2012. */
-#define RT_MSC_VER_VS2013       (1800)                  /**< Visual Studio 2013. */
-#define RT_MSC_VER_VC120        RT_MSC_VER_VS2013       /**< Visual C++ 12.0, aka Visual Studio 2013. */
-#define RT_MSC_VER_VS2015       (1900)                  /**< Visual Studio 2015. */
-#define RT_MSC_VER_VC140        RT_MSC_VER_VS2015       /**< Visual C++ 14.0, aka Visual Studio 2015. */
-#define RT_MSC_VER_VS2017       (1910)                  /**< Visual Studio 2017. */
-#define RT_MSC_VER_VC141        RT_MSC_VER_VS2017       /**< Visual C++ 14.1, aka Visual Studio 2017. */
-#define RT_MSC_VER_VS2019       (1920)                  /**< Visual Studio 2019. */
-#define RT_MSC_VER_VC142        RT_MSC_VER_VS2019       /**< Visual C++ 14.2, aka Visual Studio 2019. */
-#define RT_MSC_VER_VS2019_U6    (1926)                  /**< Visual Studio 2019, update 6. */
-#define RT_MSC_VER_VC142_U6     RT_MSC_VER_VS2019_U6    /**< Visual C++ 14.2 update 6. */
-#define RT_MSC_VER_VS2019_U8    (1928)                  /**< Visual Studio 2019, update 8. */
-#define RT_MSC_VER_VC142_U8     RT_MSC_VER_VS2019_U8    /**< Visual C++ 14.2 update 8. */
-#define RT_MSC_VER_VS2019_U11   (1929)                  /**< Visual Studio 2019, update 11. */
-#define RT_MSC_VER_VC142_U11    RT_MSC_VER_VS2019_U11   /**< Visual C++ 14.2 update 11. */
+#define RT_MSC_VER_VC50     (1100)              /**< Visual C++ 5.0. */
+#define RT_MSC_VER_VC60     (1200)              /**< Visual C++ 6.0. */
+#define RT_MSC_VER_VC70     (1300)              /**< Visual C++ 7.0. */
+#define RT_MSC_VER_VC70     (1300)              /**< Visual C++ 7.0. */
+#define RT_MSC_VER_VS2003   (1310)              /**< Visual Studio 2003, aka Visual C++ 7.1. */
+#define RT_MSC_VER_VC71     RT_MSC_VER_VS2003   /**< Visual C++ 7.1, aka Visual Studio 2003. */
+#define RT_MSC_VER_VS2005   (1400)              /**< Visual Studio 2005. */
+#define RT_MSC_VER_VC80     RT_MSC_VER_VS2005   /**< Visual C++ 8.0, aka Visual Studio 2008. */
+#define RT_MSC_VER_VS2008   (1500)              /**< Visual Studio 2008. */
+#define RT_MSC_VER_VC90     RT_MSC_VER_VS2008   /**< Visual C++ 9.0, aka Visual Studio 2008. */
+#define RT_MSC_VER_VS2010   (1600)              /**< Visual Studio 2010. */
+#define RT_MSC_VER_VC100    RT_MSC_VER_VS2010   /**< Visual C++ 10.0, aka Visual Studio 2010. */
+#define RT_MSC_VER_VS2012   (1700)              /**< Visual Studio 2012. */
+#define RT_MSC_VER_VC110    RT_MSC_VER_VS2012   /**< Visual C++ 11.0, aka Visual Studio 2012. */
+#define RT_MSC_VER_VS2013   (1800)              /**< Visual Studio 2013. */
+#define RT_MSC_VER_VC120    RT_MSC_VER_VS2013   /**< Visual C++ 12.0, aka Visual Studio 2013. */
+#define RT_MSC_VER_VS2015   (1900)              /**< Visual Studio 2015. */
+#define RT_MSC_VER_VC140    RT_MSC_VER_VS2015   /**< Visual C++ 14.0, aka Visual Studio 2015. */
 /** @} */
 
 /** @def RT_CLANG_PREREQ
@@ -279,7 +237,7 @@
  * @param   a_MinMajor      Minimum major version
  * @param   a_MinMinor      The minor version number part.
  */
-#define RT_CLANG_PREREQ(a_MinMajor, a_MinMinor)     RT_CLANG_PREREQ_EX(a_MinMajor, a_MinMinor, 0)
+#define RT_CLANG_PREREQ(a_MinMajor, a_MinMinor)      RT_CLANG_PREREQ_EX(a_MinMajor, a_MinMinor, 0)
 /** @def RT_CLANG_PREREQ_EX
  * Simplified way of checking __clang_major__ and __clang_minor__ regardless of
  * actual compiler used, returns @a a_OtherRet for other compilers.
@@ -293,16 +251,6 @@
     ((__clang_major__ << 16) + __clang_minor__ >= ((a_MinMajor) << 16) + (a_MinMinor))
 #else
 # define RT_CLANG_PREREQ_EX(a_MinMajor, a_MinMinor, a_OtherRet) (a_OtherRet)
-#endif
-/** @def RT_CLANG_HAS_FEATURE
- * Wrapper around clang's __has_feature().
- *
- * @param   a_Feature       The feature to check for.
- */
-#if defined(__clang_major__) && defined(__clang_minor__) && defined(__has_feature)
-# define RT_CLANG_HAS_FEATURE(a_Feature)            (__has_feature(a_Feature))
-#else
-# define RT_CLANG_HAS_FEATURE(a_Feature)            (0)
 #endif
 
 
@@ -332,7 +280,7 @@
  * Defined if the architecture is big endian.  */
 /** @def RT_LITTLE_ENDIAN
  * Defined if the architecture is little endian.  */
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) || defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64)
+#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) || defined(RT_ARCH_ARM)
 # define RT_LITTLE_ENDIAN
 #elif defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64)
 # define RT_BIG_ENDIAN
@@ -372,7 +320,7 @@
  * Defines the bit count of the current context.
  */
 #if !defined(ARCH_BITS) || defined(DOXYGEN_RUNNING)
-# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64) || defined(RT_ARCH_ARM64) || defined(DOXYGEN_RUNNING)
+# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64) || defined(DOXYGEN_RUNNING)
 #  define ARCH_BITS 64
 # elif !defined(__I86__) || !defined(__WATCOMC__)
 #  define ARCH_BITS 32
@@ -383,23 +331,23 @@
 
 /* ARCH_BITS validation (PORTME). */
 #if ARCH_BITS == 64
- #if defined(RT_ARCH_X86) || defined(RT_ARCH_SPARC) || defined(RT_ARCH_ARM32)
+ #if defined(RT_ARCH_X86) || defined(RT_ARCH_SPARC) || defined(RT_ARCH_ARM)
  # error "ARCH_BITS=64 but non-64-bit RT_ARCH_XXX defined."
  #endif
- #if !defined(RT_ARCH_AMD64) && !defined(RT_ARCH_SPARC64) && !defined(RT_ARCH_ARM64)
+ #if !defined(RT_ARCH_AMD64) && !defined(RT_ARCH_SPARC64)
  # error "ARCH_BITS=64 but no 64-bit RT_ARCH_XXX defined."
  #endif
 
 #elif ARCH_BITS == 32
- #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64) || defined(RT_ARCH_ARM64)
+ #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64)
  # error "ARCH_BITS=32 but non-32-bit RT_ARCH_XXX defined."
  #endif
- #if !defined(RT_ARCH_X86) && !defined(RT_ARCH_SPARC) && !defined(RT_ARCH_ARM32)
+ #if !defined(RT_ARCH_X86) && !defined(RT_ARCH_SPARC) && !defined(RT_ARCH_ARM)
  # error "ARCH_BITS=32 but no 32-bit RT_ARCH_XXX defined."
  #endif
 
 #elif ARCH_BITS == 16
- #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64) || defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64)
+ #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64) || defined(RT_ARCH_ARM)
  # error "ARCH_BITS=16 but non-16-bit RT_ARCH_XX defined."
  #endif
  #if !defined(RT_ARCH_X86)
@@ -775,17 +723,17 @@
 /** @def CTXTYPE
  * Declare a type differently in GC, R3 and R0.
  *
- * @param   a_GCType    The GC type.
- * @param   a_R3Type    The R3 type.
- * @param   a_R0Type    The R0 type.
+ * @param   GCType  The GC type.
+ * @param   R3Type  The R3 type.
+ * @param   R0Type  The R0 type.
  * @remark  For pointers used only in one context use RCPTRTYPE(), R3R0PTRTYPE(), R3PTRTYPE() or R0PTRTYPE().
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTXTYPE(a_GCType, a_R3Type, a_R0Type)  a_GCType
+# define CTXTYPE(GCType, R3Type, R0Type)  GCType
 #elif defined(IN_RING3) || defined(DOXYGEN_RUNNING)
-# define CTXTYPE(a_GCType, a_R3Type, a_R0Type)  a_R3Type
+# define CTXTYPE(GCType, R3Type, R0Type)  R3Type
 #else
-# define CTXTYPE(a_GCType, a_R3Type, a_R0Type)  a_R0Type
+# define CTXTYPE(GCType, R3Type, R0Type)  R0Type
 #endif
 
 /** @def CTX_EXPR
@@ -796,11 +744,11 @@
  * @param   a_RCExpr    The RC expression.
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr) a_RCExpr
+# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr)  a_RCExpr
 #elif defined(IN_RING0) && !defined(DOXYGEN_RUNNING)
-# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr) a_R0Expr
+# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr)  a_R0Expr
 #else
-# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr) a_R3Expr
+# define CTX_EXPR(a_R3Expr, a_R0Expr, a_RCExpr)  a_R3Expr
 #endif
 
 /** @def RCPTRTYPE
@@ -808,51 +756,51 @@
  * both HC and RC. The main purpose is to make sure structures have the same
  * size when built for different architectures.
  *
- * @param   a_RCType    The RC type.
+ * @param   RCType  The RC type.
  */
-#define RCPTRTYPE(a_RCType)     CTXTYPE(a_RCType, RTRCPTR, RTRCPTR)
+#define RCPTRTYPE(RCType)       CTXTYPE(RCType, RTRCPTR, RTRCPTR)
 
 /** @def RGPTRTYPE
- * This will become RCPTRTYPE once we've converted all uses of RCPTRTYPE to this.
+ * This will become RCPTRTYPE once we've convered all uses of RCPTRTYPE to this.
  *
- * @param   a_RCType    The RC type.
+ * @param   RCType  The RC type.
  */
-#define RGPTRTYPE(a_RCType)     CTXTYPE(a_RCType, RTGCPTR, RTGCPTR)
+#define RGPTRTYPE(RCType)       CTXTYPE(RCType, RTGCPTR, RTGCPTR)
 
 /** @def R3R0PTRTYPE
  * Declare a pointer which is used in HC, is explicitly valid in ring 3 and 0,
  * but appears in structure(s) used by both HC and GC. The main purpose is to
  * make sure structures have the same size when built for different architectures.
  *
- * @param   a_R3R0Type  The R3R0 type.
+ * @param   R3R0Type  The R3R0 type.
  * @remarks This used to be called HCPTRTYPE.
  */
-#define R3R0PTRTYPE(a_R3R0Type) CTXTYPE(RTHCPTR, a_R3R0Type, a_R3R0Type)
+#define R3R0PTRTYPE(R3R0Type)   CTXTYPE(RTHCPTR, R3R0Type, R3R0Type)
 
 /** @def R3PTRTYPE
  * Declare a pointer which is used in R3 but appears in structure(s) used by
  * both HC and GC. The main purpose is to make sure structures have the same
  * size when built for different architectures.
  *
- * @param   a_R3Type    The R3 type.
+ * @param   R3Type  The R3 type.
  */
-#define R3PTRTYPE(a_R3Type)     CTXTYPE(RTHCUINTPTR, a_R3Type, RTHCUINTPTR)
+#define R3PTRTYPE(R3Type)       CTXTYPE(RTHCUINTPTR, R3Type, RTHCUINTPTR)
 
 /** @def R0PTRTYPE
  * Declare a pointer which is used in R0 but appears in structure(s) used by
  * both HC and GC. The main purpose is to make sure structures have the same
  * size when built for different architectures.
  *
- * @param   a_R0Type    The R0 type.
+ * @param   R0Type  The R0 type.
  */
-#define R0PTRTYPE(a_R0Type)     CTXTYPE(RTHCUINTPTR, RTHCUINTPTR, a_R0Type)
+#define R0PTRTYPE(R0Type)       CTXTYPE(RTHCUINTPTR, RTHCUINTPTR, R0Type)
 
 /** @def CTXSUFF
  * Adds the suffix of the current context to the passed in
  * identifier name. The suffix is HC or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_Var   Identifier name.
+ * @param   var     Identifier name.
  * @deprecated Use CTX_SUFF. Do NOT use this for new code.
  */
 /** @def OTHERCTXSUFF
@@ -860,15 +808,15 @@
  * identifier name. The suffix is HC or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_Var   Identifier name.
+ * @param   var     Identifier name.
  * @deprecated Use CTX_SUFF. Do NOT use this for new code.
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTXSUFF(a_Var)         a_Var##GC
-# define OTHERCTXSUFF(a_Var)    a_Var##HC
+# define CTXSUFF(var)       var##GC
+# define OTHERCTXSUFF(var)  var##HC
 #else
-# define CTXSUFF(a_Var)         a_Var##HC
-# define OTHERCTXSUFF(a_Var)    a_Var##GC
+# define CTXSUFF(var)       var##HC
+# define OTHERCTXSUFF(var)  var##GC
 #endif
 
 /** @def CTXALLSUFF
@@ -876,15 +824,15 @@
  * identifier name. The suffix is R3, R0 or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_Var     Identifier name.
+ * @param   var     Identifier name.
  * @deprecated Use CTX_SUFF. Do NOT use this for new code.
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTXALLSUFF(a_Var)      a_Var##GC
+# define CTXALLSUFF(var)    var##GC
 #elif defined(IN_RING0) && !defined(DOXYGEN_RUNNING)
-# define CTXALLSUFF(a_Var)      a_Var##R0
+# define CTXALLSUFF(var)    var##R0
 #else
-# define CTXALLSUFF(a_Var)      a_Var##R3
+# define CTXALLSUFF(var)    var##R3
 #endif
 
 /** @def CTX_SUFF
@@ -892,16 +840,16 @@
  * identifier name. The suffix is R3, R0 or RC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_Var   Identifier name.
+ * @param   var     Identifier name.
  *
  * @remark  This will replace CTXALLSUFF and CTXSUFF before long.
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTX_SUFF(a_Var)        a_Var##RC
+# define CTX_SUFF(var)      var##RC
 #elif defined(IN_RING0) && !defined(DOXYGEN_RUNNING)
-# define CTX_SUFF(a_Var)        a_Var##R0
+# define CTX_SUFF(var)      var##R0
 #else
-# define CTX_SUFF(a_Var)        a_Var##R3
+# define CTX_SUFF(var)      var##R3
 #endif
 
 /** @def CTX_SUFF_Z
@@ -910,14 +858,14 @@
  * The suffix thus is R3 or RZ.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_Var   Identifier name.
+ * @param   var     Identifier name.
  *
  * @remark  This will replace CTXALLSUFF and CTXSUFF before long.
  */
 #if defined(IN_RING3) || defined(DOXYGEN_RUNNING)
-# define CTX_SUFF_Z(a_Var)      a_Var##R3
+# define CTX_SUFF_Z(var)    var##R3
 #else
-# define CTX_SUFF_Z(a_Var)      a_Var##RZ
+# define CTX_SUFF_Z(var)    var##RZ
 #endif
 
 
@@ -926,24 +874,24 @@
  * The middle name is HC or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_First First name.
- * @param   a_Last  Surname.
+ * @param   first   First name.
+ * @param   last    Surname.
  */
 /** @def OTHERCTXMID
  * Adds the other context as a middle name of an identifier name
  * The middle name is HC or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_First First name.
- * @param   a_Last  Surname.
+ * @param   first   First name.
+ * @param   last    Surname.
  * @deprecated use CTX_MID or CTX_MID_Z
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTXMID(a_First, a_Last)        a_First##GC##a_Last
-# define OTHERCTXMID(a_First, a_Last)   a_First##HC##a_Last
+# define CTXMID(first, last)        first##GC##last
+# define OTHERCTXMID(first, last)   first##HC##last
 #else
-# define CTXMID(a_First, a_Last)        a_First##HC##a_Last
-# define OTHERCTXMID(a_First, a_Last)   a_First##GC##a_Last
+# define CTXMID(first, last)        first##HC##last
+# define OTHERCTXMID(first, last)   first##GC##last
 #endif
 
 /** @def CTXALLMID
@@ -951,16 +899,16 @@
  * The middle name is R3, R0 or GC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_First First name.
- * @param   a_Last  Surname.
+ * @param   first   First name.
+ * @param   last    Surname.
  * @deprecated use CTX_MID or CTX_MID_Z
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTXALLMID(a_First, a_Last)     a_First##GC##a_Last
+# define CTXALLMID(first, last)     first##GC##last
 #elif defined(IN_RING0) && !defined(DOXYGEN_RUNNING)
-# define CTXALLMID(a_First, a_Last)     a_First##R0##a_Last
+# define CTXALLMID(first, last)     first##R0##last
 #else
-# define CTXALLMID(a_First, a_Last)     a_First##R3##a_Last
+# define CTXALLMID(first, last)     first##R3##last
 #endif
 
 /** @def CTX_MID
@@ -968,15 +916,15 @@
  * The middle name is R3, R0 or RC.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_First First name.
- * @param   a_Last  Surname.
+ * @param   first   First name.
+ * @param   last    Surname.
  */
 #if defined(IN_RC) && !defined(DOXYGEN_RUNNING)
-# define CTX_MID(a_First, a_Last)       a_First##RC##a_Last
+# define CTX_MID(first, last)       first##RC##last
 #elif defined(IN_RING0) && !defined(DOXYGEN_RUNNING)
-# define CTX_MID(a_First, a_Last)       a_First##R0##a_Last
+# define CTX_MID(first, last)       first##R0##last
 #else
-# define CTX_MID(a_First, a_Last)       a_First##R3##a_Last
+# define CTX_MID(first, last)       first##R3##last
 #endif
 
 /** @def CTX_MID_Z
@@ -985,13 +933,13 @@
  * The middle name thus is either R3 or RZ.
  *
  * This is macro should only be used in shared code to avoid a forest of ifdefs.
- * @param   a_First First name.
- * @param   a_Last  Surname.
+ * @param   first   First name.
+ * @param   last    Surname.
  */
 #ifdef IN_RING3
-# define CTX_MID_Z(a_First, a_Last)     a_First##R3##a_Last
+# define CTX_MID_Z(first, last)     first##R3##last
 #else
-# define CTX_MID_Z(a_First, a_Last)     a_First##RZ##a_Last
+# define CTX_MID_Z(first, last)     first##RZ##last
 #endif
 
 
@@ -1002,13 +950,13 @@
  * This is typically used to wrap description strings in structures shared
  * between R3, R0 and/or GC. The intention is to avoid the \#ifdef IN_RING3 mess.
  *
- * @param   a_pR3String     The R3 string. Only referenced in R3.
+ * @param   pR3String   The R3 string. Only referenced in R3.
  * @see R0STRING and GCSTRING
  */
 #ifdef IN_RING3
-# define R3STRING(a_pR3String)  (a_pR3String)
+# define R3STRING(pR3String)    (pR3String)
 #else
-# define R3STRING(a_pR3String)  ("<R3_STRING>")
+# define R3STRING(pR3String)    ("<R3_STRING>")
 #endif
 
 /** @def R0STRING
@@ -1018,13 +966,13 @@
  * This is typically used to wrap description strings in structures shared
  * between R3, R0 and/or GC. The intention is to avoid the \#ifdef IN_RING0 mess.
  *
- * @param   a_pR0String The R0 string. Only referenced in R0.
+ * @param   pR0String   The R0 string. Only referenced in R0.
  * @see R3STRING and GCSTRING
  */
 #ifdef IN_RING0
-# define R0STRING(a_pR0String)  (a_pR0String)
+# define R0STRING(pR0String)    (pR0String)
 #else
-# define R0STRING(a_pR0String)  ("<R0_STRING>")
+# define R0STRING(pR0String)    ("<R0_STRING>")
 #endif
 
 /** @def RCSTRING
@@ -1034,13 +982,13 @@
  * This is typically used to wrap description strings in structures shared
  * between R3, R0 and/or RC. The intention is to avoid the \#ifdef IN_RC mess.
  *
- * @param   a_pRCString The RC string. Only referenced in RC.
+ * @param   pRCString   The RC string. Only referenced in RC.
  * @see R3STRING, R0STRING
  */
 #ifdef IN_RC
-# define RCSTRING(a_pRCString)  (a_pRCString)
+# define RCSTRING(pRCString)    (pRCString)
 #else
-# define RCSTRING(a_pRCString)  ("<RC_STRING>")
+# define RCSTRING(pRCString)    ("<RC_STRING>")
 #endif
 
 
@@ -1061,22 +1009,15 @@
 #endif
 
 /** @def RT_GCC_NO_WARN_DEPRECATED_BEGIN
- * Used to start a block of code where GCC and Clang should not warn about
- * deprecated declarations. */
-/** @def RT_GCC_NO_WARN_DEPRECATED_END
- * Used to end a block of code where GCC and Clang should not warn about
- * deprecated declarations. */
-#if RT_CLANG_PREREQ(4, 0)
-# define RT_GCC_NO_WARN_DEPRECATED_BEGIN \
-   _Pragma("clang diagnostic push") \
-   _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
-# define RT_GCC_NO_WARN_DEPRECATED_END \
-   _Pragma("clang diagnostic pop")
-
-#elif RT_GNUC_PREREQ(4, 6)
+ * Used to start a block of code where GCC should not warn about deprecated
+ * declarations. */
+#if RT_GNUC_PREREQ(4, 6)
 # define RT_GCC_NO_WARN_DEPRECATED_BEGIN \
    _Pragma("GCC diagnostic push") \
    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+/** @def RT_GCC_NO_WARN_DEPRECATED_END
+ * Used to end a block of code where GCC should not warn about deprecated
+ * declarations. */
 # define RT_GCC_NO_WARN_DEPRECATED_END \
    _Pragma("GCC diagnostic pop")
 #else
@@ -1116,12 +1057,6 @@
 # define RT_COMPILER_WITH_80BIT_LONG_DOUBLE
 #endif
 
-/** @def RT_COMPILER_WITH_128BIT_INT_TYPES
- * Defined when uint128_t and int128_t are native integer types.  If
- * undefined, they are structure with Hi & Lo members. */
-#if defined(__SIZEOF_INT128__) || (defined(__GNUC__) && (defined(RT_ARCH_AMD64) || defined(RT_ARCH_ARM64)))
-# define RT_COMPILER_WITH_128BIT_INT_TYPES
-#endif
 
 /** @def RT_EXCEPTIONS_ENABLED
  * Defined when C++ exceptions are enabled.
@@ -1133,85 +1068,48 @@
 # define RT_EXCEPTIONS_ENABLED
 #endif
 
-/** @def DECL_NOTHROW
- * How to declare a function which does not throw C++ exceptions.
+/** @def RT_NO_THROW_PROTO
+ * How to express that a function doesn't throw C++ exceptions
+ * and the compiler can thus save itself the bother of trying
+ * to catch any of them. Put this between the closing parenthesis
+ * and the semicolon in function prototypes (and implementation if C++).
  *
- * @param   a_Type      The return type.
- *
- * @note    This macro can be combined with other macros, for example
- * @code
- *   RTR3DECL(DECL_NOTHROW(void)) foo(void);
- * @endcode
- *
- * @note    GCC is currently restricted to 4.2+ given the ominous comments on
- *          RT_NOTHROW_PROTO.
- */
-#ifdef __cplusplus
-# if RT_MSC_PREREQ(RT_MSC_VER_VS2015) /*?*/
-#  define DECL_NOTHROW(a_Type)      __declspec(nothrow) a_Type
-# elif RT_CLANG_PREREQ(6,0) || RT_GNUC_PREREQ(4,2)
-#  define DECL_NOTHROW(a_Type)      __attribute__((__nothrow__)) a_Type
-# else
-#  define DECL_NOTHROW(a_Type)      a_Type
-# endif
-#else
-# define DECL_NOTHROW(a_Type)       a_Type
-#endif
-
-/** @def RT_NOTHROW_PROTO
- * Function does not throw any C++ exceptions, prototype edition.
- *
- * How to express that a function doesn't throw C++ exceptions and the compiler
- * can thus save itself the bother of trying to catch any of them and generate
- * unwind info.  Put this between the closing parenthesis and the semicolon in
- * function prototypes (and implementation if C++).
- *
- * @note    This translates to 'noexcept' when compiling in newer C++ mode.
+ * @remarks May not work on C++ methods, mainly intented for C-style APIs.
  *
  * @remarks The use of the nothrow attribute with GCC is because old compilers
  *          (4.1.1, 32-bit) leaking the nothrow into global space or something
- *          when used with RTDECL or similar.  Using this forces us to have two
+ *          when used with RTDECL or similar.  Using this forces use to have two
  *          macros, as the nothrow attribute is not for the function definition.
  */
-/** @def RT_NOTHROW_DEF
- * Function does not throw any C++ exceptions, definition edition.
- *
- * The counter part to RT_NOTHROW_PROTO that is added to the function
- * definition.
- */
 #ifdef RT_EXCEPTIONS_ENABLED
-# if RT_MSC_PREREQ_EX(RT_MSC_VER_VS2015, 0) \
-  || RT_CLANG_HAS_FEATURE(cxx_noexcept) \
-  || (RT_GNUC_PREREQ(7, 0) && __cplusplus >= 201100)
-#  define RT_NOTHROW_PROTO      noexcept
-#  define RT_NOTHROW_DEF        noexcept
-# elif defined(__GNUC__)
+# ifdef __GNUC__
 #  if RT_GNUC_PREREQ(3, 3)
-#   define RT_NOTHROW_PROTO     __attribute__((__nothrow__))
+#   define RT_NO_THROW_PROTO    __attribute__((__nothrow__))
 #  else
-#   define RT_NOTHROW_PROTO
+#   define RT_NO_THROW_PROTO
 #  endif
-#  define RT_NOTHROW_DEF        /* Would need a DECL_NO_THROW like __declspec(nothrow), which we wont do at this point. */
 # else
-#  define RT_NOTHROW_PROTO      throw()
-#  define RT_NOTHROW_DEF        throw()
+#  define RT_NO_THROW_PROTO     throw()
 # endif
 #else
-# define RT_NOTHROW_PROTO
-# define RT_NOTHROW_DEF
+# define RT_NO_THROW_PROTO
 #endif
-/** @def RT_NOTHROW_PROTO
- * @deprecated Use RT_NOTHROW_PROTO. */
-#define RT_NO_THROW_PROTO       RT_NOTHROW_PROTO
-/** @def RT_NOTHROW_DEF
- * @deprecated Use RT_NOTHROW_DEF. */
-#define RT_NO_THROW_DEF         RT_NOTHROW_DEF
+
+/** @def RT_NO_THROW_DEF
+ * The counter part to RT_NO_THROW_PROTO that is added to the function
+ * definition.
+ */
+#if defined(RT_EXCEPTIONS_ENABLED) && !defined(__GNUC__)
+# define RT_NO_THROW_DEF        RT_NO_THROW_PROTO
+#else
+# define RT_NO_THROW_DEF
+#endif
 
 /** @def RT_THROW
  * How to express that a method or function throws a type of exceptions. Some
  * compilers does not want this kind of information and will warning about it.
  *
- * @param   a_Type  The type exception.
+ * @param   type    The type exception.
  *
  * @remarks If the actual throwing is done from the header, enclose it by
  *          \#ifdef RT_EXCEPTIONS_ENABLED ... \#else ... \#endif so the header
@@ -1221,14 +1119,14 @@
  */
 #ifdef RT_EXCEPTIONS_ENABLED
 # if RT_MSC_PREREQ_EX(RT_MSC_VER_VC71, 0)
-#   define RT_THROW(a_Type)
+#   define RT_THROW(type)
 # elif RT_GNUC_PREREQ(7, 0)
-#   define RT_THROW(a_Type)
+#   define RT_THROW(type)
 # else
-#   define RT_THROW(a_Type)     throw(a_Type)
+#   define RT_THROW(type)       throw(type)
 # endif
 #else
-# define RT_THROW(a_Type)
+# define RT_THROW(type)
 #endif
 
 
@@ -1256,34 +1154,36 @@
 
 /** @def RT_NOEXCEPT
  * Wrapper for the C++11 noexcept keyword (only true form).
- * @note use RT_NOTHROW instead.
  */
 /** @def RT_NOEXCEPT_EX
  * Wrapper for the C++11 noexcept keyword with expression.
- * @param   a_Expr      The expression.
  */
 #ifdef __cplusplus
-# if (RT_MSC_PREREQ_EX(RT_MSC_VER_VS2015, 0) && defined(RT_EXCEPTIONS_ENABLED)) \
-  || RT_CLANG_HAS_FEATURE(cxx_noexcept) \
-  || (RT_GNUC_PREREQ(7, 0) && __cplusplus >= 201100)
-#  define RT_NOEXCEPT               noexcept
-#  define RT_NOEXCEPT_EX(a_Expr)    noexcept(a_Expr)
+# if RT_MSC_PREREQ_EX(RT_MSC_VER_VS2015, 0)
+#  define RT_NOEXCEPT           noexcept
+#  define RT_NOEXCEPT_EX(expr)  noexcept(expr)
+# elif RT_GNUC_PREREQ(7, 0)
+#  if __cplusplus >= 201100
+#   define RT_NOEXCEPT          noexcept
+#   define RT_NOEXCEPT_EX(expr) noexcept(expr)
+#  else
+#   define RT_NOEXCEPT
+#   define RT_NOEXCEPT_EX(expr)
+#  endif
 # else
 #  define RT_NOEXCEPT
-#  define RT_NOEXCEPT_EX(a_Expr)
+#  define RT_NOEXCEPT_EX(expr)
 # endif
 #else
 # define RT_NOEXCEPT
-# define RT_NOEXCEPT_EX(a_Expr)
+# define RT_NOEXCEPT_EX(expr)
 #endif
 
 
 /** @def RT_FALL_THROUGH
  * Tell the compiler that we're falling through to the next case in a switch.
  * @sa RT_FALL_THRU  */
-#if RT_CLANG_PREREQ(4, 0) && RT_CPLUSPLUS_PREREQ(201100)
-# define RT_FALL_THROUGH()      [[clang::fallthrough]]
-#elif RT_GNUC_PREREQ(7, 0)
+#if RT_GNUC_PREREQ(7, 0)
 # define RT_FALL_THROUGH()      __attribute__((__fallthrough__))
 #else
 # define RT_FALL_THROUGH()      (void)0
@@ -1341,17 +1241,6 @@
 # define RT_COMPILER_SUPPORTS_VA_ARGS
 #endif
 
-/** @def RT_CB_LOG_CAST
- * Helper for logging function pointers to function may throw stuff.
- *
- * Not needed for function pointer types declared using our DECLCALLBACK
- * macros, only external types. */
-#if defined(_MSC_VER) && defined(RT_EXCEPTIONS_ENABLED)
-# define RT_CB_LOG_CAST(a_pfnCallback) ((uintptr_t)(a_pfnCallback) + 1 - 1)
-#else
-# define RT_CB_LOG_CAST(a_pfnCallback) (a_pfnCallback)
-#endif
-
 
 
 /** @def RTCALL
@@ -1361,82 +1250,46 @@
  *          the linux kernel and potentially elsewhere (3rd party).
  */
 #if defined(_MSC_VER) || defined(__WATCOMC__)
-# define RTCALL                         __cdecl
+# define RTCALL                 __cdecl
 #elif defined(RT_OS_OS2)
-# define RTCALL                         __cdecl
+# define RTCALL                 __cdecl
 #elif defined(__GNUC__) && defined(RT_ARCH_X86)
-# define RTCALL                         __attribute__((__cdecl__,__regparm__(0)))
+# define RTCALL                 __attribute__((__cdecl__,__regparm__(0)))
 #else
 # define RTCALL
 #endif
 
 /** @def DECLEXPORT
  * How to declare an exported function.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  */
 #if defined(_MSC_VER) || defined(RT_OS_OS2)
-# define DECLEXPORT(a_RetType)          __declspec(dllexport) a_RetType
+# define DECLEXPORT(type)       __declspec(dllexport) type
 #elif defined(RT_USE_VISIBILITY_DEFAULT)
-# define DECLEXPORT(a_RetType)          __attribute__((visibility("default"))) a_RetType
+# define DECLEXPORT(type)      __attribute__((visibility("default"))) type
 #else
-# define DECLEXPORT(a_RetType)          a_RetType
+# define DECLEXPORT(type)      type
 #endif
-
-/** @def DECL_EXPORT_NOTHROW
- * How to declare an exported function that does not throw C++ exceptions.
- * @param   a_RetType   The return type of the function declaration.
- */
-#define DECL_EXPORT_NOTHROW(a_RetType)  DECL_NOTHROW(DECLEXPORT(a_RetType))
 
 /** @def DECLIMPORT
  * How to declare an imported function.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  */
 #if defined(_MSC_VER) || (defined(RT_OS_OS2) && !defined(__IBMC__) && !defined(__IBMCPP__))
-# define DECLIMPORT(a_RetType)          __declspec(dllimport) a_RetType
+# define DECLIMPORT(type)       __declspec(dllimport) type
 #else
-# define DECLIMPORT(a_RetType)          a_RetType
-#endif
-
-/** @def DECL_IMPORT_NOTHROW
- * How to declare an imported function that does not throw C++ exceptions.
- * @param   a_RetType  The return type of the function declaration.
- */
-#define DECL_IMPORT_NOTHROW(a_RetType)  DECL_NOTHROW(DECLIMPORT(a_RetType))
-
-/** @def DECL_HIDDEN_ONLY
- * How to declare a non-exported function or variable.
- * @param   a_Type  The return type of the function or the data type of the variable.
- * @sa      DECL_HIDDEN, DECL_HIDDEN_DATA, DECL_HIDDEN_CONST
- * @internal Considered more or less internal.
- */
-#if !defined(RT_GCC_SUPPORTS_VISIBILITY_HIDDEN) || defined(RT_NO_VISIBILITY_HIDDEN)
-# define DECL_HIDDEN_ONLY(a_Type)       a_Type
-#else
-# define DECL_HIDDEN_ONLY(a_Type)       __attribute__((visibility("hidden"))) a_Type
+# define DECLIMPORT(type)       type
 #endif
 
 /** @def DECLHIDDEN
  * How to declare a non-exported function or variable.
- * @param   a_Type  The return type of the function or the data type of the variable.
- * @sa      DECL_HIDDEN_THROW, DECL_HIDDEN_DATA, DECL_HIDDEN_CONST
- * @todo split up into data and non-data.
+ * @param   type    The return type of the function or the data type of the variable.
  */
-#define DECLHIDDEN(a_Type)              DECL_NOTHROW(DECL_HIDDEN_ONLY(a_Type))
-
-/** @def DECL_HIDDEN_NOTHROW
- * How to declare a non-exported function that does not throw C++ exceptions.
- * @param   a_RetType   The return type of the function.
- * @note    Same as DECLHIDDEN but provided to go along with DECL_IMPORT_NOTHROW
- *          and DECL_EXPORT_NOTHROW.
- */
-#define DECL_HIDDEN_NOTHROW(a_RetType)  DECL_NOTHROW(DECL_HIDDEN_ONLY(a_RetType))
-
-/** @def DECL_HIDDEN_THROW
- * How to declare a non-exported function that may throw C++ exceptions.
- * @param   a_RetType   The return type of the function.
- */
-#define DECL_HIDDEN_THROW(a_RetType)    DECL_HIDDEN_ONLY(a_Type)
+#if !defined(RT_GCC_SUPPORTS_VISIBILITY_HIDDEN) || defined(RT_NO_VISIBILITY_HIDDEN)
+# define DECLHIDDEN(type)       type
+#else
+# define DECLHIDDEN(type)       __attribute__((visibility("hidden"))) type
+#endif
 
 /** @def DECL_HIDDEN_DATA
  * How to declare a non-exported variable.
@@ -1451,40 +1304,45 @@
 
 /** @def DECL_HIDDEN_CONST
  * Workaround for g++ warnings when applying the hidden attribute to a const
- * definition.  Use DECL_HIDDEN_DATA for the declaration.
- * @param   a_Type      The data type of the variable.
- * @sa      DECL_HIDDEN_DATA
+ * definition.  Use DECLHIDDEN for the declaration.
+ * @param   a_Type      The return type of the function or the data type of
+ *                      the variable.
  */
 #if defined(__cplusplus) && defined(__GNUC__)
-# define DECL_HIDDEN_CONST(a_Type)      a_Type
+# define DECL_HIDDEN_CONST(a_Type)   a_Type
 #else
-# define DECL_HIDDEN_CONST(a_Type)      DECL_HIDDEN_DATA(a_Type)
+# define DECL_HIDDEN_CONST(a_Type)   DECLHIDDEN(a_Type)
 #endif
 
 /** @def DECL_INVALID
  * How to declare a function not available for linking in the current context.
  * The purpose is to create compile or like time errors when used.  This isn't
  * possible on all platforms.
- * @param   a_RetType   The return type of the function.
+ * @param   type    The return type of the function.
  */
 #if defined(_MSC_VER)
-# define DECL_INVALID(a_RetType)    __declspec(dllimport) a_RetType __stdcall
+# define DECL_INVALID(type)     __declspec(dllimport) type __stdcall
 #elif defined(__GNUC__) && defined(__cplusplus)
-# define DECL_INVALID(a_RetType)    extern "C++" a_RetType
+# define DECL_INVALID(type)     extern "C++" type
 #else
-# define DECL_INVALID(a_RetType)    a_RetType
+# define DECL_INVALID(type)     type
 #endif
 
 /** @def DECLASM
  * How to declare an internal assembly function.
- * @param   a_RetType   The return type of the function declaration.
- * @note    DECL_NOTHROW is implied.
+ * @param   type    The return type of the function declaration.
  */
 #ifdef __cplusplus
-# define DECLASM(a_RetType)         extern "C" DECL_NOTHROW(a_RetType RTCALL)
+# define DECLASM(type)           extern "C" type RTCALL
 #else
-# define DECLASM(a_RetType)         DECL_NOTHROW(a_RetType RTCALL)
+# define DECLASM(type)           type RTCALL
 #endif
+
+/** @def DECLASMTYPE
+ * How to declare an internal assembly function type.
+ * @param   type    The return type of the function.
+ */
+#define DECLASMTYPE(type)       type RTCALL
 
 /** @def RT_ASM_DECL_PRAGMA_WATCOM
  * How to declare a assembly method prototype with watcom \#pragma aux definition.  */
@@ -1492,71 +1350,48 @@
  * Same as RT_ASM_DECL_PRAGMA_WATCOM, but there is no 16-bit version when
  * 8086, 80186 or 80286 is selected as the target CPU. */
 #if defined(__WATCOMC__) && ARCH_BITS == 16 && defined(RT_ARCH_X86)
-# define RT_ASM_DECL_PRAGMA_WATCOM(a_RetType)       a_RetType
+# define RT_ASM_DECL_PRAGMA_WATCOM(type) type
 # if defined(__SW_0) || defined(__SW_1) || defined(__SW_2)
-#  define RT_ASM_DECL_PRAGMA_WATCOM_386(a_RetType)  DECLASM(a_RetType)
+#  define RT_ASM_DECL_PRAGMA_WATCOM_386(type)   DECLASM(type)
 # else
-#  define RT_ASM_DECL_PRAGMA_WATCOM_386(a_RetType)  a_RetType
+#  define RT_ASM_DECL_PRAGMA_WATCOM_386(type)   type
 # endif
 #elif defined(__WATCOMC__) && ARCH_BITS == 32 && defined(RT_ARCH_X86)
-# define RT_ASM_DECL_PRAGMA_WATCOM(a_RetType)       a_RetType
-# define RT_ASM_DECL_PRAGMA_WATCOM_386(a_RetType)   a_RetType
+# define RT_ASM_DECL_PRAGMA_WATCOM(type)        type
+# define RT_ASM_DECL_PRAGMA_WATCOM_386(type)    type
 #else
-# define RT_ASM_DECL_PRAGMA_WATCOM(a_RetType)       DECLASM(a_RetType)
-# define RT_ASM_DECL_PRAGMA_WATCOM_386(a_RetType)   DECLASM(a_RetType)
+# define RT_ASM_DECL_PRAGMA_WATCOM(type)        DECLASM(type)
+# define RT_ASM_DECL_PRAGMA_WATCOM_386(type)    DECLASM(type)
 #endif
 
 /** @def DECL_NO_RETURN
  * How to declare a function which does not return.
  * @note This macro can be combined with other macros, for example
  * @code
- *   RTR3DECL(DECL_NO_RETURN(void)) foo(void);
+ *   EMR3DECL(DECL_NO_RETURN(void)) foo(void);
  * @endcode
  */
 #ifdef _MSC_VER
-# define DECL_NO_RETURN(a_RetType)  __declspec(noreturn) a_RetType
+# define DECL_NO_RETURN(type)   __declspec(noreturn) type
 #elif defined(__GNUC__)
-# define DECL_NO_RETURN(a_RetType)  __attribute__((noreturn)) a_RetType
+# define DECL_NO_RETURN(type)   __attribute__((noreturn)) type
 #else
-# define DECL_NO_RETURN(a_RetType)  a_RetType
+# define DECL_NO_RETURN(type)   type
 #endif
+/** @deprecated Use DECL_NO_RETURN instead. */
+#define DECLNORETURN(type) DECL_NO_RETURN(type)
 
 /** @def DECL_RETURNS_TWICE
  * How to declare a function which may return more than once.
  * @note This macro can be combined with other macros, for example
  * @code
- *   RTR3DECL(DECL_RETURNS_TWICE(void)) MySetJmp(void);
+ *   EMR3DECL(DECL_RETURNS_TWICE(void)) MySetJmp(void);
  * @endcode
  */
 #if RT_GNUC_PREREQ(4, 1)
-# define DECL_RETURNS_TWICE(a_RetType)  __attribute__((returns_twice)) a_RetType
-#else
-# define DECL_RETURNS_TWICE(a_RetType)  a_RetType
-#endif
-
-/** @def DECL_CHECK_RETURN
- * Require a return value to be checked.
- * @note This macro can be combined with other macros, for example
- * @code
- *   RTR3DECL(DECL_CHECK_RETURN(int)) MayReturnInfoStatus(void);
- * @endcode
- */
-#if RT_GNUC_PREREQ(3, 4)
-# define DECL_CHECK_RETURN(a_RetType)  __attribute__((warn_unused_result)) a_RetType
-#elif defined(_MSC_VER)
-# define DECL_CHECK_RETURN(a_RetType)  __declspec("SAL_checkReturn") a_RetType
-#else
-# define DECL_CHECK_RETURN(a_RetType)  a_RetType
-#endif
-
-/** @def DECL_CHECK_RETURN_NOT_R3
- * Variation of DECL_CHECK_RETURN that only applies the required to non-ring-3
- * code.
- */
-#ifndef IN_RING3
-# define DECL_CHECK_RETURN_NOT_R3(a_RetType)  DECL_CHECK_RETURN(a_RetType)
-#else
-# define DECL_CHECK_RETURN_NOT_R3(a_RetType)  a_RetType
+# define DECL_RETURNS_TWICE(type)  __attribute__((returns_twice)) type
+# else
+# define DECL_RETURNS_TWICE(type)   type
 #endif
 
 /** @def DECLWEAK
@@ -1564,30 +1399,20 @@
  * runtime.
  * @note This macro can be combined with other macros, for example
  * @code
- *   RTR3DECL(DECLWEAK(int)) foo;
+ *   EMR3DECL(DECLWEAK(int)) foo;
  * @endcode
  */
 #if defined(__GNUC__)
-# define DECLWEAK(a_Type)           a_Type __attribute__((weak))
+# define DECLWEAK(type)         type __attribute__((weak))
 #else
-# define DECLWEAK(a_Type)           a_Type
+# define DECLWEAK(type)         type
 #endif
 
 /** @def DECLCALLBACK
- * How to declare an call back function.
- * @param   a_RetType   The return type of the function declaration.
- * @note    DECL_NOTHROW is implied.
- * @note    Use DECLCALLBACKTYPE for typedefs.
+ * How to declare an call back function type.
+ * @param   type    The return type of the function declaration.
  */
-#define DECLCALLBACK(a_RetType)     DECL_NOTHROW(a_RetType RT_FAR_CODE RTCALL)
-
-/** @def DECL_HIDDEN_CALLBACK
- * How to declare an call back function with hidden visibility.
- * @param   a_RetType   The return type of the function declaration.
- * @note    DECL_NOTHROW is implied.
- * @note    Use DECLCALLBACKTYPE for typedefs.
- */
-#define DECL_HIDDEN_CALLBACK(a_RetType) DECL_HIDDEN_ONLY(DECLCALLBACK(a_RetType))
+#define DECLCALLBACK(type)      type RT_FAR_CODE RTCALL
 
 /** @def DECLCALLBACKTYPE_EX
  * How to declare an call back function type.
@@ -1595,21 +1420,13 @@
  * @param   a_CallConv  Calling convention.
  * @param   a_Name      The name of the typedef
  * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
  */
-#if RT_CLANG_PREREQ(6,0) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKTYPE_EX(a_RetType, a_CallConv, a_Name, a_Args) __attribute__((__nothrow__)) a_RetType a_CallConv a_Name a_Args
-#elif RT_MSC_PREREQ(RT_MSC_VER_VS2015) /*?*/ && defined(__cplusplus) && defined(_MSC_EXTENSIONS) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKTYPE_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType a_CallConv a_Name a_Args throw()
-#else
-# define DECLCALLBACKTYPE_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType a_CallConv a_Name a_Args
-#endif
+#define DECLCALLBACKTYPE_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType a_CallConv a_Name a_Args
 /** @def DECLCALLBACKTYPE
  * How to declare an call back function type.
  * @param   a_RetType   The return type of the function declaration.
  * @param   a_Name      The name of the typedef
  * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
  */
 #define DECLCALLBACKTYPE(a_RetType, a_Name, a_Args) DECLCALLBACKTYPE_EX(a_RetType, RT_FAR_CODE RTCALL, a_Name, a_Args)
 
@@ -1619,14 +1436,9 @@
  * @param   a_CallConv  Calling convention.
  * @param   a_Name      The name of the variable member.
  * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
  */
 #if defined(__IBMC__) || defined(__IBMCPP__)
 # define DECLCALLBACKPTR_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (* a_CallConv a_Name) a_Args
-#elif RT_CLANG_PREREQ(6,0) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKPTR_EX(a_RetType, a_CallConv, a_Name, a_Args) __attribute__((__nothrow__)) a_RetType (a_CallConv * a_Name) a_Args
-#elif RT_MSC_PREREQ(RT_MSC_VER_VS2015) /*?*/ && defined(__cplusplus) && defined(_MSC_EXTENSIONS) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKPTR_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (a_CallConv * a_Name) a_Args throw()
 #else
 # define DECLCALLBACKPTR_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (a_CallConv * a_Name) a_Args
 #endif
@@ -1635,158 +1447,106 @@
  * @param   a_RetType   The return type of the function declaration.
  * @param   a_Name      The name of the variable member.
  * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
  */
 #define DECLCALLBACKPTR(a_RetType, a_Name, a_Args) DECLCALLBACKPTR_EX(a_RetType, RT_FAR_CODE RTCALL, a_Name, a_Args)
 
-/** @def DECLCALLBACKMEMBER_EX
- * How to declare an call back function pointer member.
- * @param   a_RetType   The return type of the function declaration.
- * @param   a_CallConv  Calling convention.
- * @param   a_Name      The name of the struct/union/class member.
- * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
- */
-#if defined(__IBMC__) || defined(__IBMCPP__)
-# define DECLCALLBACKMEMBER_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (* a_CallConv a_Name) a_Args
-#elif RT_CLANG_PREREQ(6,0) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKMEMBER_EX(a_RetType, a_CallConv, a_Name, a_Args) __attribute__((__nothrow__)) a_RetType (a_CallConv *a_Name) a_Args
-#elif RT_MSC_PREREQ(RT_MSC_VER_VS2015) /*?*/ && defined(__cplusplus) && defined(_MSC_EXTENSIONS) && !defined(RT_RELAXED_CALLBACKS_TYPES)
-# define DECLCALLBACKMEMBER_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (a_CallConv *a_Name) a_Args throw()
-#else
-# define DECLCALLBACKMEMBER_EX(a_RetType, a_CallConv, a_Name, a_Args) a_RetType (a_CallConv *a_Name) a_Args
-#endif
 /** @def DECLCALLBACKMEMBER
  * How to declare an call back function pointer member.
- * @param   a_RetType   The return type of the function declaration.
- * @param   a_Name      The name of the struct/union/class member.
- * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
+ * @param   type    The return type of the function declaration.
+ * @param   name    The name of the struct/union/class member.
  */
-#define DECLCALLBACKMEMBER(a_RetType, a_Name, a_Args) DECLCALLBACKMEMBER_EX(a_RetType, RT_FAR_CODE RTCALL, a_Name, a_Args)
+#if defined(__IBMC__) || defined(__IBMCPP__)
+# define DECLCALLBACKMEMBER(type, name) type (* RTCALL name)
+#else
+# define DECLCALLBACKMEMBER(type, name) type (RT_FAR_CODE RTCALL * name)
+#endif
 
 /** @def DECLR3CALLBACKMEMBER
  * How to declare an call back function pointer member - R3 Ptr.
- * @param   a_RetType   The return type of the function declaration.
- * @param   a_Name      The name of the struct/union/class member.
- * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
+ * @param   type    The return type of the function declaration.
+ * @param   name    The name of the struct/union/class member.
+ * @param   args    The argument list enclosed in parentheses.
  */
 #if defined(IN_RING3) || defined(DOXYGEN_RUNNING)
-# define DECLR3CALLBACKMEMBER(a_RetType, a_Name, a_Args) DECLCALLBACKMEMBER(a_RetType, a_Name, a_Args)
+# define DECLR3CALLBACKMEMBER(type, name, args)  DECLCALLBACKMEMBER(type, name) args
 #else
-# define DECLR3CALLBACKMEMBER(a_RetType, a_Name, a_Args) RTR3PTR a_Name
+# define DECLR3CALLBACKMEMBER(type, name, args)  RTR3PTR name
 #endif
 
 /** @def DECLRCCALLBACKMEMBER
  * How to declare an call back function pointer member - RC Ptr.
- * @param   a_RetType   The return type of the function declaration.
- * @param   a_Name      The name of the struct/union/class member.
- * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
+ * @param   type    The return type of the function declaration.
+ * @param   name    The name of the struct/union/class member.
+ * @param   args    The argument list enclosed in parentheses.
  */
 #if defined(IN_RC) || defined(DOXYGEN_RUNNING)
-# define DECLRCCALLBACKMEMBER(a_RetType, a_Name, a_Args) DECLCALLBACKMEMBER(a_RetType, a_Name, a_Args)
+# define DECLRCCALLBACKMEMBER(type, name, args)  DECLCALLBACKMEMBER(type, name)  args
 #else
-# define DECLRCCALLBACKMEMBER(a_RetType, a_Name, a_Args) RTRCPTR a_Name
+# define DECLRCCALLBACKMEMBER(type, name, args)  RTRCPTR name
 #endif
 #if defined(IN_RC) || defined(DOXYGEN_RUNNING)
-# define DECLRGCALLBACKMEMBER(a_RetType, a_Name, a_Args) DECLCALLBACKMEMBER(a_RetType, a_Name, a_Args)
+# define DECLRGCALLBACKMEMBER(type, name, args)  DECLCALLBACKMEMBER(type, name)  args
 #else
-# define DECLRGCALLBACKMEMBER(a_RetType, a_Name, a_Args) RTRGPTR a_Name
+# define DECLRGCALLBACKMEMBER(type, name, args)  RTRGPTR name
 #endif
 
 /** @def DECLR0CALLBACKMEMBER
  * How to declare an call back function pointer member - R0 Ptr.
- * @param   a_RetType   The return type of the function declaration.
- * @param   a_Name      The name of the struct/union/class member.
- * @param   a_Args      The argument list enclosed in parentheses.
- * @note    DECL_NOTHROW is implied, but not supported by all compilers yet.
+ * @param   type    The return type of the function declaration.
+ * @param   name    The name of the struct/union/class member.
+ * @param   args    The argument list enclosed in parentheses.
  */
 #if defined(IN_RING0) || defined(DOXYGEN_RUNNING)
-# define DECLR0CALLBACKMEMBER(a_RetType, a_Name, a_Args) DECLCALLBACKMEMBER(a_RetType, a_Name, a_Args)
+# define DECLR0CALLBACKMEMBER(type, name, args)  DECLCALLBACKMEMBER(type, name) args
 #else
-# define DECLR0CALLBACKMEMBER(a_RetType, a_Name, a_Args) RTR0PTR a_Name
+# define DECLR0CALLBACKMEMBER(type, name, args)  RTR0PTR name
 #endif
 
 /** @def DECLINLINE
- * How to declare a function as inline that does not throw any C++ exceptions.
- * @param   a_RetType   The return type of the function declaration.
+ * How to declare a function as inline.
+ * @param   type    The return type of the function declaration.
  * @remarks Don't use this macro on C++ methods.
- * @sa      DECL_INLINE_THROW
  */
 #if defined(__GNUC__) && !defined(DOXYGEN_RUNNING)
-# define DECLINLINE(a_RetType)          DECL_NOTHROW(static __inline__ a_RetType)
+# define DECLINLINE(type) static __inline__ type
 #elif defined(__cplusplus) || defined(DOXYGEN_RUNNING)
-# define DECLINLINE(a_RetType)          DECL_NOTHROW(static inline a_RetType)
+# define DECLINLINE(type) static inline type
 #elif defined(_MSC_VER)
-# define DECLINLINE(a_RetType)          DECL_NOTHROW(static _inline a_RetType)
+# define DECLINLINE(type) static _inline type
 #elif defined(__IBMC__)
-# define DECLINLINE(a_RetType)          DECL_NOTHROW(_Inline a_RetType)
+# define DECLINLINE(type) _Inline type
 #else
-# define DECLINLINE(a_RetType)          DECL_NOTHROW(inline a_RetType)
+# define DECLINLINE(type) inline type
 #endif
 
-/** @def DECL_INLINE_THROW
- * How to declare a function as inline that throws C++ exceptions.
- * @param   a_RetType   The return type of the function declaration.
- * @remarks Don't use this macro on C++ methods.
- */
-#if defined(__GNUC__) && !defined(DOXYGEN_RUNNING)
-# define DECL_INLINE_THROW(a_RetType)   static __inline__ a_RetType
-#elif defined(__cplusplus) || defined(DOXYGEN_RUNNING)
-# define DECL_INLINE_THROW(a_RetType)   static inline a_RetType
-#elif defined(_MSC_VER)
-# define DECL_INLINE_THROW(a_RetType)   static _inline a_RetType
-#elif defined(__IBMC__)
-# define DECL_INLINE_THROW(a_RetType)   _Inline a_RetType
-#else
-# define DECL_INLINE_THROW(a_RetType)   inline a_RetType
-#endif
 
 /** @def DECL_FORCE_INLINE
- * How to declare a function that does not throw any C++ exceptions as inline
- * and try convince the compiler to always inline it regardless of optimization
- * switches.
- * @param   a_RetType   The return type of the function declaration.
- * @remarks Use sparsely and with care. Don't use this macro on C++ methods.
- * @sa      DECL_FORCE_INLINE_THROW
- */
-#ifdef __GNUC__
-# define DECL_FORCE_INLINE(a_RetType)   __attribute__((__always_inline__)) DECLINLINE(a_RetType)
-#elif defined(_MSC_VER)
-# define DECL_FORCE_INLINE(a_RetType)   DECL_NOTHROW(__forceinline a_RetType)
-#else
-# define DECL_FORCE_INLINE(a_RetType)   DECLINLINE(a_RetType)
-#endif
-
-/** @def DECL_FORCE_INLINE_THROW
- * How to declare a function throwing C++ exceptions as inline and try convince
- * the compiler to always inline it regardless of optimization switches.
- * @param   a_RetType   The return type of the function declaration.
+ * How to declare a function as inline and try convince the compiler to always
+ * inline it regardless of optimization switches.
+ * @param   type    The return type of the function declaration.
  * @remarks Use sparsely and with care. Don't use this macro on C++ methods.
  */
 #ifdef __GNUC__
-# define DECL_FORCE_INLINE_THROW(a_RetType) __attribute__((__always_inline__)) DECL_INLINE_THROW(a_RetType)
+# define DECL_FORCE_INLINE(type)    __attribute__((__always_inline__)) DECLINLINE(type)
 #elif defined(_MSC_VER)
-# define DECL_FORCE_INLINE_THROW(a_RetType) __forceinline a_RetType
+# define DECL_FORCE_INLINE(type)    __forceinline type
 #else
-# define DECL_FORCE_INLINE_THROW(a_RetType) DECL_INLINE_THROW(a_RetType)
+# define DECL_FORCE_INLINE(type)    DECLINLINE(type)
 #endif
 
 
 /** @def DECL_NO_INLINE
  * How to declare a function telling the compiler not to inline it.
  * @param   scope   The function scope, static or RT_NOTHING.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  * @remarks Don't use this macro on C++ methods.
  */
 #ifdef __GNUC__
-# define DECL_NO_INLINE(scope, a_RetType)   __attribute__((__noinline__)) scope a_RetType
+# define DECL_NO_INLINE(scope,type) __attribute__((__noinline__)) scope type
 #elif defined(_MSC_VER)
-# define DECL_NO_INLINE(scope, a_RetType)   __declspec(noinline) scope a_RetType
+# define DECL_NO_INLINE(scope,type) __declspec(noinline) scope type
 #else
-# define DECL_NO_INLINE(scope,a_RetType) scope a_RetType
+# define DECL_NO_INLINE(scope,type) scope type
 #endif
 
 
@@ -1803,111 +1563,107 @@
  * Used to indicate whether we're inside the same link module as the host
  * context ring-0 Runtime Library.
  */
-/** @def RTR0DECL(a_RetType)
+/** @def RTR0DECL(type)
  * Runtime Library host context ring-0 export or import declaration.
- * @param   a_RetType   The return a_RetType of the function declaration.
+ * @param   type    The return type of the function declaration.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
- * @note    DECL_NOTHROW is implied.
  */
 #ifdef IN_RT_R0
 # ifdef IN_RT_STATIC
-#  define RTR0DECL(a_RetType)   DECL_HIDDEN_NOTHROW(a_RetType) RTCALL
+#  define RTR0DECL(type)    DECLHIDDEN(type) RTCALL
 # else
-#  define RTR0DECL(a_RetType)   DECL_EXPORT_NOTHROW(a_RetType) RTCALL
+#  define RTR0DECL(type)    DECLEXPORT(type) RTCALL
 # endif
 #else
-# define RTR0DECL(a_RetType)    DECL_IMPORT_NOTHROW(a_RetType) RTCALL
+# define RTR0DECL(type)     DECLIMPORT(type) RTCALL
 #endif
 
 /** @def IN_RT_R3
  * Used to indicate whether we're inside the same link module as the host
  * context ring-3 Runtime Library.
  */
-/** @def RTR3DECL(a_RetType)
+/** @def RTR3DECL(type)
  * Runtime Library host context ring-3 export or import declaration.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
- * @note    DECL_NOTHROW is implied.
  */
 #ifdef IN_RT_R3
 # ifdef IN_RT_STATIC
-#  define RTR3DECL(a_RetType)   DECL_HIDDEN_NOTHROW(a_RetType) RTCALL
+#  define RTR3DECL(type)    DECLHIDDEN(type) RTCALL
 # else
-#  define RTR3DECL(a_RetType)   DECL_EXPORT_NOTHROW(a_RetType) RTCALL
+#  define RTR3DECL(type)    DECLEXPORT(type) RTCALL
 # endif
 #else
-# define RTR3DECL(a_RetType)    DECL_IMPORT_NOTHROW(a_RetType) RTCALL
+# define RTR3DECL(type)     DECLIMPORT(type) RTCALL
 #endif
 
 /** @def IN_RT_RC
  * Used to indicate whether we're inside the same link module as the raw-mode
  * context (RC) runtime library.
  */
-/** @def RTRCDECL(a_RetType)
+/** @def RTRCDECL(type)
  * Runtime Library raw-mode context export or import declaration.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
- * @note    DECL_NOTHROW is implied.
  */
 #ifdef IN_RT_RC
 # ifdef IN_RT_STATIC
-#  define RTRCDECL(a_RetType)   DECL_HIDDEN_NOTHROW(a_RetType) RTCALL
+#  define RTRCDECL(type)    DECLHIDDEN(type) RTCALL
 # else
-#  define RTRCDECL(a_RetType)   DECL_EXPORT_NOTHROW(a_RetType) RTCALL
+#  define RTRCDECL(type)    DECLEXPORT(type) RTCALL
 # endif
 #else
-# define RTRCDECL(a_RetType)    DECL_IMPORT_NOTHROW(a_RetType) RTCALL
+# define RTRCDECL(type)     DECLIMPORT(type) RTCALL
 #endif
 
-/** @def RTDECL(a_RetType)
+/** @def RTDECL(type)
  * Runtime Library export or import declaration.
  * Functions declared using this macro exists in all contexts.
- * @param   a_RetType   The return type of the function declaration.
+ * @param   type    The return type of the function declaration.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
- * @note    DECL_NOTHROW is implied.
  */
 #if defined(IN_RT_R3) || defined(IN_RT_RC) || defined(IN_RT_R0)
 # ifdef IN_RT_STATIC
-#  define RTDECL(a_RetType)     DECL_HIDDEN_NOTHROW(a_RetType) RTCALL
+#  define RTDECL(type)      DECLHIDDEN(type) RTCALL
 # else
-#  define RTDECL(a_RetType)     DECL_EXPORT_NOTHROW(a_RetType) RTCALL
+#  define RTDECL(type)      DECLEXPORT(type) RTCALL
 # endif
 #else
-# define RTDECL(a_RetType)      DECL_IMPORT_NOTHROW(a_RetType) RTCALL
+# define RTDECL(type)       DECLIMPORT(type) RTCALL
 #endif
 
-/** @def RTDATADECL(a_Type)
+/** @def RTDATADECL(type)
  * Runtime Library export or import declaration.
  * Data declared using this macro exists in all contexts.
- * @param   a_Type  The data type.
+ * @param   type    The data type.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
  */
-/** @def RT_DECL_DATA_CONST(a_Type)
+/** @def RT_DECL_DATA_CONST(type)
  * Definition of a const variable. See DECL_HIDDEN_CONST.
- * @param   a_Type  The const data type.
+ * @param   type    The const data type.
  * @remarks This is only used inside IPRT.  Other APIs need to define their own
  *          XXXX_DECL macros for dealing with import/export/static visibility.
  */
 #if defined(IN_RT_R3) || defined(IN_RT_RC) || defined(IN_RT_R0)
 # ifdef IN_RT_STATIC
-#  define RTDATADECL(a_Type)            DECL_HIDDEN_DATA(a_Type)
-#  define RT_DECL_DATA_CONST(a_Type)    DECL_HIDDEN_CONST(a_Type)
+#  define RTDATADECL(type)          DECLHIDDEN(type)
+#  define RT_DECL_DATA_CONST(type)  DECL_HIDDEN_CONST(type)
 # else
-#  define RTDATADECL(a_Type)            DECLEXPORT(a_Type)
+#  define RTDATADECL(type)          DECLEXPORT(type)
 #  if defined(__cplusplus) && defined(__GNUC__)
-#   define RT_DECL_DATA_CONST(a_Type)   a_Type
+#   define RT_DECL_DATA_CONST(type) type
 #  else
-#   define RT_DECL_DATA_CONST(a_Type)   DECLEXPORT(a_Type)
+#   define RT_DECL_DATA_CONST(type) DECLEXPORT(type)
 #  endif
 # endif
 #else
-# define RTDATADECL(a_Type)             DECLIMPORT(a_Type)
-# define RT_DECL_DATA_CONST(a_Type)     DECLIMPORT(a_Type)
+# define RTDATADECL(type)           DECLIMPORT(type)
+# define RT_DECL_DATA_CONST(type)   DECLIMPORT(type)
 #endif
 
 /** @def RT_DECL_CLASS
@@ -2306,12 +2062,6 @@
  * @param   bit     The bit number.
  */
 #define RT_BIT_64(bit)                          ( UINT64_C(1) << (bit) )
-
-/** @def RT_BIT_Z
- * Convert a bit number into a size_t bitmask (for avoid MSC warnings).
- * @param   a_iBit  The bit number.
- */
-#define RT_BIT_Z(a_iBit)                        ( (size_t)(1) << (a_iBit) )
 
 
 /** @def RT_BF_GET
@@ -2835,7 +2585,7 @@
  *
  * @note    Use RT_UOFFSETOF() to calculate the structure size.
  *
- * @note    Never do a sizeof() on the structure or member!
+ * @note    Never to a sizeof() on the structure or member!
  *
  * @note    The member must be the last one.
  *
@@ -2848,13 +2598,14 @@
  * @sa      RT_FLEXIBLE_ARRAY_NESTED, RT_FLEXIBLE_ARRAY_IN_UNION
  */
 #if RT_MSC_PREREQ(RT_MSC_VER_VS2005) /** @todo Probably much much earlier. */ \
- || (defined(__cplusplus) && RT_GNUC_PREREQ(6, 1)) /* not tested 7.x, but hope it works with __extension__ too. */ \
+ || (defined(__cplusplus) && (   RT_GNUC_PREREQ(6, 1) \
+                              && (  !RT_GNUC_PREREQ(7, 0) /* gcc-7 warns again */ \
+                                  || RT_GNUC_PREREQ(10, 0) /* gcc-10 works with __extension__, the ones in between needs testing */ ))) \
  || defined(__WATCOMC__) /* openwatcom 1.9 supports it, we don't care about older atm. */ \
  || RT_CLANG_PREREQ_EX(3, 4, 0) /* Only tested clang v3.4, support is probably older. */
 # define RT_FLEXIBLE_ARRAY
 # if defined(__cplusplus) && defined(_MSC_VER)
 #  pragma warning(disable:4200) /* -wd4200 does not work with VS2010 */
-#  pragma warning(disable:4815) /* -wd4815 does not work with VS2019 */
 # endif
 #elif defined(__STDC_VERSION__)
 # if __STDC_VERSION__ >= 1999901L
@@ -2870,7 +2621,7 @@
  * A trick to make GNU C++ quietly accept flexible arrays in C++ code when
  * pedantic warnings are enabled.  Put this on the line before the flexible
  * array. */
-#if (RT_GNUC_PREREQ(7, 0) && defined(__cplusplus)) || defined(DOXGYEN_RUNNING)
+#if (RT_GNUC_PREREQ(10, 0) && defined(__cplusplus)) || defined(DOXGYEN_RUNNING)
 # define RT_FLEXIBLE_ARRAY_EXTENSION            RT_GCC_EXTENSION
 #else
 # define RT_FLEXIBLE_ARRAY_EXTENSION
@@ -3122,17 +2873,17 @@
                 | (uint64_t)((uint8_t)(b6)) << 48 \
                 | (uint64_t)((uint8_t)(b5)) << 40 \
                 | (uint64_t)((uint8_t)(b4)) << 32 \
-                | (uint64_t)((uint8_t)(b3)) << 24 \
-                | (uint64_t)((uint8_t)(b2)) << 16 \
-                | (uint64_t)((uint8_t)(b1)) << 8 \
-                | (uint64_t) (uint8_t)(b0) ))
+                | (uint32_t)((uint8_t)(b3)) << 24 \
+                | (uint32_t)((uint8_t)(b2)) << 16 \
+                | (uint16_t)((uint8_t)(b1)) << 8 \
+                |            (uint8_t)(b0) ))
 
 /** @def RT_MAKE_U32
  * Constructs a uint32_t value from two uint16_t values.
  */
 #define RT_MAKE_U32(Lo, Hi) \
     ((uint32_t)(  (uint32_t)((uint16_t)(Hi)) << 16 \
-                |            (uint16_t)(Lo) ))
+                | (uint16_t)(Lo) ))
 
 /** @def RT_MAKE_U32_FROM_U8
  * Constructs a uint32_t value from four uint8_t values.
@@ -3140,7 +2891,7 @@
 #define RT_MAKE_U32_FROM_U8(b0, b1, b2, b3) \
     ((uint32_t)(  (uint32_t)((uint8_t)(b3)) << 24 \
                 | (uint32_t)((uint8_t)(b2)) << 16 \
-                | (uint32_t)((uint8_t)(b1)) << 8 \
+                | (uint16_t)((uint8_t)(b1)) << 8 \
                 |            (uint8_t)(b0) ))
 
 /** @def RT_MAKE_U16
@@ -3153,39 +2904,36 @@
 
 /** @def RT_BSWAP_U64
  * Reverses the byte order of an uint64_t value. */
-#if defined(__GNUC__)
-# define RT_BSWAP_U64(u64)  (__builtin_constant_p((u64)) ? RT_BSWAP_U64_C(u64) : ASMByteSwapU64(u64))
+#if 0
+# define RT_BSWAP_U64(u64)  RT_BSWAP_U64_C(u64)
+#elif defined(__GNUC__)
+# define RT_BSWAP_U64(u64)  (__builtin_constant_p((u64)) \
+                            ? RT_BSWAP_U64_C(u64) : ASMByteSwapU64(u64))
 #else
 # define RT_BSWAP_U64(u64)  ASMByteSwapU64(u64)
 #endif
 
 /** @def RT_BSWAP_U32
  * Reverses the byte order of an uint32_t value. */
-#if defined(__GNUC__)
-# define RT_BSWAP_U32(u32)  (__builtin_constant_p((u32)) ? RT_BSWAP_U32_C(u32) : ASMByteSwapU32(u32))
+#if 0
+# define RT_BSWAP_U32(u32)  RT_BSWAP_U32_C(u32)
+#elif defined(__GNUC__)
+# define RT_BSWAP_U32(u32)  (__builtin_constant_p((u32)) \
+                            ? RT_BSWAP_U32_C(u32) : ASMByteSwapU32(u32))
 #else
 # define RT_BSWAP_U32(u32)  ASMByteSwapU32(u32)
 #endif
 
 /** @def RT_BSWAP_U16
  * Reverses the byte order of an uint16_t value. */
-#if defined(__GNUC__)
-# define RT_BSWAP_U16(u16)  (__builtin_constant_p((u16)) ? RT_BSWAP_U16_C(u16) : ASMByteSwapU16(u16))
+#if 0
+# define RT_BSWAP_U16(u16)  RT_BSWAP_U16_C(u16)
+#elif defined(__GNUC__)
+# define RT_BSWAP_U16(u16)  (__builtin_constant_p((u16)) \
+                            ? RT_BSWAP_U16_C(u16) : ASMByteSwapU16(u16))
 #else
 # define RT_BSWAP_U16(u16)  ASMByteSwapU16(u16)
 #endif
-
-/** @def RT_BSWAP_S64
- * Reverses the byte order of an int64_t value. */
-#define RT_BSWAP_S64(i64)   ((int64_t)RT_BSWAP_U64((uint64_t)i64))
-
-/** @def RT_BSWAP_S32
- * Reverses the byte order of an int32_t value. */
-#define RT_BSWAP_S32(i32)   ((int32_t)RT_BSWAP_U32((uint32_t)i32))
-
-/** @def RT_BSWAP_S16
- * Reverses the byte order of an int16_t value. */
-#define RT_BSWAP_S16(i16)   ((int16_t)RT_BSWAP_U16((uint16_t)i16))
 
 
 /** @def RT_BSWAP_U64_C
@@ -3200,23 +2948,6 @@
  * Reverses the byte order of an uint16_t constant. */
 #define RT_BSWAP_U16_C(u16) RT_MAKE_U16(RT_HIBYTE(u16), RT_LOBYTE(u16))
 
-/** @def RT_BSWAP_S64_C
- * Reverses the byte order of an int64_t constant. */
-#define RT_BSWAP_S64_C(i64) ((int64_t)RT_MAKE_U64(RT_BSWAP_U32_C((uint64_t)(i64) >> 32), RT_BSWAP_U32_C((uint32_t)(i64))))
-
-/** @def RT_BSWAP_S32_C
- * Reverses the byte order of an int32_t constant. */
-#define RT_BSWAP_S32_C(i32) ((int32_t)RT_MAKE_U32_FROM_U8(RT_BYTE4(i32), RT_BYTE3(i32), RT_BYTE2(i32), RT_BYTE1(i)))
-
-/** @def RT_BSWAP_S16_C
- * Reverses the byte order of an uint16_t constant. */
-#define RT_BSWAP_S16_C(i16) ((int16_t)RT_MAKE_U16(RT_HIBYTE(i16), RT_LOBYTE(i16)))
-
-
-
-/** @name Host to/from little endian.
- * @note Typically requires iprt/asm.h to be included.
- * @{ */
 
 /** @def RT_H2LE_U64
  * Converts an uint64_t value from host to little endian byte order. */
@@ -3315,107 +3046,6 @@
 # define RT_LE2H_U16_C(u16) (u16)
 #endif
 
-/** @def RT_H2LE_S64
- * Converts an int64_t value from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S64(i64)   RT_BSWAP_S64(i64)
-#else
-# define RT_H2LE_S64(i64)   (i64)
-#endif
-
-/** @def RT_H2LE_S64_C
- * Converts an int64_t constant from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S64_C(i64) RT_BSWAP_S64_C(i64)
-#else
-# define RT_H2LE_S64_C(i64) (i64)
-#endif
-
-/** @def RT_H2LE_S32
- * Converts an int32_t value from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S32(i32)   RT_BSWAP_S32(i32)
-#else
-# define RT_H2LE_S32(i32)   (i32)
-#endif
-
-/** @def RT_H2LE_S32_C
- * Converts an int32_t constant from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S32_C(i32) RT_BSWAP_S32_C(i32)
-#else
-# define RT_H2LE_S32_C(i32) (i32)
-#endif
-
-/** @def RT_H2LE_S16
- * Converts an int16_t value from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S16(i16)   RT_BSWAP_S16(i16)
-#else
-# define RT_H2LE_S16(i16)   (i16)
-#endif
-
-/** @def RT_H2LE_S16_C
- * Converts an int16_t constant from host to little endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2LE_S16_C(i16) RT_BSWAP_S16_C(i16)
-#else
-# define RT_H2LE_S16_C(i16) (i16)
-#endif
-
-/** @def RT_LE2H_S64
- * Converts an int64_t value from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S64(i64)   RT_BSWAP_S64(i64)
-#else
-# define RT_LE2H_S64(i64)   (i64)
-#endif
-
-/** @def RT_LE2H_S64_C
- * Converts an int64_t constant from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S64_C(i64) RT_BSWAP_S64_C(i64)
-#else
-# define RT_LE2H_S64_C(i64) (i64)
-#endif
-
-/** @def RT_LE2H_S32
- * Converts an int32_t value from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S32(i32)   RT_BSWAP_S32(i32)
-#else
-# define RT_LE2H_S32(i32)   (i32)
-#endif
-
-/** @def RT_LE2H_S32_C
- * Converts an int32_t constant from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S32_C(i32) RT_BSWAP_S32_C(i32)
-#else
-# define RT_LE2H_S32_C(i32) (i32)
-#endif
-
-/** @def RT_LE2H_S16
- * Converts an int16_t value from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S16(i16)   RT_BSWAP_S16(i16)
-#else
-# define RT_LE2H_S16(i16)   (i16)
-#endif
-
-/** @def RT_LE2H_S16_C
- * Converts an int16_t constant from little endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_LE2H_S16_C(i16) RT_BSWAP_S16_C(i16)
-#else
-# define RT_LE2H_S16_C(i16) (i16)
-#endif
-
-/** @} */
-
-/** @name Host to/from big endian.
- * @note Typically requires iprt/asm.h to be included.
- * @{ */
 
 /** @def RT_H2BE_U64
  * Converts an uint64_t value from host to big endian byte order. */
@@ -3513,106 +3143,6 @@
 # define RT_BE2H_U16_C(u16) RT_BSWAP_U16_C(u16)
 #endif
 
-/** @def RT_H2BE_S64
- * Converts an int64_t value from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S64(i64)   (i64)
-#else
-# define RT_H2BE_S64(i64)   RT_BSWAP_S64(i64)
-#endif
-
-/** @def RT_H2BE_S64_C
- * Converts an int64_t constant from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S64_C(i64) (i64)
-#else
-# define RT_H2BE_S64_C(i64) RT_BSWAP_S64_C(i64)
-#endif
-
-/** @def RT_H2BE_S32
- * Converts an int32_t value from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S32(i32)   (i32)
-#else
-# define RT_H2BE_S32(i32)   RT_BSWAP_S32(i32)
-#endif
-
-/** @def RT_H2BE_S32_C
- * Converts an int32_t constant from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S32_C(i32) (i32)
-#else
-# define RT_H2BE_S32_C(i32) RT_BSWAP_S32_C(i32)
-#endif
-
-/** @def RT_H2BE_S16
- * Converts an int16_t value from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S16(i16)   (i16)
-#else
-# define RT_H2BE_S16(i16)   RT_BSWAP_S16(i16)
-#endif
-
-/** @def RT_H2BE_S16_C
- * Converts an int16_t constant from host to big endian byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_H2BE_S16_C(i16) (i16)
-#else
-# define RT_H2BE_S16_C(i16) RT_BSWAP_S16_C(i16)
-#endif
-
-/** @def RT_BE2H_S64
- * Converts an int64_t value from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S64(i64)   (i64)
-#else
-# define RT_BE2H_S64(i64)   RT_BSWAP_S64(i64)
-#endif
-
-/** @def RT_BE2H_S64
- * Converts an int64_t constant from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S64_C(i64) (i64)
-#else
-# define RT_BE2H_S64_C(i64) RT_BSWAP_S64_C(i64)
-#endif
-
-/** @def RT_BE2H_S32
- * Converts an int32_t value from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S32(i32)   (i32)
-#else
-# define RT_BE2H_S32(i32)   RT_BSWAP_S32(i32)
-#endif
-
-/** @def RT_BE2H_S32_C
- * Converts an int32_t value from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S32_C(i32) (i32)
-#else
-# define RT_BE2H_S32_C(i32) RT_BSWAP_S32_C(i32)
-#endif
-
-/** @def RT_BE2H_S16
- * Converts an int16_t value from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S16(i16)   (i16)
-#else
-# define RT_BE2H_S16(i16)   RT_BSWAP_S16(i16)
-#endif
-
-/** @def RT_BE2H_S16_C
- * Converts an int16_t constant from big endian to host byte order. */
-#ifdef RT_BIG_ENDIAN
-# define RT_BE2H_S16_C(i16) (i16)
-#else
-# define RT_BE2H_S16_C(i16) RT_BSWAP_S16_C(i16)
-#endif
-/** @} */
-
-/** @name Host to/from network byte order.
- * @note Typically requires iprt/asm.h to be included.
- * @{ */
 
 /** @def RT_H2N_U64
  * Converts an uint64_t value from host to network byte order. */
@@ -3661,56 +3191,6 @@
 /** @def RT_N2H_U16_C
  * Converts an uint16_t value from network to host byte order. */
 #define RT_N2H_U16_C(u16)   RT_BE2H_U16_C(u16)
-
-/** @def RT_H2N_S64
- * Converts an int64_t value from host to network byte order. */
-#define RT_H2N_S64(i64)     RT_H2BE_S64(i64)
-
-/** @def RT_H2N_S64_C
- * Converts an int64_t constant from host to network byte order. */
-#define RT_H2N_S64_C(i64)   RT_H2BE_S64_C(i64)
-
-/** @def RT_H2N_S32
- * Converts an int32_t value from host to network byte order. */
-#define RT_H2N_S32(i32)     RT_H2BE_S32(i32)
-
-/** @def RT_H2N_S32_C
- * Converts an int32_t constant from host to network byte order. */
-#define RT_H2N_S32_C(i32)   RT_H2BE_S32_C(i32)
-
-/** @def RT_H2N_S16
- * Converts an int16_t value from host to network byte order. */
-#define RT_H2N_S16(i16)     RT_H2BE_S16(i16)
-
-/** @def RT_H2N_S16_C
- * Converts an int16_t constant from host to network byte order. */
-#define RT_H2N_S16_C(i16)   RT_H2BE_S16_C(i16)
-
-/** @def RT_N2H_S64
- * Converts an int64_t value from network to host byte order. */
-#define RT_N2H_S64(i64)     RT_BE2H_S64(i64)
-
-/** @def RT_N2H_S64_C
- * Converts an int64_t constant from network to host byte order. */
-#define RT_N2H_S64_C(i64)   RT_BE2H_S64_C(i64)
-
-/** @def RT_N2H_S32
- * Converts an int32_t value from network to host byte order. */
-#define RT_N2H_S32(i32)     RT_BE2H_S32(i32)
-
-/** @def RT_N2H_S32_C
- * Converts an int32_t constant from network to host byte order. */
-#define RT_N2H_S32_C(i32)   RT_BE2H_S32_C(i32)
-
-/** @def RT_N2H_S16
- * Converts an int16_t value from network to host byte order. */
-#define RT_N2H_S16(i16)     RT_BE2H_S16(i16)
-
-/** @def RT_N2H_S16_C
- * Converts an int16_t value from network to host byte order. */
-#define RT_N2H_S16_C(i16)   RT_BE2H_S16_C(i16)
-
-/** @} */
 
 
 /*
@@ -3889,8 +3369,6 @@
 #  define RT_BREAKPOINT()       __asm__ __volatile__("illtrap 0\n\t")   /** @todo Sparc64: this is just a wild guess. */
 # elif defined(RT_ARCH_SPARC)
 #  define RT_BREAKPOINT()       __asm__ __volatile__("unimp 0\n\t")     /** @todo Sparc: this is just a wild guess (same as Sparc64, just different name). */
-# elif defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64)
-#  define RT_BREAKPOINT()       __asm__ __volatile__("brk #0x1\n\t")
 # endif
 #endif
 #ifdef _MSC_VER
@@ -4308,7 +3786,7 @@
 /** @} */
 
 
-/** @def RT_VALID_PTR
+/** @def VALID_PTR
  * Pointer validation macro.
  * @param   ptr         The pointer.
  */
@@ -4330,13 +3808,9 @@
 #  endif
 # else /* !IN_RING3 */
 #  if defined(RT_OS_LINUX) /* May use 5-level paging (see Documentation/x86/x86_64/mm.rst). */
-#   if 1 /* User address are no longer considered valid in kernel mode (SMAP, etc). */
-#    define RT_VALID_PTR(ptr)   ((uintptr_t)(ptr) - 0xff00000000000000ULL < 0x00ffffffffe00000ULL) /* 2MB invalid space at the top */
-#   else
-#    define RT_VALID_PTR(ptr)   (   (uintptr_t)(ptr) + 0x200000 >= 0x201000U /* one invalid page at the bottom and 2MB at the top */ \
+#   define RT_VALID_PTR(ptr)    (   (uintptr_t)(ptr) + 0x200000 >= 0x201000U /* one invalid page at the bottom and 2MB at the top */ \
                                  && (   ((uintptr_t)(ptr) & 0xff00000000000000ULL) == 0xff00000000000000ULL \
                                      || ((uintptr_t)(ptr) & 0xff00000000000000ULL) == 0) )
-#   endif
 #  else
 #   define RT_VALID_PTR(ptr)    (   (uintptr_t)(ptr) + 0x1000U >= 0x2000U \
                                  && (   ((uintptr_t)(ptr) & 0xffff800000000000ULL) == 0xffff800000000000ULL \
@@ -4385,13 +3859,16 @@
 #  endif
 # endif /* !IN_RING3 */
 
-#elif defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64)
+#elif defined(RT_ARCH_ARM)
 /* ASSUMES that at least the last and first 4K are out of bounds. */
 # define RT_VALID_PTR(ptr)      ( (uintptr_t)(ptr) + 0x1000U >= 0x2000U )
 
 #else
 # error "Architecture identifier missing / not implemented."
 #endif
+
+/** Old name for RT_VALID_PTR.  */
+#define VALID_PTR(ptr)          RT_VALID_PTR(ptr)
 
 /** @def RT_VALID_ALIGNED_PTR
  * Pointer validation macro that also checks the alignment.
@@ -4400,7 +3877,7 @@
  */
 #define RT_VALID_ALIGNED_PTR(ptr, align)   \
     (   !((uintptr_t)(ptr) & (uintptr_t)((align) - 1)) \
-     && RT_VALID_PTR(ptr) )
+     && VALID_PTR(ptr) )
 
 
 /** @def VALID_PHYS32
@@ -4509,7 +3986,7 @@
  * The ASM* functions will then be implemented in external .asm files.
  */
 #if (defined(_MSC_VER) && defined(RT_ARCH_AMD64)) \
- || (!defined(RT_ARCH_AMD64) && !defined(RT_ARCH_X86) && !defined(RT_ARCH_ARM64) && !defined(RT_ARCH_ARM32)) \
+ || (!defined(RT_ARCH_AMD64) && !defined(RT_ARCH_X86)) \
  || defined(__WATCOMC__)
 # define RT_INLINE_ASM_EXTERNAL 1
 #else
@@ -4526,41 +4003,22 @@
 #endif
 
 /** @def RT_INLINE_ASM_USES_INTRIN
- * Defined as one of the RT_MSC_VER_XXX MSC version values if the compiler have
- * and uses intrin.h.  Otherwise it is 0. */
+ * Defined as the major MSC version if the compiler have and uses intrin.h.
+ * Otherwise it is 0. */
 #ifdef _MSC_VER
-# if   _MSC_VER >= RT_MSC_VER_VS2019 /* Visual C++ v14.2 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2019
-# elif _MSC_VER >= RT_MSC_VER_VS2017 /* Visual C++ v14.1 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2017
-# elif _MSC_VER >= RT_MSC_VER_VS2015 /* Visual C++ v14.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2015
-# elif _MSC_VER >= RT_MSC_VER_VS2013 /* Visual C++ v12.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2013
-# elif _MSC_VER >= RT_MSC_VER_VS2012 /* Visual C++ v11.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2012
-# elif _MSC_VER >= RT_MSC_VER_VS2010 /* Visual C++ v10.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2010
-# elif _MSC_VER >= RT_MSC_VER_VS2008 /* Visual C++ v9.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2008
-# elif _MSC_VER >= RT_MSC_VER_VS2005 /* Visual C++ v8.0 */
-#  define RT_INLINE_ASM_USES_INTRIN RT_MSC_VER_VS2005
+# if   _MSC_VER >= 1700 /* Visual C++ v11.0 / 2012 */
+#  define RT_INLINE_ASM_USES_INTRIN 17
+# elif _MSC_VER >= 1600 /* Visual C++ v10.0 / 2010 */
+#  define RT_INLINE_ASM_USES_INTRIN 16
+# elif _MSC_VER >= 1500 /* Visual C++ v9.0 / 2008 */
+#  define RT_INLINE_ASM_USES_INTRIN 15
+# elif _MSC_VER >= 1400 /* Visual C++ v8.0 / 2005 */
+#  define RT_INLINE_ASM_USES_INTRIN 14
 # endif
 #endif
 #ifndef RT_INLINE_ASM_USES_INTRIN
 # define RT_INLINE_ASM_USES_INTRIN 0
 #endif
-
-#define RT_MSC_VER_VS2012   (1700)              /**< Visual Studio 2012. */
-#define RT_MSC_VER_VC110    RT_MSC_VER_VS2012   /**< Visual C++ 11.0, aka Visual Studio 2012. */
-#define RT_MSC_VER_VS2013   (1800)              /**< Visual Studio 2013. */
-#define RT_MSC_VER_VC120    RT_MSC_VER_VS2013   /**< Visual C++ 12.0, aka Visual Studio 2013. */
-#define RT_MSC_VER_VS2015   (1900)              /**< Visual Studio 2015. */
-#define RT_MSC_VER_VC140    RT_MSC_VER_VS2015   /**< Visual C++ 14.0, aka Visual Studio 2015. */
-#define RT_MSC_VER_VS2017   (1910)              /**< Visual Studio 2017. */
-#define RT_MSC_VER_VC141    RT_MSC_VER_VS2017   /**< Visual C++ 14.1, aka Visual Studio 2017. */
-#define RT_MSC_VER_VS2019   (1920)              /**< Visual Studio 2017. */
-#define RT_MSC_VER_VC142    RT_MSC_VER_VS2019   /**< Visual C++ 14.2, aka Visual Studio 2019. */
 
 /** @def RT_COMPILER_SUPPORTS_LAMBDA
  * If the defined, the compiler supports lambda expressions.   These expressions

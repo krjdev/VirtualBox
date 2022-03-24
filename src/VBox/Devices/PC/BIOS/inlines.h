@@ -1,10 +1,10 @@
-/* $Id: inlines.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: inlines.h $ */
 /** @file
  * Inline routines for Watcom C.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -98,20 +98,6 @@ void halt_forever(void);
     "hlt"                   \
     "jmp forever"           \
     modify exact [] nomemory aborts;
-
-/* Output a null-terminated string to a specified port, without the
- * terminating null character.
- */
-static void out_ctrl_str_asm(uint16_t port, const char *s);
-#pragma aux out_ctrl_str_asm =   \
-    "mov    al, [bx]"       \
-    "next:"                 \
-    "out    dx, al"         \
-    "inc    bx"             \
-    "mov    al, [bx]"       \
-    "or     al, al"         \
-    "jnz    next"           \
-    parm [dx] [bx] modify exact [ax bx] nomemory;
 
 #ifdef __386__
 

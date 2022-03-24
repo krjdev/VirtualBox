@@ -1,10 +1,10 @@
-/* $Id: UIVMLogPage.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVMLogPage.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,7 @@
 
 /* Qt includes: */
 #include <QWidget>
-#include <QUuid>
+/* #include <QMap> */
 #include <QPair>
 
 /* GUI includes: */
@@ -40,27 +40,9 @@ class UIVMLogViewerTextEdit;
 /** first is line number, second is block text */
 typedef QPair<int, QString> LogBookmark;
 
-
-class UIVMLogTab : public QIWithRetranslateUI<QWidget>
-{
-
-    Q_OBJECT;
-
-public:
-
-    UIVMLogTab(QWidget *pParent, const QUuid &uMachineId, const QString &strMachineName);
-    const QUuid &machineId() const;
-    const QString machineName() const;
-
-private:
-
-    QUuid m_uMachineId;
-    QString m_strMachineName;
-};
-
 /** UIVMLogPage defines data and functionalities of the each tab page of a UIVMLogViewerWidget.
  *  It stores the original log file content , a list of bookmarks, etc */
-class UIVMLogPage  : public UIVMLogTab
+class UIVMLogPage  : public QIWithRetranslateUI<QWidget>
 {
     Q_OBJECT;
 
@@ -71,7 +53,7 @@ signals:
 
 public:
 
-    UIVMLogPage(QWidget *pParent, const QUuid &uMachineId, const QString &strMachineName);
+    UIVMLogPage(QWidget *pParent = 0, int tabIndex = -1);
     ~UIVMLogPage();
 
     /** Returns the width of the current log page. return 0 if there is no current log page: */
@@ -80,11 +62,21 @@ public:
     QPlainTextEdit *textEdit();
     QTextDocument  *document();
 
-    void setLogContent(const QString &strLogContent, bool fError);
+    void setTabIndex(int index);
+    int tabIndex()  const;
+
+    /* Only to be called when log file is re-read. */
+    void setLogString(const QString &strLog);
     const QString& logString() const;
 
     void setLogFileName(const QString &strFileName);
     const QString& logFileName() const;
+
+    /** Set plaintextEdit's text. Note that the text we
+     *  show currently might be different than
+     *  m_strLog. For example during filtering. */
+    void setTextEditText(const QString &strText);
+    void setTextEditTextAsHtml(const QString &strText);
 
     /** Marks the plain text edit When we dont have a log content. */
     void markForError();
@@ -110,13 +102,19 @@ public:
     void setShowLineNumbers(bool bShowLineNumbers);
     void setWrapLines(bool bWrapLines);
 
+    /** setFilterParameters is called at the end of filtering operation to store the parameter etc.
+     *  these parameters are used to decide whether we have to reapply the filter, and if not to
+     *  update filter panel with correct line counts etc.*/
+    void setFilterParameters(const QSet<QString> &filterTermSet, int filterOperationType,
+                             int iFilteredLineCount, int iUnfilteredLineCount);
+    int  filteredLineCount() const;
+    int  unfilteredLineCount() const;
+    /** Compares filter parameters with previous filter operation's parameters to decide if the
+     *  filter should be applied again. */
+    bool shouldFilterBeApplied(const QSet<QString> &filterTermSet, int filterOperationType) const;
+
     QFont currentFont() const;
     void setCurrentFont(QFont font);
-
-    void setLogFileId(int iLogFileId);
-    int logFileId() const;
-
-    void scrollToEnd();
 
 private slots:
 
@@ -132,18 +130,14 @@ private:
     void updateTextEditBookmarkLineSet();
     void deleteBookmark(LogBookmark bookmark);
 
-    /** Set plaintextEdit's text. Note that the text we
-     *  show currently might be different than
-     *  m_strLog. For example during filtering. */
-    void setTextEditText(const QString &strText);
-    void setTextEditTextAsHtml(const QString &strText);
-
     QHBoxLayout    *m_pMainLayout;
     UIVMLogViewerTextEdit *m_pTextEdit;
-    /** Stores the log file (unmodified by filtering etc) content. */
+    /** Stores the log file (unmodified) content. */
     QString         m_strLog;
     /** Stores full path and name of the log file. */
     QString         m_strLogFileName;
+    /** This is the index of the tab containing this widget in UIVMLogViewerWidget. */
+    int             m_tabIndex;
     /** Stores the bookmarks of the logpage. All other bookmark related containers are updated wrt. this one. */
     QVector<LogBookmark> m_bookmarkVector;
 
@@ -155,9 +149,19 @@ private:
     /** Designates whether currently displayed text is log text or a filtered version of it. That is
         if m_bFiltered is false than (m_strLog == m_pTextEdit->text()). */
         bool           m_bFiltered;
+        /** The set of filter terms used in the last filtering.
+            Used when deciding whether we have to reapply the filter or not. see shouldFilterBeApplied function. */
+        QSet<QString>  m_filterTermSet;
+        /** The type of the boolean last filtering operation. Used in deciding whether we have to reapply the
+            filter. see shouldFilterBeApplied function. This is int cast of enum FilterOperatorButton
+            of UIVMLogViewerFilterPanel. */
+        int            m_filterOperationType;
+        /** These counts are saveds and restored during filtering operation. If filter is not reapplied these counts
+            are shown in the filter panel. */
+        int            m_iFilteredLineCount;
+        int            m_iUnfilteredLineCount;
     /** @} */
-    /** The id we pass to CMachine::ReadLog. Used while refreshing and saving page content. */
-    int m_iLogFileId;
+
 };
 
 #endif /* !FEQT_INCLUDED_SRC_logviewer_UIVMLogPage_h */

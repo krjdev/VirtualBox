@@ -1,10 +1,10 @@
-/* $Id: DrvAudioRec.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: DrvAudioRec.h $ */
 /** @file
  * VirtualBox driver interface video recording audio backend.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -57,7 +57,7 @@ public:
 
 private:
 
-    virtual int configureDriver(PCFGMNODE pLunCfg, PCVMMR3VTABLE pVMM) RT_OVERRIDE;
+    int configureDriver(PCFGMNODE pLunCfg);
 
     /** Pointer to the associated video recording audio driver. */
     struct DRVAUDIORECORDING         *mpDrv;

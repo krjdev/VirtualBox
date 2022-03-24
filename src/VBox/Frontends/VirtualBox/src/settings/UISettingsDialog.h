@@ -1,10 +1,10 @@
-/* $Id: UISettingsDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISettingsDialog.h $ */
 /** @file
  * VBox Qt GUI - UISettingsDialog class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,16 +29,15 @@
 #include "QIMainDialog.h"
 #include "QIWithRetranslateUI.h"
 #include "UISettingsDefs.h"
+#include "UISettingsDialog.gen.h"
 
 /* Forward declarations: */
 class QEvent;
 class QObject;
-class QLabel;
 class QProgressBar;
 class QShowEvent;
 class QStackedWidget;
 class QTimer;
-class QIDialogButtonBox;
 class UIPageValidator;
 class UISettingsPage;
 class UISettingsSelector;
@@ -50,7 +49,7 @@ using namespace UISettingsDefs;
 
 /** QIMainDialog aubclass used as
   * base dialog class for both Global & VM settings which encapsulates most of their common functionality. */
-class SHARED_LIBRARY_STUFF UISettingsDialog : public QIWithRetranslateUI<QIMainDialog>
+class SHARED_LIBRARY_STUFF UISettingsDialog : public QIWithRetranslateUI<QIMainDialog>, public Ui::UISettingsDialog
 {
     Q_OBJECT;
 
@@ -59,7 +58,7 @@ public:
     /** Constructs settings dialog passing @a pParent to the base-class. */
     UISettingsDialog(QWidget *pParent);
     /** Destructs settings dialog. */
-    virtual ~UISettingsDialog() RT_OVERRIDE;
+    virtual ~UISettingsDialog() /* override */;
 
     /** Performs modal dialog call. */
     void execute();
@@ -67,9 +66,9 @@ public:
 protected slots:
 
     /** Hides the modal dialog and sets the result code to Accepted. */
-    virtual void accept() RT_OVERRIDE;
+    virtual void accept() /* override */;
     /** Hides the modal dialog and sets the result code to Rejected. */
-    virtual void reject() RT_OVERRIDE;
+    virtual void reject() /* override */;
 
     /** Handles category change to @a cId. */
     virtual void sltCategoryChanged(int cId);
@@ -87,11 +86,11 @@ protected slots:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
-    /** Handles first show @a pEvent. */
-    virtual void polishEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+    /** Handles show @a pEvent. */
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
     /** Returns the serialize process instance. */
     UISettingsSerializer *serializeProcess() const { return m_pSerializeProcess; }
@@ -135,9 +134,6 @@ protected:
     /** Verifies data integrity between certain @a pSettingsPage and other pages. */
     virtual void recorrelate(UISettingsPage *pSettingsPage) { Q_UNUSED(pSettingsPage); }
 
-    /** Inserts an item to the map m_pageHelpKeywords. */
-    void addPageHelpKeyword(int iPageType, const QString &strHelpKeyword);
-
     /** Validates data correctness using certain @a pValidator. */
     void revalidate(UIPageValidator *pValidator);
     /** Validates data correctness. */
@@ -167,10 +163,12 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
+
     /** Assigns validater for passed @a pPage. */
     void assignValidator(UISettingsPage *pPage);
+
+    /** Holds whether the dialog is polished. */
+    bool  m_fPolished;
 
     /** Holds configuration access level. */
     ConfigurationAccessLevel  m_enmConfigurationAccessLevel;
@@ -205,21 +203,11 @@ private:
 
     /** Holds the map of settings pages. */
     QMap<int, int>  m_pages;
-    /** Stores the help tag per page. Key is the page type (either GlobalSettingsPageType or MachineSettingsPageType)
-      * and value is the help tag. Used in context sensitive help: */
-    QMap<int, QString> m_pageHelpKeywords;
 
 #ifdef VBOX_WS_MAC
     /** Holds the list of settings page sizes for animation purposes. */
     QList<QSize>  m_sizeList;
 #endif
-
-    /** @name Widgets
-     * @{ */
-       QLabel *m_pLabelTitle;
-       QIDialogButtonBox *m_pButtonBox;
-       QWidget *m_pWidgetStackHandler;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_UISettingsDialog_h */

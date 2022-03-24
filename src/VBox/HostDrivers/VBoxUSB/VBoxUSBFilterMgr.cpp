@@ -1,10 +1,10 @@
-/* $Id: VBoxUSBFilterMgr.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxUSBFilterMgr.cpp $ */
 /** @file
  * VirtualBox Ring-0 USB Filter Manager.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -235,7 +235,7 @@ int VBoxUSBFilterAdd(PCUSBFILTER pFilter, VBOXUSBFILTER_CONTEXT Owner, uintptr_t
         return rc;
     if (!Owner || Owner == VBOXUSBFILTER_CONTEXT_NIL)
         return VERR_INVALID_PARAMETER;
-    if (!RT_VALID_PTR(puId))
+    if (!VALID_PTR(puId))
         return VERR_INVALID_POINTER;
 
     /*

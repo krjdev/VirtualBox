@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -419,7 +419,7 @@ typedef struct INTNETTRUNKIFPORT *PINTNETTRUNKIFPORT;
  *
  * @param   pIfPort     Pointer to the INTNETTRUNKIFPORT instance.
  */
-typedef DECLCALLBACKTYPE(void, FNINTNETTRUNKIFPORTRELEASEBUSY,(PINTNETTRUNKIFPORT pIfPort));
+typedef DECLCALLBACK(void) FNINTNETTRUNKIFPORTRELEASEBUSY(PINTNETTRUNKIFPORT pIfPort);
 /** Pointer to a FNINTNETTRUNKIFPORTRELEASEBUSY function. */
 typedef FNINTNETTRUNKIFPORTRELEASEBUSY *PFNINTNETTRUNKIFPORTRELEASEBUSY;
 

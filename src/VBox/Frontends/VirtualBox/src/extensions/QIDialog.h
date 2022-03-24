@@ -1,10 +1,10 @@
-/* $Id: QIDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIDialog.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIDialog class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ class SHARED_LIBRARY_STUFF QIDialog : public QDialog
 public:
 
     /** Constructs the dialog passing @a pParent and @a enmFlags to the base-class. */
-    QIDialog(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    QIDialog(QWidget *pParent = 0, Qt::WindowFlags enmFlags = 0);
 
     /** Defines whether the dialog is @a fVisible. */
     void setVisible(bool fVisible);
@@ -53,12 +53,12 @@ public slots:
     virtual int execute(bool fShow = true, bool fApplicationModal = false);
 
     /** Shows the dialog as a modal one, blocking until the user closes it. */
-    virtual int exec() RT_OVERRIDE { return execute(); }
+    virtual int exec() /* override */ { return execute(); }
 
 protected:
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles show @a pEvent sent for the first time. */
     virtual void polishEvent(QShowEvent *pEvent);
 

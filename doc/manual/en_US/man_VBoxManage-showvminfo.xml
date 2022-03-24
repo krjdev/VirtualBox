@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-showvminfo" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-02-11 21:10:19 +0100 (Fr, 11. Feb 2022) $</pubdate>
+    <pubdate>September 2019</pubdate>
     <title>VBoxManage showvminfo</title>
   </refentryinfo>
 
@@ -32,7 +32,7 @@
     <refname>VBoxManage-showvminfo</refname>
     <refpurpose>show configuration information or log file contents for a virtual
       machine</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -74,8 +74,8 @@
       </para>
       <para>
         The <command>VBoxManage showvminfo</command> command shows the
-        same information for the specified VM in the same format as the
-        <command>VBoxManage list vms --long</command> command.
+        same information as the <command>VBoxManage list vms
+        --long</command> command for the specified VM.
       </para>
       <variablelist>
         <varlistentry>

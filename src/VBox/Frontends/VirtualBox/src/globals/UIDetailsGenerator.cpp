@@ -1,10 +1,10 @@
-/* $Id: UIDetailsGenerator.cpp 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: UIDetailsGenerator.cpp $ */
 /** @file
  * VBox Qt GUI - UIDetailsGenerator implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,41 +21,28 @@
 
 /* GUI includes: */
 #include "UIBootOrderEditor.h"
-#include "UICommon.h"
 #include "UIConverter.h"
 #include "UIDetailsGenerator.h"
 #include "UIErrorString.h"
-#include "UITranslator.h"
+#include "UICommon.h"
 
 /* COM includes: */
 #include "COMEnums.h"
 #include "CAudioAdapter.h"
-#include "CBooleanFormValue.h"
-#include "CChoiceFormValue.h"
-#include "CCloudMachine.h"
-#include "CForm.h"
-#include "CFormValue.h"
 #include "CGraphicsAdapter.h"
 #include "CMachine.h"
 #include "CMediumAttachment.h"
 #include "CNetworkAdapter.h"
-#include "CProgress.h"
-#include "CRangedIntegerFormValue.h"
 #include "CRecordingScreenSettings.h"
 #include "CRecordingSettings.h"
 #include "CSerialPort.h"
 #include "CSharedFolder.h"
 #include "CStorageController.h"
-#include "CStringFormValue.h"
 #include "CSystemProperties.h"
 #include "CUSBController.h"
 #include "CUSBDeviceFilter.h"
 #include "CUSBDeviceFilters.h"
 #include "CVRDEServer.h"
-
-/* VirtualBox interface declarations: */
-#include <VBox/com/VirtualBox.h>
-
 
 UITextTable UIDetailsGenerator::generateMachineInformationGeneral(CMachine &comMachine,
                                                                   const UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral &fOptions)
@@ -132,95 +119,6 @@ UITextTable UIDetailsGenerator::generateMachineInformationGeneral(CMachine &comM
     }
 
     return table;
-}
-
-UITextTable UIDetailsGenerator::generateMachineInformationGeneral(CCloudMachine &comCloudMachine,
-                                                                  const UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral &)
-{
-    UITextTable table;
-
-    if (comCloudMachine.isNull())
-        return table;
-
-    if (!comCloudMachine.GetAccessible())
-    {
-        table << UITextTableLine(QApplication::translate("UIDetails", "Information Inaccessible", "details"), QString());
-        return table;
-    }
-
-    /* Acquire details form: */
-    CForm comForm = comCloudMachine.GetDetailsForm();
-    /* Ignore cloud machine errors: */
-    if (comCloudMachine.isOk())
-    {
-        /* Common anchor for all fields: */
-        const QString strAnchorType = "cloud";
-
-        /* For each form value: */
-        const QVector<CFormValue> values = comForm.GetValues();
-        foreach (const CFormValue &comIteratedValue, values)
-        {
-            /* Ignore invisible values: */
-            if (!comIteratedValue.GetVisible())
-                continue;
-
-            /* Acquire label: */
-            const QString strLabel = comIteratedValue.GetLabel();
-            /* Generate value: */
-            const QString strValue = generateFormValueInformation(comIteratedValue);
-
-            /* Generate table string: */
-            table << UITextTableLine(strLabel, QString("<a href=#%1,%2>%3</a>").arg(strAnchorType, strLabel, strValue));
-        }
-    }
-
-    return table;
-}
-
-QString UIDetailsGenerator::generateFormValueInformation(const CFormValue &comFormValue, bool fFull /* = false */)
-{
-    /* Handle possible form value types: */
-    QString strResult;
-    switch (comFormValue.GetType())
-    {
-        case KFormValueType_Boolean:
-        {
-            CBooleanFormValue comValue(comFormValue);
-            const bool fBool = comValue.GetSelected();
-            strResult = fBool ? QApplication::translate("UIDetails", "Enabled", "details (cloud value)")
-                              : QApplication::translate("UIDetails", "Disabled", "details (cloud value)");
-            break;
-        }
-        case KFormValueType_String:
-        {
-            CStringFormValue comValue(comFormValue);
-            const QString strValue = comValue.GetString();
-            const QString strClipboardValue = comValue.GetClipboardString();
-            strResult = fFull && !strClipboardValue.isEmpty() ? strClipboardValue : strValue;
-            break;
-        }
-        case KFormValueType_Choice:
-        {
-            AssertMsgFailed(("Aren't we decided to convert all choices to strings?\n"));
-            CChoiceFormValue comValue(comFormValue);
-            const QVector<QString> possibleValues = comValue.GetValues();
-            const int iCurrentIndex = comValue.GetSelectedIndex();
-            strResult = possibleValues.value(iCurrentIndex);
-            break;
-        }
-        case KFormValueType_RangedInteger:
-        {
-            CRangedIntegerFormValue comValue(comFormValue);
-            strResult = QString("%1 %2")
-                            .arg(comValue.GetInteger())
-                            .arg(QApplication::translate("UICommon", comValue.GetSuffix().toUtf8().constData()));
-            break;
-        }
-        default:
-            break;
-    }
-    /* Return result: */
-    return strResult;
 }
 
 UITextTable UIDetailsGenerator::generateMachineInformationSystem(CMachine &comMachine,
@@ -347,6 +245,7 @@ UITextTable UIDetailsGenerator::generateMachineInformationSystem(CMachine &comMa
     return table;
 }
 
+
 UITextTable UIDetailsGenerator::generateMachineInformationDisplay(CMachine &comMachine,
                                                                   const UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay &fOptions)
 {
@@ -419,6 +318,11 @@ UITextTable UIDetailsGenerator::generateMachineInformationDisplay(CMachine &comM
     if (fOptions & UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Acceleration)
     {
         QStringList acceleration;
+#ifdef VBOX_WITH_VIDEOHWACCEL
+        /* 2D acceleration: */
+        if (comGraphics.GetAccelerate2DVideoEnabled())
+            acceleration << QApplication::translate("UIDetails", "2D Video", "details (display)");
+#endif
         /* 3D acceleration: */
         if (comGraphics.GetAccelerate3DEnabled())
             acceleration << QApplication::translate("UIDetails", "3D", "details (display)");
@@ -515,7 +419,7 @@ UITextTable UIDetailsGenerator::generateMachineInformationStorage(CMachine &comM
                 continue;
 
             /* Prepare attachment information: */
-            QString strAttachmentInfo = uiCommon().storageDetails(attachment.GetMedium(), false, false);
+            QString strAttachmentInfo = uiCommon().details(attachment.GetMedium(), false, false);
             /* That hack makes sure 'Inaccessible' word is always bold: */
             { // hack
                 const QString strInaccessibleString(UICommon::tr("Inaccessible", "medium"));
@@ -670,8 +574,7 @@ UITextTable UIDetailsGenerator::generateMachineInformationNetwork(CMachine &comM
 
         /* Gather adapter information: */
         const KNetworkAttachmentType enmAttachmentType = comAdapter.GetAttachmentType();
-        const QString strAttachmentTemplate = gpConverter->toString(comAdapter.GetAdapterType()).replace(QRegularExpression("\\s\\(.+\\)"),
-                                                                                                         " (<a href=#%1,%2;%3;%4>%5</a>)");
+        const QString strAttachmentTemplate = gpConverter->toString(comAdapter.GetAdapterType()).replace(QRegExp("\\s\\(.+\\)"), " (<a href=#%1,%2;%3;%4>%5</a>)");
         QString strAttachmentType;
         switch (enmAttachmentType)
         {
@@ -731,23 +634,6 @@ UITextTable UIDetailsGenerator::generateMachineInformationNetwork(CMachine &comM
                 }
                 break;
             }
-#ifdef VBOX_WITH_VMNET
-            case KNetworkAttachmentType_HostOnlyNetwork:
-            {
-                if (fOptions & UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_HostOnlyNetwork)
-                {
-                    const QString strName = comAdapter.GetHostOnlyNetwork();
-                    strAttachmentType = strAttachmentTemplate
-                                            .arg(strAnchorType)
-                                            .arg(uSlot)
-                                            .arg((int)KNetworkAttachmentType_HostOnly)
-                                            .arg(strName)
-                                            .arg(QApplication::translate("UIDetails", "Host-only Network, '%1'", "details (network)")
-                                                 .arg(strName));
-                }
-                break;
-            }
-#endif /* VBOX_WITH_VMNET */
             case KNetworkAttachmentType_Generic:
             {
                 if (fOptions & UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_GenericDriver)
@@ -834,7 +720,7 @@ UITextTable UIDetailsGenerator::generateMachineInformationSerial(CMachine &comMa
 
         /* Gather port information: */
         const KPortMode enmMode = comPort.GetHostMode();
-        const QString strModeTemplate = UITranslator::toCOMPortName(comPort.GetIRQ(), comPort.GetIOBase()) + ", ";
+        const QString strModeTemplate = uiCommon().toCOMPortName(comPort.GetIRQ(), comPort.GetIOBase()) + ", ";
         QString strModeType;
         switch (enmMode)
         {
@@ -981,39 +867,6 @@ UITextTable UIDetailsGenerator::generateMachineInformationUI(CMachine &comMachin
     {
         table << UITextTableLine(QApplication::translate("UIDetails", "Information Inaccessible", "details"), QString());
         return table;
-    }
-
-    /* Visual state: */
-    if (fOptions & UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_VisualState)
-    {
-        const QString strAnchorType = QString("visual_state");
-        const QString strEnabledFullscreen = comMachine.GetExtraData(UIExtraDataDefs::GUI_Fullscreen);
-        const QString strEnabledSeamless = comMachine.GetExtraData(UIExtraDataDefs::GUI_Seamless);
-        const QString strEnabledScale = comMachine.GetExtraData(UIExtraDataDefs::GUI_Scale);
-        UIVisualStateType enmType = UIVisualStateType_Normal;
-        if (   strEnabledFullscreen.compare("true", Qt::CaseInsensitive) == 0
-            || strEnabledFullscreen.compare("yes", Qt::CaseInsensitive) == 0
-            || strEnabledFullscreen.compare("on", Qt::CaseInsensitive) == 0
-            || strEnabledFullscreen == "1")
-            enmType = UIVisualStateType_Fullscreen;
-        else
-        if (   strEnabledSeamless.compare("true", Qt::CaseInsensitive) == 0
-            || strEnabledSeamless.compare("yes", Qt::CaseInsensitive) == 0
-            || strEnabledSeamless.compare("on", Qt::CaseInsensitive) == 0
-            || strEnabledSeamless == "1")
-            enmType = UIVisualStateType_Seamless;
-        else
-        if (   strEnabledScale.compare("true", Qt::CaseInsensitive) == 0
-            || strEnabledScale.compare("yes", Qt::CaseInsensitive) == 0
-            || strEnabledScale.compare("on", Qt::CaseInsensitive) == 0
-            || strEnabledScale == "1")
-            enmType = UIVisualStateType_Scale;
-        const QString strVisualState = gpConverter->toString(enmType);
-        table << UITextTableLine(QApplication::translate("UIDetails", "Visual State", "details (user interface)"),
-                                 QString("<a href=#%1,%2>%3</a>")
-                                     .arg(strAnchorType)
-                                     .arg(enmType)
-                                     .arg(strVisualState));
     }
 
 #ifndef VBOX_WS_MAC

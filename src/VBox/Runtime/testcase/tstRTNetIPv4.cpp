@@ -1,10 +1,10 @@
-/* $Id: tstRTNetIPv4.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTNetIPv4.cpp $ */
 /** @file
  * IPRT Testcase - IPv4.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -310,43 +310,14 @@ int main()
     GOODCIDR("1.2.3.4/32",      0x01020304, 32);
     GOODCIDR("1.2.3.4/24",      0x01020304, 24); /* address is not truncated to prefix */
 
-    GOODCIDR("1.2.3.0/0xffffff00",      0x01020300, 24);
-    GOODCIDR("1.2.3.4/0xffffff00",      0x01020304, 24);
-    GOODCIDR("1.2.3.4/0xffffffff",      0x01020304, 32);
-
-    GOODCIDR("1.2.3.0/255.255.255.0",   0x01020300, 24);
-    GOODCIDR("1.2.3.4/255.255.255.0",   0x01020304, 24);
-    GOODCIDR("1.2.3.4/255.255.255.255", 0x01020304, 32);
-
-    GOODCIDR("0.0.0.0/0",       0x00000000,  0);
-    GOODCIDR("0.0.0.0/0x0",     0x00000000,  0);
-    GOODCIDR("0.0.0.0/0.0.0.0", 0x00000000,  0);
-
-    /*
-     * we allow zero prefix mostly for the sake of the above
-     * "everything"/default case, but allow it on everything - a
-     * conscientious caller should be doing more checks on the result
-     * anyway.
-     */
-    GOODCIDR("1.2.3.4/0",       0x01020304,  0);        /* prefix can be zero */
-
     GOODCIDR("\t " "1.2.3.4/24",       0x01020304, 24); /* leading spaces ok */
     GOODCIDR(      "1.2.3.4/24" " \t", 0x01020304, 24); /* trailing spaces ok */
     GOODCIDR("\t " "1.2.3.4/24" " \t", 0x01020304, 24); /* both are ok */
 
-    /* trailing space with netmask notation */
-    GOODCIDR("1.2.3.0/0xffffff00" " ",    0x01020300, 24);
-    GOODCIDR("1.2.3.0/255.255.255.0" " ", 0x01020300, 24);
-
-    BADCIDR("1.2.3.4/24.");
-    BADCIDR("1.2.3.4/24 .");
-    BADCIDR("1.2.3.4/240.");
-    BADCIDR("1.2.3.4/240.");
-
+    BADCIDR("1.2.3.4/0");       /* prefix can't be zero */
     BADCIDR("1.2.3.4/33");      /* prefix is too big */
-    BADCIDR("1.2.3.4/256");     /* prefix is too big */
-    BADCIDR("1.2.3.4/257");     /* prefix is too big */
     BADCIDR("1.2.3.4/-1");      /* prefix is negative */
+    BADCIDR("1.2.3.4/");        /* prefix is missing */
     BADCIDR("1.2.3.4/");        /* prefix is missing */
     BADCIDR("1.2.3.4/a");       /* prefix is not a number */
     BADCIDR("1.2.3.4/0xa");     /* prefix is not decimal */
@@ -358,8 +329,7 @@ int main()
     BADCIDR("1.2.3.0/24" "x");  /* trailing chars */
     BADCIDR("1.2.3.0/24" " x"); /* trailing chars */
 
-    BADCIDR("1.2.3.0/0xffffff01");    /* non-contiguous mask */
-    BADCIDR("1.2.3.0/255.255.255.1"); /* non-contiguous mask */
+
 
     /* NB: RTNetIsIPv4AddrStr does NOT allow leading/trailing whitespace */
     IS_ADDR("1.2.3.4");

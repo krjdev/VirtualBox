@@ -1,10 +1,10 @@
-; $Id: ASMGetIdtrLimit.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMGetIdtrLimit.asm $
 ;; @file
 ; IPRT - ASMGetIdtrLimit().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@ BEGINCODE
 ; Gets the content of the IDTR CPU register.
 ; @returns  IDTR.LIMIT in ax
 ;
-RT_BEGINPROC ASMGetIdtrLimit
+BEGINPROC_EXPORTED ASMGetIdtrLimit
         sub     xSP, 18h
         SEH64_ALLOCATE_STACK 18h
 SEH64_END_PROLOGUE

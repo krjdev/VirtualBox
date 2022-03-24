@@ -1,10 +1,10 @@
-/* $Id: the-darwin-kernel.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: the-darwin-kernel.h $ */
 /** @file
  * IPRT - Include all necessary headers for the Darwing kernel.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -89,9 +89,6 @@
 #include <sys/fcntl.h>
 #include <IOKit/IOTypes.h>
 #include <IOKit/IOLib.h> /* Note! Has Assert down as a function. */
-#define _OS_OSUNSERIALIZE_H /* HACK ALERT! Block importing OSUnserialized.h as it causes compilation trouble with
-                               newer clang versions and the 10.15 SDK, and we really don't need it. Sample error:
-                               libkern/c++/OSUnserialize.h:72:2: error: use of OSPtr outside of a return type [-Werror,-Wossharedptr-misuse] */
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOMapper.h>
@@ -205,12 +202,12 @@ RT_C_DECLS_BEGIN
 /* initterm-r0drv-darwin.cpp. */
 typedef uint32_t *  (*PFNR0DARWINASTPENDING)(void);
 typedef void        (*PFNR0DARWINCPUINTERRUPT)(int);
-extern DECL_HIDDEN_DATA(lck_grp_t *)                 g_pDarwinLockGroup;
-extern DECL_HIDDEN_DATA(PFNR0DARWINASTPENDING)       g_pfnR0DarwinAstPending;
-extern DECL_HIDDEN_DATA(PFNR0DARWINCPUINTERRUPT)     g_pfnR0DarwinCpuInterrupt;
+extern lck_grp_t                  *g_pDarwinLockGroup;
+extern PFNR0DARWINASTPENDING       g_pfnR0DarwinAstPending;
+extern PFNR0DARWINCPUINTERRUPT     g_pfnR0DarwinCpuInterrupt;
 #ifdef DEBUG /* Used once for debugging memory issues (see #9466). */
 typedef kern_return_t (*PFNR0DARWINVMFAULTEXTERNAL)(vm_map_t, vm_map_offset_t, vm_prot_t, boolean_t, int, pmap_t, vm_map_offset_t);
-extern DECL_HIDDEN_DATA(PFNR0DARWINVMFAULTEXTERNAL) g_pfnR0DarwinVmFaultExternal;
+extern PFNR0DARWINVMFAULTEXTERNAL  g_pfnR0DarwinVmFaultExternal;
 #endif
 
 /* threadpreempt-r0drv-darwin.cpp */

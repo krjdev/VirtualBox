@@ -1,10 +1,10 @@
-/* $Id: xfsvfs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: xfsvfs.cpp $ */
 /** @file
  * IPRT - XFS Virtual Filesystem.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

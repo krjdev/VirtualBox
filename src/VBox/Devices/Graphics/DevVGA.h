@@ -1,10 +1,10 @@
-/* $Id: DevVGA.h 93944 2022-02-24 21:15:14Z vboxsync $ */
+/* $Id: DevVGA.h $ */
 /** @file
  * DevVGA - VBox VGA/VESA device, internal header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -192,6 +192,7 @@ typedef struct vga_retrace_s {
 
 #ifndef VBOX
 #define VGA_STATE_COMMON                                                \
+    uint8_t *vram_ptr;                                                  \
     unsigned long vram_offset;                                          \
     unsigned int vram_size;                                             \
     uint32_t latch;                                                     \
@@ -320,9 +321,7 @@ typedef struct VGAState
     uint32_t line_compare;
     uint32_t start_addr;
     uint32_t plane_updated;
-    uint8_t last_cw, last_ch;
-    uint8_t last_uline;                                                 \
-    bool last_blink;                                                    \
+    uint8_t last_cw, last_ch, padding2[2];
     uint32_t last_width, last_height; /* in chars or pixels */
     uint32_t last_scr_width, last_scr_height; /* in pixels */
     uint32_t last_bpp;
@@ -350,7 +349,7 @@ typedef struct VGAState
     /** Current refresh timer interval. */
     uint32_t                    cMilliesRefreshInterval;
     /** Bitmap tracking dirty pages. */
-    uint64_t                    bmDirtyBitmap[VGA_VRAM_MAX / GUEST_PAGE_SIZE / 64];
+    uint64_t                    bmDirtyBitmap[VGA_VRAM_MAX / PAGE_SIZE / 64];
 
     /** Flag indicating that there are dirty bits. This is used to optimize the handler resetting. */
     bool                        fHasDirtyBits;
@@ -365,12 +364,10 @@ typedef struct VGAState
 #ifdef VBOX_WITH_VMSVGA
     /* Whether the SVGA emulation is enabled or not. */
     bool                        fVMSVGAEnabled;
-    bool                        fVMSVGA10;
     bool                        fVMSVGAPciId;
     bool                        fVMSVGAPciBarLayout;
-    bool                        Padding4[3];
 #else
-    bool                        Padding4[4+3];
+    bool                        afPadding4[3];
 #endif
 
     struct {

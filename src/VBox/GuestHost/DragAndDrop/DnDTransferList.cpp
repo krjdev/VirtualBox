@@ -1,10 +1,10 @@
-/* $Id: DnDTransferList.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DnDTransferList.cpp $ */
 /** @file
  * DnD - transfer list implemenation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -249,32 +249,38 @@ static int dndTransferListObjAdd(PDNDTRANSFERLIST pList, const char *pcszSrcAbs,
         PDNDTRANSFEROBJECT pObj = (PDNDTRANSFEROBJECT)RTMemAllocZ(sizeof(DNDTRANSFEROBJECT));
         if (pObj)
         {
-            const bool fIsFile = RTFS_IS_FILE(fMode);
-
-            rc = DnDTransferObjectInitEx(pObj, fIsFile ? DNDTRANSFEROBJTYPE_FILE : DNDTRANSFEROBJTYPE_DIRECTORY,
-                                         pList->pszPathRootAbs, &pcszSrcAbs[idxPathToAdd]);
-            if (RT_SUCCESS(rc))
+            pObj = (PDNDTRANSFEROBJECT)RTMemAllocZ(sizeof(DNDTRANSFEROBJECT));
+            if (pObj)
             {
-                if (fIsFile)
-                    rc = DnDTransferObjectOpen(pObj,
-                                               RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_WRITE, /** @todo Add a standard fOpen mode for this list. */
-                                               0 /* fMode */, DNDTRANSFEROBJECT_FLAGS_NONE);
+                const bool fIsFile = RTFS_IS_FILE(fMode);
+
+                rc = DnDTransferObjectInitEx(pObj, fIsFile ? DNDTRANSFEROBJTYPE_FILE : DNDTRANSFEROBJTYPE_DIRECTORY,
+                                             pList->pszPathRootAbs, &pcszSrcAbs[idxPathToAdd]);
                 if (RT_SUCCESS(rc))
                 {
-                    RTListAppend(&pList->lstObj, &pObj->Node);
-
-                    pList->cObj++;
                     if (fIsFile)
-                        pList->cbObjTotal += DnDTransferObjectGetSize(pObj);
+                        rc = DnDTransferObjectOpen(pObj,
+                                                   RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_WRITE, /** @todo Add a standard fOpen mode for this list. */
+                                                   0 /* fMode */, DNDTRANSFEROBJECT_FLAGS_NONE);
+                    if (RT_SUCCESS(rc))
+                    {
+                        RTListAppend(&pList->lstObj, &pObj->Node);
 
-                    if (   fIsFile
-                        && !(fFlags & DNDTRANSFERLIST_FLAGS_KEEP_OPEN)) /* Shall we keep the file open while being added to this list? */
-                        DnDTransferObjectClose(pObj);
+                        pList->cObj++;
+                        if (fIsFile)
+                            pList->cbObjTotal += DnDTransferObjectGetSize(pObj);
+
+                        if (   fIsFile
+                            && !(fFlags & DNDTRANSFERLIST_FLAGS_KEEP_OPEN)) /* Shall we keep the file open while being added to this list? */
+                            DnDTransferObjectClose(pObj);
+                    }
+
+                    if (RT_FAILURE(rc))
+                        DnDTransferObjectDestroy(pObj);
                 }
-
-                if (RT_FAILURE(rc))
-                    DnDTransferObjectDestroy(pObj);
             }
+            else
+                rc = VERR_NO_MEMORY;
 
             if (RT_FAILURE(rc))
                 RTMemFree(pObj);
@@ -543,7 +549,6 @@ static int dndTransferListAppendDirectory(PDNDTRANSFERLIST pList, char* pszPathA
             break;
     }
 
-    RTDirClose(hDir);
     return rc;
 }
 
@@ -1074,7 +1079,7 @@ int DnDTransferListGetRootsEx(PDNDTRANSFERLIST pList,
         }
         else /* Native */
         {
-#if RTPATH_STYLE == RTPATH_STR_F_STYLE_DOS
+#if defined(RT_OS_OS2) || defined(RT_OS_WINDOWS)
             /* Convert paths to native path style. */
             rc = DnDPathConvert(szPath, sizeof(szPath), DNDPATHCONVERT_FLAGS_TO_DOS);
 #endif

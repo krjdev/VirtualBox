@@ -1,10 +1,10 @@
-/* $Id: scm.h 93556 2022-02-02 23:14:47Z vboxsync $ */
+/* $Id: scm.h $ */
 /** @file
  * IPRT Testcase / Tool - Source Code Massager.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -145,7 +145,7 @@ typedef SCMCOMMENTINFO const *PCSCMCOMMENTINFO;
  * @param   cchBody         The comment body length.
  * @param   pvUser          User callback argument.
  */
-typedef DECLCALLBACKTYPE(int, FNSCMCOMMENTENUMERATOR,(PCSCMCOMMENTINFO pInfo, const char *pszBody, size_t cchBody, void *pvUser));
+typedef DECLCALLBACK(int) FNSCMCOMMENTENUMERATOR(PCSCMCOMMENTINFO pInfo, const char *pszBody, size_t cchBody, void *pvUser);
 /** Poiter to a omment enumeration callback function. */
 typedef FNSCMCOMMENTENUMERATOR *PFNSCMCOMMENTENUMERATOR;
 
@@ -211,8 +211,6 @@ typedef struct SCMRWSTATE
     /** Set after the printing the first verbose message about a file under
      *  rewrite. */
     bool                fFirst;
-    /** Set if the file requires manual repair. */
-    bool                fNeedsManualRepair;
     /** Cached ScmSvnIsInWorkingCopy response. 0 indicates not known, 1 means it
      * is in WC, -1 means it doesn't. */
     int8_t              fIsInSvnWorkingCopy;
@@ -251,8 +249,6 @@ FNSCMREWRITER rewrite_SvnNoEolStyle;
 FNSCMREWRITER rewrite_SvnBinary;
 FNSCMREWRITER rewrite_SvnKeywords;
 FNSCMREWRITER rewrite_SvnSyncProcess;
-FNSCMREWRITER rewrite_UnicodeChecks;
-FNSCMREWRITER rewrite_PageChecks;
 FNSCMREWRITER rewrite_Copyright_CstyleComment;
 FNSCMREWRITER rewrite_Copyright_HashComment;
 FNSCMREWRITER rewrite_Copyright_PythonComment;
@@ -355,11 +351,6 @@ typedef struct SCMSETTINGSBASE
     bool            fFixTodos;
     /** Whether to fix C/C++ err.h/errcore.h usage. */
     bool            fFixErrH;
-    /** No PAGE_SIZE, PAGE_SHIFT, PAGE_OFFSET_MASK allowed in C/C++, only the GUEST_
-     * or HOST_ prefixed versions. */
-    bool            fOnlyGuestHostPage;
-    /** No ASMMemIsZeroPage or ASMMemZeroPage calls allowed (C/C++). */
-    bool            fNoASMMemPageUse;
 
     /** Update the copyright year. */
     bool            fUpdateCopyrightYear;
@@ -382,8 +373,6 @@ typedef struct SCMSETTINGSBASE
     bool            fSetSvnKeywords;
     /** Skip checking svn:sync-process. */
     bool            fSkipSvnSyncProcess;
-    /** Skip the unicode checks. */
-    bool            fSkipUnicodeChecks;
     /** Tab size. */
     uint8_t         cchTab;
     /** Optimal source code width. */
@@ -461,7 +450,6 @@ typedef SCMSETTINGS const *PCSCMSETTINGS;
 void ScmVerboseBanner(PSCMRWSTATE pState, int iLevel);
 void ScmVerbose(PSCMRWSTATE pState, int iLevel, const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
 bool ScmError(PSCMRWSTATE pState, int rc, const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
-bool ScmFixManually(PSCMRWSTATE pState, const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(2, 3);
 
 extern const char g_szTabSpaces[16+1];
 extern const char g_szAsterisks[255+1];

@@ -28,18 +28,11 @@
 
 #ifndef VBOX
 #include "pipe/p_compiler.h"
-#else /* VBOX */
+#else /* VBOX
 
 /* Include only what is required. */
 #include <iprt/types.h>
-
-/* 'inline' keyword in C code for MSC older than VS2015. */
-#if !defined(__cplusplus)
-# if defined(_MSC_VER) && !RT_MSC_PREREQ(RT_MSC_VER_VS2015)
-#  define inline _inline
-# endif
-#endif
-
+#define inline _inline
 /* Compute the size of an array */
 #ifndef ARRAY_SIZE
 #  define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))

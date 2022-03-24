@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: webservergluecgi.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: webservergluecgi.py $
 
 """
 Test Manager Core - Web Server Abstraction Base Class.
@@ -7,7 +7,7 @@ Test Manager Core - Web Server Abstraction Base Class.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -82,9 +82,4 @@ class WebServerGlueCgi(WebServerGlueBase):
 
     def getBodyIoStream(self):
         return sys.stdin;
-
-    def getBodyIoStreamBinary(self):
-        # Python 3: sys.stdin.read() returns a string. To get untranslated
-        #           binary data we use the sys.stdin.buffer object instead.
-        return getattr(sys.stdin, 'buffer', sys.stdin);
 

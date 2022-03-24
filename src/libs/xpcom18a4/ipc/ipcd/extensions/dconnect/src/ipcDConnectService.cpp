@@ -373,8 +373,10 @@ SerializeParam(ipcMessageWriter &writer, const nsXPTType &t, const nsXPTCMiniVar
 
     case nsXPTType::T_IID:
       {
-        AssertReturn(v.val.p, NS_ERROR_INVALID_POINTER);
-        writer.PutBytes(v.val.p, sizeof(nsID));
+        if (v.val.p)
+          writer.PutBytes(v.val.p, sizeof(nsID));
+        else
+          return NS_ERROR_INVALID_POINTER;
       }
       break;
 
@@ -1358,7 +1360,6 @@ public:
             }
 
             ClientDownInfo *cInfo = new ClientDownInfo(aSenderID);
-            RTMEM_MAY_LEAK(cInfo); /* tstVBoxAPIPerf leaks one allocated during ComPtr<IVirtualBoxClient>::createInprocObject(). */
             g_ClientDownMap[aSenderID] = cInfo;
             g_ClientDownList.push_front(cInfo);
             NS_ASSERTION(g_ClientDownMap.size() == g_ClientDownList.size(),
@@ -1880,7 +1881,8 @@ ExceptionStub::QueryInterface(const nsID &aIID, void **aInstancePtr)
 /* readonly attribute string message; */
 NS_IMETHODIMP ExceptionStub::GetMessage(char **aMessage)
 {
-  AssertReturn(aMessage, NS_ERROR_INVALID_POINTER);
+  if (!aMessage)
+    return NS_ERROR_INVALID_POINTER;
   *aMessage = ToNewCString(mMessage);
   return NS_OK;
 }
@@ -1888,7 +1890,8 @@ NS_IMETHODIMP ExceptionStub::GetMessage(char **aMessage)
 /* readonly attribute nsresult result; */
 NS_IMETHODIMP ExceptionStub::GetResult(nsresult *aResult)
 {
-  AssertReturn(aResult, NS_ERROR_INVALID_POINTER);
+  if (!aResult)
+    return NS_ERROR_INVALID_POINTER;
   *aResult = mResult;
   return NS_OK;
 }
@@ -1896,7 +1899,8 @@ NS_IMETHODIMP ExceptionStub::GetResult(nsresult *aResult)
 /* readonly attribute string name; */
 NS_IMETHODIMP ExceptionStub::GetName(char **aName)
 {
-  AssertReturn(aName, NS_ERROR_INVALID_POINTER);
+  if (!aName)
+    return NS_ERROR_INVALID_POINTER;
   *aName = ToNewCString(mName);
   return NS_OK;
 }
@@ -1904,7 +1908,8 @@ NS_IMETHODIMP ExceptionStub::GetName(char **aName)
 /* readonly attribute string filename; */
 NS_IMETHODIMP ExceptionStub::GetFilename(char **aFilename)
 {
-  AssertReturn(aFilename, NS_ERROR_INVALID_POINTER);
+  if (!aFilename)
+    return NS_ERROR_INVALID_POINTER;
   *aFilename = ToNewCString(mFilename);
   return NS_OK;
 }
@@ -1912,7 +1917,8 @@ NS_IMETHODIMP ExceptionStub::GetFilename(char **aFilename)
 /* readonly attribute PRUint32 lineNumber; */
 NS_IMETHODIMP ExceptionStub::GetLineNumber(PRUint32 *aLineNumber)
 {
-  AssertReturn(aLineNumber, NS_ERROR_INVALID_POINTER);
+  if (!aLineNumber)
+    return NS_ERROR_INVALID_POINTER;
   *aLineNumber = mLineNumber;
   return NS_OK;
 }
@@ -1920,7 +1926,8 @@ NS_IMETHODIMP ExceptionStub::GetLineNumber(PRUint32 *aLineNumber)
 /* readonly attribute PRUint32 columnNumber; */
 NS_IMETHODIMP ExceptionStub::GetColumnNumber(PRUint32 *aColumnNumber)
 {
-  AssertReturn(aColumnNumber, NS_ERROR_INVALID_POINTER);
+  if (!aColumnNumber)
+    return NS_ERROR_INVALID_POINTER;
   *aColumnNumber = mColumnNumber;
   return NS_OK;
 }
@@ -2581,13 +2588,13 @@ DConnectStub::CallMethod(PRUint16 aMethodIndex,
       else
         rv = SerializeParam(writer, type, aParams[i]);
 
-      AssertMsgBreak(NS_SUCCEEDED(rv), ("i=%d rv=%#x\n", i, rv));
+      if (NS_FAILED(rv))
+        break;
     }
     else if ((paramInfo.IsOut() || paramInfo.IsRetval()) && !aParams[i].val.p)
     {
       // report error early if NULL pointer is passed as an output parameter
       rv = NS_ERROR_NULL_POINTER;
-      AssertMsgFailedBreak(("i=%d IsOut=%d IsRetval=%d NS_ERROR_NULL_POINTER\n", i, paramInfo.IsOut(), paramInfo.IsRetval()));
       break;
     }
   }

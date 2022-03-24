@@ -1,10 +1,10 @@
-/* $Id: kernel_cpp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: kernel_cpp.h $ */
 /** @file
  * Kernel C++, Haiku private.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,7 @@
  *
  * VirtualBox Guest Additions for Haiku. C++ in the kernel.
  *
- * Copyright 2002-2009, Axel DÃ¶rfler, axeld@pinc-software.de.
+ * Copyright 2002-2009, Axel Dörfler, axeld@pinc-software.de.
  * Distributed under the terms of the MIT License.
  */
 

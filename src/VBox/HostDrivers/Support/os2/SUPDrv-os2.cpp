@@ -1,4 +1,4 @@
-/* $Id: SUPDrv-os2.cpp 91789 2021-10-17 18:16:11Z vboxsync $ */
+/* $Id: SUPDrv-os2.cpp $ */
 /** @file
  * VBoxDrv - The VirtualBox Support Driver - OS/2 specifics.
  */
@@ -471,19 +471,6 @@ int  VBOXCALL   supdrvOSLdrQuerySymbol(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pI
     return VERR_WRONG_ORDER;
 }
 
-
-void VBOXCALL   supdrvOSLdrRetainWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    RT_NOREF(pDevExt, pImage);
-    AssertFailed();
-}
-
-
-void VBOXCALL   supdrvOSLdrReleaseWrapperModule(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
-{
-    RT_NOREF(pDevExt, pImage);
-    AssertFailed();
-}
 
 #ifdef SUPDRV_WITH_MSR_PROBER
 

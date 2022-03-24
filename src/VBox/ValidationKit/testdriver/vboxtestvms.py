@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: vboxtestvms.py 94126 2022-03-08 14:18:58Z vboxsync $
+# $Id: vboxtestvms.py $
 
 """
 VirtualBox Test VMs
@@ -7,7 +7,7 @@ VirtualBox Test VMs
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94126 $"
+__version__ = "$Revision: 135976 $"
 
 # Standard Python imports.
 import copy;
@@ -38,11 +38,11 @@ import string;
 import uuid;
 
 # Validation Kit imports.
-from common     import pathutils;
-from common     import utils;
 from testdriver import base;
 from testdriver import reporter;
 from testdriver import vboxcon;
+from common import pathutils;
+from common import utils;
 
 
 # All virtualization modes.
@@ -122,7 +122,6 @@ g_aaNameToDetails = \
     [ 'Linux_64',       'Ubuntu_64',             g_k64,    1, 256, ['ubuntu[0-9]*-64', ]],
     [ 'Linux',          'ArchLinux',             g_k32,    1, 256, ['arch[0-9]*', ]],
     [ 'Linux_64',       'ArchLinux_64',          g_k64,    1, 256, ['arch[0-9]*-64', ]],
-    [ 'OS2Warp45',      'OS2Warp45',    g_k32 | g_kiNoRaw, 1, 1,   ['os2.*', 'acp.*','mcp.*', ]], # smp does busy spinning and unattended installer only does UNI at the momen.
     [ 'Solaris',        'Solaris',               g_k32,    1, 256, ['sol10',  'sol10u[0-9]']],
     [ 'Solaris_64',     'Solaris_64',            g_k64,    1, 256, ['sol10-64', 'sol10u-64[0-9]']],
     [ 'Solaris_64',     'Solaris11_64',          g_k64,    1, 256, ['sol11u1']],
@@ -331,7 +330,7 @@ class BaseTestVm(object):
             if _intersects(asSplit, ['uni']):
                 self.acCpusSup = [1];
             elif self.aInfo is not None:
-                self.acCpusSup = list(range(self.aInfo[g_iMinCpu], self.aInfo[g_iMaxCpu] + 1));
+                self.acCpusSup = list(range(self.aInfo[g_iMinCpu], self.aInfo[g_iMaxCpu]));
             else:
                 self.acCpusSup = [1];
 
@@ -955,7 +954,6 @@ class TestVm(object):
                  fRandomPvPMode = False,                    # type: bool
                  sFirmwareType = 'bios',                    # type: str
                  sChipsetType = 'piix3',                    # type: str
-                 sIommuType = 'none',                       # type: str
                  sHddControllerType = 'IDE Controller',     # type: str
                  sDvdControllerType = 'IDE Controller'      # type: str
                  ):
@@ -982,7 +980,6 @@ class TestVm(object):
         self.fVmmDevTestingMmio      = fVmmDevTestingMmio;
         self.sFirmwareType           = sFirmwareType;
         self.sChipsetType            = sChipsetType;
-        self.sIommuType              = sIommuType;
         self.fCom1RawFile            = False;
 
         self.fSnapshotRestoreCurrent = False;        # Whether to restore execution on the current snapshot.
@@ -1078,7 +1075,7 @@ class TestVm(object):
             if _intersects(asSplit, ['uni']):
                 self.acCpusSup = [1];
             elif self.aInfo is not None:
-                self.acCpusSup = list(range(self.aInfo[g_iMinCpu], self.aInfo[g_iMaxCpu] + 1));
+                self.acCpusSup = list(range(self.aInfo[g_iMinCpu], self.aInfo[g_iMaxCpu]));
             else:
                 self.acCpusSup = [1];
 
@@ -1181,7 +1178,6 @@ class TestVm(object):
                                      fVmmDevTestingMmio = self.fVmmDevTestingMmio,
                                      sFirmwareType      = self.sFirmwareType,
                                      sChipsetType       = self.sChipsetType,
-                                     sIommuType         = self.sIommuType,
                                      sCom1RawFile       = self.sCom1RawFile if self.fCom1RawFile else None
                                      );
 
@@ -1905,29 +1901,10 @@ class TestVmManager(object):
     ## @}
 
     kaTestVMs = (
-        # Note: The images in the 6.1 folder all have been pre-configured to allow for Guest Additions installation
-        #       (come with build essentials, kernel headers).
         # Linux
-        TestVm('tst-ubuntu-18_04_3-64',     kfGrpStdSmoke,        sHd = '6.1/ubuntu-18_04_3-amd64-2.vdi',
-               sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True,
-               asParavirtModesSup = [g_ksParavirtProviderKVM,]),
-        # Note: Deprecated; had SELinux + Screensaver (black screen) enabled.
-        #TestVm('tst-ol-8_1-64-efi',         kfGrpStdSmoke,        sHd = '6.1/efi/ol-8_1-efi-amd64.vdi',
-        #       sKind = 'Oracle_64', acCpusSup = range(1, 33), fIoApic = True, sFirmwareType = 'efi',
-        #       asParavirtModesSup = [g_ksParavirtProviderKVM,]),
-        TestVm('tst-ol-8_1-64-efi',         kfGrpStdSmoke,        sHd = '6.1/efi/ol-8_1-efi-amd64-2.vdi',
-               sKind = 'Oracle_64', acCpusSup = range(1, 33), fIoApic = True, sFirmwareType = 'efi',
-               asParavirtModesSup = [g_ksParavirtProviderKVM,]),
-        TestVm('tst-ol-6u2-32',             kfGrpStdSmoke,        sHd = '6.1/ol-6u2-x86.vdi',
-               sKind = 'Oracle',    acCpusSup = range(1, 33), fIoApic = True,
-               asParavirtModesSup = [g_ksParavirtProviderKVM,]),
-        TestVm('tst-ubuntu-15_10-64-efi',   kfGrpStdSmoke,        sHd = '6.1/efi/ubuntu-15_10-efi-amd64-3.vdi',
+        TestVm('tst-ubuntu-15_10-64-efi',   kfGrpStdSmoke,        sHd = '4.2/efi/ubuntu-15_10-efi-amd64.vdi',
                sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True, sFirmwareType = 'efi',
                asParavirtModesSup = [g_ksParavirtProviderKVM,]),
-        # Note: Deprecated / buggy; use the one in the 6.1 folder.
-        #TestVm('tst-ubuntu-15_10-64-efi',   kfGrpStdSmoke,        sHd = '4.2/efi/ubuntu-15_10-efi-amd64.vdi',
-        #       sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True, sFirmwareType = 'efi',
-        #       asParavirtModesSup = [g_ksParavirtProviderKVM,]),
         TestVm('tst-rhel5',                 kfGrpSmoke,           sHd = '3.0/tcp/rhel5.vdi',
                sKind = 'RedHat', acCpusSup = range(1, 33), fIoApic = True, sNic0AttachType = 'nat'),
         TestVm('tst-arch',                  kfGrpStandard,        sHd = '4.2/usb/tst-arch.vdi',
@@ -1937,14 +1914,6 @@ class TestVmManager(object):
         #       sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True),
         TestVm('tst-ol76-64',   kfGrpStdSmoke,        sHd = '4.2/ol76/t-ol76-64.vdi',
                sKind = 'Oracle_64', acCpusSup = range(1, 33), fIoApic = True),
-        TestVm('tst-ubuntu-20_04-64-amdvi',     kfGrpStdSmoke,    sHd = '6.1/ubuntu-20_04-64.vdi',
-               sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True,
-               asParavirtModesSup = [g_ksParavirtProviderKVM,], sNic0AttachType = 'nat', sChipsetType = 'ich9',
-               sIommuType = 'amd'),
-        TestVm('tst-ubuntu-20_04-64-vtd',     kfGrpStdSmoke,      sHd = '6.1/ubuntu-20_04-64.vdi',
-               sKind = 'Ubuntu_64', acCpusSup = range(1, 33), fIoApic = True,
-               asParavirtModesSup = [g_ksParavirtProviderKVM,], sNic0AttachType = 'nat', sChipsetType = 'ich9',
-               sIommuType = 'intel'),
 
         # Solaris
         TestVm('tst-sol10',                 kfGrpSmoke,           sHd = '3.0/tcp/solaris10.vdi',
@@ -2001,11 +1970,8 @@ class TestVmManager(object):
                sKind = 'Windows2003', acCpusSup = range(1, 33), fPae = True, sNic0AttachType = 'bridged'),
 
         # W7
-        TestVm('tst-win7',                  kfGrpStdSmoke,        sHd = '6.1/win7-32/t-win7-32.vdi',
-               sKind = 'Windows7',    acCpusSup = range(1, 33), fIoApic = True),
-        # Note: Deprecated; use the one in the 6.1 folder.
-        #TestVm('tst-win7',                  kfGrpStdSmoke,        sHd = '4.2/win7-32/t-win7.vdi',
-        #       sKind = 'Windows7', acCpusSup = range(1, 33), fIoApic = True),
+        TestVm('tst-win7',                  kfGrpStdSmoke,        sHd = '4.2/win7-32/t-win7.vdi',
+               sKind = 'Windows7', acCpusSup = range(1, 33), fIoApic = True),
 
         # W8
         TestVm('tst-win8-64',               kfGrpStdSmoke,        sHd = '4.2/win8-64/t-win8-64.vdi',
@@ -2022,13 +1988,9 @@ class TestVmManager(object):
         #       sKind = 'Windows10_64', acCpusSup = range(1, 33), fIoApic = True, sFirmwareType = 'efi', sChipsetType = 'ich9'),
 
         # Nested hardware-virtualization
-        TestVm('tst-nsthwvirt-ubuntu-64',   kfGrpStdSmoke,       sHd = '5.3/nat/nsthwvirt-ubuntu64/t-nsthwvirt-ubuntu64.vdi',
+        TestVm('tst-nsthwvirt-ubuntu-64',    kfGrpStdSmoke,       sHd = '5.3/nat/nsthwvirt-ubuntu64/t-nsthwvirt-ubuntu64.vdi',
                sKind = 'Ubuntu_64', acCpusSup = range(1, 2), asVirtModesSup = ['hwvirt-np',], fIoApic = True, fNstHwVirt = True,
                sNic0AttachType = 'nat'),
-
-        # Audio testing.
-        TestVm('tst-audio-debian10-64',     kfGrpStdSmoke,       sHd = '6.1/audio/debian10-amd64-7.vdi',
-               sKind = 'Debian_64', acCpusSup = range(1, 33), fIoApic = True),
 
         # DOS and Old Windows.
         AncientTestVm('tst-dos20',              sKind = 'DOS',

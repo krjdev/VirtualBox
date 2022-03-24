@@ -1,10 +1,10 @@
-/* $Id: UIMachineLogicScale.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineLogicScale.h $ */
 /** @file
  * VBox Qt GUI - UIMachineLogicScale class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,7 +48,7 @@ private slots:
 #endif /* !RT_OS_DARWIN */
 
     /** Handles host-screen available-area change. */
-    virtual void sltHostScreenAvailableAreaChange() RT_OVERRIDE;
+    virtual void sltHostScreenAvailableAreaChange() /* override */;
 
 private:
 

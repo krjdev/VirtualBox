@@ -1,10 +1,10 @@
-/* $Id: thread.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: thread.h $ */
 /** @file
  * IPRT - Internal RTThread header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -137,7 +137,7 @@ typedef RTTHREADINT *PRTTHREADINT;
 /** @} */
 
 /** Counters for each thread type. */
-extern DECL_HIDDEN_DATA(uint32_t volatile) g_acRTThreadTypeStats[RTTHREADTYPE_END];
+extern DECLHIDDEN(uint32_t volatile)   g_acRTThreadTypeStats[RTTHREADTYPE_END];
 
 
 /**
@@ -245,7 +245,7 @@ DECLHIDDEN(void) rtThreadNativeInformDebugger(PRTTHREADINT pThread);
 
 
 /* thread.cpp */
-DECL_HIDDEN_CALLBACK(int) rtThreadMain(PRTTHREADINT pThread, RTNATIVETHREAD NativeThread, const char *pszThreadName);
+DECLCALLBACK(DECLHIDDEN(int)) rtThreadMain(PRTTHREADINT pThread, RTNATIVETHREAD NativeThread, const char *pszThreadName);
 DECLHIDDEN(uint32_t)     rtThreadRelease(PRTTHREADINT pThread);
 DECLHIDDEN(void)         rtThreadTerminate(PRTTHREADINT pThread, int rc);
 DECLHIDDEN(PRTTHREADINT) rtThreadGetByNative(RTNATIVETHREAD NativeThread);

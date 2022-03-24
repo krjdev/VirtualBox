@@ -1,10 +1,10 @@
-/* $Id: VBoxMPWddm.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPWddm.h $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,6 +23,12 @@
 
 #define VBOX_WDDM_DRIVERNAME L"VBoxWddm"
 
+#ifndef DEBUG_misha
+# ifdef Assert
+#  error "VBoxMPWddm.h must be included first."
+# endif
+# define RT_NO_STRICT
+#endif
 #include "common/VBoxMPUtils.h"
 #include "common/VBoxMPDevExt.h"
 #include "../../common/VBoxVideoTools.h"

@@ -1,10 +1,10 @@
-/* $Id: UIMachineWindowScale.cpp 93366 2022-01-20 17:13:31Z vboxsync $ */
+/* $Id: UIMachineWindowScale.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachineWindowScale class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -17,12 +17,9 @@
 
 /* Qt includes: */
 #include <QMenu>
-#include <QTimerEvent>
+#include <QTimer>
 #include <QSpacerItem>
 #include <QResizeEvent>
-#ifdef VBOX_WS_X11
-# include <QTimer>
-#endif
 
 /* GUI includes: */
 #include "UICommon.h"
@@ -32,7 +29,6 @@
 #include "UIMachineLogic.h"
 #include "UIMachineWindowScale.h"
 #include "UIMachineView.h"
-#include "UINotificationCenter.h"
 #ifdef VBOX_WS_MAC
 # include "VBoxUtils.h"
 # include "UIImageTools.h"
@@ -42,7 +38,6 @@
 
 UIMachineWindowScale::UIMachineWindowScale(UIMachineLogic *pMachineLogic, ulong uScreenId)
     : UIMachineWindow(pMachineLogic, uScreenId)
-    , m_iGeometrySaveTimerId(-1)
 {
 }
 
@@ -56,12 +51,6 @@ void UIMachineWindowScale::prepareMainLayout()
     m_pBottomSpacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_pLeftSpacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_pRightSpacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
-}
-
-void UIMachineWindowScale::prepareNotificationCenter()
-{
-    if (gpNotificationCenter && (m_uScreenId == 0))
-        gpNotificationCenter->setParent(centralWidget());
 }
 
 #ifdef VBOX_WS_MAC
@@ -105,8 +94,8 @@ void UIMachineWindowScale::loadSettings()
         if (!geo.isNull())
         {
             /* Restore window geometry: */
-            m_geometry = geo;
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_geometry);
+            m_normalGeometry = geo;
+            UICommon::setTopLevelGeometry(this, m_normalGeometry);
 
             /* Maximize (if necessary): */
             if (gEDataManager->machineWindowShouldBeMaximized(machineLogic()->visualStateType(),
@@ -123,18 +112,31 @@ void UIMachineWindowScale::loadSettings()
             /* Resize to default size: */
             resize(640, 480);
             /* Move newly created window to the screen-center: */
-            m_geometry = geometry();
-            m_geometry.moveCenter(availableGeo.center());
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_geometry);
+            m_normalGeometry = geometry();
+            m_normalGeometry.moveCenter(availableGeo.center());
+            UICommon::setTopLevelGeometry(this, m_normalGeometry);
         }
 
         /* Normalize to the optimal size: */
 #ifdef VBOX_WS_X11
         QTimer::singleShot(0, this, SLOT(sltNormalizeGeometry()));
 #else /* !VBOX_WS_X11 */
-        normalizeGeometry(true /* adjust position */, true /* resize to fit guest display. ignored in scaled case */);
+        normalizeGeometry(true /* adjust position */);
 #endif /* !VBOX_WS_X11 */
     }
+}
+
+void UIMachineWindowScale::saveSettings()
+{
+    /* Save window geometry: */
+    {
+        gEDataManager->setMachineWindowGeometry(machineLogic()->visualStateType(),
+                                                m_uScreenId, m_normalGeometry,
+                                                isMaximizedChecked(), uiCommon().managedVMUuid());
+    }
+
+    /* Call to base-class: */
+    UIMachineWindow::saveSettings();
 }
 
 #ifdef VBOX_WS_MAC
@@ -145,12 +147,6 @@ void UIMachineWindowScale::cleanupVisualState()
         UICocoaApplication::instance()->unregisterCallbackForStandardWindowButton(this, StandardWindowButtonType_Zoom);
 }
 #endif /* VBOX_WS_MAC */
-
-void UIMachineWindowScale::cleanupNotificationCenter()
-{
-    if (gpNotificationCenter && (gpNotificationCenter->parent() == centralWidget()))
-        gpNotificationCenter->setParent(0);
-}
 
 void UIMachineWindowScale::showInNecessaryMode()
 {
@@ -172,16 +168,15 @@ void UIMachineWindowScale::showInNecessaryMode()
 void UIMachineWindowScale::restoreCachedGeometry()
 {
     /* Restore the geometry cached by the window: */
-    resize(m_geometry.size());
-    move(m_geometry.topLeft());
+    resize(m_normalGeometry.size());
+    move(m_normalGeometry.topLeft());
 
     /* Adjust machine-view accordingly: */
     adjustMachineViewSize();
 }
 
-void UIMachineWindowScale::normalizeGeometry(bool fAdjustPosition, bool fResizeToGuestDisplay)
+void UIMachineWindowScale::normalizeGeometry(bool fAdjustPosition)
 {
-    Q_UNUSED(fResizeToGuestDisplay);
     /* Skip if maximized: */
     if (isMaximized())
         return;
@@ -196,10 +191,10 @@ void UIMachineWindowScale::normalizeGeometry(bool fAdjustPosition, bool fResizeT
 
     /* Adjust position if necessary: */
     if (fAdjustPosition)
-        frGeo = UIDesktopWidgetWatchdog::normalizeGeometry(frGeo, gpDesktop->overallAvailableRegion());
+        frGeo = UICommon::normalizeGeometry(frGeo, gpDesktop->overallAvailableRegion());
 
     /* Finally, set the frame geometry: */
-    UIDesktopWidgetWatchdog::setTopLevelGeometry(this, frGeo.left() + dl, frGeo.top() + dt,
+    UICommon::setTopLevelGeometry(this, frGeo.left() + dl, frGeo.top() + dt,
                                     frGeo.width() - dl - dr, frGeo.height() - dt - db);
 }
 
@@ -218,17 +213,12 @@ bool UIMachineWindowScale::event(QEvent *pEvent)
             QResizeEvent *pResizeEvent = static_cast<QResizeEvent*>(pEvent);
             if (!isMaximizedChecked())
             {
-                m_geometry.setSize(pResizeEvent->size());
+                m_normalGeometry.setSize(pResizeEvent->size());
 #ifdef VBOX_WITH_DEBUGGER_GUI
                 /* Update debugger window position: */
                 updateDbgWindows();
 #endif /* VBOX_WITH_DEBUGGER_GUI */
             }
-
-            /* Restart geometry save timer: */
-            if (m_iGeometrySaveTimerId != -1)
-                killTimer(m_iGeometrySaveTimerId);
-            m_iGeometrySaveTimerId = startTimer(300);
             break;
         }
         case QEvent::Move:
@@ -241,32 +231,11 @@ bool UIMachineWindowScale::event(QEvent *pEvent)
 
             if (!isMaximizedChecked())
             {
-                m_geometry.moveTo(geometry().x(), geometry().y());
+                m_normalGeometry.moveTo(geometry().x(), geometry().y());
 #ifdef VBOX_WITH_DEBUGGER_GUI
                 /* Update debugger window position: */
                 updateDbgWindows();
 #endif /* VBOX_WITH_DEBUGGER_GUI */
-            }
-
-            /* Restart geometry save timer: */
-            if (m_iGeometrySaveTimerId != -1)
-                killTimer(m_iGeometrySaveTimerId);
-            m_iGeometrySaveTimerId = startTimer(300);
-            break;
-        }
-        /* Handle timer event started above: */
-        case QEvent::Timer:
-        {
-            QTimerEvent *pTimerEvent = static_cast<QTimerEvent*>(pEvent);
-            if (pTimerEvent->timerId() == m_iGeometrySaveTimerId)
-            {
-                killTimer(m_iGeometrySaveTimerId);
-                m_iGeometrySaveTimerId = -1;
-                LogRel2(("GUI: UIMachineWindowScale: Saving geometry as: Origin=%dx%d, Size=%dx%d\n",
-                         m_geometry.x(), m_geometry.y(), m_geometry.width(), m_geometry.height()));
-                gEDataManager->setMachineWindowGeometry(machineLogic()->visualStateType(),
-                                                        m_uScreenId, m_geometry,
-                                                        isMaximizedChecked(), uiCommon().managedVMUuid());
             }
             break;
         }
@@ -286,3 +255,4 @@ bool UIMachineWindowScale::isMaximizedChecked()
     return isMaximized();
 #endif /* !VBOX_WS_MAC */
 }
+

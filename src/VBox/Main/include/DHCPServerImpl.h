@@ -1,10 +1,10 @@
-/* $Id: DHCPServerImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DHCPServerImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -56,7 +56,7 @@ class ATL_NO_VTABLE DHCPServer
 public:
     /** @name Constructors and destructors
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(DHCPServer)
+    DECLARE_EMPTY_CTOR_DTOR(DHCPServer)
     HRESULT FinalConstruct();
     void    FinalRelease();
 
@@ -106,8 +106,8 @@ private:
     HRESULT i_calcLeasesConfigAndLogFilenames(const com::Utf8Str &aNetwork) RT_NOEXCEPT;
     HRESULT i_writeDhcpdConfig(const char *pszFilename, uint32_t uMACAddressVersion) RT_NOEXCEPT;
 
-    HRESULT i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, ULONG a_uSlot, com::Guid &idMachine);
-    HRESULT i_vmNameAndSlotToConfig(const com::Utf8Str &a_strVmName, ULONG a_uSlot, bool a_fCreateIfNeeded,
+    HRESULT i_vmNameToIdAndValidateSlot(const com::Utf8Str &aVmName, LONG aSlot, com::Guid &idMachine);
+    HRESULT i_vmNameAndSlotToConfig(const com::Utf8Str &a_strVmName, LONG a_uSlot, bool a_fCreateIfNeeded,
                                     ComObjPtr<DHCPIndividualConfig> &a_rPtrConfig);
     /** @} */
 

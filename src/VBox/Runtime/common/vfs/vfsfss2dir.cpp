@@ -1,4 +1,4 @@
-/* $Id: vfsfss2dir.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vfsfss2dir.cpp $ */
 /** @file
  * IPRT - Virtual File System, FS write stream dumping in a normal directory.
  *
@@ -8,7 +8,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -312,7 +312,7 @@ RTDECL(int) RTVfsFsStrmToDir(RTVFSDIR hVfsBaseDir, uint32_t fFlags, PRTVFSFSSTRE
      */
     PRTVFSFSSWRITE2DIR      pThis;
     RTVFSFSSTREAM           hVfsFss;
-    int rc = RTVfsNewFsStream(&g_rtVfsFssToDirOps, sizeof(*pThis), NIL_RTVFS, NIL_RTVFSLOCK, RTFILE_O_WRITE,
+    int rc = RTVfsNewFsStream(&g_rtVfsFssToDirOps, sizeof(*pThis), NIL_RTVFS, NIL_RTVFSLOCK, false /*fReadOnly*/,
                               &hVfsFss, (void **)&pThis);
     if (RT_SUCCESS(rc))
     {
@@ -371,7 +371,7 @@ RTDECL(int) RTVfsFsStrmToNormalDir(const char *pszBaseDir, uint32_t fFlags, PRTV
                 PRTVFSFSSWRITE2DIR      pThis;
                 RTVFSFSSTREAM           hVfsFss;
                 rc = RTVfsNewFsStream(&g_rtVfsFssToDirOps, RT_UOFFSETOF_DYN(RTVFSFSSWRITE2DIR, szBaseDir[cbBaseDir]),
-                                      NIL_RTVFS, NIL_RTVFSLOCK, RTFILE_O_WRITE, &hVfsFss, (void **)&pThis);
+                                      NIL_RTVFS, NIL_RTVFSLOCK, false /*fReadOnly*/, &hVfsFss, (void **)&pThis);
                 if (RT_SUCCESS(rc))
                 {
                     pThis->fFlags   = fFlags;

@@ -1,10 +1,10 @@
-# $Id: routines.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: routines.sh $
 # Oracle VM VirtualBox
 # VirtualBox installer shell routines
 #
 
 #
-# Copyright (C) 2007-2022 Oracle Corporation
+# Copyright (C) 2007-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -176,12 +176,9 @@ WantedBy=multi-user.target
 EOF
 }
 
-# Checks if systemd is the init system of choice
 use_systemd()
 {
-    # First condition is what halfway recent systemd uses itself, and the
-    # other two checks should cover everything back to v1.
-    test -e /run/systemd/system || test -e /sys/fs/cgroup/systemd || test -e /cgroup/systemd
+    test ! -f /sbin/init || test -L /sbin/init
 }
 
 ## Installs a file containing a shell script as an init script.  Call
@@ -392,72 +389,33 @@ terminate_proc() {
 }
 
 
-# install_python_bindings(pythonbin pythondesc)
-# failure: non fatal
-install_python_bindings()
-{
-    pythonbin="$1"
-    pythondesc="$2"
-
-    # The python binary might not be there, so just exit silently
-    if test -z "$pythonbin"; then
-        return 0
-    fi
-
-    if test -z "$pythondesc"; then
-        echo 1>&2 "missing argument to install_python_bindings"
-        return 1
-    fi
-
-    echo 1>&2 "Python found: $pythonbin, installing bindings..."
-
-    # check if python has working distutils
-    "$pythonbin" -c "from distutils.core import setup" > /dev/null 2>&1
-    if test "$?" -ne 0; then
-        echo 1>&2 "Skipped: $pythondesc install is unusable, missing package 'distutils'"
-        return 0
-    fi
-
-    # Pass install path via environment
-    export VBOX_INSTALL_PATH
-    $SHELL -c "cd $VBOX_INSTALL_PATH/sdk/installer && $pythonbin vboxapisetup.py install \
-        --record $CONFIG_DIR/python-$CONFIG_FILES"
-    cat $CONFIG_DIR/python-$CONFIG_FILES >> $CONFIG_DIR/$CONFIG_FILES
-    rm -f $CONFIG_DIR/python-$CONFIG_FILES
-
-    # Remove files created by Python API setup.
-    rm -rf $VBOX_INSTALL_PATH/sdk/installer/build
-}
-
 maybe_run_python_bindings_installer() {
     VBOX_INSTALL_PATH="${1}"
 
-    # Loop over all usual suspect Python executable names and try installing
-    # the VirtualBox API bindings. Needs to prevent double installs which waste
-    # quite a bit of time.
-    PYTHONS=""
-    for p in python2.6 python2.7 python2 python3.3 python3.4 python3.5 python3.6 python3.7 python3.8 python3.9 python3.10 python3 python; do
+    # Check for python2 only, because the generic package does not provide
+    # any XPCOM bindings support for python3 since there is no standard ABI.
+    PYTHON=""
+    for p in python python2 python2.6 python2.7; do
         if [ "`$p -c 'import sys
-if sys.version_info >= (2, 6) and (sys.version_info < (3, 0) or sys.version_info >= (3, 3)):
-    print(\"test\")' 2> /dev/null`" != "test" ]; then
-            continue
+if sys.version_info >= (2, 6) and sys.version_info < (3, 0):
+    print \"test\"' 2> /dev/null`" = "test" ]; then
+            PYTHON=$p
         fi
-        # Get python major/minor version, and skip if it was already covered.
-        # Uses grep -F to avoid trouble with '.' matching any char.
-        pyvers="`$p -c 'import sys
-print("%s.%s" % (sys.version_info[0], sys.version_info[1]))' 2> /dev/null`"
-        if echo "$PYTHONS" | grep -Fq ":$pyvers:"; then
-            continue
-        fi
-        # Record which version will be installed. If it fails there is no point
-        # trying with different executable/symlink reporting the same version.
-        PYTHONS="$PYTHONS:$pyvers:"
-        install_python_bindings "$p" "Python $pyvers"
     done
-    if [ -z "$PYTHONS" ]; then
-        echo 1>&2 "Python (2.6, 2.7 or 3.3 and later) unavailable, skipping bindings installation."
+    if [ -z "$PYTHON" ]; then
+        echo  1>&2 "Python 2 (2.6 or 2.7) not available, skipping bindings installation."
         return 1
     fi
+
+    echo  1>&2 "Python found: $PYTHON, installing bindings..."
+    # Pass install path via environment
+    export VBOX_INSTALL_PATH
+    $SHELL -c "cd $VBOX_INSTALL_PATH/sdk/installer && $PYTHON vboxapisetup.py install \
+        --record $CONFIG_DIR/python-$CONFIG_FILES"
+    cat $CONFIG_DIR/python-$CONFIG_FILES >> $CONFIG_DIR/$CONFIG_FILES
+    rm $CONFIG_DIR/python-$CONFIG_FILES
+    # remove files created during build
+    rm -rf $VBOX_INSTALL_PATH/sdk/installer/build
 
     return 0
 }

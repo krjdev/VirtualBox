@@ -1,11 +1,11 @@
-/* $Id: VBoxDriversRegister.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDriversRegister.cpp $ */
 /** @file
  *
  * Main driver registration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,6 @@
 #include "KeyboardImpl.h"
 #include "DisplayImpl.h"
 #include "VMMDev.h"
-#include "NvramStoreImpl.h"
 #ifdef VBOX_WITH_AUDIO_VRDE
 # include "DrvAudioVRDE.h"
 #endif
@@ -104,10 +103,6 @@ extern "C" DECLEXPORT(int) VBoxDriversRegister(PCPDMDRVREGCB pCallbacks, uint32_
     if (RT_FAILURE(rc))
         return rc;
 #endif
-
-    rc = pCallbacks->pfnRegister(pCallbacks, &NvramStore::DrvReg);
-    if (RT_FAILURE(rc))
-        return rc;
 
     return VINF_SUCCESS;
 }

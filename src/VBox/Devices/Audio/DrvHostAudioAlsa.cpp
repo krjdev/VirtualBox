@@ -1,10 +1,10 @@
-/* $Id: DrvHostAudioAlsa.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostAudioAlsa.cpp $ */
 /** @file
  * Host audio driver - Advanced Linux Sound Architecture (ALSA).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -131,8 +131,6 @@ static int drvHstAudAlsaStreamClose(snd_pcm_t **phPCM)
     if (!phPCM || !*phPCM)
         return VINF_SUCCESS;
 
-    LogRelFlowFuncEnter();
-
     int rc;
     int rc2 = snd_pcm_close(*phPCM);
     if (rc2 == 0)
@@ -146,7 +144,7 @@ static int drvHstAudAlsaStreamClose(snd_pcm_t **phPCM)
         LogRel(("ALSA: Closing PCM descriptor failed: %s (%d, %Rrc)\n", snd_strerror(rc2), rc2, rc));
     }
 
-    LogRelFlowFuncLeaveRC(rc);
+    LogFlowFuncLeaveRC(rc);
     return rc;
 }
 
@@ -695,7 +693,6 @@ static int alsaStreamSetHwParams(snd_pcm_t *hPCM, snd_pcm_format_t enmAlsaFmt,
              PDMAudioPropsHz(&pCfgAcq->Props), pCfgAcq->Backend.cFramesPeriod, pCfgAcq->Backend.cFramesBufferSize,
              PDMAudioPropsChannels(&pCfgAcq->Props), enmAlsaFmt));
 
-#if 0 /* Disabled in the hope to resolve testboxes not being able to drain + crashing when closing the PCM streams. */
     /*
      * Channel config (not fatal).
      */
@@ -703,14 +700,8 @@ static int alsaStreamSetHwParams(snd_pcm_t *hPCM, snd_pcm_format_t enmAlsaFmt,
     {
         err = snd_pcm_set_chmap(hPCM, &u.Map);
         if (err < 0)
-        {
-            if (err == -ENXIO)
-                LogRel2(("ALSA: Audio device does not support channel maps, skipping\n"));
-            else
-                LogRel2(("ALSA: snd_pcm_set_chmap failed: %s (%d)\n", snd_strerror(err), err));
-        }
+            LogRel2(("ALSA: snd_pcm_set_chmap failed: %s (%d)\n", snd_strerror(err), err));
     }
-#endif
 
     return 0;
 }
@@ -837,15 +828,9 @@ static DECLCALLBACK(int) drvHstAudAlsaHA_StreamDestroy(PPDMIHOSTAUDIO pInterface
     AssertPtrReturn(pStreamALSA, VERR_INVALID_POINTER);
     RT_NOREF(fImmediate);
 
-    LogRelFlowFunc(("Stream '%s' state is '%s'\n", pStreamALSA->Cfg.szName, snd_pcm_state_name(snd_pcm_state(pStreamALSA->hPCM))));
-
     /** @todo r=bird: It's not like we can do much with a bad status... Check
      *        what the caller does... */
-    int rc = drvHstAudAlsaStreamClose(&pStreamALSA->hPCM);
-
-    LogRelFlowFunc(("returns %Rrc\n", rc));
-
-    return rc;
+    return drvHstAudAlsaStreamClose(&pStreamALSA->hPCM);
 }
 
 
@@ -945,7 +930,7 @@ static DECLCALLBACK(int) drvHstAudAlsaHA_StreamDrain(PPDMIHOSTAUDIO pInterface, 
     PDRVHSTAUDALSASTREAM pStreamALSA = (PDRVHSTAUDALSASTREAM)pStream;
 
     snd_pcm_state_t const enmState = snd_pcm_state(pStreamALSA->hPCM);
-    LogRelFlowFunc(("Stream '%s' input state: %s (%d)\n", pStreamALSA->Cfg.szName, snd_pcm_state_name(enmState), enmState));
+    LogFlowFunc(("Stream '%s' input state: %s (%d)\n", pStreamALSA->Cfg.szName, snd_pcm_state_name(enmState), enmState));
 
     /* Only for output streams. */
     AssertReturn(pStreamALSA->Cfg.enmDir == PDMAUDIODIR_OUT, VERR_WRONG_ORDER);
@@ -966,7 +951,7 @@ static DECLCALLBACK(int) drvHstAudAlsaHA_StreamDrain(PPDMIHOSTAUDIO pInterface, 
                 if (rc == -EPIPE && enmState2 == enmState)
                 {
                     /* Not entirely sure, but possibly an underrun, so just disable the stream. */
-                    LogRel2(("ALSA: snd_pcm_drain failed with -EPIPE, stopping stream (%s)\n", pStreamALSA->Cfg.szName));
+                    LogFunc(("snd_pcm_drain failed with -EPIPE, stopping stream (%s)\n", pStreamALSA->Cfg.szName));
                     rc = snd_pcm_drop(pStreamALSA->hPCM);
                     if (rc >= 0)
                         rc = VINF_SUCCESS;
@@ -990,7 +975,7 @@ static DECLCALLBACK(int) drvHstAudAlsaHA_StreamDrain(PPDMIHOSTAUDIO pInterface, 
             rc = VINF_SUCCESS;
             break;
     }
-    LogRelFlowFunc(("returns %Rrc (state %s)\n", rc, snd_pcm_state_name(snd_pcm_state(pStreamALSA->hPCM))));
+    LogFlowFunc(("returns %Rrc (state %s)\n", rc, snd_pcm_state_name(snd_pcm_state(pStreamALSA->hPCM))));
     return rc;
 }
 
@@ -1477,8 +1462,7 @@ static DECLCALLBACK(int) drvHstAudAlsaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pC
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHSTAUDALSA  pThis = PDMINS_2_DATA(pDrvIns, PDRVHSTAUDALSA);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVHSTAUDALSA pThis = PDMINS_2_DATA(pDrvIns, PDRVHSTAUDALSA);
     LogRel(("Audio: Initializing ALSA driver\n"));
 
     /*
@@ -1517,9 +1501,9 @@ static DECLCALLBACK(int) drvHstAudAlsaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pC
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "OutputDeviceID|InputDeviceID", "");
 
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "InputDeviceID", pThis->szInputDev, sizeof(pThis->szInputDev), "default");
+    rc = CFGMR3QueryStringDef(pCfg, "InputDeviceID", pThis->szInputDev, sizeof(pThis->szInputDev), "default");
     AssertRCReturn(rc, rc);
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "OutputDeviceID", pThis->szOutputDev, sizeof(pThis->szOutputDev), "default");
+    rc = CFGMR3QueryStringDef(pCfg, "OutputDeviceID", pThis->szOutputDev, sizeof(pThis->szOutputDev), "default");
     AssertRCReturn(rc, rc);
 
     /*

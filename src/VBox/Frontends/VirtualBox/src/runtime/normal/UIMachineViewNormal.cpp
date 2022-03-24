@@ -1,10 +1,10 @@
-/* $Id: UIMachineViewNormal.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineViewNormal.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachineViewNormal class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,8 +36,18 @@
 #include "VBox/log.h"
 
 
-UIMachineViewNormal::UIMachineViewNormal(UIMachineWindow *pMachineWindow, ulong uScreenId)
-    : UIMachineView(pMachineWindow, uScreenId)
+UIMachineViewNormal::UIMachineViewNormal(  UIMachineWindow *pMachineWindow
+                                         , ulong uScreenId
+#ifdef VBOX_WITH_VIDEOHWACCEL
+                                         , bool bAccelerate2DVideo
+#endif
+                                         )
+    : UIMachineView(  pMachineWindow
+                    , uScreenId
+#ifdef VBOX_WITH_VIDEOHWACCEL
+                    , bAccelerate2DVideo
+#endif
+                    )
     , m_bIsGuestAutoresizeEnabled(actionPool()->action(UIActionIndexRT_M_View_T_GuestAutoresize)->isChecked())
 {
 }

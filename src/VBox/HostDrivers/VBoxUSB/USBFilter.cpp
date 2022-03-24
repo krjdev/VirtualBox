@@ -1,10 +1,10 @@
-/* $Id: USBFilter.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBFilter.cpp $ */
 /** @file
  * VirtualBox USB filter abstraction.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -307,7 +307,7 @@ static int usbfilterValidateStringPattern(const char *psz)
  */
 USBLIB_DECL(int) USBFilterValidate(PCUSBFILTER pFilter)
 {
-    if (!RT_VALID_PTR(pFilter))
+    if (!VALID_PTR(pFilter))
         return VERR_INVALID_POINTER;
 
     if (pFilter->u32Magic != USBFILTER_MAGIC)

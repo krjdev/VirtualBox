@@ -1,10 +1,10 @@
-/* $Id: ioqueue-iouringfile-provider.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ioqueue-iouringfile-provider.cpp $ */
 /** @file
  * IPRT - I/O queue, Linux io_uring interface I/O file provider.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -88,7 +88,7 @@
 /** The syscall number of io_uring_register(). */
 #define LNX_IOURING_SYSCALL_REGISTER  427
 /** eventfd2() syscall not associated with io_uring but used for kicking waiters. */
-#define LNX_SYSCALL_EVENTFD2          290
+#define LNX_SYSCALL_EVENTFD2           19
 
 
 /*********************************************************************************************************************************
@@ -252,7 +252,8 @@ typedef LNXIOURINGPARAMS *PLNXIOURINGPARAMS;
 typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 
 
-/** @name LNXIOURINGSQE::u8Opc defined opcodes.
+/**
+ * @name LNXIOURINGSQE::u8Opc defined opcodes.
  * @{ */
 /** Opcode to profile the interface, does nothing. */
 #define LNX_IOURING_OPC_NOP             0
@@ -279,14 +280,16 @@ typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 /** @} */
 
 
-/** @name Additional flags for LNX_IOURING_OPC_FSYNC requests.
+/**
+ * @name Additional flags for LNX_IOURING_OPC_FSYNC requests.
  * @{ */
 /** Sync userdata as well instead of metadata only. */
 #define LNX_IOURING_OPC_FSYNC_DATASYNC  RT_BIT_32(0)
 /** @} */
 
 
-/** @name Flags for the LNX_IOURING_SYSCALL_SETUP syscall.
+/**
+ * @name Flags for the LNX_IOURING_SYSCALL_SETUP syscall.
  * @{ */
 /** The I/O context is polled. */
 #define LNX_IOURING_SETUP_F_IOPOLL      RT_BIT_32(0)
@@ -297,7 +300,8 @@ typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 /** @} */
 
 
-/** @name Flags for LNXIOURINGSQE::u8Flags.
+/**
+ * @name Flags for LNXIOURINGSQE::u8Flags.
  * @{ */
 /** The file descriptor was registered before use. */
 #define LNX_IOURING_SQE_F_FIXED_FILE    RT_BIT(0)
@@ -308,7 +312,8 @@ typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 /** @} */
 
 
-/** @name Magic mmap offsets to map submission and completion queues.
+/**
+ * @name Magic mmap offsets to map submission and completion queues.
  * @{ */
 /** Used to map the submission queue. */
 #define LNX_IOURING_MMAP_OFF_SQ         UINT64_C(0)
@@ -319,15 +324,17 @@ typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 /** @} */
 
 
-/** @name Flags used for the SQ ring structure.
+/**
+ * @name Flags used for the SQ ring structure.
  * @{ */
 /** The kernel thread needs a io_uring_enter() wakeup to continue processing requests. */
 #define LNX_IOURING_SQ_RING_F_NEED_WAKEUP           RT_BIT_32(0)
 /** @} */
 
 
-/** @name Flags for the LNX_IOURING_SYSCALL_ENTER syscall.
- * @{ */
+/**
+ * @name Flags for the LNX_IOURING_SYSCALL_ENTER syscall.
+ * { */
 /** Retrieve completion events for the completion queue. */
 #define LNX_IOURING_ENTER_F_GETEVENTS               RT_BIT_32(0)
 /** Wakes the suspended kernel thread processing the requests. */
@@ -335,8 +342,9 @@ typedef const LNXIOURINGPARAMS *PCLNXIOURINGPARAMS;
 /** @} */
 
 
-/** @name Opcodes for the LNX_IOURING_SYSCALL_REGISTER syscall.
- * @{ */
+/**
+ * @name Opcodes for the LNX_IOURING_SYSCALL_REGISTER syscall.
+ * { */
 /** Register a fixed set of buffers. */
 #define LNX_IOURING_REGISTER_OPC_BUFFERS_REGISTER   0
 /** Unregisters a fixed set of buffers registered previously. */
@@ -578,10 +586,6 @@ static void rtIoQueueLnxIoURingFileProvCqCheck(PRTIOQUEUEPROVINT pThis, PRTIOQUE
         else
             paCEvt->rcReq = RTErrConvertFromErrno(-pCqe->rcLnx);
 
-#ifdef RT_STRICT /* poison */
-        memset((void *)pCqe, 0xff, sizeof(*pCqe));
-#endif
-
         paCEvt++;
         cCEvtSeen++;
         idxCqHead++;
@@ -775,7 +779,6 @@ static DECLCALLBACK(int) rtIoQueueLnxIoURingFileProv_ReqPrepare(RTIOQUEUEPROV hI
     pSqe->i32Fd           = (int32_t)RTFileToNative(pHandle->u.hFile);
     pSqe->u64OffStart     = off;
     pSqe->u64AddrBufIoVec = (uint64_t)(uintptr_t)pIoVec;
-    pSqe->u32BufIoVecSz   = 1;
     pSqe->u64User         = (uint64_t)(uintptr_t)pvUser;
 
     switch (enmOp)
@@ -797,7 +800,6 @@ static DECLCALLBACK(int) rtIoQueueLnxIoURingFileProv_ReqPrepare(RTIOQUEUEPROV hI
                                   VERR_INVALID_PARAMETER);
     }
 
-    pThis->Sq.paidxSqes[idx] = idx;
     pThis->idxSqTail++;
     pThis->cSqesToCommit++;
     return VINF_SUCCESS;
@@ -808,6 +810,7 @@ static DECLCALLBACK(int) rtIoQueueLnxIoURingFileProv_ReqPrepare(RTIOQUEUEPROV hI
 static DECLCALLBACK(int) rtIoQueueLnxIoURingFileProv_Commit(RTIOQUEUEPROV hIoQueueProv, uint32_t *pcReqsCommitted)
 {
     PRTIOQUEUEPROVINT pThis = hIoQueueProv;
+    RT_NOREF(pThis, pcReqsCommitted);
 
     ASMWriteFence();
     ASMAtomicWriteU32(pThis->Sq.pidxTail, pThis->idxSqTail);

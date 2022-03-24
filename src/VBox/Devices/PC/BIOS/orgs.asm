@@ -1,10 +1,10 @@
-; $Id: orgs.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: orgs.asm $
 ;; @file
 ; ???
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -52,7 +52,9 @@
 
 include commondefs.inc
 
-EBDA_SIZE       equ     1               ; 1K minimum -- other modules may add to it
+EBDA_SEG        equ     09FC0h          ; starts at 639K
+EBDA_SIZE       equ     1               ; 1K
+BASE_MEM_IN_K   equ     (640 - EBDA_SIZE)
 
 CMOS_ADDR       equ     070h
 CMOS_DATA       equ     071h
@@ -140,6 +142,9 @@ extrn           _inv_op_handler:near
 extrn           rom_scan_:near
 ifdef VBOX_WITH_AHCI
 extrn           _ahci_init:near
+endif
+ifdef VBOX_WITH_VIRTIO_SCSI
+extrn           _virtio_scsi_init:near
 endif
 if VBOX_BIOS_CPU ge 80286
 extrn           _int15_blkmove:near
@@ -443,14 +448,7 @@ endif
                 call    set_int_vects
 
                 ;; base memory in K to 40:13
-                mov     al, 16h
-                out     CMOS_ADDR, al
-                in      al, CMOS_DATA
-                mov     ah, al
-                mov     al, 15h
-                out     CMOS_ADDR, al
-                in      al, CMOS_DATA
-                sub     ax, EBDA_SIZE
+                mov     ax, BASE_MEM_IN_K
                 mov     ds:[413h], ax
 
                 ;; manufacturing test at 40:12
@@ -493,6 +491,12 @@ endif
 
                 xor     ax, ax
                 mov     ds, ax
+                ;; TODO: What's the point? The BDA is zeroed already?!
+                mov     ds:[417h], al   ; keyboard shift flags, set 1
+                mov     ds:[418h], al   ; keyboard shift flags, set 2
+                mov     ds:[419h], al   ; keyboard Alt-numpad work area
+                mov     ds:[471h], al   ; keyboard Ctrl-Break flag
+                mov     ds:[497h], al   ; keyboard status flags 4
                 mov     al, 10h
                 mov     ds:[496h], al   ; keyboard status flags 3
 
@@ -641,6 +645,11 @@ endif
 ifdef VBOX_WITH_SCSI
                 ; SCSI driver setup
                 call    _scsi_init
+endif
+
+ifdef VBOX_WITH_VIRTIO_SCSI
+                ; VirtIO-SCSI driver setup
+                call    _virtio_scsi_init
 endif
 
                 ;; floppy setup
@@ -872,20 +881,13 @@ ebda_post       proc    near
                 SET_INT_VECTOR 73h, BIOSSEG, dummy_isr  ; IRQ 11
                 SET_INT_VECTOR 77h, BIOSSEG, dummy_isr  ; IRQ 15
 
-                ;; calculate EBDA segment
-                xor     ax, ax
-                mov     ds, ax
-                mov     ax, ds:[413h]   ; conventional memory size minus EBDA size
-                mov     cx, 64          ; 64 paras per KB
-                mul     cx
-                ;; store EBDA seg in 40:0E
-                mov     word ptr ds:[40Eh], ax
-                ;; store EBDA size in the first word of EBDA
+                mov     ax, EBDA_SEG
                 mov     ds, ax
                 mov     byte ptr ds:[0], EBDA_SIZE
-                ;; must reset DS to zero again
+                ;; store EBDA seg in 40:0E
                 xor     ax, ax
                 mov     ds, ax
+                mov     word ptr ds:[40Eh], EBDA_SEG
                 ret
 
 ebda_post       endp
@@ -1577,15 +1579,30 @@ int18_handler:
                 C_SETUP
                 call    _int18_panic_msg
                 ;; TODO: handle failure better?
-                sti
-stay_here:
                 hlt
-                jmp     stay_here
+                iret
 
 ;;
 ;; INT 19h - boot service - relocated
 ;;
 int19_relocated:
+; If an already booted OS calls int 0x19 to reboot, it is not sufficient
+; just to try booting from the configured drives. All BIOS variables and
+; interrupt vectors need to be reset, otherwise strange things may happen.
+; The approach used is faking a warm reboot (which just skips showing the
+; logo), which is a bit more than what we need, but hey, it's fast.
+                mov     bp, sp
+                mov     ax, [bp+2]      ; TODO: redundant? address via sp?
+                cmp     ax, BIOSSEG     ; check caller's segment
+                jz      bios_initiated_boot
+
+                xor     ax, ax
+                mov     ds, ax
+                mov     ax, 1234h
+                mov     ds:[472], ax
+                jmp     post
+
+bios_initiated_boot:
                 ;; The C worker function returns the boot drive in bl and
                 ;; the boot segment in ax. In case of failure, the boot
                 ;; segment will be zero.

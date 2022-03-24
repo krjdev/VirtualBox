@@ -1,10 +1,10 @@
-/* $Id: GuestControlSvc.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestControlSvc.h $ */
 /** @file
  * Guest control service - Common header for host service and guest clients.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -210,10 +210,6 @@ enum eHostMsg
      * Retrieves the user's home directory.
      */
     HOST_MSG_PATH_USER_HOME,
-    /**
-     * Issues a shutdown / reboot of the guest OS.
-     */
-    HOST_MSG_SHUTDOWN,
 
     /** Blow the type up to 32-bits. */
     HOST_MSG_32BIT_HACK = 0x7fffffff
@@ -251,7 +247,6 @@ DECLINLINE(const char *) GstCtrlHostMsgtoStr(enum eHostMsg enmMsg)
         RT_CASE_RET_STR(HOST_MSG_PATH_RENAME);
         RT_CASE_RET_STR(HOST_MSG_PATH_USER_DOCUMENTS);
         RT_CASE_RET_STR(HOST_MSG_PATH_USER_HOME);
-        RT_CASE_RET_STR(HOST_MSG_SHUTDOWN);
         RT_CASE_RET_STR(HOST_MSG_32BIT_HACK);
     }
     return "Unknown";
@@ -694,17 +689,12 @@ enum GUEST_FILE_SEEKTYPE
  * @{ */
 /** Supports HOST_MSG_FILE_SET_SIZE. */
 #define VBOX_GUESTCTRL_GF_0_SET_SIZE                RT_BIT_64(0)
-/** Supports passing process arguments starting at argv[0] rather than argv[1].
- * Guest additions which doesn't support this feature will instead use the
- * executable image path as argv[0].
- * @sa    VBOX_GUESTCTRL_HF_0_PROCESS_ARGV0
- * @since 6.1.6  */
+/** Supports (fixes) treating argv[0] separately from the actual execution command.
+ *  Without this flag the actual execution command is taken as argv[0]. */
 #define VBOX_GUESTCTRL_GF_0_PROCESS_ARGV0           RT_BIT_64(1)
 /** Supports passing cmd / arguments / environment blocks bigger than
  *  GUESTPROCESS_DEFAULT_CMD_LEN / GUESTPROCESS_DEFAULT_ARGS_LEN / GUESTPROCESS_DEFAULT_ENV_LEN (bytes, in total). */
 #define VBOX_GUESTCTRL_GF_0_PROCESS_DYNAMIC_SIZES   RT_BIT_64(2)
-/** Supports shutting down / rebooting the guest. */
-#define VBOX_GUESTCTRL_GF_0_SHUTDOWN                RT_BIT_64(3)
 /** Bit that must be set in the 2nd parameter, will be cleared if the host reponds
  * correctly (old hosts might not). */
 #define VBOX_GUESTCTRL_GF_1_MUST_BE_ONE             RT_BIT_64(63)
@@ -716,9 +706,9 @@ enum GUEST_FILE_SEEKTYPE
 /** Host supports the GUEST_FILE_NOTIFYTYPE_READ_OFFSET and
  *  GUEST_FILE_NOTIFYTYPE_WRITE_OFFSET notification types. */
 #define VBOX_GUESTCTRL_HF_0_NOTIFY_RDWR_OFFSET      RT_BIT_64(0)
-/** Host supports process passing arguments starting at argv[0] rather than
- * argv[1], when the guest additions reports VBOX_GUESTCTRL_GF_0_PROCESS_ARGV0.
- * @since 6.1.6  */
+/** Host supports sending (treating) argv[0] separately from the actual execution command.
+ *  Needed when newer Guest Additions which support VBOX_GUESTCTRL_GF_0_PROCESS_ARGV0 run on an older
+ *  host which doesn't in turn support VBOX_GUESTCTRL_HF_0_PROCESS_ARGV0. */
 #define VBOX_GUESTCTRL_HF_0_PROCESS_ARGV0           RT_BIT_64(1)
 /** @} */
 
@@ -879,18 +869,6 @@ typedef struct HGCMMsgPathUserHome
     /** UInt32: Context ID. */
     HGCMFunctionParameter context;
 } HGCMMsgPathUserHome;
-
-/**
- * Shuts down / reboots the guest.
- */
-typedef struct HGCMMsgShutdown
-{
-    VBGLIOCHGCMCALL hdr;
-    /** UInt32: Context ID. */
-    HGCMFunctionParameter context;
-    /** UInt32: Action flags. */
-    HGCMFunctionParameter action;
-} HGCMMsgShutdown;
 
 /**
  * Executes a command inside the guest.

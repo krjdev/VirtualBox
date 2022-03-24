@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: build-kernel.sh 78141 2019-04-16 02:32:16Z vboxsync $
+# $Id: build-kernel.sh $
 ## @file
 # Script for build a linux kernel with a default configuration.
 #

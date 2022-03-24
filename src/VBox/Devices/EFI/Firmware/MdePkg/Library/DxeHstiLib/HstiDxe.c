@@ -77,7 +77,7 @@ InternalHstiFindAip (
                     &InfoTypesBuffer,
                     &InfoTypesBufferCount
                     );
-    if (EFI_ERROR (Status) || (InfoTypesBuffer == NULL) || (InfoTypesBufferCount == 0)) {
+    if (EFI_ERROR (Status)) {
       continue;
     }
 

@@ -1,4 +1,4 @@
-#$Id: mknames.sed 62835 2016-08-01 16:41:36Z vboxsync $
+#$Id: mknames.sed $
 ## @file
 # pure sed version of mknames.sh.
 #

@@ -1,10 +1,10 @@
-/* $Id: UIMachinePreview.cpp 94014 2022-03-01 09:13:50Z vboxsync $ */
+/* $Id: UIMachinePreview.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachinePreview class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 /* Qt includes: */
-#include <QActionGroup>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QMenu>
 #include <QPainter>
@@ -246,7 +245,6 @@ void UIMachinePreview::sltRecreatePreview()
             {
                 /* If machine is in SAVED/RESTORING state: */
                 case KMachineState_Saved:
-                case KMachineState_AbortedSaved:
                 case KMachineState_Restoring:
                 {
                     /* Use the screenshot from saved-state if possible: */

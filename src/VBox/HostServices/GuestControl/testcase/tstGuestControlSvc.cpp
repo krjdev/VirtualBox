@@ -1,10 +1,10 @@
-/* $Id: tstGuestControlSvc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstGuestControlSvc.cpp $ */
 /** @file
  * Testcase for the guest control service.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -101,7 +101,7 @@ typedef struct CMDCLIENT
 static int testHostCmd(const VBOXHGCMSVCFNTABLE *pTable, const PCMDHOST pCmd, uint32_t uNumTests)
 {
     int rc = VINF_SUCCESS;
-    if (!RT_VALID_PTR(pTable->pfnHostCall))
+    if (!VALID_PTR(pTable->pfnHostCall))
     {
         RTTestPrintf(g_hTest, RTTESTLVL_FAILURE, "Invalid pfnHostCall() pointer\n");
         rc = VERR_INVALID_POINTER;

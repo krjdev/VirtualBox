@@ -1,10 +1,10 @@
-/* $Id: IEMR3.cpp 93725 2022-02-14 13:46:16Z vboxsync $ */
+/* $Id: IEMR3.cpp $ */
 /** @file
  * IEM - Interpreted Execution Manager.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,8 +27,8 @@
 #include <VBox/vmm/vm.h>
 #include <VBox/err.h>
 
+#include <iprt/asm-amd64-x86.h>
 #include <iprt/assert.h>
-
 
 static const char *iemGetTargetCpuName(uint32_t enmTargetCpu)
 {
@@ -66,7 +66,6 @@ VMMR3DECL(int)      IEMR3Init(PVM pVM)
     for (VMCPUID idCpu = 0; idCpu < pVM->cCpus; idCpu++)
     {
         PVMCPU pVCpu = pVM->apCpusR3[idCpu];
-        AssertCompile(sizeof(pVCpu->iem.s) <= sizeof(pVCpu->iem.padding)); /* (tstVMStruct can't do it's job w/o instruction stats) */
 
         pVCpu->iem.s.CodeTlb.uTlbRevision = pVCpu->iem.s.DataTlb.uTlbRevision = uInitialTlbRevision;
         pVCpu->iem.s.CodeTlb.uTlbPhysRev  = pVCpu->iem.s.DataTlb.uTlbPhysRev  = uInitialTlbPhysRev;
@@ -113,11 +112,16 @@ VMMR3DECL(int)      IEMR3Init(PVM pVM)
                         "Data TLB physical revision",               "/IEM/CPU%u/DataTlb-PhysRev", idCpu);
 
 #if defined(VBOX_WITH_STATISTICS) && !defined(DOXYGEN_RUNNING)
-        /* Instruction statistics: */
+        /* Allocate instruction statistics and register them. */
+        pVCpu->iem.s.pStatsR3 = (PIEMINSTRSTATS)MMR3HeapAllocZ(pVM, MM_TAG_IEM, sizeof(IEMINSTRSTATS));
+        AssertLogRelReturn(pVCpu->iem.s.pStatsR3, VERR_NO_MEMORY);
+        int rc = MMHyperAlloc(pVM, sizeof(IEMINSTRSTATS), sizeof(uint64_t), MM_TAG_IEM, (void **)&pVCpu->iem.s.pStatsCCR3);
+        AssertLogRelRCReturn(rc, rc);
+        pVCpu->iem.s.pStatsR0 = MMHyperR3ToR0(pVM, pVCpu->iem.s.pStatsCCR3);
 # define IEM_DO_INSTR_STAT(a_Name, a_szDesc) \
-            STAMR3RegisterF(pVM, &pVCpu->iem.s.StatsRZ.a_Name, STAMTYPE_U32_RESET, STAMVISIBILITY_USED, \
+            STAMR3RegisterF(pVM, &pVCpu->iem.s.pStatsCCR3->a_Name, STAMTYPE_U32_RESET, STAMVISIBILITY_USED, \
                             STAMUNIT_COUNT, a_szDesc, "/IEM/CPU%u/instr-RZ/" #a_Name, idCpu); \
-            STAMR3RegisterF(pVM, &pVCpu->iem.s.StatsR3.a_Name, STAMTYPE_U32_RESET, STAMVISIBILITY_USED, \
+            STAMR3RegisterF(pVM, &pVCpu->iem.s.pStatsR3->a_Name, STAMTYPE_U32_RESET, STAMVISIBILITY_USED, \
                             STAMUNIT_COUNT, a_szDesc, "/IEM/CPU%u/instr-R3/" #a_Name, idCpu);
 # include "IEMInstructionStatisticsTmpl.h"
 # undef IEM_DO_INSTR_STAT
@@ -170,9 +174,14 @@ VMMR3DECL(int)      IEMR3Init(PVM pVM)
      */
     if (pVM->cpum.ro.GuestFeatures.fVmx)
     {
-        int rc = PGMR3HandlerPhysicalTypeRegister(pVM, PGMPHYSHANDLERKIND_ALL, 0 /*fFlags*/,
+        PVMCPU pVCpu0 = pVM->apCpusR3[0];
+        int rc = PGMR3HandlerPhysicalTypeRegister(pVM, PGMPHYSHANDLERKIND_ALL, false /*fKeepPgmLock*/,
                                                   iemVmxApicAccessPageHandler,
-                                                  "VMX APIC-access page", &pVM->iem.s.hVmxApicAccessPage);
+                                                  NULL /* pszModR0 */,
+                                                  "iemVmxApicAccessPageHandler", NULL /* pszPfHandlerR0 */,
+                                                  NULL /* pszModRC */,
+                                                  NULL /* pszHandlerRC */, NULL /* pszPfHandlerRC */,
+                                                  "VMX APIC-access page", &pVCpu0->iem.s.hVmxApicAccessPage);
         AssertLogRelRCReturn(rc, rc);
     }
 #endif
@@ -184,6 +193,14 @@ VMMR3DECL(int)      IEMR3Init(PVM pVM)
 VMMR3DECL(int)      IEMR3Term(PVM pVM)
 {
     NOREF(pVM);
+#if defined(VBOX_WITH_STATISTICS) && !defined(DOXYGEN_RUNNING)
+    for (VMCPUID idCpu = 0; idCpu < pVM->cCpus; idCpu++)
+    {
+        PVMCPU pVCpu = pVM->apCpusR3[idCpu];
+        MMR3HeapFree(pVCpu->iem.s.pStatsR3);
+        pVCpu->iem.s.pStatsR3 = NULL;
+    }
+#endif
     return VINF_SUCCESS;
 }
 

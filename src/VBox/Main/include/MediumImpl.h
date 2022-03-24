@@ -1,10 +1,10 @@
-/* $Id: MediumImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MediumImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,7 +45,7 @@ class ATL_NO_VTABLE Medium :
     public MediumWrap
 {
 public:
-    DECLARE_COMMON_CLASS_METHODS(Medium)
+    DECLARE_EMPTY_CTOR_DTOR(Medium)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -78,14 +78,13 @@ public:
                     const Guid &uuidMachineRegistry,
                     const settings::Medium &data,
                     const Utf8Str &strMachineFolder);
-    HRESULT initFromSettings(VirtualBox *aVirtualBox,
-                             Medium *aParent,
-                             DeviceType_T aDeviceType,
-                             const Guid &uuidMachineRegistry,
-                             const settings::Medium &data,
-                             const Utf8Str &strMachineFolder,
-                             AutoWriteLock &mediaTreeLock,
-                             ComObjPtr<Medium> *ppRegistered);
+    HRESULT init(VirtualBox *aVirtualBox,
+                 Medium *aParent,
+                 DeviceType_T aDeviceType,
+                 const Guid &uuidMachineRegistry,
+                 const settings::Medium &data,
+                 const Utf8Str &strMachineFolder,
+                 AutoWriteLock &mediaTreeLock);
 
     // initializer for host floppy/DVD
     HRESULT init(VirtualBox *aVirtualBox,
@@ -119,7 +118,6 @@ public:
 
     /* handles caller/locking itself */
     bool i_addRegistry(const Guid &id);
-    bool i_addRegistryNoCallerCheck(const Guid &id);
     /* handles caller/locking itself, caller is responsible for tree lock */
     bool i_addRegistryRecursive(const Guid &id);
     /* handles caller/locking itself */
@@ -208,7 +206,7 @@ public:
     void i_cancelMergeTo(MediumLockList *aChildrenToReparent,
                        MediumLockList *aMediumLockList);
 
-    HRESULT i_resize(uint64_t aLogicalSize,
+    HRESULT i_resize(LONG64 aLogicalSize,
                      MediumLockList *aMediumLockList,
                      ComObjPtr<Progress> *aProgress,
                      bool aWait,

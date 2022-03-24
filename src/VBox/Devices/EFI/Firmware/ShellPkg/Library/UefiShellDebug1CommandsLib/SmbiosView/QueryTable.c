@@ -2,8 +2,8 @@
   Build a table, each item is (Key, Info) pair.
   And give a interface of query a string out of a table.
 
-  Copyright (c) 2005 - 2019, Intel Corporation. All rights reserved.<BR>
-  (C) Copyright 2016-2019 Hewlett Packard Enterprise Development LP<BR>
+  Copyright (c) 2005 - 2018, Intel Corporation. All rights reserved.<BR>
+  (C) Copyright 2016-2017 Hewlett Packard Enterprise Development LP<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -188,19 +188,19 @@ TABLE_ITEM  SystemEnclosureTypeTable[] = {
   },
   {
     0x10,
-    L"  Lunch Box"
-  },
-  {
-    0x11,
     L"  Main Server Chassis"
   },
   {
-    0x12,
+    0x11,
     L"  Expansion Chassis"
   },
   {
-    0x13,
+    0x12,
     L"  SubChassis"
+  },
+  {
+    0x13,
+    L"  Sub Notebook"
   },
   {
     0x14,
@@ -620,14 +620,6 @@ TABLE_ITEM  ProcessorCharacteristicsTable[] = {
   {
     7,
     L" Power/Performance Control"
-  },
-  {
-    8,
-    L" 128-bit Capable"
-  },
-  {
-    9,
-    L" ARM64 SoC ID"
   }
 };
 
@@ -1437,10 +1429,6 @@ TABLE_ITEM  SystemSlotTypeTable[] = {
     L"PCI Express Mini 76-pin (CEM spec. 2.0) Corresponds to Display-Mini card"
   },
   {
-    SlotTypeCXLFlexbus10,
-    L"CXL Flexbus 1.0"
-  },
-  {
     0xA0,
     L"PC-98/C20 "
   },
@@ -1531,30 +1519,6 @@ TABLE_ITEM  SystemSlotTypeTable[] = {
   {
     0xB6,
     L"PCI Express Gen 3 X16"
-  },
-  {
-    SlotTypePciExpressGen4,
-    L"PCI Express Gen 4"
-  },
-  {
-    SlotTypePciExpressGen4X1,
-    L"PCI Express Gen 4 X1"
-  },
-  {
-    SlotTypePciExpressGen4X2,
-    L"PCI Express Gen 4 X2"
-  },
-  {
-    SlotTypePciExpressGen4X4,
-    L"PCI Express Gen 4 X4"
-  },
-  {
-    SlotTypePciExpressGen4X8,
-    L"PCI Express Gen 4 X8"
-  },
-  {
-    SlotTypePciExpressGen4X16,
-    L"PCI Express Gen 4 X16"
   }
 };
 
@@ -2298,10 +2262,6 @@ TABLE_ITEM  PMALocationTable[] = {
   {
     0xA3,
     L"  PC-98/Local bus add-on card"
-  },
-  {
-    MemoryArrayLocationCXLFlexbus10AddonCard,
-    L"  CXL Flexbus 1.0 add-on card"
   }
 };
 
@@ -2427,10 +2387,6 @@ TABLE_ITEM  MemoryDeviceFormFactorTable[] = {
   {
     0x0F,
     L"  FB-DIMM"
-  },
-  {
-    MemoryFormFactorDie,
-    L"  Die"
   }
 };
 
@@ -2546,22 +2502,6 @@ TABLE_ITEM  MemoryDeviceTypeTable[] = {
   {
     0x1F,
     L"  Logical non-volatile device"
-  },
-  {
-    MemoryTypeHBM,
-    L"  HBM (High Bandwidth Memory)"
-  },
-  {
-    MemoryTypeHBM2,
-    L"  HBM2 (High Bandwidth Memory Generation 2)"
-  },
-  {
-    MemoryTypeDdr5,
-    L"  DDR5"
-  },
-  {
-    MemoryTypeLpddr5,
-    L"  LPDDR5"
   }
 };
 
@@ -2650,8 +2590,8 @@ TABLE_ITEM  MemoryDeviceMemoryTechnologyTable[] = {
     L" NVDIMM-P"
   },
   {
-    MemoryTechnologyIntelPersistentMemory,
-    L" Intel Optane DC Persistent Memory"
+    0x07,
+    L" Intel persistent memory"
   }
 };
 
@@ -3328,44 +3268,6 @@ TABLE_ITEM  MCHostInterfaceTypeTable[] = {
   },
 };
 
-TABLE_ITEM  ProcessorArchitectureTypesTable[] = {
-  {
-    0,
-    L" Reserved "
-  },
-  {
-    1,
-    L" IA32 (x86) "
-  },
-  {
-    2,
-    L" x64 (x86-64, intel64, AMD64, EM64T) "
-  },
-  {
-    3,
-    L" Intel Itanium architecture "
-  },
-  {
-    4,
-    L" 32-bit ARM (Aarch32) "
-  },
-  {
-    5,
-    L" 64-bit ARM (Aarch64) "
-  },
-  {
-    6,
-    L" 32-bit RISC-V (RV32) "
-  },
-  {
-    7,
-    L" 64-bit RISC-V (RV64) "
-  },
-  {
-    8,
-    L" 128-bit RISC-V (RV128) "
-  }
-};
 
 TABLE_ITEM  StructureTypeInfoTable[] = {
   {
@@ -3543,10 +3445,6 @@ TABLE_ITEM  StructureTypeInfoTable[] = {
   {
     43,
     L" TPM Device"
-  },
-  {
-    44,
-    L" Processor Additional Information"
   },
   {
     0x7E,
@@ -4796,23 +4694,6 @@ DisplayMCHostInterfaceType (
   ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_QUERYTABLE_MC_HOST_INTERFACE_TYPE), gShellDebug1HiiHandle);
   PRINT_INFO_OPTION (Key, Option);
   PRINT_TABLE_ITEM (MCHostInterfaceTypeTable, Key);
-}
-
-/**
-  Display Processor Architecture Type (Type 44).
-
-  @param[in] Key            The key of the structure.
-  @param[in] Option         The optional information.
-**/
-VOID
-DisplayProcessorArchitectureType (
-  IN UINT8 Key,
-  IN UINT8 Option
-  )
-{
-  ShellPrintHiiEx (-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_QUERYTABLE_PROCESSOR_ARCH_TYPE), gShellDebug1HiiHandle);
-  PRINT_INFO_OPTION (Key, Option);
-  PRINT_TABLE_ITEM (ProcessorArchitectureTypesTable, Key);
 }
 
 /**

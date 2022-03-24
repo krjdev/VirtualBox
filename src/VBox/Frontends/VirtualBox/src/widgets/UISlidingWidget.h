@@ -1,10 +1,10 @@
-/* $Id: UISlidingWidget.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISlidingWidget.h $ */
 /** @file
  * VBox Qt GUI - UISlidingWidget class declaration.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,9 +23,6 @@
 
 /* Qt includes: */
 #include <QWidget>
-
-/* Other VBox includes: */
-#include <iprt/cdefs.h>
 
 /* Forward declarations: */
 class QBoxLayout;
@@ -82,10 +79,10 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
 private slots:
 

@@ -1,10 +1,10 @@
-/* $Id: DBGFCpu.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGFCpu.cpp $ */
 /** @file
  * DBGF - Debugger Facility, CPU State Accessors.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -159,40 +159,5 @@ VMMR3DECL(VMCPUID) DBGFR3CpuGetCount(PUVM pUVM)
 {
     UVM_ASSERT_VALID_EXT_RETURN(pUVM, 1);
     return pUVM->cCpus;
-}
-
-
-/**
- * Returns the state of the given CPU as a human readable string.
- *
- * @returns Pointer to the human readable CPU state string.
- * @param   pUVM        The user mode VM handle.
- * @param   idCpu       The target CPU ID.
- */
-VMMR3DECL(const char *) DBGFR3CpuGetState(PUVM pUVM, VMCPUID idCpu)
-{
-    UVM_ASSERT_VALID_EXT_RETURN(pUVM, NULL);
-    VM_ASSERT_VALID_EXT_RETURN(pUVM->pVM, NULL);
-    AssertReturn(idCpu < pUVM->pVM->cCpus, NULL);
-
-    PVMCPU pVCpu = VMMGetCpuById(pUVM->pVM, idCpu);
-    VMCPUSTATE enmCpuState = (VMCPUSTATE)ASMAtomicReadU32((volatile uint32_t *)&pVCpu->enmState);
-
-    switch (enmCpuState)
-    {
-        case VMCPUSTATE_INVALID:                   return "<INVALID>";
-        case VMCPUSTATE_STOPPED:                   return "Stopped";
-        case VMCPUSTATE_STARTED:                   return "Started";
-        case VMCPUSTATE_STARTED_HM:                return "Started (HM)";
-        case VMCPUSTATE_STARTED_EXEC:              return "Started (Exec)";
-        case VMCPUSTATE_STARTED_EXEC_NEM:          return "Started (Exec NEM)";
-        case VMCPUSTATE_STARTED_EXEC_NEM_WAIT:     return "Started (Exec NEM Wait)";
-        case VMCPUSTATE_STARTED_EXEC_NEM_CANCELED: return "Started (Exec NEM Canceled)";
-        case VMCPUSTATE_STARTED_HALTED:            return "Started (Halted)";
-        case VMCPUSTATE_END:                       return "END";
-        default: break;
-    }
-
-    AssertMsgFailedReturn(("Unknown CPU state %u\n", enmCpuState), "<UNKNOWN>");
 }
 

@@ -1,10 +1,10 @@
-/* $Id: UICustomFileSystemModel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UICustomFileSystemModel.cpp $ */
 /** @file
  * VBox Qt GUI - UICustomFileSystemModel class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,11 +21,10 @@
 #include <QHeaderView>
 
 /* GUI includes: */
-#include "UICommon.h"
-#include "UICustomFileSystemModel.h"
 #include "UIErrorString.h"
+#include "UICustomFileSystemModel.h"
 #include "UIPathOperations.h"
-#include "UITranslator.h"
+#include "UICommon.h"
 
 const char *UICustomFileSystemModel::strUpDirectoryString = "..";
 
@@ -440,7 +439,7 @@ QVariant UICustomFileSystemModel::data(const QModelIndex &index, int role) const
             if (m_fShowHumanReadableSizes)
             {
                 qulonglong size = item->data(index.column()).toULongLong();
-                return UITranslator::formatSize(size);
+                return uiCommon().formatSize(size);
             }
             else
                 return item->data(index.column());
@@ -476,7 +475,7 @@ QVariant UICustomFileSystemModel::data(const QModelIndex &index, int role) const
 Qt::ItemFlags UICustomFileSystemModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
-        return Qt::ItemFlags();
+        return 0;
     UICustomFileSystemItem *item = static_cast<UICustomFileSystemItem*>(index.internalPointer());
     if (!item)
         return QAbstractItemModel::flags(index);

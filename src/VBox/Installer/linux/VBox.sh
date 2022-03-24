@@ -4,7 +4,7 @@
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -133,9 +133,6 @@ case "$APP" in
         ;;
     VBoxDTrace|vboxdtrace)
         exec "$INSTALL_DIR/VBoxDTrace" "$@"
-        ;;
-    VBoxAudioTest|vboxaudiotest|vkat)
-        exec "$INSTALL_DIR/VBoxAudioTest" "$@"
         ;;
     vboxwebsrv)
         exec "$INSTALL_DIR/vboxwebsrv" "$@"

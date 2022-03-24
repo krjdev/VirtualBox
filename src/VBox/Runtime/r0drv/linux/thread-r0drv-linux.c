@@ -1,10 +1,10 @@
-/* $Id: thread-r0drv-linux.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: thread-r0drv-linux.c $ */
 /** @file
  * IPRT - Threads, Ring-0 Driver, Linux.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -240,36 +240,4 @@ RTDECL(bool) RTThreadIsInInterrupt(RTTHREAD hThread)
     return in_interrupt() != 0;
 }
 RT_EXPORT_SYMBOL(RTThreadIsInInterrupt);
-
-
-RTDECL(int) RTThreadQueryTerminationStatus(RTTHREAD hThread)
-{
-    struct task_struct *pTask = current;
-    AssertReturn(hThread == NIL_RTTHREAD, VERR_NOT_SUPPORTED);
-
-    /* Check out pending signals.  ASSUMES we can get away w/o locking
-       anything because we're only reading the data.  */
-    if (sigismember(&pTask->pending.signal, SIGKILL))
-        return VINF_THREAD_IS_TERMINATING;
-
-#if RTLNX_VER_MIN(2,5,34)
-    /* Check the pending signals shared with other threads in
-       the same process/group.  ASSUME since we're alive that
-       the signal_struct won't be freed while we're looking
-       at it here... */
-    {
-# if RTLNX_VER_MIN(2,5,60)
-        struct signal_struct *pSignal = current->signal;
-# else
-        struct signal_struct *pSignal = current->sig;
-# endif
-        if (   pSignal
-            && sigismember(&pSignal->shared_pending.signal, SIGKILL))
-            return VINF_THREAD_IS_TERMINATING;
-    }
-#endif
-
-    return VINF_SUCCESS;
-}
-RT_EXPORT_SYMBOL(RTThreadQueryTerminationStatus);
 

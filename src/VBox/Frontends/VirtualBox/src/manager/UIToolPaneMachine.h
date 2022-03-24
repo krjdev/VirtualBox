@@ -1,10 +1,10 @@
-/* $Id: UIToolPaneMachine.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolPaneMachine.h $ */
 /** @file
  * VBox Qt GUI - UIToolPaneMachine class declaration.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,11 +38,10 @@ class QVBoxLayout;
 class UIActionPool;
 class UIDetails;
 class UIErrorPane;
-class UIVMActivityToolWidget;
 class UISnapshotPane;
 class UIVirtualMachineItem;
 class UIVMLogViewerWidget;
-class UIFileManager;
+
 
 /** QWidget subclass representing container for tool panes. */
 class UIToolPaneMachine : public QWidget
@@ -61,20 +60,12 @@ signals:
     /** Notifies listeners about current Snapshot pane item change. */
     void sigCurrentSnapshotItemChange();
 
-    /** Notifies listeners about request to switch to Activity Overview pane. */
-    void sigSwitchToActivityOverviewPane();
-
 public:
 
     /** Constructs tools pane passing @a pParent to the base-class. */
     UIToolPaneMachine(UIActionPool *pActionPool, QWidget *pParent = 0);
     /** Destructs tools pane. */
-    virtual ~UIToolPaneMachine() RT_OVERRIDE;
-
-    /** Defines whether this pane is @a fActive. */
-    void setActive(bool fActive);
-    /** Returns whether this pane is active. */
-    bool active() const { return m_fActive; }
+    virtual ~UIToolPaneMachine() /* override */;
 
     /** Returns type of tool currently opened. */
     UIToolType currentTool() const;
@@ -100,9 +91,6 @@ public:
     /** Returns whether current-state item of Snapshot pane is selected. */
     bool isCurrentStateItemSelected() const;
 
-    /** Returns the help keyword of the current tool's widget. */
-    QString currentHelpKeyword() const;
-
 private:
 
     /** Prepares all. */
@@ -111,9 +99,6 @@ private:
     void prepareStackedLayout();
     /** Cleanups all. */
     void cleanup();
-
-    /** Handles token change. */
-    void handleTokenChange();
 
     /** Holds the action pool reference. */
     UIActionPool *m_pActionPool;
@@ -131,13 +116,6 @@ private:
     UISnapshotPane      *m_pPaneSnapshots;
     /** Holds the Logviewer pane instance. */
     UIVMLogViewerWidget *m_pPaneLogViewer;
-    /** Holds the Performance Monitor pane instance. */
-    UIVMActivityToolWidget *m_pPaneVMActivityMonitor;
-    /** Holds the File Manager pane instance. */
-    UIFileManager *m_pPaneFileManager;
-
-    /** Holds whether this pane is active. */
-    bool  m_fActive;
 
     /** Holds the cache of passed items. */
     QList<UIVirtualMachineItem*>  m_items;
@@ -146,3 +124,4 @@ private:
 };
 
 #endif /* !FEQT_INCLUDED_SRC_manager_UIToolPaneMachine_h */
+

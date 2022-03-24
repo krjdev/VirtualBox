@@ -1,10 +1,10 @@
-/* $Id: mp-r0drv.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: mp-r0drv.h $ */
 /** @file
  * IPRT - Multiprocessor, Ring-0 Driver, Internal Header.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,7 +41,7 @@ RT_C_DECLS_BEGIN
  * @param   pvUser1     The first user argument.
  * @param   pvUser2     The second user argument.
  */
-typedef DECLCALLBACKTYPE(void, FNMPWORKER,(RTCPUID idCpu, void *pvUser1, void *pvUser2));
+typedef DECLCALLBACK(void) FNMPWORKER(RTCPUID idCpu, void *pvUser1, void *pvUser2);
 /** Pointer to a FNMPWORKER(). */
 typedef FNMPWORKER *PFNMPWORKER;
 

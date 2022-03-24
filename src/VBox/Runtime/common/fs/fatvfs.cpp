@@ -1,10 +1,10 @@
-/* $Id: fatvfs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fatvfs.cpp $ */
 /** @file
  * IPRT - FAT Virtual Filesystem.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -915,7 +915,6 @@ static int rtFsFatClusterMap_FlushWorker(PRTFSFATVOL pThis, uint32_t const iFirs
     uint64_t off     = UINT64_MAX;
     uint64_t offEdge = UINT64_MAX;
     RTSGSEG  aSgSegs[8];
-    RT_ZERO(aSgSegs); /* Initialization required for GCC >= 11. */
     RTSGBUF  SgBuf;
     RTSgBufInit(&SgBuf, aSgSegs, RT_ELEMENTS(aSgSegs));
     SgBuf.cSegs = 0; /** @todo RTSgBuf API is stupid, make it smarter. */
@@ -6233,20 +6232,6 @@ RTDECL(int) RTFsFatVolFormat144(RTVFSFILE hVfsFile, bool fQuick)
 {
     return RTFsFatVolFormat(hVfsFile, 0 /*offVol*/, 1474560, fQuick ? RTFSFATVOL_FMT_F_QUICK : RTFSFATVOL_FMT_F_FULL,
                             512 /*cbSector*/, 1 /*cSectorsPerCluster*/, RTFSFATTYPE_FAT12, 2 /*cHeads*/,  18 /*cSectors*/,
-                            0xf0 /*bMedia*/, 224 /*cRootDirEntries*/, 0 /*cHiddenSectors*/, NULL /*pErrInfo*/);
-}
-
-
-/**
- * Formats a 2.88MB floppy image.
- *
- * @returns IPRT status code.
- * @param   hVfsFile            The image.
- */
-RTDECL(int) RTFsFatVolFormat288(RTVFSFILE hVfsFile, bool fQuick)
-{
-    return RTFsFatVolFormat(hVfsFile, 0 /*offVol*/, 2949120, fQuick ? RTFSFATVOL_FMT_F_QUICK : RTFSFATVOL_FMT_F_FULL,
-                            512 /*cbSector*/, 2 /*cSectorsPerCluster*/, RTFSFATTYPE_FAT12, 2 /*cHeads*/,  36 /*cSectors*/,
                             0xf0 /*bMedia*/, 224 /*cRootDirEntries*/, 0 /*cHiddenSectors*/, NULL /*pErrInfo*/);
 }
 

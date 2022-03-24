@@ -1,10 +1,10 @@
-/* $Id: VBoxEditCoffLib.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxEditCoffLib.cpp $ */
 /** @file
  * VBoxEditCoffLib - Simple COFF editor for library files.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -240,8 +240,7 @@ static int SelectMember(const char *pszEndsWith)
         }
 
         if (g_cVerbosity > 2)
-            fprintf(stderr, "debug: %#08x: %#010x %*.*s\n",
-                    (unsigned)off, (unsigned)(cbFile - cbExtra), (int)cchName, (int)cchName, pchName);
+            fprintf(stderr, "debug: %#08x: %#010x %*.*s\n", off, cbFile - cbExtra, cchName, cchName, pchName);
 
         /*
          * Do matching.
@@ -253,7 +252,7 @@ static int SelectMember(const char *pszEndsWith)
             g_cbMember = (unsigned)(cbFile - cbExtra);
             if (g_cVerbosity > 1)
                 fprintf(stderr, "debug: selected '%*.*s': %#x LB %#x\n",
-                        (int)cchName, (int)cchName, pchName, (unsigned)(off + sizeof(*pHdr) + cbExtra), g_cbMember);
+                        cchName, cchName, pchName, off + sizeof(*pHdr) + cbExtra, g_cbMember);
             return 0;
         }
 
@@ -313,7 +312,7 @@ static int RedefineSymbol(const char *pszOldEqualNew)
 
     if (g_cVerbosity > 2)
         fprintf(stderr, "debug: redefining symbol '%*.*s' to '%*.*s'...\n",
-                (int)cchOld, (int)cchOld, pszOld, (int)cchNew, (int)cchNew, pszNew);
+                cchOld, cchOld, pszOld, cchNew, cchNew, pszNew);
 
     /*
      * Parse COFF header.

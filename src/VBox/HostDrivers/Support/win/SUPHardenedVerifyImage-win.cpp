@@ -1,10 +1,10 @@
-/* $Id: SUPHardenedVerifyImage-win.cpp 93271 2022-01-17 11:47:34Z vboxsync $ */
+/* $Id: SUPHardenedVerifyImage-win.cpp $ */
 /** @file
  * VirtualBox Support Library/Driver - Hardened Image Verification, Windows.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -84,33 +84,26 @@
 *********************************************************************************************************************************/
 
 #ifdef IN_RING3
-typedef DECLCALLBACKPTR_EX(LONG, WINAPI, PFNWINVERIFYTRUST,(HWND hwnd, GUID const *pgActionID, PVOID pWVTData));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATADMINACQUIRECONTEXT,(HCATADMIN *phCatAdmin, const GUID *pGuidSubsystem,
-                                                                         DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATADMINACQUIRECONTEXT2,(HCATADMIN *phCatAdmin, const GUID *pGuidSubsystem,
-                                                                          PCWSTR pwszHashAlgorithm,
-                                                                          struct _CERT_STRONG_SIGN_PARA const *pStrongHashPolicy,
-                                                                          DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATADMINCALCHASHFROMFILEHANDLE,(HANDLE hFile, DWORD *pcbHash, BYTE *pbHash,
-                                                                                 DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATADMINCALCHASHFROMFILEHANDLE2,(HCATADMIN hCatAdmin, HANDLE hFile,
-                                                                                  DWORD *pcbHash, BYTE *pbHash, DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(HCATINFO, WINAPI, PFNCRYPTCATADMINENUMCATALOGFROMHASH,(HCATADMIN hCatAdmin, BYTE *pbHash, DWORD cbHash,
-                                                                                  DWORD dwFlags, HCATINFO *phPrevCatInfo));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATADMINRELEASECATALOGCONTEXT,(HCATADMIN hCatAdmin, HCATINFO hCatInfo,
-                                                                                DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATDADMINRELEASECONTEXT,(HCATADMIN hCatAdmin, DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCRYPTCATCATALOGINFOFROMCONTEXT,(HCATINFO hCatInfo, CATALOG_INFO *psCatInfo,
-                                                                            DWORD dwFlags));
+typedef LONG (WINAPI * PFNWINVERIFYTRUST)(HWND hwnd, GUID const *pgActionID, PVOID pWVTData);
+typedef BOOL (WINAPI * PFNCRYPTCATADMINACQUIRECONTEXT)(HCATADMIN *phCatAdmin, const GUID *pGuidSubsystem, DWORD dwFlags);
+typedef BOOL (WINAPI * PFNCRYPTCATADMINACQUIRECONTEXT2)(HCATADMIN *phCatAdmin, const GUID *pGuidSubsystem, PCWSTR pwszHashAlgorithm,
+                                                        struct _CERT_STRONG_SIGN_PARA const *pStrongHashPolicy, DWORD dwFlags);
+typedef BOOL (WINAPI * PFNCRYPTCATADMINCALCHASHFROMFILEHANDLE)(HANDLE hFile, DWORD *pcbHash, BYTE *pbHash, DWORD dwFlags);
+typedef BOOL (WINAPI * PFNCRYPTCATADMINCALCHASHFROMFILEHANDLE2)(HCATADMIN hCatAdmin, HANDLE hFile, DWORD *pcbHash,
+                                                                BYTE *pbHash, DWORD dwFlags);
+typedef HCATINFO (WINAPI *PFNCRYPTCATADMINENUMCATALOGFROMHASH)(HCATADMIN hCatAdmin, BYTE *pbHash, DWORD cbHash,
+                                                               DWORD dwFlags, HCATINFO *phPrevCatInfo);
+typedef BOOL (WINAPI * PFNCRYPTCATADMINRELEASECATALOGCONTEXT)(HCATADMIN hCatAdmin, HCATINFO hCatInfo, DWORD dwFlags);
+typedef BOOL (WINAPI * PFNCRYPTCATDADMINRELEASECONTEXT)(HCATADMIN hCatAdmin, DWORD dwFlags);
+typedef BOOL (WINAPI * PFNCRYPTCATCATALOGINFOFROMCONTEXT)(HCATINFO hCatInfo, CATALOG_INFO *psCatInfo, DWORD dwFlags);
 
-typedef DECLCALLBACKPTR_EX(HCERTSTORE, WINAPI, PFNCERTOPENSTORE,(PCSTR pszStoreProvider, DWORD dwEncodingType,
-                                                                 HCRYPTPROV_LEGACY hCryptProv, DWORD dwFlags, const void *pvParam));
-typedef DECLCALLBACKPTR_EX(BOOL, WINAPI, PFNCERTCLOSESTORE,(HCERTSTORE hCertStore, DWORD dwFlags));
-typedef DECLCALLBACKPTR_EX(PCCERT_CONTEXT, WINAPI, PFNCERTENUMCERTIFICATESINSTORE,(HCERTSTORE hCertStore,
-                                                                                   PCCERT_CONTEXT pPrevCertContext));
+typedef HCERTSTORE (WINAPI *PFNCERTOPENSTORE)(PCSTR pszStoreProvider, DWORD dwEncodingType, HCRYPTPROV_LEGACY hCryptProv,
+                                              DWORD dwFlags, const void *pvParam);
+typedef BOOL (WINAPI *PFNCERTCLOSESTORE)(HCERTSTORE hCertStore, DWORD dwFlags);
+typedef PCCERT_CONTEXT (WINAPI *PFNCERTENUMCERTIFICATESINSTORE)(HCERTSTORE hCertStore, PCCERT_CONTEXT pPrevCertContext);
 
-typedef DECLCALLBACKPTR_EX(NTSTATUS, WINAPI, PFNBCRYPTOPENALGORTIHMPROVIDER,(BCRYPT_ALG_HANDLE *phAlgo, PCWSTR pwszAlgoId,
-                                                                             PCWSTR pwszImpl, DWORD dwFlags));
+typedef NTSTATUS (WINAPI *PFNBCRYPTOPENALGORTIHMPROVIDER)(BCRYPT_ALG_HANDLE *phAlgo, PCWSTR pwszAlgoId,
+                                                          PCWSTR pwszImpl, DWORD dwFlags);
 #endif
 
 
@@ -691,8 +684,8 @@ DECLHIDDEN(bool) supHardViUtf16PathStartsWithEx(PCRTUTF16 pwszLeft, uint32_t cwc
  * @param   pUniStrRight        The starts-with path.
  * @param   fCheckSlash         Check for a slash following the prefix.
  */
-DECLHIDDEN(bool) supHardViUniStrPathStartsWithUniStr(UNICODE_STRING const *pUniStrLeft,
-                                                     UNICODE_STRING const *pUniStrRight, bool fCheckSlash)
+DECLHIDDEN(bool) supHardViUniStrPathStartsWithUniStr(UNICODE_STRING const *pUniStrLeft, UNICODE_STRING const *pUniStrRight,
+                                                     bool fCheckSlash)
 {
     return supHardViUtf16PathStartsWithEx(pUniStrLeft->Buffer, pUniStrLeft->Length / sizeof(WCHAR),
                                           pUniStrRight->Buffer, pUniStrRight->Length / sizeof(WCHAR), fCheckSlash);
@@ -1017,17 +1010,19 @@ static DECLCALLBACK(int) supHardNtViCertVerifyCallback(PCRTCRX509CERTIFICATE pCe
      * callback, it must be because of the build certificate.  We trust the
      * build certificate without any second thoughts.
      */
-    if (RTCrX509Certificate_Compare(pCert, &g_BuildX509Cert) == 0)
+    if (hCertPaths == NIL_RTCRX509CERTPATHS)
     {
-#ifdef VBOX_STRICT
-        Assert(RTCrX509CertPathsGetPathCount(hCertPaths) == 1);
-        bool     fTrusted = false;
-        uint32_t cNodes = UINT32_MAX;
-        int      rcVerify = -1;
-        int rc = RTCrX509CertPathsQueryPathInfo(hCertPaths, 0, &fTrusted, &cNodes, NULL, NULL, NULL, NULL, &rcVerify);
-        AssertRC(rc); AssertRC(rcVerify); Assert(fTrusted); Assert(cNodes == 1);
-#endif
-        return VINF_SUCCESS;
+        if (RTCrX509Certificate_Compare(pCert, &g_BuildX509Cert) == 0) /* healthy paranoia */
+            return VINF_SUCCESS;
+        int rc = RTErrInfoSetF(pErrInfo, VERR_SUP_VP_NOT_BUILD_CERT_IPE, "Not valid kernel code signature (fFlags=%#x).", fFlags);
+        if (pErrInfo)
+        {
+            RTErrInfoAdd(pErrInfo, rc, "\n\nExe cert:\n");
+            RTAsn1Dump(&pCert->SeqCore.Asn1Core, 0 /*fFlags*/, 0 /*uLevel*/, supHardNtViAsn1DumpToErrInfo, pErrInfo);
+            RTErrInfoAdd(pErrInfo, rc, "\n\nBuild cert:\n");
+            RTAsn1Dump(&g_BuildX509Cert.SeqCore.Asn1Core, 0 /*fFlags*/, 0 /*uLevel*/, supHardNtViAsn1DumpToErrInfo, pErrInfo);
+        }
+        return rc;
     }
 
     /*
@@ -1508,8 +1503,8 @@ DECLHIDDEN(int) supHardenedWinVerifyImageByLdrMod(RTLDRMOD hLdrMod, PCRTUTF16 pw
  * @param   pfWinVerifyTrust    Where to return whether WinVerifyTrust was used.
  * @param   pErrInfo            Pointer to error info structure. Optional.
  */
-DECLHIDDEN(int) supHardenedWinVerifyImageByHandle(HANDLE hFile, PCRTUTF16 pwszName, uint32_t fFlags,
-                                                  bool fAvoidWinVerifyTrust, bool *pfWinVerifyTrust, PRTERRINFO pErrInfo)
+DECLHIDDEN(int) supHardenedWinVerifyImageByHandle(HANDLE hFile, PCRTUTF16 pwszName, uint32_t fFlags, bool fAvoidWinVerifyTrust,
+                                                  bool *pfWinVerifyTrust, PRTERRINFO pErrInfo)
 {
     /*
      * Create a reader instance.
@@ -2517,10 +2512,6 @@ static int supR3HardNtViCallWinVerifyTrust(HANDLE hFile, PCRTUTF16 pwszName, uin
     TrustData.pFile = &FileInfo;
 
     HRESULT hrc = pfnWinVerifyTrust(NULL /*hwnd*/, &PolicyActionGuid, &TrustData);
-# ifdef DEBUG_bird /* TEMP HACK */
-    if (hrc == CERT_E_EXPIRED)
-        hrc = S_OK;
-# endif
     if (hrc == S_OK)
         rc = VINF_SUCCESS;
     else

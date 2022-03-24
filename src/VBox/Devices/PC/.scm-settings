@@ -1,10 +1,10 @@
-# $Id: .scm-settings 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: .scm-settings $
 ## @file
 # Source code massager settings for PC devices/drivers.
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -100,8 +100,3 @@
 --filter-out-files /ipxe/contrib/vm/serial-console.1
 --filter-out-dirs  /ipxe/contrib/rom-o-matic/.
 
-# Not UTF-8 encoded but contains non-ASCII characters (pico, quotes)
-/ipxe/src/drivers/bus/eisa.c:                   --skip-unicode-checks
-/ipxe/src/drivers/infiniband/MT25408_PRM.h:     --skip-unicode-checks
-/ipxe/src/drivers/net/smc9000.c:                --skip-unicode-checks
-/ipxe/src/drivers/net/smc9000.h:                --skip-unicode-checks

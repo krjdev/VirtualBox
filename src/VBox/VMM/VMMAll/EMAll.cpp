@@ -1,10 +1,10 @@
-/* $Id: EMAll.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: EMAll.cpp $ */
 /** @file
  * EM - Execution Monitor(/Manager) - All contexts
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -325,9 +325,8 @@ VMM_INT_DECL(int) EMUnhaltAndWakeUp(PVMCC pVM, PVMCPUCC pVCpuDst)
     AssertRC(rc);
 
 #elif defined(IN_RING3)
-    VMR3NotifyCpuFFU(pVCpuDst->pUVCpu, 0 /*fFlags*/);
-    int rc = VINF_SUCCESS;
-    RT_NOREF(pVM);
+    int rc = SUPR3CallVMMR0(VMCC_GET_VMR0_FOR_CALL(pVM), pVCpuDst->idCpu, VMMR0_DO_GVMM_SCHED_WAKE_UP, NULL /* pvArg */);
+    AssertRC(rc);
 
 #else
     /* Nothing to do for raw-mode, shouldn't really be used by raw-mode guests anyway. */
@@ -784,6 +783,7 @@ VMM_INT_DECL(PCEMEXITREC) EMHistoryAddExit(PVMCPUCC pVCpu, uint32_t uFlagsAndTyp
 }
 
 
+#ifdef IN_RING0
 /**
  * Interface that VT-x uses to supply the PC of an exit when CS:RIP is being read.
  *
@@ -791,10 +791,8 @@ VMM_INT_DECL(PCEMEXITREC) EMHistoryAddExit(PVMCPUCC pVCpu, uint32_t uFlagsAndTyp
  * @param   uFlatPC         The flattened program counter (RIP).
  * @param   fFlattened      Set if RIP was subjected to CS.BASE, clear if not.
  */
-VMM_INT_DECL(void) EMHistoryUpdatePC(PVMCPUCC pVCpu, uint64_t uFlatPC, bool fFlattened)
+VMMR0_INT_DECL(void) EMR0HistoryUpdatePC(PVMCPU pVCpu, uint64_t uFlatPC, bool fFlattened)
 {
-    VMCPU_ASSERT_EMT(pVCpu);
-
     AssertCompile(RT_ELEMENTS(pVCpu->em.s.aExitHistory) == 256);
     uint64_t     uExitNo    = pVCpu->em.s.iNextExit - 1;
     PEMEXITENTRY pHistEntry = &pVCpu->em.s.aExitHistory[(uintptr_t)uExitNo & 0xff];
@@ -804,6 +802,7 @@ VMM_INT_DECL(void) EMHistoryUpdatePC(PVMCPUCC pVCpu, uint64_t uFlatPC, bool fFla
     else
         pHistEntry->uFlagsAndType |= EMEXIT_F_UNFLATTENED_PC;
 }
+#endif
 
 
 /**
@@ -898,7 +897,7 @@ static DECLCALLBACK(int) emReadBytes(PDISCPUSTATE pDis, uint8_t offInstr, uint8_
     /*
      * Figure how much we can or must read.
      */
-    size_t      cbToRead = GUEST_PAGE_SIZE - (uSrcAddr & (GUEST_PAGE_SIZE - 1));
+    size_t      cbToRead = PAGE_SIZE - (uSrcAddr & PAGE_OFFSET_MASK);
     if (cbToRead > cbMaxRead)
         cbToRead = cbMaxRead;
     else if (cbToRead < cbMinRead)
@@ -922,7 +921,7 @@ static DECLCALLBACK(int) emReadBytes(PDISCPUSTATE pDis, uint8_t offInstr, uint8_
             if (rc == VERR_PAGE_TABLE_NOT_PRESENT || rc == VERR_PAGE_NOT_PRESENT)
             {
                 HMInvalidatePage(pVCpu, uSrcAddr);
-                if (((uSrcAddr + cbToRead - 1) >> GUEST_PAGE_SHIFT) != (uSrcAddr >> GUEST_PAGE_SHIFT))
+                if (((uSrcAddr + cbToRead - 1) >> PAGE_SHIFT) !=  (uSrcAddr >> PAGE_SHIFT))
                     HMInvalidatePage(pVCpu, uSrcAddr + cbToRead - 1);
             }
         }

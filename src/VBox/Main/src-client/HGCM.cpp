@@ -1,10 +1,10 @@
-/* $Id: HGCM.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: HGCM.cpp $ */
 /** @file
  * HGCM (Host-Guest Communication Manager)
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +25,6 @@
 #include <VBox/hgcmsvc.h>
 #include <VBox/vmm/ssm.h>
 #include <VBox/vmm/stam.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <VBox/sup.h>
 #include <VBox/AssertGuest.h>
 
@@ -124,7 +123,6 @@ class HGCMService
         HGCMSVCEXTHANDLE m_hExtension;
 
         PUVM m_pUVM;
-        PCVMMR3VTABLE m_pVMM;
         PPDMIHGCMPORT m_pHgcmPort;
 
         /** @name Statistics
@@ -140,13 +138,11 @@ class HGCMService
         /*
          * Main HGCM thread methods.
          */
-        int instanceCreate(const char *pszServiceLibrary, const char *pszServiceName,
-                           PUVM pUVM, PCVMMR3VTABLE pVMM, PPDMIHGCMPORT pHgcmPort);
-        void registerStatistics(const char *pszServiceName, PUVM pUVM, PCVMMR3VTABLE pVMM);
+        int instanceCreate(const char *pszServiceLibrary, const char *pszServiceName, PUVM pUVM, PPDMIHGCMPORT pHgcmPort);
         void instanceDestroy(void);
 
-        int saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM);
-        int loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion);
+        int saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM);
+        int loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, uint32_t uVersion);
 
         HGCMService();
         ~HGCMService() {};
@@ -170,8 +166,7 @@ class HGCMService
         /*
          * Main HGCM thread methods.
          */
-        static int LoadService(const char *pszServiceLibrary, const char *pszServiceName,
-                               PUVM pUVM, PCVMMR3VTABLE pVMM, PPDMIHGCMPORT pHgcmPort);
+        static int LoadService(const char *pszServiceLibrary, const char *pszServiceName, PUVM pUVM, PPDMIHGCMPORT pHgcmPort);
         void UnloadService(bool fUvmIsInvalid);
 
         static void UnloadAll(bool fUvmIsInvalid);
@@ -182,8 +177,8 @@ class HGCMService
 
         static void Reset(void);
 
-        static int SaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM);
-        static int LoadState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion);
+        static int SaveState(PSSMHANDLE pSSM);
+        static int LoadState(PSSMHANDLE pSSM, uint32_t uVersion);
 
         int CreateAndConnectClient(uint32_t *pu32ClientIdOut, uint32_t u32ClientIdIn, uint32_t fRequestor, bool fRestoring);
         int DisconnectClient(uint32_t u32ClientId, bool fFromService, HGCMClient *pClient);
@@ -328,7 +323,6 @@ HGCMService::HGCMService()
     m_paClientIds (NULL),
     m_hExtension (NULL),
     m_pUVM       (NULL),
-    m_pVMM       (NULL),
     m_pHgcmPort  (NULL)
 {
     RT_ZERO(m_acClients);
@@ -592,10 +586,9 @@ class HGCMMsgCancelled: public HGCMMsgHeader
 class HGCMMsgLoadSaveStateClient: public HGCMMsgCore
 {
     public:
-        PSSMHANDLE      pSSM;
-        PCVMMR3VTABLE   pVMM;
-        uint32_t        uVersion;
-        uint32_t        u32ClientId;
+        PSSMHANDLE  pSSM;
+        uint32_t    uVersion;
+        uint32_t    u32ClientId;
 };
 
 class HGCMMsgHostCallSvc: public HGCMMsgCore
@@ -814,14 +807,14 @@ DECLCALLBACK(void) hgcmServiceThread(HGCMThread *pThread, void *pvUser)
                     /* fRequestor: Restored by the message sender already. */
                     bool fHaveClientState = pSvc->m_fntable.pfnLoadState != NULL;
                     if (pMsg->uVersion > HGCM_SAVED_STATE_VERSION_V2)
-                        rc = pMsg->pVMM->pfnSSMR3GetBool(pMsg->pSSM, &fHaveClientState);
+                        rc = SSMR3GetBool(pMsg->pSSM, &fHaveClientState);
                     else
                         rc = VINF_SUCCESS;
                     if (RT_SUCCESS(rc) )
                     {
                         if (pSvc->m_fntable.pfnLoadState)
                             rc = pSvc->m_fntable.pfnLoadState(pSvc->m_fntable.pvService, pMsg->u32ClientId,
-                                                              HGCM_CLIENT_DATA(pSvc, pClient), pMsg->pSSM, pMsg->pVMM,
+                                                              HGCM_CLIENT_DATA(pSvc, pClient), pMsg->pSSM,
                                                               fHaveClientState ? pMsg->uVersion : 0);
                         else
                             AssertLogRelStmt(!fHaveClientState, rc = VERR_INTERNAL_ERROR_5);
@@ -846,13 +839,13 @@ DECLCALLBACK(void) hgcmServiceThread(HGCMThread *pThread, void *pvUser)
 
                 if (pClient)
                 {
-                    pMsg->pVMM->pfnSSMR3PutU32(pMsg->pSSM, pClient->fRequestor); /* Quicker to save this here than in the message sender. */
-                    rc = pMsg->pVMM->pfnSSMR3PutBool(pMsg->pSSM, pSvc->m_fntable.pfnSaveState != NULL);
+                    SSMR3PutU32(pMsg->pSSM, pClient->fRequestor); /* Quicker to save this here than in the message sender. */
+                    rc = SSMR3PutBool(pMsg->pSSM, pSvc->m_fntable.pfnSaveState != NULL);
                     if (RT_SUCCESS(rc) && pSvc->m_fntable.pfnSaveState)
                     {
                         g_fSaveState = true;
                         rc = pSvc->m_fntable.pfnSaveState(pSvc->m_fntable.pvService, pMsg->u32ClientId,
-                                                          HGCM_CLIENT_DATA(pSvc, pClient), pMsg->pSSM, pMsg->pVMM);
+                                                          HGCM_CLIENT_DATA(pSvc, pClient), pMsg->pSSM);
                         g_fSaveState = false;
                     }
 
@@ -1030,10 +1023,7 @@ HGCMService::svcHlpStamRegisterV(void *pvInstance, void *pvSample, STAMTYPE enmT
      HGCMService *pService = static_cast <HGCMService *>(pvInstance);
      AssertPtrReturn(pService, VERR_INVALID_PARAMETER);
 
-     if (pService->m_pUVM)
-         return pService->m_pVMM->pfnSTAMR3RegisterVU(pService->m_pUVM, pvSample, enmType, enmVisibility,
-                                                      enmUnit, pszDesc, pszName, va);
-     return VINF_SUCCESS;
+     return STAMR3RegisterVU(pService->m_pUVM, pvSample, enmType, enmVisibility, enmUnit, pszDesc, pszName, va);
 }
 
 /**
@@ -1045,7 +1035,7 @@ HGCMService::svcHlpStamRegisterV(void *pvInstance, void *pvSample, STAMTYPE enmT
      AssertPtrReturn(pService, VERR_INVALID_PARAMETER);
 
      if (pService->m_pUVM)
-         return pService->m_pVMM->pfnSTAMR3DeregisterV(pService->m_pUVM, pszPatFmt, va);
+         return STAMR3DeregisterV(pService->m_pUVM, pszPatFmt, va);
      return VINF_SUCCESS;
 }
 
@@ -1058,9 +1048,7 @@ HGCMService::svcHlpStamRegisterV(void *pvInstance, void *pvSample, STAMTYPE enmT
      HGCMService *pService = static_cast <HGCMService *>(pvInstance);
      AssertPtrReturn(pService, VERR_INVALID_PARAMETER);
 
-     if (pService->m_pUVM)
-         return pService->m_pVMM->pfnDBGFR3InfoRegisterExternal(pService->m_pUVM, pszName, pszDesc, pfnHandler, pvUser);
-     return VINF_SUCCESS;
+     return DBGFR3InfoRegisterExternal(pService->m_pUVM, pszName, pszDesc, pfnHandler, pvUser);
 }
 
 /**
@@ -1071,7 +1059,7 @@ HGCMService::svcHlpStamRegisterV(void *pvInstance, void *pvSample, STAMTYPE enmT
      HGCMService *pService = static_cast <HGCMService *>(pvInstance);
      AssertPtrReturn(pService, VERR_INVALID_PARAMETER);
      if (pService->m_pUVM)
-         return pService->m_pVMM->pfnDBGFR3InfoDeregisterExternal(pService->m_pUVM, pszName);
+         return DBGFR3InfoDeregisterExternal(pService->m_pUVM, pszName);
      return VINF_SUCCESS;
 }
 
@@ -1128,11 +1116,9 @@ static DECLCALLBACK(int) hgcmMsgCompletionCallback(int32_t result, HGCMMsgCore *
  * The main HGCM methods of the service.
  */
 
-int HGCMService::instanceCreate(const char *pszServiceLibrary, const char *pszServiceName,
-                                PUVM pUVM, PCVMMR3VTABLE pVMM, PPDMIHGCMPORT pHgcmPort)
+int HGCMService::instanceCreate(const char *pszServiceLibrary, const char *pszServiceName, PUVM pUVM, PPDMIHGCMPORT pHgcmPort)
 {
     LogFlowFunc(("name %s, lib %s\n", pszServiceName, pszServiceLibrary));
-
     /* The maximum length of the thread name, allowed by the RT is 15. */
     char szThreadName[16];
     if (!strncmp(pszServiceName, RT_STR_TUPLE("VBoxShared")))
@@ -1142,7 +1128,8 @@ int HGCMService::instanceCreate(const char *pszServiceLibrary, const char *pszSe
     else
         RTStrCopy(szThreadName, sizeof(szThreadName), pszServiceName);
 
-    int rc = hgcmThreadCreate(&m_pThread, szThreadName, hgcmServiceThread, this, pszServiceName, pUVM, pVMM);
+    int rc = hgcmThreadCreate(&m_pThread, szThreadName, hgcmServiceThread, this, pszServiceName, pUVM);
+
     if (RT_SUCCESS(rc))
     {
         m_pszSvcName    = RTStrDup(pszServiceName);
@@ -1161,10 +1148,37 @@ int HGCMService::instanceCreate(const char *pszServiceLibrary, const char *pszSe
         else
         {
             m_pUVM = pUVM;
-            m_pVMM = pVMM;
             m_pHgcmPort = pHgcmPort;
 
-            registerStatistics(pszServiceName, pUVM, pVMM);
+            /* Register statistics: */
+            STAMR3RegisterFU(pUVM, &m_StatHandleMsg, STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
+                             "Message handling", "/HGCM/%s/Msg", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_StatTooManyCalls, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
+                             "Too many calls (per client)", "/HGCM/%s/TooManyCalls", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_StatTooManyClients, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
+                             "Too many clients", "/HGCM/%s/TooManyClients", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_cClients, STAMTYPE_U32, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
+                             "Number of clients", "/HGCM/%s/Clients", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Number of kernel clients", "/HGCM/%s/Clients/Kernel", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Number of root/admin clients", "/HGCM/%s/Clients/Root", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Number of regular user clients", "/HGCM/%s/Clients/User", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of kernel clients", "/HGCM/%s/Clients/KernelMax", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of root clients", "/HGCM/%s/Clients/RootMax", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of user clients", "/HGCM/%s/Clients/UserMax", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.idxLegacyClientCategory, STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Legacy client mapping", "/HGCM/%s/Clients/LegacyClientMapping", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of call per kernel client", "/HGCM/%s/MaxCallsKernelClient", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of call per root client", "/HGCM/%s/MaxCallsRootClient", pszServiceName);
+            STAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
+                             STAMUNIT_OCCURENCES, "Max number of call per user client", "/HGCM/%s/MaxCallsUserClient", pszServiceName);
 
             /* Initialize service helpers table. */
             m_svcHelpers.pfnCallComplete       = svcHlpCallComplete;
@@ -1203,39 +1217,6 @@ int HGCMService::instanceCreate(const char *pszServiceLibrary, const char *pszSe
     return rc;
 }
 
-/** Called by HGCMService::instanceCreate to register statistics. */
-void HGCMService::registerStatistics(const char *pszServiceName, PUVM pUVM, PCVMMR3VTABLE pVMM)
-{
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatHandleMsg, STAMTYPE_PROFILE, STAMVISIBILITY_ALWAYS, STAMUNIT_TICKS_PER_OCCURENCE,
-                              "Message handling", "/HGCM/%s/Msg", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatTooManyCalls, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
-                              "Too many calls (per client)", "/HGCM/%s/TooManyCalls", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatTooManyClients, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
-                              "Too many clients", "/HGCM/%s/TooManyClients", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_cClients, STAMTYPE_U32, STAMVISIBILITY_ALWAYS, STAMUNIT_OCCURENCES,
-                              "Number of clients", "/HGCM/%s/Clients", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Number of kernel clients", "/HGCM/%s/Clients/Kernel", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Number of root/admin clients", "/HGCM/%s/Clients/Root", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_acClients[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Number of regular user clients", "/HGCM/%s/Clients/User", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of kernel clients", "/HGCM/%s/Clients/KernelMax", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of root clients", "/HGCM/%s/Clients/RootMax", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxClients[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of user clients", "/HGCM/%s/Clients/UserMax", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.idxLegacyClientCategory, STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Legacy client mapping", "/HGCM/%s/Clients/LegacyClientMapping", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_KERNEL], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of call per kernel client", "/HGCM/%s/MaxCallsKernelClient", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_ROOT], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of call per root client", "/HGCM/%s/MaxCallsRootClient", pszServiceName);
-    pVMM->pfnSTAMR3RegisterFU(pUVM, &m_fntable.acMaxCallsPerClient[HGCM_CLIENT_CATEGORY_USER], STAMTYPE_U32, STAMVISIBILITY_ALWAYS,
-                              STAMUNIT_OCCURENCES, "Max number of call per user client", "/HGCM/%s/MaxCallsUserClient", pszServiceName);
-}
-
 void HGCMService::instanceDestroy(void)
 {
     LogFlowFunc(("%s\n", m_pszSvcName));
@@ -1252,7 +1233,7 @@ void HGCMService::instanceDestroy(void)
     }
 
     if (m_pszSvcName && m_pUVM)
-        m_pVMM->pfnSTAMR3DeregisterF(m_pUVM, "/HGCM/%s/*", m_pszSvcName);
+        STAMR3DeregisterF(m_pUVM, "/HGCM/%s/*", m_pszSvcName);
     m_pUVM = NULL;
     m_pHgcmPort = NULL;
 
@@ -1269,7 +1250,7 @@ void HGCMService::instanceDestroy(void)
     }
 }
 
-int HGCMService::saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM)
+int HGCMService::saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM)
 {
     LogFlowFunc(("%s\n", m_pszSvcName));
 
@@ -1282,7 +1263,6 @@ int HGCMService::saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
 
         pMsg->u32ClientId = u32ClientId;
         pMsg->pSSM        = pSSM;
-        pMsg->pVMM        = pVMM;
 
         rc = hgcmMsgSend(pMsg);
     }
@@ -1291,7 +1271,7 @@ int HGCMService::saveClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
     return rc;
 }
 
-int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion)
+int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, uint32_t uVersion)
 {
     LogFlowFunc(("%s\n", m_pszSvcName));
 
@@ -1303,7 +1283,6 @@ int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
         HGCMMsgLoadSaveStateClient *pMsg = (HGCMMsgLoadSaveStateClient *)pCoreMsg;
 
         pMsg->pSSM        = pSSM;
-        pMsg->pVMM        = pVMM;
         pMsg->uVersion    = uVersion;
         pMsg->u32ClientId = u32ClientId;
 
@@ -1320,14 +1299,13 @@ int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
  * @param   pszServiceLibrary  The library to be loaded.
  * @param   pszServiceName     The name of the service.
  * @param   pUVM               The user mode VM handle (for statistics and such).
- * @param   pVMM               The VMM vtable (for statistics and such).
  * @param   pHgcmPort          The VMMDev HGCM port interface.
  *
  * @return  VBox rc.
  * @thread  main HGCM
  */
 /* static */ int HGCMService::LoadService(const char *pszServiceLibrary, const char *pszServiceName,
-                                          PUVM pUVM, PCVMMR3VTABLE pVMM, PPDMIHGCMPORT pHgcmPort)
+                                          PUVM pUVM, PPDMIHGCMPORT pHgcmPort)
 {
     LogFlowFunc(("lib %s, name = %s, pUVM = %p\n", pszServiceLibrary, pszServiceName, pUVM));
 
@@ -1354,7 +1332,8 @@ int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
         else
         {
             /* Load the library and call the initialization entry point. */
-            rc = pSvc->instanceCreate(pszServiceLibrary, pszServiceName, pUVM, pVMM, pHgcmPort);
+            rc = pSvc->instanceCreate(pszServiceLibrary, pszServiceName, pUVM, pHgcmPort);
+
             if (RT_SUCCESS(rc))
             {
                 /* Insert the just created service to list for future references. */
@@ -1362,9 +1341,13 @@ int HGCMService::loadClientState(uint32_t u32ClientId, PSSMHANDLE pSSM, PCVMMR3V
                 pSvc->m_pSvcPrev = NULL;
 
                 if (sm_pSvcListHead)
+                {
                     sm_pSvcListHead->m_pSvcPrev = pSvc;
+                }
                 else
+                {
                     sm_pSvcListTail = pSvc;
+                }
 
                 sm_pSvcListHead = pSvc;
 
@@ -1547,20 +1530,19 @@ void HGCMService::ReleaseService(void)
 /** The method saves the HGCM state.
  *
  * @param pSSM  The saved state context.
- * @param pVMM  The VMM vtable.
- * @return VBox status code.
+ * @return VBox rc.
  * @thread main HGCM
  */
-/* static */ int HGCMService::SaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM)
+/* static */ int HGCMService::SaveState(PSSMHANDLE pSSM)
 {
     /* Save the current handle count and restore afterwards to avoid client id conflicts. */
-    int rc = pVMM->pfnSSMR3PutU32(pSSM, hgcmObjQueryHandleCount());
+    int rc = SSMR3PutU32(pSSM, hgcmObjQueryHandleCount());
     AssertRCReturn(rc, rc);
 
     LogFlowFunc(("%d services to be saved:\n", sm_cServices));
 
     /* Save number of services. */
-    rc = pVMM->pfnSSMR3PutU32(pSSM, sm_cServices);
+    rc = SSMR3PutU32(pSSM, sm_cServices);
     AssertRCReturn(rc, rc);
 
     /* Save every service. */
@@ -1571,15 +1553,15 @@ void HGCMService::ReleaseService(void)
         LogFlowFunc(("Saving service [%s]\n", pSvc->m_pszSvcName));
 
         /* Save the length of the service name. */
-        rc = pVMM->pfnSSMR3PutU32(pSSM, (uint32_t) strlen(pSvc->m_pszSvcName) + 1);
+        rc = SSMR3PutU32(pSSM, (uint32_t) strlen(pSvc->m_pszSvcName) + 1);
         AssertRCReturn(rc, rc);
 
         /* Save the name of the service. */
-        rc = pVMM->pfnSSMR3PutStrZ(pSSM, pSvc->m_pszSvcName);
+        rc = SSMR3PutStrZ(pSSM, pSvc->m_pszSvcName);
         AssertRCReturn(rc, rc);
 
         /* Save the number of clients. */
-        rc = pVMM->pfnSSMR3PutU32(pSSM, pSvc->m_cClients);
+        rc = SSMR3PutU32(pSSM, pSvc->m_cClients);
         AssertRCReturn(rc, rc);
 
         /* Call the service for every client. Normally a service must not have
@@ -1595,11 +1577,11 @@ void HGCMService::ReleaseService(void)
             Log(("client id 0x%08X\n", u32ClientId));
 
             /* Save the client id. (fRequestor is saved via SVC_MSG_SAVESTATE for convenience.) */
-            rc = pVMM->pfnSSMR3PutU32(pSSM, u32ClientId);
+            rc = SSMR3PutU32(pSSM, u32ClientId);
             AssertRCReturn(rc, rc);
 
             /* Call the service, so the operation is executed by the service thread. */
-            rc = pSvc->saveClientState(u32ClientId, pSSM, pVMM);
+            rc = pSvc->saveClientState(u32ClientId, pSSM);
             AssertRCReturn(rc, rc);
         }
 
@@ -1612,17 +1594,16 @@ void HGCMService::ReleaseService(void)
 /** The method loads saved HGCM state.
  *
  * @param pSSM      The saved state handle.
- * @param pVMM      The VMM vtable.
  * @param uVersion  The state version being loaded.
- * @return VBox status code.
+ * @return VBox rc.
  * @thread main HGCM
  */
-/* static */ int HGCMService::LoadState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion)
+/* static */ int HGCMService::LoadState(PSSMHANDLE pSSM, uint32_t uVersion)
 {
     /* Restore handle count to avoid client id conflicts. */
     uint32_t u32;
 
-    int rc = pVMM->pfnSSMR3GetU32(pSSM, &u32);
+    int rc = SSMR3GetU32(pSSM, &u32);
     AssertRCReturn(rc, rc);
 
     hgcmObjSetHandleCount(u32);
@@ -1630,7 +1611,7 @@ void HGCMService::ReleaseService(void)
     /* Get the number of services. */
     uint32_t cServices;
 
-    rc = pVMM->pfnSSMR3GetU32(pSSM, &cServices);
+    rc = SSMR3GetU32(pSSM, &cServices);
     AssertRCReturn(rc, rc);
 
     LogFlowFunc(("%d services to be restored:\n", cServices));
@@ -1638,13 +1619,13 @@ void HGCMService::ReleaseService(void)
     while (cServices--)
     {
         /* Get the length of the service name. */
-        rc = pVMM->pfnSSMR3GetU32(pSSM, &u32);
+        rc = SSMR3GetU32(pSSM, &u32);
         AssertRCReturn(rc, rc);
         AssertReturn(u32 <= VBOX_HGCM_SVC_NAME_MAX_BYTES, VERR_SSM_UNEXPECTED_DATA);
 
         /* Get the service name. */
         char szServiceName[VBOX_HGCM_SVC_NAME_MAX_BYTES];
-        rc = pVMM->pfnSSMR3GetStrZ(pSSM, szServiceName, u32);
+        rc = SSMR3GetStrZ(pSSM, szServiceName, u32);
         AssertRCReturn(rc, rc);
 
         LogRel(("HGCM: Restoring [%s]\n", szServiceName));
@@ -1656,7 +1637,7 @@ void HGCMService::ReleaseService(void)
 
         /* Get the number of clients. */
         uint32_t cClients;
-        rc = pVMM->pfnSSMR3GetU32(pSSM, &cClients);
+        rc = SSMR3GetU32(pSSM, &cClients);
         if (RT_FAILURE(rc))
         {
             pSvc->ReleaseService();
@@ -1669,10 +1650,10 @@ void HGCMService::ReleaseService(void)
             /* Get the client ID and fRequest (convieniently save via SVC_MSG_SAVESTATE
                but restored here in time for calling CreateAndConnectClient). */
             uint32_t u32ClientId;
-            rc = pVMM->pfnSSMR3GetU32(pSSM, &u32ClientId);
+            rc = SSMR3GetU32(pSSM, &u32ClientId);
             uint32_t fRequestor = VMMDEV_REQUESTOR_LEGACY;
             if (RT_SUCCESS(rc) && uVersion > HGCM_SAVED_STATE_VERSION_V2)
-                rc = pVMM->pfnSSMR3GetU32(pSSM, &fRequestor);
+                rc = SSMR3GetU32(pSSM, &fRequestor);
             AssertLogRelMsgRCReturnStmt(rc, ("rc=%Rrc, %s\n", rc, szServiceName), pSvc->ReleaseService(), rc);
 
             /* Connect the client. */
@@ -1680,7 +1661,7 @@ void HGCMService::ReleaseService(void)
             AssertLogRelMsgRCReturnStmt(rc, ("rc=%Rrc, %s\n", rc, szServiceName), pSvc->ReleaseService(), rc);
 
             /* Call the service, so the operation is executed by the service thread. */
-            rc = pSvc->loadClientState(u32ClientId, pSSM, pVMM, uVersion);
+            rc = pSvc->loadClientState(u32ClientId, pSSM, uVersion);
             AssertLogRelMsgRCReturnStmt(rc, ("rc=%Rrc, %s\n", rc, szServiceName), pSvc->ReleaseService(), rc);
         }
 
@@ -2218,8 +2199,6 @@ class HGCMMsgMainLoad: public HGCMMsgCore
         const char *pszServiceName;
         /** The user mode VM handle (for statistics and such). */
         PUVM pUVM;
-        /** The VMM vtable (for statistics and such). */
-        PCVMMR3VTABLE pVMM;
         /** The HGCM port on the VMMDev device (for session ID and such). */
         PPDMIHGCMPORT pHgcmPort;
 };
@@ -2242,8 +2221,6 @@ class HGCMMsgMainLoadSaveState: public HGCMMsgCore
     public:
         /** Saved state handle. */
         PSSMHANDLE pSSM;
-        /** The VMM vtable. */
-        PCVMMR3VTABLE pVMM;
         /** The HGCM saved state version being loaded (ignore for save). */
         uint32_t uVersion;
 };
@@ -2395,8 +2372,7 @@ static DECLCALLBACK(void) hgcmThread(HGCMThread *pThread, void *pvUser)
                 LogFlowFunc(("HGCM_MSG_LOAD pszServiceName = %s, pMsg->pszServiceLibrary = %s, pMsg->pUVM = %p\n",
                              pMsg->pszServiceName, pMsg->pszServiceLibrary, pMsg->pUVM));
 
-                rc = HGCMService::LoadService(pMsg->pszServiceLibrary, pMsg->pszServiceName,
-                                              pMsg->pUVM, pMsg->pVMM, pMsg->pHgcmPort);
+                rc = HGCMService::LoadService(pMsg->pszServiceLibrary, pMsg->pszServiceName, pMsg->pUVM, pMsg->pHgcmPort);
             } break;
 
             case HGCM_MSG_HOSTCALL:
@@ -2444,7 +2420,7 @@ static DECLCALLBACK(void) hgcmThread(HGCMThread *pThread, void *pvUser)
 
                 LogFlowFunc(("HGCM_MSG_LOADSTATE\n"));
 
-                rc = HGCMService::LoadState(pMsg->pSSM, pMsg->pVMM, pMsg->uVersion);
+                rc = HGCMService::LoadState(pMsg->pSSM, pMsg->uVersion);
             } break;
 
             case HGCM_MSG_SAVESTATE:
@@ -2453,7 +2429,7 @@ static DECLCALLBACK(void) hgcmThread(HGCMThread *pThread, void *pvUser)
 
                 LogFlowFunc(("HGCM_MSG_SAVESTATE\n"));
 
-                rc = HGCMService::SaveState(pMsg->pSSM, pMsg->pVMM);
+                rc = HGCMService::SaveState(pMsg->pSSM);
             } break;
 
             case HGCM_MSG_QUIT:
@@ -2561,24 +2537,25 @@ static HGCMThread *g_pHgcmThread = 0;
  * @param pszServiceLibrary  The library to be loaded.
  * @param pszServiceName     The name to be assigned to the service.
  * @param pUVM               The user mode VM handle (for statistics and such).
- * @param pVMM               The VMM vtable (for statistics and such).
  * @param pHgcmPort          The HGCM port on the VMMDev device (for session ID and such).
  * @return VBox rc.
  */
 int HGCMHostLoad(const char *pszServiceLibrary,
                  const char *pszServiceName,
                  PUVM pUVM,
-                 PCVMMR3VTABLE pVMM,
                  PPDMIHGCMPORT pHgcmPort)
 {
     LogFlowFunc(("lib = %s, name = %s\n", pszServiceLibrary, pszServiceName));
 
     if (!pszServiceLibrary || !pszServiceName)
+    {
         return VERR_INVALID_PARAMETER;
+    }
 
     /* Forward the request to the main hgcm thread. */
     HGCMMsgCore *pCoreMsg;
     int rc = hgcmMsgAlloc(g_pHgcmThread, &pCoreMsg, HGCM_MSG_LOAD, hgcmMainMessageAlloc);
+
     if (RT_SUCCESS(rc))
     {
         /* Initialize the message. Since the message is synchronous, use the supplied pointers. */
@@ -2587,7 +2564,6 @@ int HGCMHostLoad(const char *pszServiceLibrary,
         pMsg->pszServiceLibrary = pszServiceLibrary;
         pMsg->pszServiceName    = pszServiceName;
         pMsg->pUVM              = pUVM;
-        pMsg->pVMM              = pVMM;
         pMsg->pHgcmPort         = pHgcmPort;
 
         rc = hgcmMsgSend(pMsg);
@@ -2747,24 +2723,23 @@ int HGCMGuestDisconnect(PPDMIHGCMPORT pHGCMPort,
 /** Helper to send either HGCM_MSG_SAVESTATE or HGCM_MSG_LOADSTATE messages to the main HGCM thread.
  *
  * @param pSSM     The SSM handle.
- * @param pVMM      The VMM vtable.
  * @param idMsg    The message to be sent: HGCM_MSG_SAVESTATE or HGCM_MSG_LOADSTATE.
  * @param uVersion The state version being loaded.
  * @return VBox rc.
  */
-static int hgcmHostLoadSaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t idMsg, uint32_t uVersion)
+static int hgcmHostLoadSaveState(PSSMHANDLE pSSM, uint32_t idMsg, uint32_t uVersion)
 {
-    LogFlowFunc(("pSSM = %p, pVMM = %p, idMsg = %d, uVersion = %#x\n", pSSM, pVMM, idMsg, uVersion));
+    LogFlowFunc(("pSSM = %p, idMsg = %d, uVersion = uVersion\n", pSSM, idMsg));
 
     HGCMMsgCore *pCoreMsg;
     int rc = hgcmMsgAlloc(g_pHgcmThread, &pCoreMsg, idMsg, hgcmMainMessageAlloc);
+
     if (RT_SUCCESS(rc))
     {
         HGCMMsgMainLoadSaveState *pMsg = (HGCMMsgMainLoadSaveState *)pCoreMsg;
         AssertRelease(pMsg);
 
         pMsg->pSSM = pSSM;
-        pMsg->pVMM = pVMM;
         pMsg->uVersion = uVersion;
 
         rc = hgcmMsgSend(pMsg);
@@ -2776,25 +2751,23 @@ static int hgcmHostLoadSaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t i
 
 /** Save the state of services.
  *
- * @param pSSM      The SSM handle.
- * @param pVMM      The VMM vtable.
- * @return VBox status code.
+ * @param pSSM     The SSM handle.
+ * @return VBox rc.
  */
-int HGCMHostSaveState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM)
+int HGCMHostSaveState(PSSMHANDLE pSSM)
 {
-    return hgcmHostLoadSaveState(pSSM, pVMM, HGCM_MSG_SAVESTATE, HGCM_SAVED_STATE_VERSION);
+    return hgcmHostLoadSaveState(pSSM, HGCM_MSG_SAVESTATE, HGCM_SAVED_STATE_VERSION);
 }
 
 /** Load the state of services.
  *
- * @param pSSM      The SSM handle.
- * @param pVMM      The VMM vtable.
- * @param uVersion  The state version being loaded.
- * @return VBox status code.
+ * @param pSSM     The SSM handle.
+ * @param uVersion The state version being loaded.
+ * @return VBox rc.
  */
-int HGCMHostLoadState(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, uint32_t uVersion)
+int HGCMHostLoadState(PSSMHANDLE pSSM, uint32_t uVersion)
 {
-    return hgcmHostLoadSaveState(pSSM, pVMM, HGCM_MSG_LOADSTATE, uVersion);
+    return hgcmHostLoadSaveState(pSSM, HGCM_MSG_LOADSTATE, uVersion);
 }
 
 /** The guest calls the service.
@@ -2979,8 +2952,7 @@ int HGCMHostInit(void)
          * Start main HGCM thread.
          */
 
-        rc = hgcmThreadCreate(&g_pHgcmThread, "MainHGCMthread", hgcmThread, NULL /*pvUser*/,
-                              NULL /*pszStatsSubDir*/, NULL /*pUVM*/, NULL /*pVMM*/);
+        rc = hgcmThreadCreate(&g_pHgcmThread, "MainHGCMthread", hgcmThread, NULL /*pvUser*/, NULL /*pszStatsSubDir*/, NULL /*pUVM*/);
 
         if (RT_FAILURE(rc))
             LogRel(("Failed to start HGCM thread. HGCM services will be unavailable!!! rc = %Rrc\n", rc));

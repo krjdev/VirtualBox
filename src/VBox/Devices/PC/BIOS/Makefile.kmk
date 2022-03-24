@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the New BIOS ROM.
 #
 
 #
-# Copyright (C) 2012-2022 Oracle Corporation
+# Copyright (C) 2012-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -66,8 +66,6 @@ ifdef VBOX_WITH_OPEN_WATCOM
  	scsi.c \
  	ahci.c \
  	virtio.c \
- 	buslogic.c \
- 	lsilogic.c \
  	apm.c \
  	pcibios.c \
  	pciutil.c \
@@ -126,7 +124,7 @@ ifdef VBOX_WITH_OPEN_WATCOM
        	--bios-sym $$(basename $$<).sym \
        	--bios-type system \
        	--output $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).asm
-	$$(QUIET)$$(TOOL_YASM_AS) -f bin -o $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).bin $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).asm
+	$$(QUIET)yasm -f bin -o $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).bin $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).asm
 	$$(VBOX_VBOXCMP) $$< $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).bin
 	$$(CP) --changed -- $$(VBoxPcBios$(1)_0_OUTDIR)/VBoxBiosAlternative$(1).asm $$(PATH_ROOT)/src/VBox/Devices/PC/BIOS/VBoxBiosAlternative$(1).asm
 	$$(REDIRECT) -C $$(dir $$(VBoxPcBios$(1)_1_TARGET)) -- \
@@ -175,7 +173,7 @@ define def_VBoxPcBiosBin
 		$$(PATH_SUB_CURRENT)/VBoxBiosAlternative$(1).md5sum \
 		$$(VBOX_BIN2C) | $$$$(dir $$$$@)
 	$$(call MSG_TOOL,bin2c,PcBiosBin,$$<,$$@)
-	$$(QUIET)$$(TOOL_YASM_AS) -f bin -o $$(PcBiosBin_0_OUTDIR)/VBoxPcBios$(1).rom $$<
+	$$(QUIET)yasm -f bin -o $$(PcBiosBin_0_OUTDIR)/VBoxPcBios$(1).rom $$<
 	$$(QUIET)$$(REDIRECT) -C $$(PcBiosBin_0_OUTDIR) -- \
 		$$(MD5SUM_EXT) -c $$(basename $$<).md5sum
 	$$(QUIET)$$(VBOX_BIN2C) -min 64 -max 256 -mask 0xffff -ascii -export PcBiosBinary$(1) $$(PcBiosBin_0_OUTDIR)/VBoxPcBios$(1).rom $$@
@@ -202,3 +200,4 @@ endif
 
 
 include $(FILE_KBUILD_SUB_FOOTER)
+

@@ -1,10 +1,10 @@
-/* $Id: UIVisoCreatorOptionsPanel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVisoCreatorOptionsPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVisoCreatorOptionsPanel class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,12 +40,12 @@ public:
 
     UIVisoCreatorOptionsPanel(QWidget *pParent = 0);
     ~UIVisoCreatorOptionsPanel();
-    virtual QString panelName() const RT_OVERRIDE;
+    virtual QString panelName() const /* override */;
     void setShowHiddenbjects(bool fShow);
 
 protected:
 
-    void retranslateUi() RT_OVERRIDE;
+    void retranslateUi() /* override */;
 
 
 private slots:

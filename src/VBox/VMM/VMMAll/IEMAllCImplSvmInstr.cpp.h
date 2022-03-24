@@ -1,10 +1,10 @@
-/* $Id: IEMAllCImplSvmInstr.cpp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: IEMAllCImplSvmInstr.cpp.h $ */
 /** @file
  * IEM - AMD-V (Secure Virtual Machine) instruction implementation.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,7 +81,7 @@ IEM_STATIC uint8_t iemGetSvmEventType(uint32_t uVector, uint32_t fIemXcptFlags)
  * Performs an SVM world-switch (VMRUN, \#VMEXIT) updating PGM and IEM internals.
  *
  * @returns Strict VBox status code.
- * @param   pVCpu   The cross context virtual CPU structure.
+ * @param   pVCpu       The cross context virtual CPU structure.
  */
 DECLINLINE(VBOXSTRICTRC) iemSvmWorldSwitch(PVMCPUCC pVCpu)
 {
@@ -90,15 +90,24 @@ DECLINLINE(VBOXSTRICTRC) iemSvmWorldSwitch(PVMCPUCC pVCpu)
      * We include X86_CR0_PE because PGM doesn't handle paged-real mode yet,
      * see comment in iemMemPageTranslateAndCheckAccess().
      */
-    int rc = PGMChangeMode(pVCpu, pVCpu->cpum.GstCtx.cr0 | X86_CR0_PE, pVCpu->cpum.GstCtx.cr4, pVCpu->cpum.GstCtx.msrEFER,
-                           true /* fForce */);
+    int rc = PGMChangeMode(pVCpu, pVCpu->cpum.GstCtx.cr0 | X86_CR0_PE, pVCpu->cpum.GstCtx.cr4, pVCpu->cpum.GstCtx.msrEFER);
+# ifdef IN_RING3
+    Assert(rc != VINF_PGM_CHANGE_MODE);
+# endif
     AssertRCReturn(rc, rc);
-
-    /* Invalidate IEM TLBs now that we've forced a PGM mode change. */
-    IEMTlbInvalidateAll(pVCpu, false /*fVmm*/);
 
     /* Inform CPUM (recompiler), can later be removed. */
     CPUMSetChangedFlags(pVCpu, CPUM_CHANGED_ALL);
+
+    /*
+     * Flush the TLB with new CR3. This is required in case the PGM mode change
+     * above doesn't actually change anything.
+     */
+    if (rc == VINF_SUCCESS)
+    {
+        rc = PGMFlushTLB(pVCpu, pVCpu->cpum.GstCtx.cr3, true);
+        AssertRCReturn(rc, rc);
+    }
 
     /* Re-initialize IEM cache/state after the drastic mode switch. */
     iemReInitExec(pVCpu);
@@ -140,7 +149,7 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmexit(PVMCPUCC pVCpu, uint64_t uExitCode, uint64_
          */
         PSVMVMCB       pVmcbMem;
         PGMPAGEMAPLOCK PgLockMem;
-        PSVMVMCBCTRL   pVmcbCtrl = &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.ctrl;
+        PSVMVMCBCTRL   pVmcbCtrl = &pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb)->ctrl;
         rcStrict = iemMemPageMap(pVCpu, pVCpu->cpum.GstCtx.hwvirt.svm.GCPhysVmcb, IEM_ACCESS_DATA_RW, (void **)&pVmcbMem,
                                  &PgLockMem);
         if (rcStrict == VINF_SUCCESS)
@@ -297,45 +306,29 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmexit(PVMCPUCC pVCpu, uint64_t uExitCode, uint64_
             /** @todo ASID. */
 
             /*
-             * If we are switching to PAE mode host, validate the PDPEs first.
-             * Any invalid PDPEs here causes a VCPU shutdown.
+             * Reload the guest's "host state".
              */
-            PCSVMHOSTSTATE pHostState = &pVCpu->cpum.GstCtx.hwvirt.svm.HostState;
-            bool const fHostInPaeMode = CPUMIsPaePagingEnabled(pHostState->uCr0, pHostState->uCr4, pHostState->uEferMsr);
-            if (fHostInPaeMode)
-                rcStrict = PGMGstMapPaePdpesAtCr3(pVCpu, pHostState->uCr3);
-            if (RT_SUCCESS(rcStrict))
-            {
-                /*
-                 * Reload the host state.
-                 */
-                CPUMSvmVmExitRestoreHostState(pVCpu, IEM_GET_CTX(pVCpu));
+            CPUMSvmVmExitRestoreHostState(pVCpu, IEM_GET_CTX(pVCpu));
 
-                /*
-                 * Update PGM, IEM and others of a world-switch.
-                 */
-                rcStrict = iemSvmWorldSwitch(pVCpu);
-                if (rcStrict == VINF_SUCCESS)
-                    rcStrict = VINF_SVM_VMEXIT;
-                else if (RT_SUCCESS(rcStrict))
-                {
-                    LogFlow(("iemSvmVmexit: Setting passup status from iemSvmWorldSwitch %Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
-                    iemSetPassUpStatus(pVCpu, rcStrict);
-                    rcStrict = VINF_SVM_VMEXIT;
-                }
-                else
-                    LogFlow(("iemSvmVmexit: iemSvmWorldSwitch unexpected failure. rc=%Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
+            /*
+             * Update PGM, IEM and others of a world-switch.
+             */
+            rcStrict = iemSvmWorldSwitch(pVCpu);
+            if (rcStrict == VINF_SUCCESS)
+                rcStrict = VINF_SVM_VMEXIT;
+            else if (RT_SUCCESS(rcStrict))
+            {
+                LogFlow(("iemSvmVmexit: Setting passup status from iemSvmWorldSwitch %Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
+                iemSetPassUpStatus(pVCpu, rcStrict);
+                rcStrict = VINF_SVM_VMEXIT;
             }
             else
-            {
-                Log(("iemSvmVmexit: PAE PDPEs invalid while restoring host state. rc=%Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
-                rcStrict = VINF_EM_TRIPLE_FAULT;
-            }
+                LogFlow(("iemSvmVmexit: iemSvmWorldSwitch unexpected failure. rc=%Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
         }
         else
         {
             AssertMsgFailed(("iemSvmVmexit: Mapping VMCB at %#RGp failed. rc=%Rrc\n", pVCpu->cpum.GstCtx.hwvirt.svm.GCPhysVmcb, VBOXSTRICTRC_VAL(rcStrict)));
-            rcStrict = VINF_EM_TRIPLE_FAULT;
+            rcStrict = VERR_SVM_VMEXIT_FAILED;
         }
     }
     else
@@ -386,7 +379,7 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmrun(PVMCPUCC pVCpu, uint8_t cbInstr, RTGCPHYS GC
      * Read the guest VMCB.
      */
     PVMCC pVM = pVCpu->CTX_SUFF(pVM);
-    int rc = PGMPhysSimpleReadGCPhys(pVM, &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb, GCPhysVmcb, sizeof(SVMVMCB));
+    int rc = PGMPhysSimpleReadGCPhys(pVM, pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb), GCPhysVmcb, sizeof(SVMVMCB));
     if (RT_SUCCESS(rc))
     {
         /*
@@ -401,8 +394,8 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmrun(PVMCPUCC pVCpu, uint8_t cbInstr, RTGCPHYS GC
          * unexpected & undesired results. Hence, we zero out unrecognized fields here as we
          * typically enter hardware-assisted SVM soon anyway, see @bugref{7243#c113}.
          */
-        PSVMVMCBCTRL      pVmcbCtrl   = &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.ctrl;
-        PSVMVMCBSTATESAVE pVmcbNstGst = &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.guest;
+        PSVMVMCBCTRL      pVmcbCtrl   = &pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb)->ctrl;
+        PSVMVMCBSTATESAVE pVmcbNstGst = &pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb)->guest;
 
         RT_ZERO(pVmcbCtrl->u8Reserved0);
         RT_ZERO(pVmcbCtrl->u8Reserved1);
@@ -569,9 +562,9 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmrun(PVMCPUCC pVCpu, uint8_t cbInstr, RTGCPHYS GC
         /*
          * Copy the IO permission bitmap into the cache.
          */
-        AssertCompile(sizeof(pVCpu->cpum.GstCtx.hwvirt.svm.abIoBitmap) == SVM_IOPM_PAGES * X86_PAGE_4K_SIZE);
-        rc = PGMPhysSimpleReadGCPhys(pVM, pVCpu->cpum.GstCtx.hwvirt.svm.abIoBitmap, GCPhysIOBitmap,
-                                     sizeof(pVCpu->cpum.GstCtx.hwvirt.svm.abIoBitmap));
+        Assert(pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvIoBitmap));
+        rc = PGMPhysSimpleReadGCPhys(pVM, pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvIoBitmap), GCPhysIOBitmap,
+                                     SVM_IOPM_PAGES * X86_PAGE_4K_SIZE);
         if (RT_FAILURE(rc))
         {
             Log(("iemSvmVmrun: Failed reading the IO permission bitmap at %#RGp. rc=%Rrc\n", GCPhysIOBitmap, rc));
@@ -581,9 +574,9 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmrun(PVMCPUCC pVCpu, uint8_t cbInstr, RTGCPHYS GC
         /*
          * Copy the MSR permission bitmap into the cache.
          */
-        AssertCompile(sizeof(pVCpu->cpum.GstCtx.hwvirt.svm.abMsrBitmap) == SVM_MSRPM_PAGES * X86_PAGE_4K_SIZE);
-        rc = PGMPhysSimpleReadGCPhys(pVM, pVCpu->cpum.GstCtx.hwvirt.svm.abMsrBitmap, GCPhysMsrBitmap,
-                                     sizeof(pVCpu->cpum.GstCtx.hwvirt.svm.abMsrBitmap));
+        Assert(pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvMsrBitmap));
+        rc = PGMPhysSimpleReadGCPhys(pVM, pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvMsrBitmap), GCPhysMsrBitmap,
+                                     SVM_MSRPM_PAGES * X86_PAGE_4K_SIZE);
         if (RT_FAILURE(rc))
         {
             Log(("iemSvmVmrun: Failed reading the MSR permission bitmap at %#RGp. rc=%Rrc\n", GCPhysMsrBitmap, rc));
@@ -709,23 +702,6 @@ IEM_STATIC VBOXSTRICTRC iemSvmVmrun(PVMCPUCC pVCpu, uint8_t cbInstr, RTGCPHYS GC
             || pVmcbCtrl->TLBCtrl.n.u8TLBFlush == SVM_TLB_FLUSH_SINGLE_CONTEXT_RETAIN_GLOBALS)
             PGMFlushTLB(pVCpu, pVmcbNstGst->u64CR3, true /* fGlobal */);
 # endif
-
-        /*
-         * Validate and map PAE PDPEs if the guest will be using PAE paging.
-         * Invalid PAE PDPEs here causes a #VMEXIT.
-         */
-        if (   !pVmcbCtrl->NestedPagingCtrl.n.u1NestedPaging
-            && CPUMIsPaePagingEnabled(pVmcbNstGst->u64CR0, pVmcbNstGst->u64CR4, uValidEfer))
-        {
-            rc = PGMGstMapPaePdpesAtCr3(pVCpu, pVmcbNstGst->u64CR3);
-            if (RT_SUCCESS(rc))
-            { /* likely */ }
-            else
-            {
-                Log(("iemSvmVmrun: PAE PDPEs invalid -> #VMEXIT\n"));
-                return iemSvmVmexit(pVCpu, SVM_EXIT_INVALID, 0 /* uExitInfo1 */, 0 /* uExitInfo2 */);
-            }
-        }
 
         /*
          * Copy the remaining guest state from the VMCB to the guest-CPU context.
@@ -939,7 +915,7 @@ IEM_STATIC VBOXSTRICTRC iemHandleSvmEventIntercept(PVMCPUCC pVCpu, uint8_t u8Vec
             && u8Vector == X86_XCPT_PF
             && !(uErr & X86_TRAP_PF_ID))
         {
-            PSVMVMCBCTRL  pVmcbCtrl = &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.ctrl;
+            PSVMVMCBCTRL  pVmcbCtrl = &pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb)->ctrl;
 # ifdef IEM_WITH_CODE_TLB
             uint8_t const *pbInstrBuf = pVCpu->iem.s.pbInstrBuf;
             uint8_t const  cbInstrBuf = pVCpu->iem.s.cbInstrBuf;
@@ -957,7 +933,7 @@ IEM_STATIC VBOXSTRICTRC iemHandleSvmEventIntercept(PVMCPUCC pVCpu, uint8_t u8Vec
         if (u8Vector == X86_XCPT_BR)
             IEM_SVM_UPDATE_NRIP(pVCpu);
         Log2(("iemHandleSvmNstGstEventIntercept: Xcpt intercept u32InterceptXcpt=%#RX32 u8Vector=%#x "
-              "uExitInfo1=%#RX64 uExitInfo2=%#RX64 -> #VMEXIT\n", pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.ctrl.u32InterceptXcpt,
+              "uExitInfo1=%#RX64 uExitInfo2=%#RX64 -> #VMEXIT\n", pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pVmcb)->ctrl.u32InterceptXcpt,
               u8Vector, uExitInfo1, uExitInfo2));
         IEM_SVM_VMEXIT_RET(pVCpu, SVM_EXIT_XCPT_0 + u8Vector, uExitInfo1, uExitInfo2);
     }
@@ -1012,8 +988,9 @@ IEM_STATIC VBOXSTRICTRC iemSvmHandleIOIntercept(PVMCPUCC pVCpu, uint16_t u16Port
     Log3(("iemSvmHandleIOIntercept: u16Port=%#x (%u)\n", u16Port, u16Port));
 
     SVMIOIOEXITINFO IoExitInfo;
-    bool const fIntercept = CPUMIsSvmIoInterceptSet(pVCpu->cpum.GstCtx.hwvirt.svm.abMsrBitmap, u16Port, enmIoType, cbReg,
-                                                    cAddrSizeBits, iEffSeg, fRep, fStrIo, &IoExitInfo);
+    void *pvIoBitmap = pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvIoBitmap);
+    bool const fIntercept = CPUMIsSvmIoInterceptSet(pvIoBitmap, u16Port, enmIoType, cbReg, cAddrSizeBits, iEffSeg, fRep,
+                                                    fStrIo, &IoExitInfo);
     if (fIntercept)
     {
         Log3(("iemSvmHandleIOIntercept: u16Port=%#x (%u) -> #VMEXIT\n", u16Port, u16Port));
@@ -1072,7 +1049,9 @@ IEM_STATIC VBOXSTRICTRC iemSvmHandleMsrIntercept(PVMCPUCC pVCpu, uint32_t idMsr,
         /*
          * Check if the bit is set, if so, trigger a #VMEXIT.
          */
-        if (pVCpu->cpum.GstCtx.hwvirt.svm.abMsrBitmap[offMsrpm] & RT_BIT(uMsrpmBit))
+        uint8_t *pbMsrpm = (uint8_t *)pVCpu->cpum.GstCtx.hwvirt.svm.CTX_SUFF(pvMsrBitmap);
+        pbMsrpm += offMsrpm;
+        if (*pbMsrpm & RT_BIT(uMsrpmBit))
         {
             IEM_SVM_UPDATE_NRIP(pVCpu);
             return iemSvmVmexit(pVCpu, SVM_EXIT_MSR, uExitInfo1, 0 /* uExitInfo2 */);

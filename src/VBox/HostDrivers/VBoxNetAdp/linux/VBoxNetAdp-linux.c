@@ -1,10 +1,10 @@
-/* $Id: VBoxNetAdp-linux.c 93421 2022-01-24 18:44:21Z vboxsync $ */
+/* $Id: VBoxNetAdp-linux.c $ */
 /** @file
  * VBoxNetAdp - Virtual Network Adapter Driver (Host), Linux Specific Code.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -65,13 +65,6 @@
 #define VBOXNETADP_CTL_DEV_NAME    "vboxnetctl"
 
 #define VBOXNETADP_FROM_IFACE(iface) ((PVBOXNETADP) ifnet_softc(iface))
-
-/** Set netdev MAC address. */
-#if RTLNX_VER_MIN(5,17,0)
-# define VBOX_DEV_ADDR_SET(dev, addr, len) dev_addr_mod(dev, 0, addr, len)
-#else /* < 5.17.0 */
-# define VBOX_DEV_ADDR_SET(dev, addr, len) memcpy(dev->dev_addr, addr, len)
-#endif
 
 
 /*********************************************************************************************************************************
@@ -310,7 +303,7 @@ int vboxNetAdpOsCreate(PVBOXNETADP pThis, PCRTMAC pMACAddress)
 
         if (pNetDev->dev_addr)
         {
-            VBOX_DEV_ADDR_SET(pNetDev, pMACAddress, ETH_ALEN);
+            memcpy(pNetDev->dev_addr, pMACAddress, ETH_ALEN);
             Log2(("vboxNetAdpOsCreate: pNetDev->dev_addr = %.6Rhxd\n", pNetDev->dev_addr));
 
             /*

@@ -1,10 +1,10 @@
-/* $Id: RecordingStream.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RecordingStream.cpp $ */
 /** @file
  * Recording stream code.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,14 +23,41 @@
 
 #include <iprt/path.h>
 
-#ifdef VBOX_RECORDING_DUMP
-# include <iprt/formats/bmp.h>
-#endif
-
 #include "Recording.h"
 #include "RecordingUtils.h"
 #include "WebMWriter.h"
 
+#ifdef VBOX_RECORDING_DUMP
+#pragma pack(push)
+#pragma pack(1)
+typedef struct
+{
+    uint16_t uMagic;
+    uint32_t uSize;
+    uint16_t uReserved1;
+    uint16_t uReserved2;
+    uint32_t uOffBits;
+} RECORDINGBMPHDR, *PRECORDINGBMPHDR;
+AssertCompileSize(RECORDINGBMPHDR, 14);
+
+typedef struct
+{
+    uint32_t uSize;
+    uint32_t uWidth;
+    uint32_t uHeight;
+    uint16_t uPlanes;
+    uint16_t uBitCount;
+    uint32_t uCompression;
+    uint32_t uSizeImage;
+    uint32_t uXPelsPerMeter;
+    uint32_t uYPelsPerMeter;
+    uint32_t uClrUsed;
+    uint32_t uClrImportant;
+} RECORDINGBMPDIBHDR, *PRECORDINGBMPDIBHDR;
+AssertCompileSize(RECORDINGBMPDIBHDR, 40);
+
+#pragma pack(pop)
+#endif /* VBOX_RECORDING_DUMP */
 
 RecordingStream::RecordingStream(RecordingContext *a_pCtx)
     : pCtx(a_pCtx)
@@ -636,23 +663,23 @@ int RecordingStream::SendVideoFrame(uint32_t x, uint32_t y, uint32_t uPixelForma
         uint32_t offDst = (destY * this->ScreenSettings.Video.ulWidth + destX) * uBytesPerPixel;
 
 #ifdef VBOX_RECORDING_DUMP
-        BMPFILEHDR fileHdr;
-        RT_ZERO(fileHdr);
+        RECORDINGBMPHDR bmpHdr;
+        RT_ZERO(bmpHdr);
 
-        BMPWIN3XINFOHDR coreHdr;
-        RT_ZERO(coreHdr);
+        RECORDINGBMPDIBHDR bmpDIBHdr;
+        RT_ZERO(bmpDIBHdr);
 
-        fileHdr.uType       = BMP_HDR_MAGIC;
-        fileHdr.cbFileSize = (uint32_t)(sizeof(BMPFILEHDR) + sizeof(BMPWIN3XINFOHDR) + (w * h * uBytesPerPixel));
-        fileHdr.offBits    = (uint32_t)(sizeof(BMPFILEHDR) + sizeof(BMPWIN3XINFOHDR));
+        bmpHdr.uMagic   = 0x4d42; /* Magic */
+        bmpHdr.uSize    = (uint32_t)(sizeof(RECORDINGBMPHDR) + sizeof(RECORDINGBMPDIBHDR) + (w * h * uBytesPerPixel));
+        bmpHdr.uOffBits = (uint32_t)(sizeof(RECORDINGBMPHDR) + sizeof(RECORDINGBMPDIBHDR));
 
-        coreHdr.cbSize         = sizeof(BMPWIN3XINFOHDR);
-        coreHdr.uWidth         = w;
-        coreHdr.uHeight        = h;
-        coreHdr.cPlanes        = 1;
-        coreHdr.cBits          = uBPP;
-        coreHdr.uXPelsPerMeter = 5000;
-        coreHdr.uYPelsPerMeter = 5000;
+        bmpDIBHdr.uSize          = sizeof(RECORDINGBMPDIBHDR);
+        bmpDIBHdr.uWidth         = w;
+        bmpDIBHdr.uHeight        = h;
+        bmpDIBHdr.uPlanes        = 1;
+        bmpDIBHdr.uBitCount      = uBPP;
+        bmpDIBHdr.uXPelsPerMeter = 5000;
+        bmpDIBHdr.uYPelsPerMeter = 5000;
 
         char szFileName[RTPATH_MAX];
         RTStrPrintf2(szFileName, sizeof(szFileName), "/tmp/VideoRecFrame-%RU32.bmp", this->uScreenID);
@@ -662,8 +689,8 @@ int RecordingStream::SendVideoFrame(uint32_t x, uint32_t y, uint32_t uPixelForma
                              RTFILE_O_CREATE_REPLACE | RTFILE_O_WRITE | RTFILE_O_DENY_NONE);
         if (RT_SUCCESS(rc2))
         {
-            RTFileWrite(fh, &fileHdr,    sizeof(fileHdr),    NULL);
-            RTFileWrite(fh, &coreHdr, sizeof(coreHdr), NULL);
+            RTFileWrite(fh, &bmpHdr,    sizeof(bmpHdr),    NULL);
+            RTFileWrite(fh, &bmpDIBHdr, sizeof(bmpDIBHdr), NULL);
         }
 #endif
         Assert(pFrame->cbRGBBuf >= w * h * uBytesPerPixel);

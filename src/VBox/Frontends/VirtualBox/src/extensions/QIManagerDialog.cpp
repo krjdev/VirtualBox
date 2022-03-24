@@ -1,10 +1,10 @@
-/* $Id: QIManagerDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIManagerDialog.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIManagerDialog class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,9 +26,8 @@
 #include "QIManagerDialog.h"
 #include "UICommon.h"
 #include "UIDesktopWidgetWatchdog.h"
-#include "UIMessageCenter.h"
 #ifdef VBOX_WS_MAC
-# include "QIToolBar.h"
+# include "UIToolBar.h"
 # include "UIWindowMenuManager.h"
 #endif
 
@@ -46,7 +45,7 @@ void QIManagerDialogFactory::prepare(QIManagerDialog *&pDialog, QWidget *pCenter
 void QIManagerDialogFactory::cleanup(QIManagerDialog *&pDialog)
 {
     pDialog->cleanup();
-    pDialog->deleteLater();
+    delete pDialog;
     pDialog = 0;
 }
 
@@ -59,28 +58,12 @@ QIManagerDialog::QIManagerDialog(QWidget *pCenterWidget)
     : m_pCenterWidget(pCenterWidget)
     , m_fCloseEmitted(false)
     , m_pWidget(0)
+    , m_pWidgetMenu(0)
 #ifdef VBOX_WS_MAC
     , m_pWidgetToolbar(0)
 #endif
     , m_pButtonBox(0)
 {
-}
-
-void QIManagerDialog::closeEvent(QCloseEvent *pEvent)
-{
-    /* Ignore the event itself: */
-    pEvent->ignore();
-    /* But tell the listener to close us (once): */
-    if (!m_fCloseEmitted)
-    {
-        m_fCloseEmitted = true;
-        emit sigClose();
-    }
-}
-
-void QIManagerDialog::sltHandleHelpRequested()
-{
-    emit sigHelpRequested(uiCommon().helpKeyword(m_pWidget));
 }
 
 void QIManagerDialog::prepare()
@@ -120,7 +103,7 @@ void QIManagerDialog::prepare()
     finalize();
 
     /* Center according requested widget: */
-    UIDesktopWidgetWatchdog::centerWidget(this, m_pCenterWidget, false);
+    UICommon::centerWidget(this, m_pCenterWidget, false);
 
     /* Load the dialog's settings from extradata */
     loadSettings();
@@ -160,9 +143,9 @@ void QIManagerDialog::prepareButtonBox()
     {
         /* Configure button-box: */
 #ifdef VBOX_WS_WIN
-        m_pButtonBox->setStandardButtons(QDialogButtonBox::Reset | QDialogButtonBox::Save |  QDialogButtonBox::Close | QDialogButtonBox::Help);
+        m_pButtonBox->setStandardButtons(QDialogButtonBox::Reset | QDialogButtonBox::Save |  QDialogButtonBox::Close);
 #else
-        m_pButtonBox->setStandardButtons(QDialogButtonBox::Reset | QDialogButtonBox::Apply |  QDialogButtonBox::Close | QDialogButtonBox::Help);
+        m_pButtonBox->setStandardButtons(QDialogButtonBox::Reset | QDialogButtonBox::Apply |  QDialogButtonBox::Close);
 #endif
         m_buttons[ButtonType_Reset] = m_pButtonBox->button(QDialogButtonBox::Reset);
 #ifdef VBOX_WS_WIN
@@ -171,12 +154,8 @@ void QIManagerDialog::prepareButtonBox()
         m_buttons[ButtonType_Apply] = m_pButtonBox->button(QDialogButtonBox::Apply);
 #endif
         m_buttons[ButtonType_Close] = m_pButtonBox->button(QDialogButtonBox::Close);
-        m_buttons[ButtonType_Help] = m_pButtonBox->button(QDialogButtonBox::Help);
-
         /* Assign shortcuts: */
         button(ButtonType_Close)->setShortcut(Qt::Key_Escape);
-        button(ButtonType_Help)->setShortcut(QKeySequence::HelpContents);
-
         /* Hide 'Reset' and 'Apply' initially: */
         button(ButtonType_Reset)->hide();
         button(ButtonType_Apply)->hide();
@@ -184,9 +163,6 @@ void QIManagerDialog::prepareButtonBox()
         button(ButtonType_Reset)->setEnabled(false);
         button(ButtonType_Apply)->setEnabled(false);
         connect(m_pButtonBox, &QIDialogButtonBox::rejected, this, &QIManagerDialog::close);
-        /* Connections to enable the context sensitive help: */
-        connect(m_pButtonBox, &QDialogButtonBox::helpRequested, this, &QIManagerDialog::sltHandleHelpRequested);
-        connect(this, &QIManagerDialog::sigHelpRequested, &msgCenter(), &UIMessageCenter::sltHandleHelpRequestWithKeyword);
 
         /* Configure button-box: */
         configureButtonBox();
@@ -198,13 +174,10 @@ void QIManagerDialog::prepareButtonBox()
 
 void QIManagerDialog::prepareMenuBar()
 {
-    /* Skip the call if there are no menus to add: */
-    if (m_widgetMenus.isEmpty())
+    if (!m_pWidgetMenu)
         return;
-
-    /* Add all the widget menus: */
-    foreach (QMenu *pMenu, m_widgetMenus)
-        menuBar()->addMenu(pMenu);
+    /* Add widget menu: */
+    menuBar()->addMenu(m_pWidgetMenu);
 
 #ifdef VBOX_WS_MAC
     /* Prepare 'Window' menu: */
@@ -244,4 +217,16 @@ void QIManagerDialog::cleanup()
     saveSettings();
     /* Cleanup menu-bar: */
     cleanupMenuBar();
+}
+
+void QIManagerDialog::closeEvent(QCloseEvent *pEvent)
+{
+    /* Ignore the event itself: */
+    pEvent->ignore();
+    /* But tell the listener to close us (once): */
+    if (!m_fCloseEmitted)
+    {
+        m_fCloseEmitted = true;
+        emit sigClose();
+    }
 }

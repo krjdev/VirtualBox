@@ -1,10 +1,10 @@
-/* $Id: DevPciInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevPciInternal.h $ */
 /** @file
  * DevPCI - Common Internal Header.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -186,19 +186,16 @@ typedef DEVPCIROOT *PDEVPCIROOT;
 /** Converts a pointer to a PCI bus instance to a DEVPCIROOT pointer. */
 #define DEVPCIBUS_2_DEVPCIROOT(pPciBus) RT_FROM_MEMBER(pPciBus, DEVPCIROOT, PciBus)
 
-
-/** @def PCI_LOCK_RET
+/** @def PCI_LOCK
  * Acquires the PDM lock. This is a NOP if locking is disabled. */
-#define PCI_LOCK_RET(pDevIns, rcBusy) \
-    do { \
-        int const rcLock = PDMINS_2_DATA_CC(pDevIns, PDEVPCIBUSCC)->CTX_SUFF(pPciHlp)->pfnLock((pDevIns), rcBusy); \
-        if (rcLock == VINF_SUCCESS) \
-        { /* likely */ } \
-        else \
-            return rcLock; \
-    } while (0)
 /** @def PCI_UNLOCK
  * Releases the PDM lock. This is a NOP if locking is disabled. */
+#define PCI_LOCK(pDevIns, rc) \
+    do { \
+        int rc2 = PDMINS_2_DATA_CC(pDevIns, PDEVPCIBUSCC)->CTX_SUFF(pPciHlp)->pfnLock((pDevIns), rc); \
+        if (rc2 != VINF_SUCCESS) \
+            return rc2; \
+    } while (0)
 #define PCI_UNLOCK(pDevIns) \
     PDMINS_2_DATA_CC(pDevIns, PDEVPCIBUSCC)->CTX_SUFF(pPciHlp)->pfnUnlock(pDevIns)
 
@@ -227,7 +224,7 @@ DECLCALLBACK(VBOXSTRICTRC) devpciR3CommonConfigWrite(PPDMDEVINS pDevIns, PPDMPCI
 DECLHIDDEN(VBOXSTRICTRC)   devpciR3CommonConfigWriteWorker(PPDMDEVINS pDevIns, PDEVPCIBUSCC pBusCC,
                                                            PPDMPCIDEV pPciDev, uint32_t uAddress, unsigned cb, uint32_t u32Value);
 void devpciR3CommonRestoreConfig(PPDMDEVINS pDevIns, PPDMPCIDEV pDev, uint8_t const *pbSrcConfig);
-int  devpciR3CommonRestoreRegions(PCPDMDEVHLPR3 pHlp, PSSMHANDLE pSSM, PPDMPCIDEV pPciDev, PPCIIOREGION paIoRegions, bool fNewState);
+int  devpciR3CommonRestoreRegions(PSSMHANDLE pSSM, PPDMPCIDEV pPciDev, PPCIIOREGION paIoRegions, bool fNewState);
 void devpciR3ResetDevice(PPDMDEVINS pDevIns, PPDMPCIDEV pDev);
 void devpciR3BiosInitSetRegionAddress(PPDMDEVINS pDevIns, PDEVPCIBUS pBus, PPDMPCIDEV pPciDev, int iRegion, uint64_t addr);
 uint32_t devpciR3GetCfg(PPDMPCIDEV pPciDev, int32_t iRegister, int cb);

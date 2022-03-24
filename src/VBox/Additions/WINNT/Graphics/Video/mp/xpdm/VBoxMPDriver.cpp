@@ -1,10 +1,10 @@
-/* $Id: VBoxMPDriver.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxMPDriver.cpp $ */
 /** @file
  * VBox XPDM Miniport driver interface functions
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,21 +33,12 @@
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
-/** Legacy VGA resource list. */
+/* Resource list */
 static VIDEO_ACCESS_RANGE  g_aVBoxLegacyVGAResources[] =
 {
-    /* RangeStart               Length      I  V  S  P
-                                            n  i  h  a
-                                            I  s  a  s
-                                            o  i  r  s
-                                            S  b  a  i
-                                            p  l  b  v
-                                            a  e  l  e
-                                            c     e
-                                            e          */
-    { {0x000003B0, 0x00000000}, 0x0000000C, 1, 1, 1, 0 }, /* VGA regs (0x3B0-0x3BB) */
-    { {0x000003C0, 0x00000000}, 0x00000020, 1, 1, 1, 0 }, /* VGA regs (0x3C0-0x3DF) */
-    { {0x000A0000, 0x00000000}, 0x00020000, 0, 0, 1, 0 }, /* Frame buffer (0xA0000-0xBFFFF) */
+    { 0x000003B0, 0x00000000, 0x0000000C, 1, 1, 1, 0 }, /* VGA regs (0x3B0-0x3BB) */
+    { 0x000003C0, 0x00000000, 0x00000020, 1, 1, 1, 0 }, /* VGA regs (0x3C0-0x3DF) */
+    { 0x000A0000, 0x00000000, 0x00020000, 0, 0, 1, 0 }, /* Frame buffer (0xA0000-0xBFFFF) */
 };
 
 /* Card info for property dialog */

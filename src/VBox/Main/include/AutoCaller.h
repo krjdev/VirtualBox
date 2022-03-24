@@ -1,11 +1,11 @@
-/* $Id: AutoCaller.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: AutoCaller.h $ */
 /** @file
  *
  * VirtualBox object caller handling definitions
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -330,19 +330,6 @@ public:
      * place the managed VirtualBoxBase object to the Limited state.
      */
     void setLimited() { mResult = Limited; }
-
-    /**
-     * Sets the initialization status to Succeeded to indicate limited
-     * (partly successful) initialization but also adds the initialization
-     * error if required for further reporting. The AutoInitSpan destructor
-     * will place the managed VirtualBoxBase object to the Limited state.
-     */
-    void setLimited(HRESULT rc)
-    {
-        mResult = Limited;
-        mFailedRC = rc;
-        mpFailedEI = new ErrorInfo();
-    }
 
     /**
      * Sets the initialization status to Failure to indicates failed

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -93,24 +93,6 @@ RTDECL(int) RTLocalIpcServerCreate(PRTLOCALIPCSERVER phServer, const char *pszNa
  * @param   hServer     The server handle. The nil value is quietly ignored (VINF_SUCCESS).
  */
 RTDECL(int) RTLocalIpcServerDestroy(RTLOCALIPCSERVER hServer);
-
-/**
- * Grant the specified group access to the local IPC server socket.
- *
- * @returns IPRT status code.
- * @param   hServer     The server handle.
- * @param   gid         Group ID.
- */
-RTDECL(int) RTLocalIpcServerGrantGroupAccess(RTLOCALIPCSERVER hServer, RTGID gid);
-
-/**
- * Set access mode for IPC server socket.
- *
- * @returns IPRT status code.
- * @param   hServer     The server handle.
- * @param   fMode       Access mode.
- */
-RTDECL(int) RTLocalIpcServerSetAccessMode(RTLOCALIPCSERVER hServer, RTFMODE fMode);
 
 /**
  * Listen for clients.

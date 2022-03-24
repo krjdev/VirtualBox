@@ -1,10 +1,10 @@
-/* $Id: VBoxMPVidPn.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPVidPn.cpp $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -146,7 +146,7 @@ static NTSTATUS vboxVidPnPopulateVideoSignalInfo(D3DKMDT_VIDEO_SIGNAL_INFO *pVsi
         pVsi->VSyncFreq.Numerator = VSync * 1000;
         pVsi->VSyncFreq.Denominator = 1000;
         pVsi->PixelRate = pVsi->TotalSize.cx * pVsi->TotalSize.cy * VSync;
-        pVsi->HSyncFreq.Numerator = (UINT)((VSync * pVsi->TotalSize.cy) * 1000);
+        pVsi->HSyncFreq.Numerator = (UINT)((pVsi->PixelRate / pVsi->TotalSize.cy) * 1000);
         pVsi->HSyncFreq.Denominator = 1000;
     }
     pVsi->ScanLineOrdering = D3DDDI_VSSLO_PROGRESSIVE;

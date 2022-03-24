@@ -1,10 +1,10 @@
-/* $Id: VDIoBackend.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VDIoBackend.cpp $ */
 /** @file
  * VBox HDD container test utility, I/O backend API
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

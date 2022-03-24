@@ -1,11 +1,11 @@
 # !kmk_ash
-# $Id: backport-merge.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: backport-merge.sh $
 ## @file
 # Script for merging a backport from trunk.
 #
 
 #
-# Copyright (C) 2020-2022 Oracle Corporation
+# Copyright (C) 2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -42,19 +42,9 @@ if test -n "${MY_FIRST_REV}"; then
         echo "error: Branch already has changes pending..."
         "${MY_SVN}" status -q "${MY_BRANCH_DIR}"
         exit 1;
+    else
+        test -z "${MY_DEBUG}" || echo "debug: Found no pending changes on branch."
     fi
-    test -z "${MY_DEBUG}" || echo "debug: Found no pending changes on branch."
-fi
-
-#
-# Update branch if requested.
-#
-if test -n "${MY_UPDATE_FIRST}"; then
-    if ! "${MY_SVN}" update "${MY_BRANCH_DIR}" --ignore-externals; then
-        echo "error: branch updating failed..."
-        exit 1;
-    fi
-    test -z "${MY_DEBUG}" || echo "debug: Updated the branch."
 fi
 
 #
@@ -66,14 +56,10 @@ MY_TODO_REVS=
 test -n "${MY_DEBUG}" && echo "MY_REVISIONS=${MY_REVISIONS}"
 for MY_REV in ${MY_REVISIONS};
 do
-    MY_MERGE_ARGS=
     if test -z "${MY_FAILED_REV}"; then
         echo "***"
         echo "*** Merging r${MY_REV} ..."
         echo "***"
-        if [ -n "${MY_FORCE}" ]; then
-            MY_MERGE_ARGS="$MY_MERGE_ARGS --ignore-ancestry"
-        fi
         if "${MY_SVN}" merge ${MY_MERGE_ARGS} "${MY_TRUNK_DIR}" "${MY_BRANCH_DIR}" -c ${MY_REV}; then
             # Check for conflict.
             MY_CONFLICTS=`"${MY_SVN}" status "${MY_BRANCH_DIR}" | "${MY_SED}" -n -e '/^C/p'`

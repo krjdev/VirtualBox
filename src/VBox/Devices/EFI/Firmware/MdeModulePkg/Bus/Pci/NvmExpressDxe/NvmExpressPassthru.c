@@ -452,7 +452,6 @@ NvmExpressPassThru (
   NVME_SQ                        *Sq;
   NVME_CQ                        *Cq;
   UINT16                         QueueId;
-  UINT16                         QueueSize;
   UINT32                         Bytes;
   UINT16                         Offset;
   EFI_EVENT                      TimerEvent;
@@ -541,7 +540,6 @@ NvmExpressPassThru (
   Prp         = NULL;
   TimerEvent  = NULL;
   Status      = EFI_SUCCESS;
-  QueueSize   = MIN (NVME_ASYNC_CSQ_SIZE, Private->Cap.Mqes) + 1;
 
   if (Packet->QueueType == NVME_ADMIN_QUEUE) {
     QueueId = 0;
@@ -554,7 +552,7 @@ NvmExpressPassThru (
       //
       // Submission queue full check.
       //
-      if ((Private->SqTdbl[QueueId].Sqt + 1) % QueueSize ==
+      if ((Private->SqTdbl[QueueId].Sqt + 1) % (NVME_ASYNC_CSQ_SIZE + 1) ==
           Private->AsyncSqHead) {
         return EFI_NOT_READY;
       }
@@ -703,7 +701,7 @@ NvmExpressPassThru (
   //
   if ((Event != NULL) && (QueueId != 0)) {
     Private->SqTdbl[QueueId].Sqt =
-      (Private->SqTdbl[QueueId].Sqt + 1) % QueueSize;
+      (Private->SqTdbl[QueueId].Sqt + 1) % (NVME_ASYNC_CSQ_SIZE + 1);
   } else {
     Private->SqTdbl[QueueId].Sqt ^= 1;
   }

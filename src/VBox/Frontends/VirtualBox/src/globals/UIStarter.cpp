@@ -1,10 +1,10 @@
-/* $Id: UIStarter.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIStarter.cpp $ */
 /** @file
  * VBox Qt GUI - UIStarter class implementation.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 #include "UICommon.h"
 #include "UIExtraDataManager.h"
 #include "UIMessageCenter.h"
-#include "UINotificationCenter.h"
 #include "UIStarter.h"
 #ifndef VBOX_RUNTIME_UI
 # include "UIVirtualBoxManager.h"
@@ -61,10 +60,16 @@ UIStarter::UIStarter()
 {
     /* Assign instance: */
     s_pInstance = this;
+
+    /* Prepare: */
+    prepare();
 }
 
 UIStarter::~UIStarter()
 {
+    /* Cleanup: */
+    cleanup();
+
     /* Unassign instance: */
     s_pInstance = 0;
 }
@@ -74,8 +79,8 @@ void UIStarter::init()
     /* Listen for UICommon signals: */
     connect(&uiCommon(), &UICommon::sigAskToRestartUI,
             this, &UIStarter::sltRestartUI);
-    connect(&uiCommon(), &UICommon::sigAskToCloseUI,
-            this, &UIStarter::sltCloseUI);
+    connect(&uiCommon(), &UICommon::sigAskToCommitData,
+            this, &UIStarter::sltHandleCommitDataRequest);
 }
 
 void UIStarter::deinit()
@@ -83,8 +88,15 @@ void UIStarter::deinit()
     /* Listen for UICommon signals no more: */
     disconnect(&uiCommon(), &UICommon::sigAskToRestartUI,
                this, &UIStarter::sltRestartUI);
-    disconnect(&uiCommon(), &UICommon::sigAskToCloseUI,
-               this, &UIStarter::sltCloseUI);
+    disconnect(&uiCommon(), &UICommon::sigAskToCommitData,
+               this, &UIStarter::sltHandleCommitDataRequest);
+}
+
+void UIStarter::prepare()
+{
+    /* Listen for QApplication signals: */
+    connect(qApp, &QGuiApplication::aboutToQuit,
+            this, &UIStarter::cleanup);
 }
 
 void UIStarter::sltStartUI()
@@ -107,14 +119,14 @@ void UIStarter::sltStartUI()
 
 # ifdef VBOX_BLEEDING_EDGE
     /* Show EXPERIMENTAL BUILD warning: */
-    UINotificationMessage::remindAboutExperimentalBuild();
+    msgCenter().showExperimentalBuildWarning();
 # else /* !VBOX_BLEEDING_EDGE */
 #  ifndef DEBUG
     /* Show BETA warning if necessary: */
     const QString vboxVersion(uiCommon().virtualBox().GetVersion());
     if (   vboxVersion.contains("BETA")
         && gEDataManager->preventBetaBuildWarningForVersion() != vboxVersion)
-        UINotificationMessage::remindAboutBetaBuild();
+        msgCenter().showBetaBuildWarning();
 #  endif /* !DEBUG */
 # endif /* !VBOX_BLEEDING_EDGE */
 
@@ -143,7 +155,7 @@ void UIStarter::sltRestartUI()
 #endif
 }
 
-void UIStarter::sltCloseUI()
+void UIStarter::cleanup()
 {
 #ifndef VBOX_RUNTIME_UI
     /* Destroy Manager UI: */
@@ -153,5 +165,18 @@ void UIStarter::sltCloseUI()
     /* Destroy Runtime UI: */
     if (gpMachine)
         UIMachine::destroy();
+#endif
+}
+
+void UIStarter::sltHandleCommitDataRequest()
+{
+    /* Exit if UICommon is not valid: */
+    if (!uiCommon().isValid())
+        return;
+
+#ifdef VBOX_RUNTIME_UI
+    /* Temporary override the default close action to 'SaveState' if necessary: */
+    if (gpMachine->uisession()->defaultCloseAction() == MachineCloseAction_Invalid)
+        gpMachine->uisession()->setDefaultCloseAction(MachineCloseAction_SaveState);
 #endif
 }

@@ -1,10 +1,10 @@
-/* $Id: UIWelcomePane.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIWelcomePane.cpp $ */
 /** @file
  * VBox Qt GUI - UIWelcomePane class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,6 @@
 
 /* GUI includes */
 #include "QIWithRetranslateUI.h"
-#include "UICommon.h"
 #include "UIIconPool.h"
 #include "UIWelcomePane.h"
 
@@ -54,16 +53,16 @@ public:
 protected:
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
     /** Returns whether the widget's preferred height depends on its width. */
-    virtual bool hasHeightForWidth() const RT_OVERRIDE;
+    virtual bool hasHeightForWidth() const /* override */;
 
     /** Holds the minimum widget size. */
-    virtual QSize minimumSizeHint() const RT_OVERRIDE;
+    virtual QSize minimumSizeHint() const /* override */;
 
     /** Holds the preferred widget size. */
-    virtual QSize sizeHint() const RT_OVERRIDE;
+    virtual QSize sizeHint() const /* override */;
 };
 
 
@@ -98,7 +97,7 @@ bool UIWrappableLabel::hasHeightForWidth() const
            : QLabel::hasHeightForWidth();
 }
 
-QSize UIWrappableLabel::minimumSizeHint() const
+QSize UIWrappableLabel::minimumSizeHint() const /* override */
 {
     // WORKAROUND:
     // We should calculate hint height on the basis of width,
@@ -108,7 +107,7 @@ QSize UIWrappableLabel::minimumSizeHint() const
            : QLabel::minimumSizeHint();
 }
 
-QSize UIWrappableLabel::sizeHint() const
+QSize UIWrappableLabel::sizeHint() const /* override */
 {
     // WORKAROUND:
     // Keep widget always minimal.
@@ -213,8 +212,6 @@ void UIWelcomePane::prepare()
         /* Add stretch: */
         pMainLayout->addStretch();
     }
-
-    uiCommon().setHelpKeyword(this, "intro-starting");
 
     /* Translate finally: */
     retranslateUi();

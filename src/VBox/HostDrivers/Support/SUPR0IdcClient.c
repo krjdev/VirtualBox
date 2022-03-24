@@ -1,10 +1,10 @@
-/* $Id: SUPR0IdcClient.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPR0IdcClient.c $ */
 /** @file
  * VirtualBox Support Driver - IDC Client Lib, Core.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -121,7 +121,7 @@ SUPR0DECL(int) SUPR0IdcOpen(PSUPDRVIDCHANDLE pHandle, uint32_t uReqVersion, uint
          * We don't really trust anyone, make sure the returned
          * session and version values actually makes sense.
          */
-        if (    RT_VALID_PTR(Req.u.Out.pSession)
+        if (    VALID_PTR(Req.u.Out.pSession)
             &&  Req.u.Out.uSessionVersion >= uMinVersion
             &&  (Req.u.Out.uSessionVersion & UINT32_C(0xffff0000)) == (SUPDRV_IDC_VERSION & UINT32_C(0xffff0000)))
         {
@@ -204,8 +204,8 @@ SUPR0DECL(PSUPDRVSESSION) SUPR0IdcGetSession(PSUPDRVIDCHANDLE pHandle)
 PSUPDRVIDCHANDLE supR0IdcGetHandleFromSession(PSUPDRVSESSION pSession)
 {
     PSUPDRVIDCHANDLE pHandle = ASMAtomicUoReadPtrT(&g_pMainHandle, PSUPDRVIDCHANDLE);
-    if (   RT_VALID_PTR(pHandle)
-        && pHandle->s.pSession == pSession)
+    if (    VALID_PTR(pHandle)
+        &&  pHandle->s.pSession == pSession)
         return pHandle;
     return NULL;
 }

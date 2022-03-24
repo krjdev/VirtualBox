@@ -1,10 +1,10 @@
-/* $Id: VBoxUhgsmi.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxUhgsmi.h $ */
 /** @file
  * Document me, pretty please.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -76,8 +76,7 @@ typedef union VBOXUHGSMI_BUFFER_SUBMIT_FLAGS
 
 /* the caller can specify NULL as a hSynch and specify a valid enmSynchType to make UHGSMI create a proper object itself,
  *  */
-typedef DECLCALLBACKTYPE(int, FNVBOXUHGSMI_BUFFER_CREATE,(PVBOXUHGSMI pHgsmi, uint32_t cbBuf, VBOXUHGSMI_BUFFER_TYPE_FLAGS fType,
-                                                          PVBOXUHGSMI_BUFFER* ppBuf));
+typedef DECLCALLBACK(int) FNVBOXUHGSMI_BUFFER_CREATE(PVBOXUHGSMI pHgsmi, uint32_t cbBuf, VBOXUHGSMI_BUFFER_TYPE_FLAGS fType, PVBOXUHGSMI_BUFFER* ppBuf);
 typedef FNVBOXUHGSMI_BUFFER_CREATE *PFNVBOXUHGSMI_BUFFER_CREATE;
 
 typedef struct VBOXUHGSMI_BUFFER_SUBMIT
@@ -88,18 +87,16 @@ typedef struct VBOXUHGSMI_BUFFER_SUBMIT
     VBOXUHGSMI_BUFFER_SUBMIT_FLAGS fFlags;
 } VBOXUHGSMI_BUFFER_SUBMIT, *PVBOXUHGSMI_BUFFER_SUBMIT;
 
-typedef DECLCALLBACKTYPE(int, FNVBOXUHGSMI_BUFFER_SUBMIT,(PVBOXUHGSMI pHgsmi, PVBOXUHGSMI_BUFFER_SUBMIT aBuffers,
-                                                          uint32_t cBuffers));
+typedef DECLCALLBACK(int) FNVBOXUHGSMI_BUFFER_SUBMIT(PVBOXUHGSMI pHgsmi, PVBOXUHGSMI_BUFFER_SUBMIT aBuffers, uint32_t cBuffers);
 typedef FNVBOXUHGSMI_BUFFER_SUBMIT *PFNVBOXUHGSMI_BUFFER_SUBMIT;
 
-typedef DECLCALLBACKTYPE(int, FNVBOXUHGSMI_BUFFER_DESTROY,(PVBOXUHGSMI_BUFFER pBuf));
+typedef DECLCALLBACK(int) FNVBOXUHGSMI_BUFFER_DESTROY(PVBOXUHGSMI_BUFFER pBuf);
 typedef FNVBOXUHGSMI_BUFFER_DESTROY *PFNVBOXUHGSMI_BUFFER_DESTROY;
 
-typedef DECLCALLBACKTYPE(int, FNVBOXUHGSMI_BUFFER_LOCK,(PVBOXUHGSMI_BUFFER pBuf, uint32_t offLock, uint32_t cbLock,
-                                                        VBOXUHGSMI_BUFFER_LOCK_FLAGS fFlags, void**pvLock));
+typedef DECLCALLBACK(int) FNVBOXUHGSMI_BUFFER_LOCK(PVBOXUHGSMI_BUFFER pBuf, uint32_t offLock, uint32_t cbLock, VBOXUHGSMI_BUFFER_LOCK_FLAGS fFlags, void**pvLock);
 typedef FNVBOXUHGSMI_BUFFER_LOCK *PFNVBOXUHGSMI_BUFFER_LOCK;
 
-typedef DECLCALLBACKTYPE(int, FNVBOXUHGSMI_BUFFER_UNLOCK,(PVBOXUHGSMI_BUFFER pBuf));
+typedef DECLCALLBACK(int) FNVBOXUHGSMI_BUFFER_UNLOCK(PVBOXUHGSMI_BUFFER pBuf);
 typedef FNVBOXUHGSMI_BUFFER_UNLOCK *PFNVBOXUHGSMI_BUFFER_UNLOCK;
 
 typedef struct VBOXUHGSMI

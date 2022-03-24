@@ -1,10 +1,10 @@
-/* $Id: VBoxMPCm.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPCm.h $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,7 +54,7 @@ void vboxVideoCmCmdSubmit(void *pvCmd, uint32_t cbSize);
 
 #define VBOXVIDEOCMCMDVISITOR_RETURN_BREAK    0x00000001
 #define VBOXVIDEOCMCMDVISITOR_RETURN_RMCMD    0x00000002
-typedef DECLCALLBACKTYPE(UINT, FNVBOXVIDEOCMCMDVISITOR,(PVBOXVIDEOCM_CTX pContext, PVOID pvCmd, uint32_t cbCmd, PVOID pvVisitor));
+typedef DECLCALLBACK(UINT) FNVBOXVIDEOCMCMDVISITOR(PVBOXVIDEOCM_CTX pContext, PVOID pvCmd, uint32_t cbCmd, PVOID pvVisitor);
 typedef FNVBOXVIDEOCMCMDVISITOR *PFNVBOXVIDEOCMCMDVISITOR;
 NTSTATUS vboxVideoCmCmdVisit(PVBOXVIDEOCM_CTX pContext, BOOLEAN bEntireSession, PFNVBOXVIDEOCMCMDVISITOR pfnVisitor, PVOID pvVisitor);
 

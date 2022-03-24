@@ -1989,9 +1989,7 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 #else
 	rc = RTDirOpen(&hDir, path);
 	if (RT_FAILURE(rc)) {
-		char szTmp[160];
-		RTErrQueryMsgShort(rc, szTmp, sizeof(szTmp), false /*fFaileIfUnknown*/);
-		dt_dprintf("skipping lib dir %s: %s\n", path, szTmp);
+		dt_dprintf("skipping lib dir %s: %s\n", path, RTErrGetShort(rc));
 		return (0);
 	}
 #endif

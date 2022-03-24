@@ -1,4 +1,4 @@
-/* $Id: VBoxProxyStub.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxProxyStub.c $ */
 /** @file
  * VBoxProxyStub - Proxy Stub and Typelib, COM DLL exports and DLL init/term.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2112,7 +2112,7 @@ static void vbpsRemoveOldTypeLibs(VBPSREGSTATE *pState)
          * Open the TypeLib key, if it exists.
          */
         HKEY hkeyTypeLibs;
-        LSTATUS rc;
+        LRESULT rc;
         rc = RegOpenKeyExW(pState->aAltDeletes[iAlt].hkeyClasses, L"TypeLib", 0 /*fOptions*/, pState->fSamDelete, &hkeyTypeLibs);
         if (rc == ERROR_SUCCESS)
         {
@@ -2123,7 +2123,7 @@ static void vbpsRemoveOldTypeLibs(VBPSREGSTATE *pState)
             while (iTlb-- > 0)
             {
                 HKEY hkeyTypeLibId;
-                rc = RegOpenKeyExW(hkeyTypeLibs, g_apwszTypeLibIds[iTlb], 0 /*fOptions*/, pState->fSamDelete, &hkeyTypeLibId);
+                LONG rc = RegOpenKeyExW(hkeyTypeLibs, g_apwszTypeLibIds[iTlb], 0 /*fOptions*/, pState->fSamDelete, &hkeyTypeLibId);
                 if (rc == ERROR_SUCCESS)
                 {
                     unsigned iVer = RT_ELEMENTS(g_apwszTypelibVersions);

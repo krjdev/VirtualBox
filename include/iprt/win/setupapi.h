@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,21 +29,12 @@
 # pragma once
 #endif
 
-#ifdef _MSC_VER
-# pragma warning(push)
-# pragma warning(disable:4668) /* warning C4668: 'USE_SP_ALTPLATFORM_INFO_V1' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif' */
-# ifdef __cplusplus
-#  if _MSC_VER >= 1900 /*RT_MSC_VER_VC140*/
-#   pragma warning(disable:5039) /* winbase.h(13179): warning C5039: 'TpSetCallbackCleanupGroup': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception. */
-#  endif
-# endif
-#endif
+#pragma warning(push)
+#pragma warning(disable:4668) /* warning C4668: 'USE_SP_ALTPLATFORM_INFO_V1' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif' */
 
 #include <setupapi.h>
 
-#ifdef _MSC_VER
-# pragma warning(pop)
-#endif
+#pragma warning(pop)
 
 #endif /* !IPRT_INCLUDED_win_setupapi_h */
 

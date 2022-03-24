@@ -1,10 +1,10 @@
-/* $Id: process.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: process.h $ */
 /** @file
  * IPRT - Internal RTProc header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,23 +35,21 @@
 
 RT_C_DECLS_BEGIN
 
-extern DECL_HIDDEN_DATA(RTPROCESS)      g_ProcessSelf;
-extern DECL_HIDDEN_DATA(RTPROCPRIORITY) g_enmProcessPriority;
-extern DECL_HIDDEN_DATA(char)           g_szrtProcExePath[RTPATH_MAX];
-extern DECL_HIDDEN_DATA(size_t)         g_cchrtProcExePath;
-extern DECL_HIDDEN_DATA(size_t)         g_cchrtProcDir;
-extern DECL_HIDDEN_DATA(size_t)         g_offrtProcName;
-extern DECL_HIDDEN_DATA(bool volatile)  g_frtAtExitCalled;
+extern DECLHIDDEN(RTPROCESS)        g_ProcessSelf;
+extern DECLHIDDEN(RTPROCPRIORITY)   g_enmProcessPriority;
+extern DECLHIDDEN(char)             g_szrtProcExePath[RTPATH_MAX];
+extern DECLHIDDEN(size_t)           g_cchrtProcExePath;
+extern DECLHIDDEN(size_t)           g_cchrtProcDir;
+extern DECLHIDDEN(size_t)           g_offrtProcName;
+extern DECLHIDDEN(bool volatile)    g_frtAtExitCalled;
 
 /**
  * Validates and sets the process priority.
- *
  * This will check that all rtThreadNativeSetPriority() will success for all the
  * thread types when applied to the current thread.
  *
- * @returns IPRT status code.
+ * @returns iprt status code.
  * @param   enmPriority     The priority to validate and set.
- *
  * @remark  Located in sched.
  */
 DECLHIDDEN(int) rtProcNativeSetPriority(RTPROCPRIORITY enmPriority);

@@ -1,10 +1,10 @@
-/* $Id: FsPerf.cpp 93302 2022-01-18 11:25:24Z vboxsync $ */
+/* $Id: FsPerf.cpp $ */
 /** @file
  * FsPerf - File System (Shared Folders) Performance Benchmark.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -3532,7 +3532,7 @@ int fsPerfIoPrepFile(RTFILE hFile1, uint64_t cbFile, uint8_t **ppbFree)
         size_t cbToRead = cbBuf;
         if (cbToRead > cbLeft)
             cbToRead = (size_t)cbLeft;
-        pbBuf[cbToRead - 1] = 0xff;
+        pbBuf[cbToRead] = 0xff;
 
         RTTESTI_CHECK_RC_RET(RTFileRead(hFile1, pbBuf, cbToRead, NULL), VINF_SUCCESS, rcCheck);
         RTTESTI_CHECK_RET(ASMMemIsZero(pbBuf, cbToRead), VERR_MISMATCH);
@@ -4507,7 +4507,7 @@ static void fsPerfSpliceToFile(RTFILE hFile1, uint64_t cbFile)
         } \
         RTTestIValueF(ns / iIteration, \
                       RTTESTUNIT_NS_PER_OCCURRENCE, a_szOperation "/seq/%RU32 latency", cbBlock); \
-        RTTestIValueF((uint64_t)((double)(iIteration * cbBlock) / ((double)ns / RT_NS_1SEC)), \
+        RTTestIValueF((uint64_t)((uint64_t)iIteration * cbBlock / ((double)ns / RT_NS_1SEC)), \
                       RTTESTUNIT_BYTES_PER_SEC,     a_szOperation "/seq/%RU32 throughput", cbBlock); \
         RTTestIValueF(iIteration, \
                       RTTESTUNIT_CALLS,             a_szOperation "/seq/%RU32 calls", cbBlock); \
@@ -6105,7 +6105,7 @@ static void fsPerfCopy(void)
                 } \
                 RTTestIValueF(ns / iIteration, \
                               RTTESTUNIT_NS_PER_OCCURRENCE, a_szOperation " latency"); \
-                RTTestIValueF((uint64_t)((double)(iIteration * cbFile) / ((double)ns / RT_NS_1SEC)), \
+                RTTestIValueF((uint64_t)((uint64_t)iIteration * cbFile / ((double)ns / RT_NS_1SEC)), \
                               RTTESTUNIT_BYTES_PER_SEC,     a_szOperation " throughput"); \
                 RTTestIValueF((uint64_t)iIteration * cbFile, \
                               RTTESTUNIT_BYTES,             a_szOperation " bytes"); \
@@ -6379,30 +6379,9 @@ int main(int argc, char *argv[])
     /*
      * Default values.
      */
-    char szDefaultDir[RTPATH_MAX];
+    char szDefaultDir[32];
     const char *pszDir = szDefaultDir;
-
-    /* As default retrieve the system's temporary directory and create a test directory beneath it,
-     * as this binary might get executed from a read-only medium such as ${CDROM}. */
-    rc = RTPathTemp(szDefaultDir, sizeof(szDefaultDir));
-    if (RT_SUCCESS(rc))
-    {
-        char szDirName[32];
-        RTStrPrintf2(szDirName, sizeof(szDirName), "fstestdir-%u" RTPATH_SLASH_STR, RTProcSelf());
-        rc = RTPathAppend(szDefaultDir, sizeof(szDefaultDir), szDirName);
-        if (RT_FAILURE(rc))
-        {
-            RTTestFailed(g_hTest, "Unable to append dir name in temp dir, rc=%Rrc\n", rc);
-            return RTTestSummaryAndDestroy(g_hTest);
-        }
-    }
-    else
-    {
-        RTTestFailed(g_hTest, "Unable to retrieve temp dir, rc=%Rrc\n", rc);
-        return RTTestSummaryAndDestroy(g_hTest);
-    }
-
-    RTTestIPrintf(RTTESTLVL_INFO, "Default directory is: %s\n", szDefaultDir);
+    RTStrPrintf(szDefaultDir, sizeof(szDefaultDir), "fstestdir-%u" RTPATH_SLASH_STR, RTProcSelf());
 
     bool fCommsSlave = false;
 
@@ -6694,7 +6673,7 @@ int main(int argc, char *argv[])
 
             case 'V':
             {
-                char szRev[] = "$Revision: 93302 $";
+                char szRev[] = "$Revision: 142330 $";
                 szRev[RT_ELEMENTS(szRev) - 2] = '\0';
                 RTPrintf(RTStrStrip(strchr(szRev, ':') + 1));
                 return RTEXITCODE_SUCCESS;

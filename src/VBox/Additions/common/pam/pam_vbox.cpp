@@ -1,10 +1,10 @@
-/* $Id: pam_vbox.cpp 94184 2022-03-11 18:24:17Z vboxsync $ */
+/* $Id: pam_vbox.cpp $ */
 /** @file
  * pam_vbox - PAM module for auto logons.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,6 @@
 
 #include <iprt/assert.h>
 #include <iprt/buildconfig.h>
-#include <iprt/err.h>
 #include <iprt/env.h>
 #include <iprt/initterm.h>
 #include <iprt/mem.h>
@@ -51,7 +50,9 @@
 #include <VBox/VBoxGuestLib.h>
 
 #include <VBox/log.h>
-#include <VBox/HostServices/GuestPropertySvc.h>
+#ifdef VBOX_WITH_GUEST_PROPS
+# include <VBox/HostServices/GuestPropertySvc.h>
+#endif
 
 #define VBOX_MODULE_NAME                    "pam_vbox"
 
@@ -63,12 +64,12 @@
 #define VBOX_PAM_FLAG_REFRESH_CRED          "PAM_REFRESH_CRED"
 
 RT_C_DECLS_BEGIN
-DECLEXPORT(int) pam_sm_authenticate(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
-DECLEXPORT(int) pam_sm_setcred(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
-DECLEXPORT(int) pam_sm_acct_mgmt(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
-DECLEXPORT(int) pam_sm_open_session(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
-DECLEXPORT(int) pam_sm_close_session(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
-DECLEXPORT(int) pam_sm_chauthtok(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_authenticate(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_setcred(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_acct_mgmt(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_open_session(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_close_session(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
+RTDECL(int) pam_sm_chauthtok(pam_handle_t *hPAM, int iFlags, int argc, const char **argv);
 RT_C_DECLS_END
 
 /** For debugging. */
@@ -380,6 +381,8 @@ static int pam_vbox_check_creds(pam_handle_t *hPAM)
     return rc;
 }
 
+
+#ifdef VBOX_WITH_GUEST_PROPS
 /**
  * Reads a guest property.
  *
@@ -528,7 +531,7 @@ static int pam_vbox_wait_prop(pam_handle_t *hPAM, uint32_t uClientID,
             rc = VbglR3GuestPropWait(uClientID, pszKey, pvBuf, cbBuf,
                                      0 /* Last timestamp; just wait for next event */, uTimeoutMS,
                                      &pszName, &pszValue, &u64TimestampOut,
-                                     &pszFlags, &cbBuf, NULL /* pfWasDeleted */);
+                                     &pszFlags, &cbBuf);
         }
         else
             rc = VERR_NO_MEMORY;
@@ -546,6 +549,7 @@ static int pam_vbox_wait_prop(pam_handle_t *hPAM, uint32_t uClientID,
 
     return rc;
 }
+#endif
 
 /**
  * Thread function waiting for credentials to arrive.
@@ -565,6 +569,7 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
     /* Get current time stamp to later calculate rest of timeout left. */
     uint64_t u64StartMS = RTTimeMilliTS();
 
+#ifdef VBOX_WITH_GUEST_PROPS
     uint32_t uClientID = 0;
     rc = VbglR3GuestPropConnect(&uClientID);
     if (RT_FAILURE(rc))
@@ -574,10 +579,10 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
     else
     {
         pam_vbox_log(pUserData->hPAM, "pam_vbox_wait_thread: clientID=%u\n", uClientID);
-
+#endif
         for (;;)
         {
-
+#ifdef VBOX_WITH_GUEST_PROPS
             if (uClientID)
             {
                 rc = pam_vbox_wait_prop(pUserData->hPAM, uClientID,
@@ -613,7 +618,7 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
                     break;
                 }
             }
-
+#endif
             if (   RT_SUCCESS(rc)
                 || rc == VERR_TIMEOUT)
             {
@@ -627,7 +632,9 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
                 {
                     /* No credentials found, but try next round (if there's
                      * time left for) ... */
+#ifndef VBOX_WITH_GUEST_PROPS
                     RTThreadSleep(500); /* Wait 500 ms. */
+#endif
                 }
                 else
                     break; /* Something bad happend ... */
@@ -646,8 +653,10 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
                 break;
             }
         }
+#ifdef VBOX_WITH_GUEST_PROPS
     }
     VbglR3GuestPropDisconnect(uClientID);
+#endif
 
     /* Save result. */
     pUserData->rc = rc; /** @todo Use ASMAtomicXXX? */
@@ -658,6 +667,7 @@ static DECLCALLBACK(int) pam_vbox_wait_thread(RTTHREAD hThreadSelf, void *pvUser
     pam_vbox_log(pUserData->hPAM, "pam_vbox_wait_thread: Waiting thread returned with rc=%Rrc\n", rc);
     return rc;
 }
+
 
 /**
  * Waits for credentials to arrive by creating and waiting for a thread.
@@ -695,6 +705,7 @@ static int pam_vbox_wait_for_creds(pam_handle_t *hPAM, uint32_t uClientID, uint3
     return rc;
 }
 
+
 DECLEXPORT(int) pam_sm_authenticate(pam_handle_t *hPAM, int iFlags, int argc, const char **argv)
 {
     RT_NOREF1(iFlags);
@@ -715,6 +726,7 @@ DECLEXPORT(int) pam_sm_authenticate(pam_handle_t *hPAM, int iFlags, int argc, co
 
     bool fFallback = true;
 
+#ifdef VBOX_WITH_GUEST_PROPS
     uint32_t uClientId;
     rc = VbglR3GuestPropConnect(&uClientId);
     if (RT_SUCCESS(rc))
@@ -803,6 +815,7 @@ DECLEXPORT(int) pam_sm_authenticate(pam_handle_t *hPAM, int iFlags, int argc, co
 
         VbglR3GuestPropDisconnect(uClientId);
     }
+#endif /* VBOX_WITH_GUEST_PROPS */
 
     if (fFallback)
     {
@@ -872,7 +885,7 @@ DECLEXPORT(int) pam_sm_chauthtok(pam_handle_t *hPAM, int iFlags, int argc, const
 
 
 #ifdef DEBUG
-RTDECL(void) RTAssertMsg1Weak(const char *pszExpr, unsigned uLine, const char *pszFile, const char *pszFunction)
+DECLEXPORT(void) RTAssertMsg1Weak(const char *pszExpr, unsigned uLine, const char *pszFile, const char *pszFunction)
 {
     pam_vbox_log(g_pam_handle,
                  "\n!!Assertion Failed!!\n"

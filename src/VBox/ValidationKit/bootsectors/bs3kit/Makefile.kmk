@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # VirtualBox Validation Kit - Bootsector Kit v3
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -157,7 +157,6 @@ VBOX_BS3KIT_COMMON_SOURCES = \
        bs3-cmn-SelProtFar16DataToFlat.asm \
        bs3-cmn-SelFlatDataToProtFar16.asm \
        bs3-cmn-SelFlatDataToRealMode.asm \
-       bs3-cmn-SelLnkPtrToCurPtr.c \
        bs3-cmn-SelSetup16BitData.c \
        bs3-cmn-SelSetup16BitCode.c \
        bs3-cmn-SlabInit.c \
@@ -184,7 +183,6 @@ VBOX_BS3KIT_COMMON_SOURCES = \
        bs3-cmn-TestData.c \
        bs3-cmn-TestInit.c \
        bs3-cmn-TestFailed.c \
-	bs3-cmn-TestNow.asm \
        bs3-cmn-TestSkipped.c \
        bs3-cmn-TestSub.c \
        bs3-cmn-TestSubDone.c \
@@ -194,11 +192,8 @@ VBOX_BS3KIT_COMMON_SOURCES = \
 	bs3-cmn-TestSendCmdWithU32.asm \
 	bs3-cmn-TestIsVmmDevTestingPresent.asm \
 	bs3-cmn-TestCheckRegCtxEx.c \
-	bs3-cmn-TestQueryCfgU8.asm \
-	bs3-cmn-TestQueryCfgU32.asm \
 	bs3-cmn-TestHostPrintf.c \
 	bs3-cmn-TestPrintf.c \
-	bs3-cmn-TestValue.c \
 	bs3-cmn-TrapReInit.c \
 	bs3-cmn-TrapRmV86Init.c \
 	bs3-cmn-TrapRmV86SetGate.c \
@@ -237,12 +232,10 @@ VBOX_BS3KIT_COMMON_SOURCES = \
        ../../../Runtime/common/asm/ASMCpuIdExSlow.asm \
        ../../../Runtime/common/asm/ASMCpuId.asm \
        ../../../Runtime/common/asm/ASMCpuId_Idx_ECX.asm \
-       ../../../Runtime/common/asm/ASMWrMsr.asm \
        ../../../Runtime/common/asm/ASMGetXcr0.asm \
        ../../../Runtime/common/asm/ASMSetXcr0.asm \
        ../../../Runtime/common/asm/ASMSetFlags.asm \
        ../../../Runtime/common/asm/ASMGetFlags.asm \
-       ../../../Runtime/common/asm/ASMMultU64ByU32DivByU32.asm \
 
 # The 16-bit BS3Kit library.
 LIBRARIES += bs3kit-common-16
@@ -281,7 +274,6 @@ $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMMemFirstMismatchingU8,8)
 $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMMemFirstNonZero,6)
 $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMCpuIdExSlow,32)
 $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMCpuId,20)
-$(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMWrMsr,12)
 $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMSetXcr0,8)
 $(call BS3KIT_FN_GEN_CMN_FARSTUB,bs3kit-common-16,ASMGetXcr0,0)
 -include $(PATH_SUB_CURRENT)/bs3kit-autostubs.kmk # manually generated from headers, see bottom of this file.
@@ -293,7 +285,6 @@ bs3kit-common-32_INSTTYPE = none
 bs3kit-common-32_DEFS     = TMPL_PE32 BS3_CMN_ONLY
 bs3kit-common-32_ASDEFS   = RT_ASMDEFS_INC_FIRST_FILE
 bs3kit-common-32_SOURCES  = $(VBOX_BS3KIT_COMMON_SOURCES) \
-       bs3-cmn-PagingMapRamAbove4GForLM.c \
        bs3-cmn-SwitchHlpConvFlatRetToRetfProtMode.asm \
 	bs3-cmn-UInt64Div.c \
 	bs3-wc32-U8D.asm \
@@ -301,7 +292,6 @@ bs3kit-common-32_SOURCES  = $(VBOX_BS3KIT_COMMON_SOURCES) \
 	bs3-wc32-I8RS.asm \
 	bs3-wc32-U8RS.asm \
 	bs3-wc32-U8LS.asm \
-	bs3-wc32-U8M.asm \
        bs3-c32-Trap32Generic.asm
 
 # The 64-bit BS3Kit library.
@@ -311,7 +301,6 @@ bs3kit-common-64_INSTTYPE = none
 bs3kit-common-64_DEFS     = TMPL_LM64 BS3_CMN_ONLY
 bs3kit-common-64_ASDEFS   = RT_ASMDEFS_INC_FIRST_FILE
 bs3kit-common-64_SOURCES  = $(VBOX_BS3KIT_COMMON_SOURCES) \
-       bs3-cmn-PagingMapRamAbove4GForLM.c \
        bs3-cmn-SwitchHlpConvFlatRetToRetfProtMode.asm \
        bs3-c64-Trap64Generic.asm \
        ../../../Runtime/common/asm/ASMGetIDTR.asm \
@@ -361,7 +350,6 @@ VBOX_BS3KIT_MODE_SOURCES = \
 	bs3-mode-TestDoModesByOne.c \
 	bs3-mode-TestDoModesByMax.c \
 	bs3-mode-TestDoModesHlp.asm \
-	bs3-mode-BiosInt15hE820.asm \
 
 # The 16-bit real mode BS3Kit library.
 LIBRARIES += bs3kit-rm

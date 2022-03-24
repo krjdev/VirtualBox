@@ -1,10 +1,10 @@
-/* $Id: VMMDev.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: VMMDev.h $ */
 /** @file
  * VirtualBox Driver interface to VMM device
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,6 @@ class Console;
 class VMMDevMouseInterface
 {
 public:
-    virtual ~VMMDevMouseInterface() { /* Make VC++ 19.2 happy. */ }
     virtual PPDMIVMMDEVPORT getVMMDevPort() = 0;
 };
 
@@ -85,8 +84,6 @@ private:
     static DECLCALLBACK(void)   drvPowerOff(PPDMDRVINS pDrvIns);
     static DECLCALLBACK(void)   drvSuspend(PPDMDRVINS pDrvIns);
     static DECLCALLBACK(void)   drvResume(PPDMDRVINS pDrvIns);
-    static DECLCALLBACK(int)    hgcmSave(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM);
-    static DECLCALLBACK(int)    hgcmLoad(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass);
 
     Console * const         mParent;
 
@@ -97,9 +94,6 @@ private:
     bool volatile m_fHGCMActive;
 #endif /* VBOX_WITH_HGCM */
 };
-
-/** VMMDev object ID used by Console::i_vmm2User_QueryGenericObject and VMMDev::drvConstruct. */
-#define VMMDEV_OID                          "e2ff0c7b-c02b-46d0-aa90-b9caf0f60561"
 
 #endif /* !MAIN_INCLUDED_VMMDev_h */
 /* vi: set tabstop=4 shiftwidth=4 expandtab: */

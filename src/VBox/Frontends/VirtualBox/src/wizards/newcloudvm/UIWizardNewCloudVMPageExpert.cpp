@@ -1,10 +1,10 @@
-/* $Id: UIWizardNewCloudVMPageExpert.cpp 94182 2022-03-11 17:25:06Z vboxsync $ */
+/* $Id: UIWizardNewCloudVMPageExpert.cpp $ */
 /** @file
  * VBox Qt GUI - UIWizardNewCloudVMPageExpert class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,230 +16,240 @@
  */
 
 /* Qt includes: */
+#include <QGroupBox>
 #include <QHeaderView>
 #include <QListWidget>
-#include <QPushButton>
-#include <QTabBar>
+#include <QTableWidget>
 #include <QVBoxLayout>
 
 /* GUI includes: */
 #include "QIComboBox.h"
 #include "QIToolButton.h"
-#include "UICloudNetworkingStuff.h"
-#include "UIFormEditorWidget.h"
 #include "UIIconPool.h"
-#include "UINotificationCenter.h"
-#include "UIToolBox.h"
-#include "UIVirtualBoxEventHandler.h"
+#include "UIMessageCenter.h"
 #include "UIVirtualBoxManager.h"
 #include "UIWizardNewCloudVM.h"
 #include "UIWizardNewCloudVMPageExpert.h"
 
-/* Namespaces: */
-using namespace UIWizardNewCloudVMSource;
-using namespace UIWizardNewCloudVMProperties;
 
-
-UIWizardNewCloudVMPageExpert::UIWizardNewCloudVMPageExpert()
-    : m_pToolBox(0)
-    , m_pProviderComboBox(0)
-    , m_pProfileComboBox(0)
-    , m_pProfileToolButton(0)
-    , m_pSourceTabBar(0)
-    , m_pSourceImageList(0)
-    , m_pFormEditor(0)
+UIWizardNewCloudVMPageExpert::UIWizardNewCloudVMPageExpert(bool fFullWizard)
+    : UIWizardNewCloudVMPage2(fFullWizard)
+    , m_pCntDestination(0)
+    , m_pSettingsCnt(0)
 {
-    /* Prepare main layout: */
-    QVBoxLayout *pLayoutMain = new QVBoxLayout(this);
-    if (pLayoutMain)
+    /* Create main layout: */
+    QHBoxLayout *pMainLayout = new QHBoxLayout(this);
+    if (pMainLayout)
     {
-        /* Prepare tool-box: */
-        m_pToolBox = new UIToolBox(this);
-        if (m_pToolBox)
+        /* Create destination container: */
+        m_pCntDestination = new QGroupBox(this);
+        if (m_pCntDestination)
         {
-            /* Prepare location widget: */
-            QWidget *pWidgetLocation = new QWidget(m_pToolBox);
-            if (pWidgetLocation)
+            /* There is no destination table in short wizard form: */
+            if (!m_fFullWizard)
+                m_pCntDestination->setVisible(false);
+
+            /* Create destination layout: */
+            m_pDestinationLayout = new QGridLayout(m_pCntDestination);
+            if (m_pDestinationLayout)
             {
-                /* Prepare location layout: */
-                QVBoxLayout *pLayoutLocation = new QVBoxLayout(pWidgetLocation);
-                if (pLayoutLocation)
+                /* Create destination selector: */
+                m_pDestinationComboBox = new QIComboBox(m_pCntDestination);
+                if (m_pDestinationComboBox)
                 {
-                    pLayoutLocation->setContentsMargins(0, 0, 0, 0);
+                    /* Add into layout: */
+                    m_pDestinationLayout->addWidget(m_pDestinationComboBox, 0, 0);
+                }
 
-                    /* Prepare provider combo-box: */
-                    m_pProviderComboBox = new QIComboBox(pWidgetLocation);
-                    if (m_pProviderComboBox)
-                        pLayoutLocation->addWidget(m_pProviderComboBox);
+                /* Create cloud container layout: */
+                m_pCloudContainerLayout = new QGridLayout;
+                if (m_pCloudContainerLayout)
+                {
+                    m_pCloudContainerLayout->setContentsMargins(0, 0, 0, 0);
+                    m_pCloudContainerLayout->setRowStretch(3, 1);
 
-                    /* Prepare profile layout: */
-                    QHBoxLayout *pLayoutProfile = new QHBoxLayout;
-                    if (pLayoutProfile)
+                    /* Create sub-layout: */
+                    QHBoxLayout *pSubLayout = new QHBoxLayout;
+                    if (pSubLayout)
                     {
-                        pLayoutProfile->setContentsMargins(0, 0, 0, 0);
-                        pLayoutProfile->setSpacing(1);
+                        pSubLayout->setContentsMargins(0, 0, 0, 0);
+                        pSubLayout->setSpacing(1);
 
-                        /* Prepare profile combo-box: */
-                        m_pProfileComboBox = new QIComboBox(pWidgetLocation);
-                        if (m_pProfileComboBox)
-                            pLayoutProfile->addWidget(m_pProfileComboBox);
-
-                        /* Prepare profile tool-button: */
-                        m_pProfileToolButton = new QIToolButton(pWidgetLocation);
-                        if (m_pProfileToolButton)
+                        /* Create account combo-box: */
+                        m_pAccountComboBox = new QIComboBox(m_pCntDestination);
+                        if (m_pAccountComboBox)
                         {
-                            m_pProfileToolButton->setIcon(UIIconPool::iconSet(":/cloud_profile_manager_16px.png",
+                            /* Add into layout: */
+                            pSubLayout->addWidget(m_pAccountComboBox);
+                        }
+                        /* Create account tool-button: */
+                        m_pAccountToolButton = new QIToolButton(m_pCntDestination);
+                        if (m_pAccountToolButton)
+                        {
+                            m_pAccountToolButton->setIcon(UIIconPool::iconSet(":/cloud_profile_manager_16px.png",
                                                                               ":/cloud_profile_manager_disabled_16px.png"));
-                            pLayoutProfile->addWidget(m_pProfileToolButton);
+
+                            /* Add into layout: */
+                            pSubLayout->addWidget(m_pAccountToolButton);
                         }
 
                         /* Add into layout: */
-                        pLayoutLocation->addLayout(pLayoutProfile);
+                        m_pCloudContainerLayout->addLayout(pSubLayout, 0, 0);
                     }
-                }
 
-                /* Add into tool-box: */
-                m_pToolBox->insertPage(0, pWidgetLocation, QString());
-            }
-
-            /* Prepare source widget: */
-            QWidget *pWidgetSource = new QWidget(m_pToolBox);
-            if (pWidgetSource)
-            {
-                /* Prepare source layout: */
-                QVBoxLayout *pLayoutSource = new QVBoxLayout(pWidgetSource);
-                if (pLayoutSource)
-                {
-                    pLayoutSource->setContentsMargins(0, 0, 0, 0);
-                    pLayoutSource->setSpacing(0);
-
-                    /* Prepare source tab-bar: */
-                    m_pSourceTabBar = new QTabBar(pWidgetSource);
-                    if (m_pSourceTabBar)
+                    /* Create profile property table: */
+                    m_pAccountPropertyTable = new QTableWidget(m_pCntDestination);
+                    if (m_pAccountPropertyTable)
                     {
-                        m_pSourceTabBar->addTab(QString());
-                        m_pSourceTabBar->addTab(QString());
+                        const QFontMetrics fm(m_pAccountPropertyTable->font());
+                        const int iFontWidth = fm.width('x');
+                        const int iTotalWidth = 50 * iFontWidth;
+                        const int iFontHeight = fm.height();
+                        const int iTotalHeight = 4 * iFontHeight;
+                        m_pAccountPropertyTable->setMinimumSize(QSize(iTotalWidth, iTotalHeight));
+                        //m_pAccountPropertyTable->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+                        m_pAccountPropertyTable->setAlternatingRowColors(true);
+                        m_pAccountPropertyTable->horizontalHeader()->setVisible(false);
+                        m_pAccountPropertyTable->verticalHeader()->setVisible(false);
+                        m_pAccountPropertyTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
                         /* Add into layout: */
-                        pLayoutSource->addWidget(m_pSourceTabBar);
+                        m_pCloudContainerLayout->addWidget(m_pAccountPropertyTable, 1, 0);
                     }
 
-                    /* Prepare source image list: */
-                    m_pSourceImageList = new QListWidget(pWidgetSource);
-                    if (m_pSourceImageList)
+                    /* Create profile instances table: */
+                    m_pAccountImageList = new QListWidget(m_pCntDestination);
+                    if (m_pAccountImageList)
                     {
-                        /* We want to have sorting enabled: */
-                        m_pSourceImageList->setSortingEnabled(true);
-                        /* A bit of look&feel: */
-                        m_pSourceImageList->setAlternatingRowColors(true);
+                        const QFontMetrics fm(m_pAccountImageList->font());
+                        const int iFontWidth = fm.width('x');
+                        const int iTotalWidth = 50 * iFontWidth;
+                        const int iFontHeight = fm.height();
+                        const int iTotalHeight = 4 * iFontHeight;
+                        m_pAccountImageList->setMinimumSize(QSize(iTotalWidth, iTotalHeight));
+                        //m_pAccountImageList->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+                        m_pAccountImageList->setAlternatingRowColors(true);
 
                         /* Add into layout: */
-                        pLayoutSource->addWidget(m_pSourceImageList);
+                        m_pCloudContainerLayout->addWidget(m_pAccountImageList, 2, 0);
                     }
+
+                    /* Add into layout: */
+                    m_pDestinationLayout->addLayout(m_pCloudContainerLayout, 1, 0);
                 }
-
-                /* Add into tool-box: */
-                m_pToolBox->insertPage(1, pWidgetSource, QString());
-            }
-
-            /* Prepare settings widget: */
-            QWidget *pWidgetSettings = new QWidget(m_pToolBox);
-            if (pWidgetSettings)
-            {
-                /* Prepare settings layout: */
-                QVBoxLayout *pLayoutSettings = new QVBoxLayout(pWidgetSettings);
-                if (pLayoutSettings)
-                {
-                    pLayoutSettings->setContentsMargins(0, 0, 0, 0);
-
-                    /* Prepare form editor widget: */
-                    m_pFormEditor = new UIFormEditorWidget(pWidgetSettings);
-                    if (m_pFormEditor)
-                    {
-                        /* Add into layout: */
-                        pLayoutSettings->addWidget(m_pFormEditor);
-                    }
-                }
-
-                /* Add into tool-box: */
-                m_pToolBox->insertPage(2, pWidgetSettings, QString());
             }
 
             /* Add into layout: */
-            pLayoutMain->addWidget(m_pToolBox);
+            pMainLayout->addWidget(m_pCntDestination);
+        }
+
+        /* Create settings container: */
+        m_pSettingsCnt = new QGroupBox(this);
+        if (m_pSettingsCnt)
+        {
+            /* Create form editor layout: */
+            QVBoxLayout *pFormEditorLayout = new QVBoxLayout(m_pSettingsCnt);
+            if (pFormEditorLayout)
+            {
+                /* Create form editor widget: */
+                m_pFormEditor = new UIFormEditorWidget(m_pSettingsCnt);
+                if (m_pFormEditor)
+                {
+                    /* Make form-editor fit 8 sections in height by default: */
+                    const int iDefaultSectionHeight = m_pFormEditor->verticalHeader()
+                                                    ? m_pFormEditor->verticalHeader()->defaultSectionSize()
+                                                    : 0;
+                    if (iDefaultSectionHeight > 0)
+                        m_pFormEditor->setMinimumHeight(8 * iDefaultSectionHeight);
+
+                    /* Add into layout: */
+                    pFormEditorLayout->addWidget(m_pFormEditor);
+                }
+            }
+
+            /* Add into layout: */
+            pMainLayout->addWidget(m_pSettingsCnt);
         }
     }
 
     /* Setup connections: */
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProfileRegistered,
-            this, &UIWizardNewCloudVMPageExpert::sltHandleProviderComboChange);
-    connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigCloudProfileChanged,
-            this, &UIWizardNewCloudVMPageExpert::sltHandleProviderComboChange);
-    connect(m_pProviderComboBox, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::activated),
-            this, &UIWizardNewCloudVMPageExpert::sltHandleProviderComboChange);
-    connect(m_pProfileComboBox, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::currentIndexChanged),
-            this, &UIWizardNewCloudVMPageExpert::sltHandleProfileComboChange);
-    connect(m_pProfileToolButton, &QIToolButton::clicked,
-            this, &UIWizardNewCloudVMPageExpert::sltHandleProfileButtonClick);
-    connect(m_pSourceTabBar, &QTabBar::currentChanged,
-            this, &UIWizardNewCloudVMPageExpert::sltHandleSourceTabBarChange);
-    connect(m_pSourceImageList, &QListWidget::currentRowChanged,
-            this, &UIWizardNewCloudVMPageExpert::sltHandleSourceImageChange);
+    if (gpManager)
+        connect(gpManager, &UIVirtualBoxManager::sigCloudProfileManagerChange,
+                this, &UIWizardNewCloudVMPageExpert::sltHandleDestinationChange);
+    connect(m_pDestinationComboBox, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::activated),
+            this, &UIWizardNewCloudVMPageExpert::sltHandleDestinationChange);
+    connect(m_pAccountComboBox, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::currentIndexChanged),
+            this, &UIWizardNewCloudVMPageExpert::sltHandleAccountComboChange);
+    connect(m_pAccountToolButton, &QIToolButton::clicked,
+            this, &UIWizardNewCloudVMPageExpert::sltHandleAccountButtonClick);
+    connect(m_pAccountImageList, &QListWidget::currentRowChanged,
+            this, &UIWizardNewCloudVMPageExpert::sltHandleInstanceListChange);
 }
 
-UIWizardNewCloudVM *UIWizardNewCloudVMPageExpert::wizard() const
+bool UIWizardNewCloudVMPageExpert::event(QEvent *pEvent)
 {
-    return qobject_cast<UIWizardNewCloudVM*>(UINativeWizardPage::wizard());
+    /* Handle known event types: */
+    switch (pEvent->type())
+    {
+        case QEvent::Show:
+        case QEvent::Resize:
+        {
+            /* Adjust profile property table: */
+            adjustAccountPropertyTable();
+            break;
+        }
+        default:
+            break;
+    }
+
+    /* Call to base-class: */
+    return UIWizardPage::event(pEvent);
 }
 
 void UIWizardNewCloudVMPageExpert::retranslateUi()
 {
-    /* Translate tool-box: */
-    if (m_pToolBox)
-    {
-        m_pToolBox->setPageTitle(0, UIWizardNewCloudVM::tr("Location"));
-        m_pToolBox->setPageTitle(1, UIWizardNewCloudVM::tr("Source"));
-        m_pToolBox->setPageTitle(2, UIWizardNewCloudVM::tr("Settings"));
-    }
+    /* Translate destination container: */
+    m_pCntDestination->setTitle(UIWizardNewCloudVM::tr("Destination"));
 
-    /* Translate received values of Location combo-box.
+    /* Translate received values of Destination combo-box.
      * We are enumerating starting from 0 for simplicity: */
-    if (m_pProviderComboBox)
-        for (int i = 0; i < m_pProviderComboBox->count(); ++i)
-        {
-            m_pProviderComboBox->setItemText(i, m_pProviderComboBox->itemData(i, ProviderData_Name).toString());
-            m_pProviderComboBox->setItemData(i, UIWizardNewCloudVM::tr("Create VM for cloud service provider."), Qt::ToolTipRole);
-        }
-
-    /* Translate source tab-bar: */
-    if (m_pSourceTabBar)
+    for (int i = 0; i < m_pDestinationComboBox->count(); ++i)
     {
-        m_pSourceTabBar->setTabText(0, UIWizardNewCloudVM::tr("&Images"));
-        m_pSourceTabBar->setTabText(1, UIWizardNewCloudVM::tr("&Boot Volumes"));
+        m_pDestinationComboBox->setItemText(i, m_pDestinationComboBox->itemData(i, DestinationData_Name).toString());
+        m_pDestinationComboBox->setItemData(i, UIWizardNewCloudVM::tr("Create VM for cloud service provider."), Qt::ToolTipRole);
     }
 
-    /* Translate profile stuff: */
-    if (m_pProfileToolButton)
-        m_pProfileToolButton->setToolTip(UIWizardNewCloudVM::tr("Open Cloud Profile Manager..."));
+    /* Translate settings container: */
+    m_pSettingsCnt->setTitle(UIWizardNewCloudVM::tr("Settings"));
 
     /* Update tool-tips: */
-    updateComboToolTip(m_pProviderComboBox);
+    updateDestinationComboToolTip();
+    updateAccountPropertyTableToolTips();
 }
 
 void UIWizardNewCloudVMPageExpert::initializePage()
 {
-    /* Choose 1st tool to be chosen initially: */
-    m_pToolBox->setCurrentPage(0);
-    /* Make sure form-editor knows notification-center: */
-    m_pFormEditor->setNotificationCenter(wizard()->notificationCenter());
-    /* Populate providers: */
-    populateProviders(m_pProviderComboBox, wizard()->notificationCenter());
-    /* Translate providers: */
+    /* If wasn't polished yet: */
+    if (!UIWizardNewCloudVMPage1::m_fPolished || !UIWizardNewCloudVMPage2::m_fPolished)
+    {
+        if (m_fFullWizard)
+        {
+            /* Populate destinations: */
+            populateDestinations();
+            /* Choose one of them, asynchronously: */
+            QMetaObject::invokeMethod(this, "sltHandleDestinationChange", Qt::QueuedConnection);
+        }
+        else
+        {
+            /* Generate VSD form, asynchronously: */
+            QMetaObject::invokeMethod(this, "sltInitShortWizardForm", Qt::QueuedConnection);
+        }
+        UIWizardNewCloudVMPage1::m_fPolished = true;
+        UIWizardNewCloudVMPage2::m_fPolished = true;
+    }
+
+    /* Translate page: */
     retranslateUi();
-    /* Make image list focused by default: */
-    m_pSourceImageList->setFocus();
-    /* Fetch it, asynchronously: */
-    QMetaObject::invokeMethod(this, "sltHandleProviderComboChange", Qt::QueuedConnection);
 }
 
 bool UIWizardNewCloudVMPageExpert::isComplete() const
@@ -248,8 +258,8 @@ bool UIWizardNewCloudVMPageExpert::isComplete() const
     bool fResult = true;
 
     /* Check cloud settings: */
-    fResult =    wizard()->client().isNotNull()
-              && wizard()->vsd().isNotNull();
+    fResult =    UIWizardNewCloudVMPage1::client().isNotNull()
+              && UIWizardNewCloudVMPage1::vsd().isNotNull();
 
     /* Return result: */
     return fResult;
@@ -260,101 +270,89 @@ bool UIWizardNewCloudVMPageExpert::validatePage()
     /* Initial result: */
     bool fResult = true;
 
+    /* Lock finish button: */
+    startProcessing();
+
     /* Make sure table has own data committed: */
     m_pFormEditor->makeSureEditorDataCommitted();
 
     /* Check whether we have proper VSD form: */
-    CVirtualSystemDescriptionForm comForm = wizard()->vsdForm();
+    CVirtualSystemDescriptionForm comForm = UIWizardNewCloudVMPage1::vsdForm();
     /* Give changed VSD back: */
     if (comForm.isNotNull())
     {
         comForm.GetVirtualSystemDescription();
         fResult = comForm.isOk();
         if (!fResult)
-            UINotificationMessage::cannotAcquireVirtualSystemDescriptionFormParameter(comForm, wizard()->notificationCenter());
+            msgCenter().cannotAcquireVirtualSystemDescriptionFormProperty(comForm);
     }
 
     /* Try to create cloud VM: */
     if (fResult)
     {
-        fResult = wizard()->createCloudVM();
+        fResult = qobject_cast<UIWizardNewCloudVM*>(wizard())->createCloudVM();
 
         /* If the final step failed we could try
          * sugest user more valid form this time: */
         if (!fResult)
-        {
-            wizard()->setVSDForm(CVirtualSystemDescriptionForm());
-            wizard()->createVSDForm();
-            updatePropertiesTable();
-            emit completeChanged();
-        }
+            sltInitShortWizardForm();
     }
+
+    /* Unlock finish button: */
+    endProcessing();
 
     /* Return result: */
     return fResult;
 }
 
-void UIWizardNewCloudVMPageExpert::sltHandleProviderComboChange()
+void UIWizardNewCloudVMPageExpert::sltHandleDestinationChange()
 {
-    /* Update combo tool-tip: */
-    updateComboToolTip(m_pProviderComboBox);
+    /* Update tool-tip: */
+    updateDestinationComboToolTip();
 
-    /* Update wizard fields: */
-    wizard()->setProviderShortName(m_pProviderComboBox->currentData(ProviderData_ShortName).toString());
+    /* Make image list focused by default: */
+    m_pAccountImageList->setFocus();
 
-    /* Update profiles: */
-    populateProfiles(m_pProfileComboBox, wizard()->notificationCenter(), wizard()->providerShortName(), wizard()->profileName());
-    sltHandleProfileComboChange();
-
-    /* Notify about changes: */
+    /* Refresh required settings: */
+    populateAccounts();
+    populateAccountProperties();
+    populateAccountImages();
+    populateFormProperties();
+    refreshFormPropertiesTable();
     emit completeChanged();
 }
 
-void UIWizardNewCloudVMPageExpert::sltHandleProfileComboChange()
+void UIWizardNewCloudVMPageExpert::sltHandleAccountComboChange()
 {
-    /* Update wizard fields: */
-    wizard()->setProfileName(m_pProfileComboBox->currentData(ProfileData_Name).toString());
-    wizard()->setClient(cloudClientByName(wizard()->providerShortName(), wizard()->profileName(), wizard()->notificationCenter()));
-
-    /* Update source: */
-    sltHandleSourceTabBarChange();
-
-    /* Notify about changes: */
+    /* Refresh required settings: */
+    populateAccountProperties();
+    populateAccountImages();
+    populateFormProperties();
+    refreshFormPropertiesTable();
     emit completeChanged();
 }
 
-void UIWizardNewCloudVMPageExpert::sltHandleProfileButtonClick()
+void UIWizardNewCloudVMPageExpert::sltHandleAccountButtonClick()
 {
+    /* Open Cloud Profile Manager: */
     if (gpManager)
         gpManager->openCloudProfileManager();
 }
 
-void UIWizardNewCloudVMPageExpert::sltHandleSourceTabBarChange()
+void UIWizardNewCloudVMPageExpert::sltHandleInstanceListChange()
 {
-    /* Update source type: */
-    wizard()->wizardButton(WizardButtonType_Expert)->setEnabled(false);
-    populateSourceImages(m_pSourceImageList, m_pSourceTabBar, wizard()->notificationCenter(), wizard()->client());
-    wizard()->wizardButton(WizardButtonType_Expert)->setEnabled(true);
-    sltHandleSourceImageChange();
-
-    /* Notify about changes: */
+    /* Refresh required settings: */
+    populateFormProperties();
+    refreshFormPropertiesTable();
     emit completeChanged();
 }
 
-void UIWizardNewCloudVMPageExpert::sltHandleSourceImageChange()
+void UIWizardNewCloudVMPageExpert::sltInitShortWizardForm()
 {
-    /* Update source image & VSD form: */
-    m_strSourceImageId = currentListWidgetData(m_pSourceImageList);
-    wizard()->setVSD(createVirtualSystemDescription(wizard()->notificationCenter()));
-    populateFormProperties(wizard()->vsd(), wizard(), m_pSourceTabBar, m_strSourceImageId);
-    wizard()->createVSDForm();
-    updatePropertiesTable();
+    /* Create Virtual System Description Form: */
+    qobject_cast<UIWizardNewCloudVM*>(wizardImp())->createVSDForm();
 
-    /* Notify about changes: */
+    /* Refresh form properties table: */
+    refreshFormPropertiesTable();
     emit completeChanged();
-}
-
-void UIWizardNewCloudVMPageExpert::updatePropertiesTable()
-{
-    refreshFormPropertiesTable(m_pFormEditor, wizard()->vsdForm());
 }

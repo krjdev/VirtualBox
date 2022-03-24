@@ -1,10 +1,10 @@
-/* $Id: IOMAll.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: IOMAll.cpp $ */
 /** @file
  * IOM - Input / Output Monitor - Any Context.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,14 +64,11 @@ VMMDECL(VBOXSTRICTRC) IOMIOPortRead(PVMCC pVM, PVMCPU pVCpu, RTIOPORT Port, uint
 
     /* For lookups we need to share lock IOM. */
     int rc2 = IOM_LOCK_SHARED(pVM);
-    if (RT_SUCCESS(rc2))
-    { /* likely */ }
 #ifndef IN_RING3
-    else if (rc2 == VERR_SEM_BUSY)
+    if (rc2 == VERR_SEM_BUSY)
         return VINF_IOM_R3_IOPORT_READ;
 #endif
-    else
-        AssertMsgFailedReturn(("rc2=%Rrc\n", rc2), rc2);
+    AssertRC(rc2);
 
     /*
      * Get the entry for the current context.
@@ -110,13 +107,13 @@ VMMDECL(VBOXSTRICTRC) IOMIOPortRead(PVMCC pVM, PVMCPU pVCpu, RTIOPORT Port, uint
         /*
          * Call the device.
          */
-        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pVM, pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_READ);
+        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_READ);
         if (rcStrict == VINF_SUCCESS)
         {
             STAM_PROFILE_START(&pStats->CTX_SUFF_Z(ProfIn), a);
             rcStrict = pfnInCallback(pDevIns, pvUser, fFlags & IOM_IOPORT_F_ABS ? Port : offPort, pu32Value, (unsigned)cbValue);
             STAM_PROFILE_STOP(&pStats->CTX_SUFF_Z(ProfIn), a);
-            PDMCritSectLeave(pVM, pDevIns->CTX_SUFF(pCritSectRo));
+            PDMCritSectLeave(pDevIns->CTX_SUFF(pCritSectRo));
 
 #ifndef IN_RING3
             if (rcStrict == VINF_IOM_R3_IOPORT_READ)
@@ -191,14 +188,11 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortReadString(PVMCC pVM, PVMCPU pVCpu, RTIOPORT
 
     /* For lookups we need to share lock IOM. */
     int rc2 = IOM_LOCK_SHARED(pVM);
-    if (RT_SUCCESS(rc2))
-    { /* likely */ }
 #ifndef IN_RING3
-    else if (rc2 == VERR_SEM_BUSY)
+    if (rc2 == VERR_SEM_BUSY)
         return VINF_IOM_R3_IOPORT_READ;
 #endif
-    else
-        AssertMsgFailedReturn(("rc2=%Rrc\n", rc2), rc2);
+    AssertRC(rc2);
 
     const uint32_t cRequestedTransfers = *pcTransfers;
     Assert(cRequestedTransfers > 0);
@@ -241,7 +235,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortReadString(PVMCC pVM, PVMCPU pVCpu, RTIOPORT
         /*
          * Call the device.
          */
-        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pVM, pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_READ);
+        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_READ);
         if (rcStrict == VINF_SUCCESS)
         {
             /*
@@ -287,7 +281,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortReadString(PVMCC pVM, PVMCPU pVCpu, RTIOPORT
                 } while (   *pcTransfers > 0
                          && rcStrict == VINF_SUCCESS);
             }
-            PDMCritSectLeave(pVM, pDevIns->CTX_SUFF(pCritSectRo));
+            PDMCritSectLeave(pDevIns->CTX_SUFF(pCritSectRo));
 
 #ifdef VBOX_WITH_STATISTICS
 # ifndef IN_RING3
@@ -370,14 +364,11 @@ VMMDECL(VBOXSTRICTRC) IOMIOPortWrite(PVMCC pVM, PVMCPU pVCpu, RTIOPORT Port, uin
 
     /* For lookups we need to share lock IOM. */
     int rc2 = IOM_LOCK_SHARED(pVM);
-    if (RT_SUCCESS(rc2))
-    { /* likely */ }
 #ifndef IN_RING3
-    else if (rc2 == VERR_SEM_BUSY)
+    if (rc2 == VERR_SEM_BUSY)
         return iomIOPortRing3WritePending(pVCpu, Port, u32Value, cbValue);
 #endif
-    else
-        AssertMsgFailedReturn(("rc2=%Rrc\n", rc2), rc2);
+    AssertRC(rc2);
 
     /*
      * Get the entry for the current context.
@@ -416,14 +407,14 @@ VMMDECL(VBOXSTRICTRC) IOMIOPortWrite(PVMCC pVM, PVMCPU pVCpu, RTIOPORT Port, uin
         /*
          * Call the device.
          */
-        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pVM, pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_WRITE);
+        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_WRITE);
         if (rcStrict == VINF_SUCCESS)
         {
             STAM_PROFILE_START(&pStats->CTX_SUFF_Z(ProfOut), a);
             rcStrict = pfnOutCallback(pDevIns, pvUser, fFlags & IOM_IOPORT_F_ABS ? Port : offPort, u32Value, (unsigned)cbValue);
             STAM_PROFILE_STOP(&pStats->CTX_SUFF_Z(ProfOut), a);
 
-            PDMCritSectLeave(pVM, pDevIns->CTX_SUFF(pCritSectRo));
+            PDMCritSectLeave(pDevIns->CTX_SUFF(pCritSectRo));
 
 #ifdef VBOX_WITH_STATISTICS
 # ifndef IN_RING3
@@ -483,14 +474,11 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortWriteString(PVMCC pVM, PVMCPU pVCpu, RTIOPOR
 
     /* Take the IOM lock before performing any device I/O. */
     int rc2 = IOM_LOCK_SHARED(pVM);
-    if (RT_SUCCESS(rc2))
-    { /* likely */ }
 #ifndef IN_RING3
-    else if (rc2 == VERR_SEM_BUSY)
+    if (rc2 == VERR_SEM_BUSY)
         return VINF_IOM_R3_IOPORT_WRITE;
 #endif
-    else
-        AssertMsgFailedReturn(("rc2=%Rrc\n", rc2), rc2);
+    AssertRC(rc2);
 
     const uint32_t cRequestedTransfers = *pcTransfers;
     Assert(cRequestedTransfers > 0);
@@ -533,7 +521,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortWriteString(PVMCC pVM, PVMCPU pVCpu, RTIOPOR
         /*
          * Call the device.
          */
-        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pVM, pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_WRITE);
+        VBOXSTRICTRC rcStrict = PDMCritSectEnter(pDevIns->CTX_SUFF(pCritSectRo), VINF_IOM_R3_IOPORT_WRITE);
         if (rcStrict == VINF_SUCCESS)
         {
             /*
@@ -573,7 +561,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortWriteString(PVMCC pVM, PVMCPU pVCpu, RTIOPOR
                          && rcStrict == VINF_SUCCESS);
             }
 
-            PDMCritSectLeave(pVM, pDevIns->CTX_SUFF(pCritSectRo));
+            PDMCritSectLeave(pDevIns->CTX_SUFF(pCritSectRo));
 
 #ifdef VBOX_WITH_STATISTICS
 # ifndef IN_RING3

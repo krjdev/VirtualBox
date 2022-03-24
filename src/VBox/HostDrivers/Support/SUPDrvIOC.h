@@ -1,10 +1,10 @@
-/* $Id: SUPDrvIOC.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPDrvIOC.h $ */
 /** @file
  * VirtualBox Support Driver - IOCtl definitions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,9 +39,9 @@
  * The SUP_IOCTL_FLAG macro is used to separate requests from 32-bit
  * and 64-bit processes.
  */
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64) || defined(RT_ARCH_ARM64)
+#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_SPARC64)
 # define SUP_IOCTL_FLAG     128
-#elif defined(RT_ARCH_X86) || defined(RT_ARCH_SPARC)   || defined(RT_ARCH_ARM32)
+#elif defined(RT_ARCH_X86) || defined(RT_ARCH_SPARC)
 # define SUP_IOCTL_FLAG     0
 #else
 # error "dunno which arch this is!"
@@ -141,7 +141,7 @@
 *******************************************************************************/
 #ifdef RT_ARCH_AMD64
 # pragma pack(8)                        /* paranoia. */
-#elif defined(RT_ARCH_X86)
+#else
 # pragma pack(4)                        /* paranoia. */
 #endif
 
@@ -220,9 +220,9 @@ typedef SUPREQHDR *PSUPREQHDR;
  *  -# When increment the major number, execute all pending work.
  *
  * @todo Pending work on next major version change:
- *          - nothing
+ *          - Nothing.
  */
-#define SUPDRV_IOC_VERSION                              0x00330002
+#define SUPDRV_IOC_VERSION                              0x00320000
 
 /** SUP_IOCTL_COOKIE. */
 typedef struct SUPCOOKIE
@@ -316,12 +316,9 @@ typedef struct SUPLDROPEN
     {
         struct
         {
-            /** Size of the image we'll be loading (including all tables).
-             * Zero if the caller does not wish to prepare loading anything, then
-             * cbImageBits must be zero too ofc. */
+            /** Size of the image we'll be loading (including all tables). */
             uint32_t        cbImageWithEverything;
-            /** The size of the image bits. (Less or equal to cbImageWithTabs.)
-             * Zero if the caller does not wish to prepare loading anything. */
+            /** The size of the image bits. (Less or equal to cbImageWithTabs.) */
             uint32_t        cbImageBits;
             /** Image name.
              * This is the NAME of the image, not the file name. It is used
@@ -362,7 +359,7 @@ typedef struct SUPLDROPEN
  * @returns Appropriate error code on failure.
  * @param   hMod        Image handle for use in APIs.
  */
-typedef DECLCALLBACKTYPE(int, FNR0MODULEINIT,(void *hMod));
+typedef DECLCALLBACK(int) FNR0MODULEINIT(void *hMod);
 /** Pointer to a FNR0MODULEINIT(). */
 typedef R0PTRTYPE(FNR0MODULEINIT *) PFNR0MODULEINIT;
 
@@ -372,7 +369,7 @@ typedef R0PTRTYPE(FNR0MODULEINIT *) PFNR0MODULEINIT;
  *
  * @param   hMod        Image handle for use in APIs.
  */
-typedef DECLCALLBACKTYPE(void, FNR0MODULETERM,(void *hMod));
+typedef DECLCALLBACK(void) FNR0MODULETERM(void *hMod);
 /** Pointer to a FNR0MODULETERM(). */
 typedef R0PTRTYPE(FNR0MODULETERM *) PFNR0MODULETERM;
 
@@ -447,6 +444,8 @@ typedef struct SUPLDRLOAD
                 /** SUPLDRLOADEP_VMMR0. */
                 struct
                 {
+                    /** The module handle (i.e. address). */
+                    RTR0PTR                 pvVMMR0;
                     /** Address of VMMR0EntryFast function. */
                     RTR0PTR                 pvVMMR0EntryFast;
                     /** Address of VMMR0EntryEx function. */
@@ -1707,9 +1706,7 @@ typedef struct SUPGETHWVIRTMSRS
 /** @} */
 
 
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-# pragma pack()                         /* paranoia */
-#endif
+#pragma pack()                          /* paranoia */
 
 #endif /* !VBOX_INCLUDED_SRC_Support_SUPDrvIOC_h */
 

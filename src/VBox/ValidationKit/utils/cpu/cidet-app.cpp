@@ -1,10 +1,10 @@
-/* $Id: cidet-app.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: cidet-app.cpp $ */
 /** @file
  * CPU Instruction Decoding & Execution Tests - Ring-3 Driver Application.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -185,7 +185,7 @@ DECLASM(void) CidetAppExecute(PCIDETCPUCTX pSaveCtx, PCCIDETCPUCTX pRestoreCtx);
  */
 
 #ifdef RT_OS_WINDOWS
-static int CidetAppXcptFilter(EXCEPTION_POINTERS *pXcptPtrs) RT_NOTHROW_DEF
+static int CidetAppXcptFilter(EXCEPTION_POINTERS *pXcptPtrs)
 {
     /*
      * Grab the this point. We expect at most one signal.
@@ -381,7 +381,7 @@ static int CidetAppXcptFilter(EXCEPTION_POINTERS *pXcptPtrs) RT_NOTHROW_DEF
  * @returns Long jumps or terminates the process.
  * @param   pXcptPtrs   The exception record.
  */
-static LONG CALLBACK CidetAppVectoredXcptHandler(EXCEPTION_POINTERS *pXcptPtrs) RT_NOTHROW_DEF
+static LONG CALLBACK CidetAppVectoredXcptHandler(EXCEPTION_POINTERS *pXcptPtrs)
 {
     RTStrmPrintf(g_pStdErr, "CidetAppVectoredXcptHandler!\n");
     CidetAppXcptFilter(pXcptPtrs);
@@ -397,7 +397,7 @@ static LONG CALLBACK CidetAppVectoredXcptHandler(EXCEPTION_POINTERS *pXcptPtrs) 
  * @returns Long jumps or terminates the process.
  * @param   pXcptPtrs   The exception record.
  */
-static LONG CALLBACK CidetAppUnhandledXcptFilter(EXCEPTION_POINTERS *pXcptPtrs) RT_NOTHROW_DEF
+static LONG CALLBACK CidetAppUnhandledXcptFilter(EXCEPTION_POINTERS *pXcptPtrs)
 {
     RTStrmPrintf(g_pStdErr, "CidetAppUnhandledXcptFilter!\n");
     CidetAppXcptFilter(pXcptPtrs);

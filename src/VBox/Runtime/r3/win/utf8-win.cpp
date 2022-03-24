@@ -1,10 +1,10 @@
-/* $Id: utf8-win.cpp 93640 2022-02-07 14:02:44Z vboxsync $ */
+/* $Id: utf8-win.cpp $ */
 /** @file
  * IPRT - UTF8 helpers.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,21 +49,19 @@ RTR3DECL(int)  RTStrUtf8ToCurrentCPExTag(char **ppszString, const char *pszStrin
 {
     Assert(ppszString);
     Assert(pszString);
-    *ppszString = NULL;
 
     /*
-     * If the ANSI codepage (CP_ACP) is UTF-8, no translation is needed.
-     * Same goes for empty strings.
+     * Check for zero length input string.
      */
-    if (   cchString == 0
-        || *pszString == '\0')
-        return RTStrDupNExTag(ppszString, pszString, 0, pszTag);
-    if (GetACP() == CP_UTF8)
+    if (cchString < 1 || !*pszString)
     {
-        int rc = RTStrValidateEncodingEx(pszString, cchString, 0);
-        AssertRCReturn(rc, rc);
-        return RTStrDupNExTag(ppszString, pszString, cchString, pszTag);
+        *ppszString = (char *)RTMemTmpAllocZTag(sizeof(char), pszTag);
+        if (*ppszString)
+            return VINF_SUCCESS;
+        return VERR_NO_TMP_MEMORY;
     }
+
+    *ppszString = NULL;
 
     /*
      * Convert to wide char first.
@@ -116,32 +114,30 @@ RTR3DECL(int)  RTStrUtf8ToCurrentCPExTag(char **ppszString, const char *pszStrin
     return rc;
 }
 
-static int rtStrCPToUtf8Tag(char **ppszString, const char *pszString, uint32_t uCodePage, const char *pszTag)
+
+RTR3DECL(int)  RTStrCurrentCPToUtf8Tag(char **ppszString, const char *pszString, const char *pszTag)
 {
     Assert(ppszString);
     Assert(pszString);
     *ppszString = NULL;
 
-    /*
-     * If the ANSI codepage (CP_ACP) is UTF-8, no translation is needed.
-     * Same goes for empty strings.
-     */
-    if (*pszString == '\0')
-        return RTStrDupExTag(ppszString, pszString, pszTag);
-    if (GetACP() == CP_UTF8)
-    {
-        int rc = RTStrValidateEncoding(pszString);
-        AssertRCReturn(rc, rc);
-        return RTStrDupExTag(ppszString, pszString, pszTag);
-    }
-
     /** @todo is there a quicker way? Currently: ACP -> UTF-16 -> UTF-8 */
+
+    size_t cch = strlen(pszString);
+    if (cch <= 0)
+    {
+        /* zero length string passed. */
+        *ppszString = (char *)RTMemTmpAllocZTag(sizeof(char), pszTag);
+        if (*ppszString)
+            return VINF_SUCCESS;
+        return VERR_NO_TMP_MEMORY;
+    }
 
     /*
      * First calc result string length.
      */
     int rc;
-    int cwc = MultiByteToWideChar((UINT)uCodePage, 0, pszString, -1, NULL, 0);
+    int cwc = MultiByteToWideChar(CP_ACP, 0, pszString, -1, NULL, 0);
     if (cwc > 0)
     {
         /*
@@ -153,7 +149,7 @@ static int rtStrCPToUtf8Tag(char **ppszString, const char *pszString, uint32_t u
             /*
              * Do the translation.
              */
-            if (MultiByteToWideChar((UINT)uCodePage, 0, pszString, -1, pwszString, cwc) > 0)
+            if (MultiByteToWideChar(CP_ACP, 0, pszString, -1, pwszString, cwc) > 0)
             {
                 /*
                  * Now we got UTF-16, convert it to UTF-8
@@ -181,14 +177,3 @@ static int rtStrCPToUtf8Tag(char **ppszString, const char *pszString, uint32_t u
     return rc;
 }
 
-
-RTR3DECL(int)  RTStrCurrentCPToUtf8Tag(char **ppszString, const char *pszString, const char *pszTag)
-{
-    return rtStrCPToUtf8Tag(ppszString, pszString, CP_ACP, pszTag);
-}
-
-
-RTR3DECL(int)  RTStrConsoleCPToUtf8Tag(char **ppszString, const char *pszString, const char *pszTag)
-{
-    return rtStrCPToUtf8Tag(ppszString, pszString, GetConsoleCP(), pszTag);
-}

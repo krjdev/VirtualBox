@@ -1,11 +1,11 @@
-/* $Id: GuestOSTypeImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestOSTypeImpl.h $ */
 /** @file
  *
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,7 @@ class ATL_NO_VTABLE GuestOSType :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(GuestOSType)
+    DECLARE_EMPTY_CTOR_DTOR(GuestOSType)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -47,8 +47,6 @@ public:
     bool i_recommendedX2APIC() const { return !!(mOSHint & VBOXOSHINT_X2APIC); }
     bool i_recommendedVirtEx() const { return !!(mOSHint & VBOXOSHINT_HWVIRTEX); }
     bool i_recommendedEFI() const { return !!(mOSHint & VBOXOSHINT_EFI); }
-    bool i_recommendedEFISecureBoot() const { return !!(mOSHint & VBOXOSHINT_EFI_SECUREBOOT); }
-    bool i_recommendedTpm2() const { return !!(mOSHint & VBOXOSHINT_TPM2); }
     NetworkAdapterType_T i_networkAdapterType() const { return mNetworkAdapterType; }
     uint32_t i_numSerialEnabled() const { return mNumSerialEnabled; }
 
@@ -80,7 +78,6 @@ private:
     HRESULT getRecommendedUSBTablet(BOOL *aRecommendedUSBTablet);
     HRESULT getRecommendedRTCUseUTC(BOOL *aRecommendedRTCUseUTC);
     HRESULT getRecommendedChipset(ChipsetType_T *aChipsetType);
-    HRESULT getRecommendedIommuType(IommuType_T *aIommuType);
     HRESULT getRecommendedAudioController(AudioControllerType_T *aAudioController);
     HRESULT getRecommendedAudioCodec(AudioCodecType_T *aAudioCodec);
     HRESULT getRecommendedFloppy(BOOL *aRecommendedFloppy);
@@ -89,9 +86,6 @@ private:
     HRESULT getRecommendedTFReset(BOOL *aRecommendedTFReset);
     HRESULT getRecommendedX2APIC(BOOL *aRecommendedX2APIC);
     HRESULT getRecommendedCPUCount(ULONG *aRecommendedCPUCount);
-    HRESULT getRecommendedTpmType(TpmType_T *aRecommendedTpmType);
-    HRESULT getRecommendedSecureBoot(BOOL *aRecommendedSecureBoot);
-    HRESULT getRecommendedWDDMGraphics(BOOL *aRecommendedWDDMGraphics);
 
 
     const Utf8Str mFamilyID;
@@ -105,6 +99,7 @@ private:
     const GraphicsControllerType_T mGraphicsControllerType;
     const uint32_t mVRAMSize;
     const uint64_t mHDDSize;
+    const uint32_t mMonitorCount;
     const NetworkAdapterType_T mNetworkAdapterType;
     const uint32_t mNumSerialEnabled;
     const StorageControllerType_T mDVDStorageControllerType;
@@ -112,7 +107,6 @@ private:
     const StorageControllerType_T mHDStorageControllerType;
     const StorageBus_T mHDStorageBusType;
     const ChipsetType_T mChipsetType;
-    const IommuType_T mIommuType;
     const AudioControllerType_T mAudioControllerType;
     const AudioCodecType_T mAudioCodecType;
 };

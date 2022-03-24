@@ -1,10 +1,10 @@
-/* $Id: semspinmutex-r3-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semspinmutex-r3-generic.cpp $ */
 /** @file
  * IPRT - Spinning Mutex Semaphores, Ring-3, Generic.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

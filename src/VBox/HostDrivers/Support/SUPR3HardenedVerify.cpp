@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedVerify.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPR3HardenedVerify.cpp $ */
 /** @file
  * VirtualBox Support Library - Verification of Hardened Installation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1050,7 +1050,7 @@ static int supR3HardenedSetErrorN(int rc, PRTERRINFO pErrInfo, unsigned cMsgs, .
         while (cMsgs-- > 0 && cbErr > 0)
         {
             const char *pszMsg = va_arg(va,  const char *);
-            size_t cchMsg = RT_VALID_PTR(pszMsg) ? suplibHardenedStrLen(pszMsg) : 0;
+            size_t cchMsg = VALID_PTR(pszMsg) ? suplibHardenedStrLen(pszMsg) : 0;
             if (cchMsg >= cbErr)
                 cchMsg = cbErr - 1;
             suplibHardenedMemCopy(pszErr, pszMsg, cchMsg);

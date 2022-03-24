@@ -1,10 +1,10 @@
-/* $Id: tstDnDTransferObject.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstDnDTransferObject.cpp $ */
 /** @file
  * DnD URI object (DNDTRANSFEROBJECT) tests.
  */
 
 /*
- * Copyright (C) 2020-2022 Oracle Corporation
+ * Copyright (C) 2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,9 +48,7 @@ static void tstPaths(RTTEST hTest)
      * Paths handling.
      */
     RTTEST_CHECK_RC_OK(hTest, DnDTransferObjectInitEx(&Obj, DNDTRANSFEROBJTYPE_FILE, "", "/rel/path/to/dst"));
-    RTTestDisableAssertions(hTest);
     RTTEST_CHECK_RC   (hTest, DnDTransferObjectInitEx(&Obj, DNDTRANSFEROBJTYPE_FILE, "", "/rel/path/to/dst"), VERR_WRONG_ORDER);
-    RTTestRestoreAssertions(hTest);
     DnDTransferObjectReset(&Obj);
 
     RTTEST_CHECK_RC_OK(hTest, DnDTransferObjectInitEx(&Obj, DNDTRANSFEROBJTYPE_FILE, "/src/path1", "dst/path2"));
@@ -84,10 +82,8 @@ static void tstPaths(RTTEST hTest)
      * Invalid stuff.
      */
     DnDTransferObjectReset(&Obj);
-    RTTestDisableAssertions(hTest);
     RTTEST_CHECK(hTest, DnDTransferObjectInitEx(&Obj, DNDTRANSFEROBJTYPE_DIRECTORY, "/src/path3", "../../dst/path3") == VERR_INVALID_PARAMETER);
     RTTEST_CHECK(hTest, DnDTransferObjectInitEx(&Obj, DNDTRANSFEROBJTYPE_DIRECTORY, "/src/../../path3", "dst/path3") == VERR_INVALID_PARAMETER);
-    RTTestRestoreAssertions(hTest);
 
     /*
      * Reset handling.

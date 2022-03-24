@@ -1,14 +1,8 @@
 /** @file
   ACPI table parser
 
-  Copyright (c) 2016 - 2020, ARM Limited. All rights reserved.
+  Copyright (c) 2016 - 2019, ARM Limited. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
-
-  @par Glossary:
-    - Sbbr or SBBR   - Server Base Boot Requirements
-
-  @par Reference(s):
-    - Arm Server Base Boot Requirements 1.2, September 2019
 **/
 
 #include <Uefi.h>
@@ -17,11 +11,6 @@
 #include "AcpiParser.h"
 #include "AcpiTableParser.h"
 #include "AcpiView.h"
-#include "AcpiViewConfig.h"
-
-#if defined(MDE_CPU_ARM) || defined (MDE_CPU_AARCH64)
-#include "Arm/SbbrValidator.h"
-#endif
 
 /**
   A list of registered ACPI table parsers.
@@ -187,7 +176,6 @@ ProcessAcpiTable (
   CONST UINT32* AcpiTableSignature;
   CONST UINT32* AcpiTableLength;
   CONST UINT8*  AcpiTableRevision;
-  CONST UINT8*  SignaturePtr;
   PARSE_ACPI_TABLE_PROC ParserProc;
 
   ParseAcpiHeader (
@@ -205,33 +193,10 @@ ProcessAcpiTable (
 
   if (Trace) {
     DumpRaw (Ptr, *AcpiTableLength);
-
-    // Do not process the ACPI table any further if the table length read
-    // is invalid. The ACPI table should at least contain the table header.
-    if (*AcpiTableLength < sizeof (EFI_ACPI_DESCRIPTION_HEADER)) {
-      SignaturePtr = (CONST UINT8*)AcpiTableSignature;
-      IncrementErrorCount ();
-      Print (
-        L"ERROR: Invalid %c%c%c%c table length. Length = %d\n",
-        SignaturePtr[0],
-        SignaturePtr[1],
-        SignaturePtr[2],
-        SignaturePtr[3],
-        *AcpiTableLength
-        );
-      return;
-    }
-
     if (GetConsistencyChecking ()) {
       VerifyChecksum (TRUE, Ptr, *AcpiTableLength);
     }
   }
-
-#if defined(MDE_CPU_ARM) || defined (MDE_CPU_AARCH64)
-  if (GetMandatoryTableValidate ()) {
-    ArmSbbrIncrementTableCount (*AcpiTableSignature);
-  }
-#endif
 
   Status = GetParser (*AcpiTableSignature, &ParserProc);
   if (EFI_ERROR (Status)) {

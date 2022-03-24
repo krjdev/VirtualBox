@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: vboxconfig.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: vboxconfig.sh $
 ## @file
 # VirtualBox Configuration Script, Solaris host.
 #
 
 #
-# Copyright (C) 2009-2022 Oracle Corporation
+# Copyright (C) 2009-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -26,9 +26,7 @@ export LC_ALL
 LANG=C
 export LANG
 
-VBOX_INSTALL_PATH="$PKG_INSTALL_ROOT/opt/VirtualBox"
-CONFIG_DIR=/etc/vbox
-CONFIG_FILES=filelist
+DIR_VBOXBASE="$PKG_INSTALL_ROOT/opt/VirtualBox"
 DIR_CONF="$PKG_INSTALL_ROOT/platform/i86pc/kernel/drv"
 DIR_MOD_32="$PKG_INSTALL_ROOT/platform/i86pc/kernel/drv"
 DIR_MOD_64="$DIR_MOD_32/amd64"
@@ -892,48 +890,41 @@ remove_drivers()
     return 0
 }
 
-# install_python_bindings(pythonbin pythondesc)
+# install_python_bindings(pythonbin)
+# remarks: changes pwd
 # failure: non fatal
 install_python_bindings()
 {
-    pythonbin="$1"
-    pythondesc="$2"
-
     # The python binary might not be there, so just exit silently
-    if test -z "$pythonbin"; then
+    if test -z "$1"; then
         return 0
     fi
 
-    if test -z "$pythondesc"; then
+    if test -z "$2"; then
         errorprint "missing argument to install_python_bindings"
-        return 1
+        exit 1
     fi
 
-    infoprint "Python found: $pythonbin, installing bindings..."
+    pythonbin=$1
+    pythondesc=$2
+    if test -x "$pythonbin"; then
+        # check if python has working distutils
+        $pythonbin -c "from distutils.core import setup" > /dev/null 2>&1
+        if test "$?" -ne 0; then
+            subprint "Skipped: $pythondesc install is unusable"
+            return 0
+        fi
 
-    # check if python has working distutils
-    "$pythonbin" -c "from distutils.core import setup" > /dev/null 2>&1
-    if test "$?" -ne 0; then
-        subprint "Skipped: $pythondesc install is unusable, missing package 'distutils'"
+        VBOX_INSTALL_PATH="$DIR_VBOXBASE"
+        export VBOX_INSTALL_PATH
+        cd $DIR_VBOXBASE/sdk/installer
+        $pythonbin ./vboxapisetup.py install > /dev/null
+        if test "$?" -eq 0; then
+            subprint "Installed: Bindings for $pythondesc"
+        fi
         return 0
     fi
-
-    # Pass install path via environment
-    export VBOX_INSTALL_PATH
-    mkdir -p "$CONFIG_DIR"
-    rm -f "$CONFIG_DIR/python-$CONFIG_FILES"
-    $SHELL -c "cd \"$VBOX_INSTALL_PATH\"/sdk/installer && \"$pythonbin\" ./vboxapisetup.py install \
-        --record \"$CONFIG_DIR/python-$CONFIG_FILES\"" > /dev/null 2>&1
-    if test "$?" -eq 0; then
-        cat "$CONFIG_DIR/python-$CONFIG_FILES" >> "$CONFIG_DIR/$CONFIG_FILES"
-    else
-        errorprint "Failed to install bindings for $pythondesc"
-    fi
-    rm "$CONFIG_DIR/python-$CONFIG_FILES"
-
-    # Remove files created by Python API setup.
-    rm -rf $VBOX_INSTALL_PATH/sdk/installer/build
-    return 0
+    return 1
 }
 
 # is_process_running(processname)
@@ -1253,13 +1244,6 @@ cleanup_install()
             exit 1
         fi
     fi
-
-    # Remove stuff installed for the Python bindings.
-    if [ -r "$CONFIG_DIR/$CONFIG_FILES" ]; then
-        rm -f `cat "$CONFIG_DIR/$CONFIG_FILES"` 2> /dev/null
-        rm -f "$CONFIG_DIR/$CONFIG_FILES" 2> /dev/null
-        rmdir "$CONFIG_DIR" 2> /dev/null
-    fi
 }
 
 
@@ -1316,7 +1300,7 @@ postinstall()
             || test -f "$PKG_INSTALL_ROOT/var/svc/manifest/application/virtualbox/virtualbox-autostart.xml"; then
             infoprint "Configuring services..."
             if test "$REMOTEINST" -eq 1; then
-                subprint "Skipped for targeted installs."
+                subprint "Skipped for targetted installs."
             else
                 # Since S11 the way to import a manifest is via restarting manifest-import which is asynchronous and can
                 # take a while to complete, using disable/enable -s doesn't work either. So we restart it, and poll in
@@ -1338,45 +1322,52 @@ postinstall()
                 /usr/bin/update-mime-database /usr/share/mime >/dev/null 2>&1
                 /usr/bin/update-desktop-database -q 2>/dev/null
             else
-                subprint "Skipped for targeted installs."
+                subprint "Skipped for targetted installs."
             fi
         fi
 
-        if test -f "$VBOX_INSTALL_PATH/sdk/installer/vboxapisetup.py" || test -h "$VBOX_INSTALL_PATH/sdk/installer/vboxapisetup.py"; then
-            # Install python bindings for non-remote installs
-            if test "$REMOTEINST" -eq 0; then
-                infoprint "Installing Python bindings..."
+        # Install python bindings for non-remote installs
+        if test "$REMOTEINST" -eq 0; then
+            if test -f "$DIR_VBOXBASE/sdk/installer/vboxapisetup.py" || test -h "$DIR_VBOXBASE/sdk/installer/vboxapisetup.py"; then
+                PYTHONBIN=`which python 2> /dev/null`
+                if test -f "$PYTHONBIN" || test -h "$PYTHONBIN"; then
+                    infoprint "Installing Python bindings..."
 
-                # Loop over all usual suspect Python executable names and try
-                # installing the VirtualBox API bindings. Needs to prevent
-                # double installs which waste quite a bit of time.
-                PYTHONS=""
-                for p in python2.4 python2.5 python2.6 python2.7 python2 python3.3 python3.4 python3.5 python3.6 python3.7 python3.8 python3.9 python3.10 python3 python; do
-                    if [ "`$p -c 'import sys
-if sys.version_info >= (2, 4) and (sys.version_info < (3, 0) or sys.version_info >= (3, 3)):
-    print(\"test\")' 2> /dev/null`" != "test" ]; then
-                        continue
+                    INSTALLEDIT=1
+                    PYTHONBIN=`which python2.4 2>/dev/null`
+                    install_python_bindings "$PYTHONBIN" "Python 2.4"
+                    if test "$?" -eq 0; then
+                        INSTALLEDIT=0
                     fi
-                    # Get python major/minor version, and skip if it was
-                    # already covered.  Uses grep -F to avoid trouble with '.'
-                    # matching any char.
-                    pyvers="`$p -c 'import sys
-print("%s.%s" % (sys.version_info[0], sys.version_info[1]))' 2> /dev/null`"
-                    if echo "$PYTHONS" | /usr/xpg4/bin/grep -Fq ":$pyvers:"; then
-                        continue
+                    PYTHONBIN=`which python2.5 2>/dev/null`
+                    install_python_bindings "$PYTHONBIN" "Python 2.5"
+                    if test "$?" -eq 0; then
+                        INSTALLEDIT=0
                     fi
-                    # Record which version will be installed. If it fails there
-                    # is no point trying with different executable/symlink
-                    # reporting the same version.
-                    PYTHONS="$PYTHONS:$pyvers:"
-                    install_python_bindings "$p" "Python $pyvers"
-                done
-                if [ -z "$PYTHONS" ]; then
-                    warnprint "Python (2.4 to 2.7 or 3.3 and later) unavailable, skipping bindings installation."
+                    PYTHONBIN=`which python2.6 2>/dev/null`
+                    install_python_bindings "$PYTHONBIN" "Python 2.6"
+                    if test "$?" -eq 0; then
+                        INSTALLEDIT=0
+                    fi
+                    PYTHONBIN=`which python2.7 2>/dev/null`
+                    install_python_bindings "$PYTHONBIN" "Python 2.7"
+                    if test "$?" -eq 0; then
+                        INSTALLEDIT=0
+                    fi
+
+                    # remove files installed by Python build
+                    rm -rf $DIR_VBOXBASE/sdk/installer/build
+
+                    if test "$INSTALLEDIT" -ne 0; then
+                        warnprint "No suitable Python version found. Required Python 2.4, 2.5, 2.6 or 2.7"
+                        warnprint "Skipped installing the Python bindings."
+                    fi
+                else
+                    warnprint "Python not found, skipped installed Python bindings."
                 fi
-            else
-                warnprint "Skipped installing Python bindings. Run, as root, 'vboxapisetup.py install' manually from the booted system."
             fi
+        else
+            warnprint "Skipped installing Python bindings. Run, as root, 'vboxapisetup.py install' manually from the booted system."
         fi
 
         update_boot_archive

@@ -1,10 +1,10 @@
-/* $Id: bs3-cmn-TestData.c 93754 2022-02-15 14:29:56Z vboxsync $ */
+/* $Id: bs3-cmn-TestData.c $ */
 /** @file
  * BS3Kit - Test Data.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -102,13 +102,6 @@ char const  g_aszBs3TestUnitNames[][12] =
     "pages/s",
     "ticks/page",
     "ns/page",
-    "ps",
-    "ps/call",
-    "ps/frame",
-    "ps/occ",
-    "ps/packet",
-    "ps/rndtrp",
-    "ps/page",
 };
 
 

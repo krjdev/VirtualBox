@@ -1,4 +1,4 @@
-/* $Id: Settings.cpp 93561 2022-02-03 07:02:29Z vboxsync $ */
+/* $Id: Settings.cpp $ */
 /** @file
  * Settings File Manipulation API.
  *
@@ -58,7 +58,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -351,74 +351,74 @@ SettingsVersion_T ConfigFileBase::parseVersion(const Utf8Str &strVersion, const 
     SettingsVersion_T sv = SettingsVersion_Null;
     if (strVersion.length() > 3)
     {
-        const char *pcsz = strVersion.c_str();
+        uint32_t ulMajor = 0;
+        uint32_t ulMinor = 0;
 
-        uint32_t uMajor = 0;
-        char ch;
-        while (   (ch = *pcsz)
-               && RT_C_IS_DIGIT(ch) )
+        const char *pcsz = strVersion.c_str();
+        char c;
+
+        while (    (c = *pcsz)
+                && RT_C_IS_DIGIT(c)
+              )
         {
-            uMajor *= 10;
-            uMajor += (uint32_t)(ch - '0');
+            ulMajor *= 10;
+            ulMajor += c - '0';
             ++pcsz;
         }
 
-        uint32_t uMinor = 0;
-        if (ch == '.')
+        if (*pcsz++ == '.')
         {
-            pcsz++;
-            while (   (ch = *pcsz)
-                   && RT_C_IS_DIGIT(ch))
+            while (    (c = *pcsz)
+                    && RT_C_IS_DIGIT(c)
+                  )
             {
-                uMinor *= 10;
-                uMinor += (ULONG)(ch - '0');
+                ulMinor *= 10;
+                ulMinor += c - '0';
                 ++pcsz;
             }
         }
 
-        if (uMajor == 1)
+        if (ulMajor == 1)
         {
-            if (uMinor == 3)
+            if (ulMinor == 3)
                 sv = SettingsVersion_v1_3;
-            else if (uMinor == 4)
+            else if (ulMinor == 4)
                 sv = SettingsVersion_v1_4;
-            else if (uMinor == 5)
+            else if (ulMinor == 5)
                 sv = SettingsVersion_v1_5;
-            else if (uMinor == 6)
+            else if (ulMinor == 6)
                 sv = SettingsVersion_v1_6;
-            else if (uMinor == 7)
+            else if (ulMinor == 7)
                 sv = SettingsVersion_v1_7;
-            else if (uMinor == 8)
+            else if (ulMinor == 8)
                 sv = SettingsVersion_v1_8;
-            else if (uMinor == 9)
+            else if (ulMinor == 9)
                 sv = SettingsVersion_v1_9;
-            else if (uMinor == 10)
+            else if (ulMinor == 10)
                 sv = SettingsVersion_v1_10;
-            else if (uMinor == 11)
+            else if (ulMinor == 11)
                 sv = SettingsVersion_v1_11;
-            else if (uMinor == 12)
+            else if (ulMinor == 12)
                 sv = SettingsVersion_v1_12;
-            else if (uMinor == 13)
+            else if (ulMinor == 13)
                 sv = SettingsVersion_v1_13;
-            else if (uMinor == 14)
+            else if (ulMinor == 14)
                 sv = SettingsVersion_v1_14;
-            else if (uMinor == 15)
+            else if (ulMinor == 15)
                 sv = SettingsVersion_v1_15;
-            else if (uMinor == 16)
+            else if (ulMinor == 16)
                 sv = SettingsVersion_v1_16;
-            else if (uMinor == 17)
+            else if (ulMinor == 17)
                 sv = SettingsVersion_v1_17;
-            else if (uMinor == 18)
+            else if (ulMinor == 18)
                 sv = SettingsVersion_v1_18;
-            else if (uMinor == 19)
-                sv = SettingsVersion_v1_19;
-            else if (uMinor > 19)
+            else if (ulMinor > 18)
                 sv = SettingsVersion_Future;
         }
-        else if (uMajor > 1)
+        else if (ulMajor > 1)
             sv = SettingsVersion_Future;
 
-        Log(("Parsed settings version %d.%d to enum value %d\n", uMajor, uMinor, sv));
+        Log(("Parsed settings version %d.%d to enum value %d\n", ulMajor, ulMinor, sv));
     }
 
     if (sv == SettingsVersion_Null)
@@ -533,10 +533,10 @@ void ConfigFileBase::parseBase64(IconBlob &binary,
         throw ConfigFileError(this, pElm, N_("Base64 encoded data too long (%d > %d)"), cbOut, DECODE_STR_MAX);
     else if (cbOut < 0)
         throw ConfigFileError(this, pElm, N_("Base64 encoded data '%s' invalid"), psz);
-    binary.resize((size_t)cbOut);
+    binary.resize(cbOut);
     int vrc = VINF_SUCCESS;
     if (cbOut)
-        vrc = RTBase64Decode(psz, &binary.front(), (size_t)cbOut, NULL, NULL);
+        vrc = RTBase64Decode(psz, &binary.front(), cbOut, NULL, NULL);
     if (RT_FAILURE(vrc))
     {
         binary.resize(0);
@@ -564,16 +564,17 @@ com::Utf8Str ConfigFileBase::stringifyTimestamp(const RTTIMESPEC &stamp) const
  * Helper to create a base64 encoded string out of a binary blob.
  * @param str
  * @param binary
- * @throws std::bad_alloc and ConfigFileError
  */
 void ConfigFileBase::toBase64(com::Utf8Str &str, const IconBlob &binary) const
 {
-    size_t cb = binary.size();
+    ssize_t cb = binary.size();
     if (cb > 0)
     {
-        size_t cchOut = RTBase64EncodedLength(cb);
-        str.reserve(cchOut + 1);
-        int vrc = RTBase64Encode(&binary.front(), cb, str.mutableRaw(), str.capacity(), NULL);
+        ssize_t cchOut = RTBase64EncodedLength(cb);
+        str.reserve(cchOut+1);
+        int vrc = RTBase64Encode(&binary.front(), cb,
+                                 str.mutableRaw(), str.capacity(),
+                                 NULL);
         if (RT_FAILURE(vrc))
             throw ConfigFileError(this, NULL, N_("Failed to convert binary data to base64 format (%Rrc)"), vrc);
         str.jolt();
@@ -1044,10 +1045,6 @@ void ConfigFileBase::setVersionAttribute(xml::ElementNode &elm)
             pcszVersion = "1.18";
             break;
 
-        case SettingsVersion_v1_19:
-            pcszVersion = "1.19";
-            break;
-
         default:
             // catch human error: the assertion below will trigger in debug
             // or dbgopt builds, so hopefully this will get noticed sooner in
@@ -1070,8 +1067,8 @@ void ConfigFileBase::setVersionAttribute(xml::ElementNode &elm)
                 // for "forgotten settings" this may not be the best choice,
                 // but as it's an omission of someone who changed this file
                 // it's the only generic possibility.
-                pcszVersion = "1.19";
-                m->sv = SettingsVersion_v1_19;
+                pcszVersion = "1.18";
+                m->sv = SettingsVersion_v1_18;
             }
             break;
     }
@@ -1456,17 +1453,6 @@ bool ConfigFileBase::fileExists()
 }
 
 /**
- * Returns the settings file version
- *
- * @returns Settings file version enum.
- */
-SettingsVersion_T ConfigFileBase::getSettingsVersion()
-{
-    return m->sv;
-}
-
-
-/**
  * Copies the base variables from another instance. Used by Machine::saveSettings
  * so that the settings version does not get lost when a copy of the Machine settings
  * file is made to see if settings have actually changed.
@@ -1618,10 +1604,6 @@ SystemProperties::SystemProperties()
     : uProxyMode(ProxyMode_System)
     , uLogHistoryCount(3)
     , fExclusiveHwVirt(true)
-    , fVBoxUpdateEnabled(true)
-    , uVBoxUpdateCount(0)
-    , uVBoxUpdateFrequency(1)
-    , uVBoxUpdateTarget(VBoxUpdateTarget_Stable)
 {
 #if defined(RT_OS_DARWIN) || defined(RT_OS_WINDOWS) || defined(RT_OS_SOLARIS)
     fExclusiveHwVirt = false;
@@ -1707,20 +1689,6 @@ NATNetwork::NATNetwork() :
     u32HostLoopback6Offset(0)
 {
 }
-
-#ifdef VBOX_WITH_VMNET
-/**
- * Constructor. Needs to set sane defaults which stand the test of time.
- */
-HostOnlyNetwork::HostOnlyNetwork() :
-    strNetworkMask("255.255.255.0"),
-    strIPLower("192.168.56.1"),
-    strIPUpper("192.168.56.199"),
-    fEnabled(true)
-{
-    uuid.create();
-}
-#endif /* VBOX_WITH_VMNET */
 
 #ifdef VBOX_WITH_CLOUD_NET
 /**
@@ -2047,38 +2015,6 @@ void MainConfigFile::readNATNetworks(const xml::ElementNode &elmNATNetworks)
     }
 }
 
-#ifdef VBOX_WITH_VMNET
-/**
- * Reads in the \<HostOnlyNetworks\> chunk.
- * @param elmHostOnlyNetworks
- */
-void MainConfigFile::readHostOnlyNetworks(const xml::ElementNode &elmHostOnlyNetworks)
-{
-    xml::NodesLoop nl1(elmHostOnlyNetworks);
-    const xml::ElementNode *pelmNet;
-    while ((pelmNet = nl1.forAllNodes()))
-    {
-        if (pelmNet->nameEquals("HostOnlyNetwork"))
-        {
-            HostOnlyNetwork net;
-            Utf8Str strID;
-            if (   pelmNet->getAttributeValue("name", net.strNetworkName)
-                && pelmNet->getAttributeValue("mask", net.strNetworkMask)
-                && pelmNet->getAttributeValue("ipLower", net.strIPLower)
-                && pelmNet->getAttributeValue("ipUpper", net.strIPUpper)
-                && pelmNet->getAttributeValue("id", strID)
-                && pelmNet->getAttributeValue("enabled", net.fEnabled) )
-            {
-                parseUUID(net.uuid, strID, pelmNet);
-                llHostOnlyNetworks.push_back(net);
-            }
-            else
-                throw ConfigFileError(this, pelmNet, N_("Required HostOnlyNetwork/@name, @mask, @ipLower, @ipUpper, @id or @enabled attribute is missing"));
-        }
-    }
-}
-#endif /* VBOX_WITH_VMNET */
-
 #ifdef VBOX_WITH_CLOUD_NET
 /**
  * Reads in the \<CloudNetworks\> chunk.
@@ -2219,7 +2155,7 @@ bool MainConfigFile::convertGuiProxySettings(const com::Utf8Str &strUIProxySetti
                 if (*psz != '\0' && *psz != ',')
                 {
                     const char *pszEnd  = strchr(psz, ',');
-                    size_t      cchHost = pszEnd ? (size_t)(pszEnd - psz) : strlen(psz);
+                    size_t      cchHost = pszEnd ? pszEnd - psz : strlen(psz);
                     while (cchHost > 0 && RT_C_IS_SPACE(psz[cchHost - 1]))
                         cchHost--;
                     systemProperties.strProxyUrl.assign(psz, cchHost);
@@ -2312,13 +2248,6 @@ MainConfigFile::MainConfigFile(const Utf8Str *pstrFilename)
                         if (!pelmGlobalChild->getAttributeValue("proxyMode", systemProperties.uProxyMode))
                             fCopyProxySettingsFromExtraData = true;
                         pelmGlobalChild->getAttributeValue("proxyUrl", systemProperties.strProxyUrl);
-                        pelmGlobalChild->getAttributeValue("VBoxUpdateEnabled", systemProperties.fVBoxUpdateEnabled);
-                        pelmGlobalChild->getAttributeValue("VBoxUpdateCount", systemProperties.uVBoxUpdateCount);
-                        pelmGlobalChild->getAttributeValue("VBoxUpdateFrequency", systemProperties.uVBoxUpdateFrequency);
-                        pelmGlobalChild->getAttributeValue("VBoxUpdateTarget", systemProperties.uVBoxUpdateTarget);
-                        pelmGlobalChild->getAttributeValue("VBoxUpdateLastCheckDate",
-                            systemProperties.strVBoxUpdateLastCheckDate);
-                        pelmGlobalChild->getAttributeValue("LanguageId", systemProperties.strLanguageId);
                     }
                     else if (pelmGlobalChild->nameEquals("ExtraData"))
                         readExtraData(*pelmGlobalChild, mapExtraDataItems);
@@ -2340,10 +2269,6 @@ MainConfigFile::MainConfigFile(const Utf8Str *pstrFilename)
                                 readDHCPServers(*pelmLevel4Child);
                             if (pelmLevel4Child->nameEquals("NATNetworks"))
                                 readNATNetworks(*pelmLevel4Child);
-#ifdef VBOX_WITH_VMNET
-                            if (pelmLevel4Child->nameEquals("HostOnlyNetworks"))
-                                readHostOnlyNetworks(*pelmLevel4Child);
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
                             if (pelmLevel4Child->nameEquals("CloudNetworks"))
                                 readCloudNetworks(*pelmLevel4Child);
@@ -2395,14 +2320,6 @@ MainConfigFile::MainConfigFile(const Utf8Str *pstrFilename)
 
 void MainConfigFile::bumpSettingsVersionIfNeeded()
 {
-#ifdef VBOX_WITH_VMNET
-    if (m->sv < SettingsVersion_v1_19)
-    {
-        // VirtualBox 7.0 adds support for host-only networks.
-        if (!llHostOnlyNetworks.empty())
-            m->sv = SettingsVersion_v1_19;
-    }
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
     if (m->sv < SettingsVersion_v1_18)
     {
@@ -2499,27 +2416,6 @@ void MainConfigFile::write(const com::Utf8Str strFilename)
         }
     }
 
-#ifdef VBOX_WITH_VMNET
-    xml::ElementNode *pelmHostOnlyNetworks;
-    /* don't create entry if no HostOnly networks are registered. */
-    if (!llHostOnlyNetworks.empty())
-    {
-        pelmHostOnlyNetworks = pelmNetServiceRegistry->createChild("HostOnlyNetworks");
-        for (HostOnlyNetworksList::const_iterator it = llHostOnlyNetworks.begin();
-             it != llHostOnlyNetworks.end();
-             ++it)
-        {
-            const HostOnlyNetwork &n = *it;
-            xml::ElementNode *pelmThis = pelmHostOnlyNetworks->createChild("HostOnlyNetwork");
-            pelmThis->setAttribute("name", n.strNetworkName);
-            pelmThis->setAttribute("mask", n.strNetworkMask);
-            pelmThis->setAttribute("ipLower", n.strIPLower);
-            pelmThis->setAttribute("ipUpper", n.strIPUpper);
-            pelmThis->setAttribute("id", n.uuid.toStringCurly());
-            pelmThis->setAttribute("enabled", (n.fEnabled) ? 1 : 0);        // too bad we chose 1 vs. 0 here
-        }
-    }
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
     xml::ElementNode *pelmCloudNetworks;
     /* don't create entry if no cloud networks are registered. */
@@ -2564,14 +2460,6 @@ void MainConfigFile::write(const com::Utf8Str strFilename)
         pelmSysProps->setAttribute("proxyUrl", systemProperties.strProxyUrl);
     pelmSysProps->setAttribute("proxyMode", systemProperties.uProxyMode);
     pelmSysProps->setAttribute("exclusiveHwVirt", systemProperties.fExclusiveHwVirt);
-    pelmSysProps->setAttribute("VBoxUpdateEnabled", systemProperties.fVBoxUpdateEnabled);
-    pelmSysProps->setAttribute("VBoxUpdateCount", systemProperties.uVBoxUpdateCount);
-    pelmSysProps->setAttribute("VBoxUpdateFrequency", systemProperties.uVBoxUpdateFrequency);
-    pelmSysProps->setAttribute("VBoxUpdateTarget", systemProperties.uVBoxUpdateTarget);
-    if (systemProperties.strVBoxUpdateLastCheckDate.length())
-        pelmSysProps->setAttribute("VBoxUpdateLastCheckDate", systemProperties.strVBoxUpdateLastCheckDate);
-    if (systemProperties.strLanguageId.isNotEmpty())
-        pelmSysProps->setAttribute("LanguageId", systemProperties.strLanguageId);
 
     buildUSBDeviceFilters(*pelmGlobal->createChild("USBDeviceFilters"),
                           host.llUSBDeviceFilters,
@@ -2673,7 +2561,8 @@ bool BIOSSettings::areDefaultSettings() const
         && biosBootMenuMode == BIOSBootMenuMode_MessageAndMenu
         && apicMode == APICMode_APIC
         && llTimeOffset == 0
-        && strLogoImagePath.isEmpty();
+        && strLogoImagePath.isEmpty()
+        && strNVRAMPath.isEmpty();
 }
 
 /**
@@ -2694,7 +2583,8 @@ bool BIOSSettings::operator==(const BIOSSettings &d) const
             && biosBootMenuMode        == d.biosBootMenuMode
             && apicMode                == d.apicMode
             && llTimeOffset            == d.llTimeOffset
-            && strLogoImagePath        == d.strLogoImagePath);
+            && strLogoImagePath        == d.strLogoImagePath
+            && strNVRAMPath            == d.strNVRAMPath);
 }
 
 RecordingScreenSettings::RecordingScreenSettings(void)
@@ -2917,62 +2807,6 @@ bool GraphicsAdapter::operator==(const GraphicsAdapter &g) const
 /**
  * Constructor. Needs to set sane defaults which stand the test of time.
  */
-TpmSettings::TpmSettings() :
-    tpmType(TpmType_None)
-{
-}
-
-/**
- * Check if all settings have default values.
- */
-bool TpmSettings::areDefaultSettings() const
-{
-    return    tpmType     == TpmType_None
-           && strLocation.isEmpty();
-}
-
-/**
- * Comparison operator. This gets called from MachineConfigFile::operator==,
- * which in turn gets called from Machine::saveSettings to figure out whether
- * machine settings have really changed and thus need to be written out to disk.
- */
-bool TpmSettings::operator==(const TpmSettings &g) const
-{
-    return (this == &g)
-        || (   tpmType         == g.tpmType
-            && strLocation     == g.strLocation);
-}
-
-/**
- * Constructor. Needs to set sane defaults which stand the test of time.
- */
-NvramSettings::NvramSettings()
-{
-}
-
-/**
- * Check if all settings have default values.
- */
-bool NvramSettings::areDefaultSettings() const
-{
-    return strNvramPath.isEmpty();
-}
-
-/**
- * Comparison operator. This gets called from MachineConfigFile::operator==,
- * which in turn gets called from Machine::saveSettings to figure out whether
- * machine settings have really changed and thus need to be written out to disk.
- */
-bool NvramSettings::operator==(const NvramSettings &g) const
-{
-    return (this == &g)
-        || (strNvramPath    == g.strNvramPath);
-}
-
-
-/**
- * Constructor. Needs to set sane defaults which stand the test of time.
- */
 USBController::USBController() :
     enmType(USBControllerType_Null)
 {
@@ -3023,8 +2857,7 @@ NAT::NAT() :
     fDNSUseHostResolver(false),
     fAliasLog(false),
     fAliasProxyOnly(false),
-    fAliasUseSamePorts(false),
-    fLocalhostReachable(true) /* Historically this value is true. */
+    fAliasUseSamePorts(false)
 {
 }
 
@@ -3055,26 +2888,10 @@ bool NAT::areTFTPDefaultSettings() const
 }
 
 /**
- * Check whether the localhost-reachable setting is the default for the given settings version.
- */
-bool NAT::areLocalhostReachableDefaultSettings(SettingsVersion_T sv) const
-{
-    return    (   fLocalhostReachable
-                && sv < SettingsVersion_v1_19)
-           || (   !fLocalhostReachable
-                && sv >= SettingsVersion_v1_19);
-}
-
-/**
  * Check if all settings have default values.
  */
-bool NAT::areDefaultSettings(SettingsVersion_T sv) const
+bool NAT::areDefaultSettings() const
 {
-    /*
-     * Before settings version 1.19 localhost was reachable by default
-     * when using NAT which was changed with version 1.19+, see @bugref{9896}
-     * for more information.
-     */
     return strNetwork.isEmpty()
         && strBindIP.isEmpty()
         && u32Mtu == 0
@@ -3085,8 +2902,7 @@ bool NAT::areDefaultSettings(SettingsVersion_T sv) const
         && areDNSDefaultSettings()
         && areAliasDefaultSettings()
         && areTFTPDefaultSettings()
-        && mapRules.size() == 0
-        && areLocalhostReachableDefaultSettings(sv);
+        && mapRules.size() == 0;
 }
 
 /**
@@ -3113,7 +2929,6 @@ bool NAT::operator==(const NAT &n) const
             && fAliasLog           == n.fAliasLog
             && fAliasProxyOnly     == n.fAliasProxyOnly
             && fAliasUseSamePorts  == n.fAliasUseSamePorts
-            && fLocalhostReachable == n.fLocalhostReachable
             && mapRules            == n.mapRules);
 }
 
@@ -3157,12 +2972,9 @@ bool NetworkAdapter::areDefaultSettings(SettingsVersion_T sv) const
         && ulLineSpeed == 0
         && enmPromiscModePolicy == NetworkAdapterPromiscModePolicy_Deny
         && mode == NetworkAttachmentType_Null
-        && nat.areDefaultSettings(sv)
+        && nat.areDefaultSettings()
         && strBridgedName.isEmpty()
         && strInternalNetworkName.isEmpty()
-#ifdef VBOX_WITH_VMNET
-        && strHostOnlyNetworkName.isEmpty()
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
         && strCloudNetworkName.isEmpty()
 #endif /* VBOX_WITH_CLOUD_NET */
@@ -3174,14 +2986,11 @@ bool NetworkAdapter::areDefaultSettings(SettingsVersion_T sv) const
 /**
  * Special check if settings of the non-current attachment type have default values.
  */
-bool NetworkAdapter::areDisabledDefaultSettings(SettingsVersion_T sv) const
+bool NetworkAdapter::areDisabledDefaultSettings() const
 {
-    return (mode != NetworkAttachmentType_NAT ? nat.areDefaultSettings(sv) : true)
+    return (mode != NetworkAttachmentType_NAT ? nat.areDefaultSettings() : true)
         && (mode != NetworkAttachmentType_Bridged ? strBridgedName.isEmpty() : true)
         && (mode != NetworkAttachmentType_Internal ? strInternalNetworkName.isEmpty() : true)
-#ifdef VBOX_WITH_VMNET
-        && (mode != NetworkAttachmentType_HostOnlyNetwork ? strHostOnlyNetworkName.isEmpty() : true)
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
         && (mode != NetworkAttachmentType_Cloud ? strCloudNetworkName.isEmpty() : true)
 #endif /* VBOX_WITH_CLOUD_NET */
@@ -3211,9 +3020,6 @@ bool NetworkAdapter::operator==(const NetworkAdapter &n) const
             && nat                   == n.nat
             && strBridgedName        == n.strBridgedName
             && strHostOnlyName       == n.strHostOnlyName
-#ifdef VBOX_WITH_VMNET
-            && strHostOnlyNetworkName == n.strHostOnlyNetworkName
-#endif /* VBOX_WITH_VMNET */
             && strInternalNetworkName == n.strInternalNetworkName
 #ifdef VBOX_WITH_CLOUD_NET
             && strCloudNetworkName   == n.strCloudNetworkName
@@ -3529,7 +3335,6 @@ Hardware::Hardware() :
     fMDSClearOnSched(true),
     fMDSClearOnVMEntry(false),
     fNestedHWVirt(false),
-    fVirtVmsaveVmload(true),
     enmLongMode(HC_ARCH_BITS == 64 ? Hardware::LongMode_Enabled : Hardware::LongMode_Disabled),
     cCPUs(1),
     fCpuHotPlug(false),
@@ -3542,7 +3347,6 @@ Hardware::Hardware() :
     pointingHIDType(PointingHIDType_PS2Mouse),
     keyboardHIDType(KeyboardHIDType_PS2Keyboard),
     chipsetType(ChipsetType_PIIX3),
-    iommuType(IommuType_None),
     paravirtProvider(ParavirtProvider_Legacy), // default for old VMs, for new ones it's ParavirtProvider_Default
     strParavirtDebug(""),
     fEmulatedUSBCardReader(false),
@@ -3652,7 +3456,6 @@ bool Hardware::operator==(const Hardware& h) const
             && fMDSClearOnSched               == h.fMDSClearOnSched
             && fMDSClearOnVMEntry             == h.fMDSClearOnVMEntry
             && fNestedHWVirt                  == h.fNestedHWVirt
-            && fVirtVmsaveVmload              == h.fVirtVmsaveVmload
             && cCPUs                          == h.cCPUs
             && fCpuHotPlug                    == h.fCpuHotPlug
             && ulCpuExecutionCap              == h.ulCpuExecutionCap
@@ -3667,16 +3470,13 @@ bool Hardware::operator==(const Hardware& h) const
             && pointingHIDType                == h.pointingHIDType
             && keyboardHIDType                == h.keyboardHIDType
             && chipsetType                    == h.chipsetType
-            && iommuType                      == h.iommuType
             && paravirtProvider               == h.paravirtProvider
             && strParavirtDebug               == h.strParavirtDebug
             && fEmulatedUSBCardReader         == h.fEmulatedUSBCardReader
             && vrdeSettings                   == h.vrdeSettings
             && biosSettings                   == h.biosSettings
-            && nvramSettings                  == h.nvramSettings
             && graphicsAdapter                == h.graphicsAdapter
             && usbSettings                    == h.usbSettings
-            && tpmSettings                    == h.tpmSettings
             && llNetworkAdapters              == h.llNetworkAdapters
             && llSerialPorts                  == h.llSerialPorts
             && llParallelPorts                == h.llParallelPorts
@@ -4112,18 +3912,8 @@ void MachineConfigFile::readNetworkAdapters(const xml::ElementNode &elmNetwork,
                 nic.type = NetworkAdapterType_I82545EM;
             else if (strTemp == "virtio")
                 nic.type = NetworkAdapterType_Virtio;
-            else if (strTemp == "NE1000")
-                nic.type = NetworkAdapterType_NE1000;
-            else if (strTemp == "NE2000")
-                nic.type = NetworkAdapterType_NE2000;
-            else if (strTemp == "WD8003")
-                nic.type = NetworkAdapterType_WD8003;
-            else if (strTemp == "WD8013")
-                nic.type = NetworkAdapterType_WD8013;
-            else if (strTemp == "3C503")
-                nic.type = NetworkAdapterType_ELNK2;
-            else if (strTemp == "3C501")
-                nic.type = NetworkAdapterType_ELNK1;
+            else if (strTemp == "virtio_1.0")
+                nic.type = NetworkAdapterType_Virtio_1_0;
             else
                 throw ConfigFileError(this, pelmAdapter, N_("Invalid value '%s' in Adapter/@type attribute"), strTemp.c_str());
         }
@@ -4199,7 +3989,6 @@ void MachineConfigFile::readAttachedNetworkMode(const xml::ElementNode &elmMode,
         elmMode.getAttributeValue("socksnd", nic.nat.u32SockSnd);
         elmMode.getAttributeValue("tcprcv", nic.nat.u32TcpRcv);
         elmMode.getAttributeValue("tcpsnd", nic.nat.u32TcpSnd);
-        elmMode.getAttributeValue("localhost-reachable", nic.nat.fLocalhostReachable);
         const xml::ElementNode *pelmDNS;
         if ((pelmDNS = elmMode.findChildElement("DNS")))
         {
@@ -4249,16 +4038,6 @@ void MachineConfigFile::readAttachedNetworkMode(const xml::ElementNode &elmMode,
         // settings which are saved before configuring the network name
         elmMode.getAttributeValue("name", nic.strHostOnlyName);
     }
-#ifdef VBOX_WITH_VMNET
-    else if (elmMode.nameEquals("HostOnlyNetwork"))
-    {
-        enmAttachmentType = NetworkAttachmentType_HostOnlyNetwork;
-
-        // optional network name, cannot be required or we have trouble with
-        // settings which are saved before configuring the network name
-        elmMode.getAttributeValue("name", nic.strHostOnlyNetworkName);
-    }
-#endif /* VBOX_WITH_VMNET */
     else if (elmMode.nameEquals("GenericInterface"))
     {
         enmAttachmentType = NetworkAttachmentType_Generic;
@@ -4300,16 +4079,6 @@ void MachineConfigFile::readAttachedNetworkMode(const xml::ElementNode &elmMode,
         nic.strGenericDriver = "VDE";
         nic.genericProperties["network"] = strVDEName;
     }
-#ifdef VBOX_WITH_VMNET
-    else if (elmMode.nameEquals("HostOnlyNetwork"))
-    {
-        enmAttachmentType = NetworkAttachmentType_HostOnly;
-
-        // optional network name, cannot be required or we have trouble with
-        // settings which are saved before configuring the network name
-        elmMode.getAttributeValue("name", nic.strHostOnlyNetworkName);
-    }
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
     else if (elmMode.nameEquals("CloudNetwork"))
     {
@@ -4663,8 +4432,6 @@ void MachineConfigFile::readHardware(const xml::ElementNode &elmHardware,
                 pelmCPUChild->getAttributeValue("enabled", hw.fHardwareVirtForce);
             if ((pelmCPUChild = pelmHwChild->findChildElement("HardwareVirtExUseNativeApi")))
                 pelmCPUChild->getAttributeValue("enabled", hw.fUseNativeApi);
-            if ((pelmCPUChild = pelmHwChild->findChildElement("HardwareVirtExVirtVmsaveVmload")))
-                pelmCPUChild->getAttributeValue("enabled", hw.fVirtVmsaveVmload);
 
             if (!(pelmCPUChild = pelmHwChild->findChildElement("PAE")))
             {
@@ -4816,26 +4583,6 @@ void MachineConfigFile::readHardware(const xml::ElementNode &elmHardware,
                                           pelmHwChild,
                                           N_("Invalid value '%s' in Chipset/@type"),
                                           strChipsetType.c_str());
-            }
-        }
-        else if (pelmHwChild->nameEquals("Iommu"))
-        {
-            Utf8Str strIommuType;
-            if (pelmHwChild->getAttributeValue("type", strIommuType))
-            {
-                if (strIommuType == "None")
-                    hw.iommuType = IommuType_None;
-                else if (strIommuType == "Automatic")
-                    hw.iommuType = IommuType_Automatic;
-                else if (strIommuType == "AMD")
-                    hw.iommuType = IommuType_AMD;
-                else if (strIommuType == "Intel")
-                    hw.iommuType = IommuType_Intel;
-                else
-                    throw ConfigFileError(this,
-                                          pelmHwChild,
-                                          N_("Invalid value '%s' in Iommu/@type"),
-                                          strIommuType.c_str());
             }
         }
         else if (pelmHwChild->nameEquals("Paravirt"))
@@ -5098,7 +4845,7 @@ void MachineConfigFile::readHardware(const xml::ElementNode &elmHardware,
             if ((pelmBIOSChild = pelmHwChild->findChildElement("TimeOffset")))
                 pelmBIOSChild->getAttributeValue("value", hw.biosSettings.llTimeOffset);
             if ((pelmBIOSChild = pelmHwChild->findChildElement("NVRAM")))
-                pelmBIOSChild->getAttributeValue("path", hw.nvramSettings.strNvramPath);
+                pelmBIOSChild->getAttributeValue("path", hw.biosSettings.strNVRAMPath);
             if ((pelmBIOSChild = pelmHwChild->findChildElement("SmbiosUuidLittleEndian")))
                 pelmBIOSChild->getAttributeValue("enabled", hw.biosSettings.fSmbiosUuidLittleEndian);
             else
@@ -5128,30 +4875,6 @@ void MachineConfigFile::readHardware(const xml::ElementNode &elmHardware,
                 sctl.ulPortCount = 2;
                 hw.storage.llStorageControllers.push_back(sctl);
             }
-        }
-        else if (pelmHwChild->nameEquals("TrustedPlatformModule"))
-        {
-            Utf8Str strTpmType;
-            if (pelmHwChild->getAttributeValue("type", strTpmType))
-            {
-                if (strTpmType == "None")
-                    hw.tpmSettings.tpmType = TpmType_None;
-                else if (strTpmType == "v1_2")
-                    hw.tpmSettings.tpmType = TpmType_v1_2;
-                else if (strTpmType == "v2_0")
-                    hw.tpmSettings.tpmType = TpmType_v2_0;
-                else if (strTpmType == "Host")
-                    hw.tpmSettings.tpmType = TpmType_Host;
-                else if (strTpmType == "Swtpm")
-                    hw.tpmSettings.tpmType = TpmType_Swtpm;
-                else
-                    throw ConfigFileError(this,
-                                          pelmHwChild,
-                                          N_("Invalid value '%s' in TrustedPlatformModule/@type"),
-                                          strTpmType.c_str());
-            }
-
-            pelmHwChild->getAttributeValue("location", hw.tpmSettings.strLocation);
         }
         else if (   (m->sv <= SettingsVersion_v1_14)
                  && pelmHwChild->nameEquals("USBController"))
@@ -6162,9 +5885,6 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
     if (m->sv >= SettingsVersion_v1_17 && hw.fNestedHWVirt)
         pelmCPU->createChild("NestedHWVirt")->setAttribute("enabled", hw.fNestedHWVirt);
 
-    if (m->sv >= SettingsVersion_v1_18 && !hw.fVirtVmsaveVmload)
-        pelmCPU->createChild("HardwareVirtExVirtVmsaveVmload")->setAttribute("enabled", hw.fVirtVmsaveVmload);
-
     if (m->sv >= SettingsVersion_v1_14 && hw.enmLongMode != Hardware::LongMode_Legacy)
     {
         // LongMode has too crazy default handling, must always save this setting.
@@ -6351,23 +6071,6 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
         if (   m->sv >= SettingsVersion_v1_16
             && hw.strParavirtDebug.isNotEmpty())
             pelmParavirt->setAttribute("debug", hw.strParavirtDebug);
-    }
-
-    if (   m->sv >= SettingsVersion_v1_19
-        && hw.iommuType != IommuType_None)
-    {
-        const char *pcszIommuType;
-        switch (hw.iommuType)
-        {
-            case IommuType_None:         pcszIommuType = "None";        break;
-            case IommuType_Automatic:    pcszIommuType = "Automatic";   break;
-            case IommuType_AMD:          pcszIommuType = "AMD";         break;
-            case IommuType_Intel:        pcszIommuType = "Intel";       break;
-            default:     Assert(false);  pcszIommuType = "None";        break;
-        }
-
-        xml::ElementNode *pelmIommu = pelmHardware->createChild("Iommu");
-        pelmIommu->setAttribute("type", pcszIommuType);
     }
 
     if (!hw.areBootOrderDefaultSettings())
@@ -6617,38 +6320,10 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
             pelmBIOS->createChild("TimeOffset")->setAttribute("value", hw.biosSettings.llTimeOffset);
         if (hw.biosSettings.fPXEDebugEnabled)
             pelmBIOS->createChild("PXEDebug")->setAttribute("enabled", hw.biosSettings.fPXEDebugEnabled);
-        if (!hw.nvramSettings.strNvramPath.isEmpty())
-            pelmBIOS->createChild("NVRAM")->setAttribute("path", hw.nvramSettings.strNvramPath);
+        if (!hw.biosSettings.strNVRAMPath.isEmpty())
+            pelmBIOS->createChild("NVRAM")->setAttribute("path", hw.biosSettings.strNVRAMPath);
         if (hw.biosSettings.fSmbiosUuidLittleEndian)
             pelmBIOS->createChild("SmbiosUuidLittleEndian")->setAttribute("enabled", hw.biosSettings.fSmbiosUuidLittleEndian);
-    }
-
-    if (!hw.tpmSettings.areDefaultSettings())
-    {
-        xml::ElementNode *pelmTpm = pelmHardware->createChild("TrustedPlatformModule");
-
-        const char *pcszTpm;
-        switch (hw.tpmSettings.tpmType)
-        {
-            default:
-            case TpmType_None:
-                pcszTpm = "None";
-                break;
-            case TpmType_v1_2:
-                pcszTpm = "v1_2";
-                break;
-            case TpmType_v2_0:
-                pcszTpm = "v2_0";
-                break;
-            case TpmType_Host:
-                pcszTpm = "Host";
-                break;
-            case TpmType_Swtpm:
-                pcszTpm = "Swtpm";
-                break;
-        }
-        pelmTpm->setAttribute("type", pcszTpm);
-        pelmTpm->setAttribute("location", hw.tpmSettings.strLocation);
     }
 
     if (m->sv < SettingsVersion_v1_9)
@@ -6850,12 +6525,7 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
                         case NetworkAdapterType_I82543GC:   pcszType = "82543GC"; break;
                         case NetworkAdapterType_I82545EM:   pcszType = "82545EM"; break;
                         case NetworkAdapterType_Virtio:     pcszType = "virtio"; break;
-                        case NetworkAdapterType_NE1000:     pcszType = "NE1000"; break;
-                        case NetworkAdapterType_NE2000:     pcszType = "NE2000"; break;
-                        case NetworkAdapterType_WD8003:     pcszType = "WD8003"; break;
-                        case NetworkAdapterType_WD8013:     pcszType = "WD8013"; break;
-                        case NetworkAdapterType_ELNK2:      pcszType = "3C503"; break;
-                        case NetworkAdapterType_ELNK1:      pcszType = "3C501"; break;
+                        case NetworkAdapterType_Virtio_1_0: pcszType = "virtio_1.0"; break;
                         default: /*case NetworkAdapterType_Am79C970A:*/  pcszType = "Am79C970A"; break;
                     }
                     pelmAdapter->setAttribute("type", pcszType);
@@ -6891,7 +6561,7 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
                 else
                 {
                     /* m->sv >= SettingsVersion_v1_10 */
-                    if (!nic.areDisabledDefaultSettings(m->sv))
+                    if (!nic.areDisabledDefaultSettings())
                     {
                         xml::ElementNode *pelmDisabledNode = pelmAdapter->createChild("DisabledModes");
                         if (nic.mode != NetworkAttachmentType_NAT)
@@ -6911,10 +6581,6 @@ void MachineConfigFile::buildHardwareXML(xml::ElementNode &elmParent,
                         if (nic.mode != NetworkAttachmentType_Cloud)
                             buildNetworkXML(NetworkAttachmentType_Cloud, false, *pelmDisabledNode, nic);
 #endif /* VBOX_WITH_CLOUD_NET */
-#ifdef VBOX_WITH_VMNET
-                        if (nic.mode != NetworkAttachmentType_HostOnlyNetwork)
-                            buildNetworkXML(NetworkAttachmentType_HostOnlyNetwork, false, *pelmDisabledNode, nic);
-#endif /* VBOX_WITH_VMNET */
                     }
                     buildNetworkXML(nic.mode, true, *pelmAdapter, nic);
                 }
@@ -7279,11 +6945,11 @@ void MachineConfigFile::buildNetworkXML(NetworkAttachmentType_T mode,
         case NetworkAttachmentType_NAT:
             // For the currently active network attachment type we have to
             // generate the tag, otherwise the attachment type is lost.
-            if (fEnabled || !nic.nat.areDefaultSettings(m->sv))
+            if (fEnabled || !nic.nat.areDefaultSettings())
             {
                 xml::ElementNode *pelmNAT = elmParent.createChild("NAT");
 
-                if (!nic.nat.areDefaultSettings(m->sv))
+                if (!nic.nat.areDefaultSettings())
                 {
                     if (nic.nat.strNetwork.length())
                         pelmNAT->setAttribute("network", nic.nat.strNetwork);
@@ -7299,8 +6965,6 @@ void MachineConfigFile::buildNetworkXML(NetworkAttachmentType_T mode,
                         pelmNAT->setAttribute("tcprcv", nic.nat.u32TcpRcv);
                     if (nic.nat.u32TcpSnd)
                         pelmNAT->setAttribute("tcpsnd", nic.nat.u32TcpSnd);
-                    if (!nic.nat.areLocalhostReachableDefaultSettings(m->sv))
-                        pelmNAT->setAttribute("localhost-reachable", nic.nat.fLocalhostReachable);
                     if (!nic.nat.areDNSDefaultSettings())
                     {
                         xml::ElementNode *pelmDNS = pelmNAT->createChild("DNS");
@@ -7371,19 +7035,6 @@ void MachineConfigFile::buildNetworkXML(NetworkAttachmentType_T mode,
                     pelmMode->setAttribute("name", nic.strHostOnlyName);
             }
             break;
-
-#ifdef VBOX_WITH_VMNET
-        case NetworkAttachmentType_HostOnlyNetwork:
-            // For the currently active network attachment type we have to
-            // generate the tag, otherwise the attachment type is lost.
-            if (fEnabled || !nic.strHostOnlyNetworkName.isEmpty())
-            {
-                xml::ElementNode *pelmMode = elmParent.createChild("HostOnlyNetwork");
-                if (!nic.strHostOnlyNetworkName.isEmpty())
-                    pelmMode->setAttribute("name", nic.strHostOnlyNetworkName);
-            }
-            break;
-#endif /* VBOX_WITH_VMNET */
 
         case NetworkAttachmentType_Generic:
             // For the currently active network attachment type we have to
@@ -7959,58 +7610,9 @@ AudioDriverType_T MachineConfigFile::getHostDefaultAudioDriver()
  */
 void MachineConfigFile::bumpSettingsVersionIfNeeded()
 {
-    if (m->sv < SettingsVersion_v1_19)
-    {
-        // VirtualBox 7.0 adds iommu device.
-        if (hardwareMachine.iommuType != IommuType_None)
-        {
-            m->sv = SettingsVersion_v1_19;
-            return;
-        }
-
-        // VirtualBox 7.0 adds a Trusted Platform Module.
-        if (   hardwareMachine.tpmSettings.tpmType != TpmType_None
-            || hardwareMachine.tpmSettings.strLocation.isNotEmpty())
-        {
-            m->sv = SettingsVersion_v1_19;
-            return;
-        }
-
-        NetworkAdaptersList::const_iterator netit;
-        for (netit = hardwareMachine.llNetworkAdapters.begin();
-             netit != hardwareMachine.llNetworkAdapters.end();
-             ++netit)
-        {
-            // VirtualBox 7.0 adds a flag if NAT can reach localhost.
-            if (   netit->fEnabled
-                && netit->mode == NetworkAttachmentType_NAT
-                && !netit->nat.fLocalhostReachable)
-            {
-                m->sv = SettingsVersion_v1_19;
-                break;
-            }
-
-#ifdef VBOX_WITH_VMNET
-            // VirtualBox 7.0 adds a host-only network attachment.
-            if (netit->mode == NetworkAttachmentType_HostOnlyNetwork)
-            {
-                m->sv = SettingsVersion_v1_19;
-                break;
-            }
-#endif /* VBOX_WITH_VMNET */
-        }
-    }
-
     if (m->sv < SettingsVersion_v1_18)
     {
-        if (!hardwareMachine.nvramSettings.strNvramPath.isEmpty())
-        {
-            m->sv = SettingsVersion_v1_18;
-            return;
-        }
-
-        // VirtualBox 6.1 adds AMD-V virtualized VMSAVE/VMLOAD setting.
-        if (hardwareMachine.fVirtVmsaveVmload == false)
+        if (!hardwareMachine.biosSettings.strNVRAMPath.isEmpty())
         {
             m->sv = SettingsVersion_v1_18;
             return;
@@ -8029,23 +7631,6 @@ void MachineConfigFile::bumpSettingsVersionIfNeeded()
                 return;
             }
         }
-
-#ifdef VBOX_WITH_CLOUD_NET
-        NetworkAdaptersList::const_iterator netit;
-        for (netit = hardwareMachine.llNetworkAdapters.begin();
-             netit != hardwareMachine.llNetworkAdapters.end();
-             ++netit)
-        {
-            // VirtualBox 6.1 adds support for cloud networks.
-            if (   netit->fEnabled
-                && netit->mode == NetworkAttachmentType_Cloud)
-            {
-                m->sv = SettingsVersion_v1_18;
-                break;
-            }
-
-        }
-#endif /* VBOX_WITH_CLOUD_NET */
     }
 
     if (m->sv < SettingsVersion_v1_17)

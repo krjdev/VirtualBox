@@ -1,10 +1,10 @@
-/* $Id: VBoxManageGuestCtrl.h 94234 2022-03-15 09:19:29Z vboxsync $ */
+/* $Id: VBoxManageGuestCtrl.h $ */
 /** @file
  * VBoxManageGuestCtrl.h - Definitions for guest control.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,11 +21,12 @@
 # pragma once
 #endif
 
+#ifndef VBOX_ONLY_DOCS
+
 #include <VBox/com/com.h>
 #include <VBox/com/listeners.h>
 #include <VBox/com/VirtualBox.h>
 
-#include <iprt/semaphore.h>
 #include <iprt/time.h>
 
 #include <map>
@@ -47,9 +48,6 @@ typedef ListenerImpl<GuestSessionEventListener> GuestSessionEventListenerImpl;
 
 class GuestEventListener;
 typedef ListenerImpl<GuestEventListener> GuestEventListenerImpl;
-
-class GuestAdditionsRunlevelListener;
-typedef ListenerImpl<GuestAdditionsRunlevelListener> GuestAdditionsRunlevelListenerImpl;
 
 /** Simple statistics class for binding locally
  *  held data to a specific guest object. */
@@ -232,29 +230,7 @@ protected:
 
     GuestEventSessions mSessions;
 };
-
-/**
- *  Handler for Guest Additions runlevel change events.
- */
-class GuestAdditionsRunlevelListener : public GuestListenerBase
-{
-
-public:
-
-    GuestAdditionsRunlevelListener(AdditionsRunLevelType_T enmRunLevel);
-
-    virtual ~GuestAdditionsRunlevelListener(void);
-
-public:
-
-    void uninit(void);
-
-    STDMETHOD(HandleEvent)(VBoxEventType_T aType, IEvent *aEvent);
-
-protected:
-
-    /** The run level target we're waiting for. */
-    AdditionsRunLevelType_T mRunLevelTarget;
-};
+#endif /* !VBOX_ONLY_DOCS */
 
 #endif /* !VBOX_INCLUDED_SRC_VBoxManage_VBoxManageGuestCtrl_h */
+

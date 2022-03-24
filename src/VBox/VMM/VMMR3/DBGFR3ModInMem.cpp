@@ -1,10 +1,10 @@
-/* $Id: DBGFR3ModInMem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGFR3ModInMem.cpp $ */
 /** @file
  * DBGFR3ModInMemPe - In memory PE module 'loader'.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -508,19 +508,16 @@ static int dbgfR3ModInMemMachO(PUVM pUVM, PCDBGFADDRESS pImageAddr, uint32_t fFl
                 RTLDRMOD hLdrMod;
                 rc = dbgfModInMemCommon_Init(pThis, pUVM, pImageAddr, puBuf->aMappings, cMappings,
                                              pszName, enmArch, &hLdrMod, pErrInfo);
-                if (RT_SUCCESS(rc)) /* Don't bother if we don't have a handle. */
-                {
-                    RTDBGMOD hMod;
-                    rc = RTDbgModCreateFromMachOImage(&hMod, pszFilename ? pszFilename : pszName, pszName, enmArch,
-                                                      &hLdrMod, 0 /*cbImage*/, 0, NULL, &Uuid, DBGFR3AsGetConfig(pUVM), fFlags);
-                    if (RT_SUCCESS(rc))
-                        *phDbgMod = hMod;
-                }
-                else
+                if (RT_FAILURE(rc))
                     hLdrMod = NIL_RTLDRMOD;
 
+                RTDBGMOD hMod;
+                rc = RTDbgModCreateFromMachOImage(&hMod, pszFilename ? pszFilename : pszName, pszName, enmArch,
+                                                  &hLdrMod, 0 /*cbImage*/, 0, NULL, &Uuid, DBGFR3AsGetConfig(pUVM), fFlags);
+                if (RT_SUCCESS(rc))
+                    *phDbgMod = hMod;
 #if 0 /** @todo later */
-                if (RT_FAILURE(rc) && !(fFlags & DBGFMODINMEM_F_NO_CONTAINER_FALLBACK))
+                else if (!(fFlags & DBGFMODINMEM_F_NO_CONTAINER_FALLBACK))
                 {
                     /*
                      * Fallback is a container module.

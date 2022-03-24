@@ -1,10 +1,10 @@
-/* $Id: DBGFCoreWrite.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: DBGFCoreWrite.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Guest Core Dump.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -376,13 +376,12 @@ static void dbgfR3GetCoreCpu(PVMCPU pVCpu, PDBGFCORECPU pDbgfCpu)
     pDbgfCpu->msrSFMASK       = pCtx->msrSFMASK;
     pDbgfCpu->msrKernelGSBase = pCtx->msrKERNELGSBASE;
     pDbgfCpu->msrApicBase     = APICGetBaseMsrNoCheck(pVCpu);
-    pDbgfCpu->msrTscAux       = CPUMGetGuestTscAux(pVCpu);
     pDbgfCpu->aXcr[0]         = pCtx->aXcr[0];
     pDbgfCpu->aXcr[1]         = pCtx->aXcr[1];
-    AssertCompile(sizeof(pDbgfCpu->ext) == sizeof(pCtx->XState));
+    AssertCompile(sizeof(pDbgfCpu->ext) == sizeof(*pCtx->pXStateR3));
     pDbgfCpu->cbExt = pVM->cpum.ro.GuestFeatures.cbMaxExtendedState;
     if (RT_LIKELY(pDbgfCpu->cbExt))
-        memcpy(&pDbgfCpu->ext, &pCtx->XState, pDbgfCpu->cbExt);
+        memcpy(&pDbgfCpu->ext, pCtx->pXStateR3, pDbgfCpu->cbExt);
 
 #undef DBGFCOPYSEL
 }
@@ -560,11 +559,11 @@ static int dbgfR3CoreWriteWorker(PVM pVM, RTFILE hFile)
          * pages for now (would be nice to have the VGA bits there though).
          */
         uint64_t cbMemRange  = GCPhysEnd - GCPhysStart + 1;
-        uint64_t cPages      = cbMemRange >> GUEST_PAGE_SHIFT;
+        uint64_t cPages      = cbMemRange >> PAGE_SHIFT;
         for (uint64_t iPage = 0; iPage < cPages; iPage++)
         {
-            uint8_t abPage[GUEST_PAGE_SIZE];
-            rc = PGMPhysSimpleReadGCPhys(pVM, abPage, GCPhysStart + (iPage << GUEST_PAGE_SHIFT),  sizeof(abPage));
+            uint8_t abPage[PAGE_SIZE];
+            rc = PGMPhysSimpleReadGCPhys(pVM, abPage, GCPhysStart + (iPage << PAGE_SHIFT),  sizeof(abPage));
             if (RT_FAILURE(rc))
             {
                 if (rc != VERR_PGM_PHYS_PAGE_RESERVED)

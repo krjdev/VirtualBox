@@ -1,10 +1,10 @@
-﻿/* $Id: common.css 93115 2022-01-01 11:31:46Z vboxsync $ */
+﻿/* $Id: common.css $ */
 /** @file
  * Test Manager - Common CSS.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -527,24 +527,6 @@ ul.sf-checkbox-expandable {
 #top-menu .current_page_item a {
 }
 
-/*
- * Time navigation forms on a line with some padding between them.
- */
-.tmtimenav form {
-    display: inline-block;
-}
-
-.tmtimenav form + form {
-    padding-left: 0.6em;
-}
-
-/*
- * Items per page and next.
- */
-.tmnextanditemsperpage form {
-    display: inline-block;
-    padding-left: 1em;
-}
 
 /*
  * Error message (typically a paragraph in the body).
@@ -587,18 +569,6 @@ ul.sf-checkbox-expandable {
 .tmoddodd {
     background-color: #e8f0ff;
 }
-
-/*
- * Multi color row/item coloring, 0..7.
- */
-.tmshade0 { background-color: #ececec; }
-.tmshade1 { background-color: #fbfbfb; }
-.tmshade2 { background-color: #e4e4e4; }
-.tmshade3 { background-color: #f4f4f4; }
-.tmshade4 { background-color: #e0e0e0; }
-.tmshade5 { background-color: #f0f0f0; }
-.tmshade6 { background-color: #dcdcdc; }
-.tmshade7 { background-color: #fdfdfd; }
 
 
 /*
@@ -680,14 +650,6 @@ table.tmtable th {
 .tmtable td {
 }
 
-tr.tmseparator td {
-    border-bottom:      2px solid black;
-    font-size:          0;
-    padding-top:        0;
-    padding-bottom:     0;
-}
-
-
 
 /*
  * Table placed inside of a big table used to display *all* stuff of a category.
@@ -748,11 +710,6 @@ table.tmformtbl th, table.tmformtbl thead {
 
 table.tmformtbl tr.tmodd {
     background:     #e2e2e2;
-}
-
-table.tmformtblschedgroupmembers tr td:nth-child(3),
-table.tmformtblschedgroupmembers tr td:nth-child(4) {
-    text-align: center;
 }
 
 
@@ -837,14 +794,6 @@ li.tmshowall {
  */
 table.tmlistnavtab {
     width:          100%;
-}
-
-table.tmlistnavtab tr td:nth-child(1) {
-    text-align:     left;
-}
-
-table.tmlistnavtab tr td:nth-child(2) {
-    text-align:     right;
 }
 
 
@@ -1097,18 +1046,6 @@ table.tmsqltable pre {
     text-align:     left;
 }
 
-table.tmsqltable tr td {
-    text-align:     left;
-}
-
-table.tmsqltable tr td:nth-child(1),
-table.tmsqltable tr td:nth-child(2),
-table.tmsqltable tr td:nth-child(3),
-table.tmsqltable tr td:nth-child(4) {
-    text-align:     right;
-}
-
-
 
 /*
  * Various more or less common span classes.
@@ -1150,16 +1087,7 @@ table.tmsqltable tr td:nth-child(4) {
     margin:     0px;
     border:     0px none;
     width:      100%;
-    //overflow:   auto;
-    overflow:   hidden;
-}
-
-.tmvcstooltipnew {
-    padding:    0px;
-    min-width:  50em;
-    overflow:   hidden;
-    border:     0px none;
-    background-color: #f9f9f9;
+    overflow:   auto;
 }
 
 

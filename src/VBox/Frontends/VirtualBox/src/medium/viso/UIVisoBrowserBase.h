@@ -1,10 +1,10 @@
-/* $Id: UIVisoBrowserBase.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVisoBrowserBase.h $ */
 /** @file
  * VBox Qt GUI - UIVisoBrowserBase class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,7 @@
 
 /* Qt includes: */
 #include <QModelIndex>
-#include <QGroupBox>
+#include <QWidget>
 
 /* GUI includes: */
 #include "QIWithRetranslateUI.h"
@@ -35,7 +35,7 @@ class QTreeView;
 class UILocationSelector;
 
 /** An abstract QWidget extension hosting a tree and table view. */
-class UIVisoBrowserBase : public QIWithRetranslateUI<QGroupBox>
+class UIVisoBrowserBase : public QIWithRetranslateUI<QWidget>
 {
     Q_OBJECT;
 
@@ -52,7 +52,6 @@ public:
     /* Returns true if tree view is currently visible: */
     bool isTreeViewVisible() const;
     void hideTreeView();
-    virtual bool tableViewHasSelection() const = 0;
 
 public slots:
 
@@ -69,9 +68,9 @@ protected:
     virtual void setTableRootIndex(QModelIndex index = QModelIndex()) = 0;
     virtual void setTreeCurrentIndex(QModelIndex index = QModelIndex()) = 0;
 
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
-    virtual bool eventFilter(QObject *pObj, QEvent *pEvent) RT_OVERRIDE;
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
+    virtual bool eventFilter(QObject *pObj, QEvent *pEvent) /* override */;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
 
     QTreeView          *m_pTreeView;
     QGridLayout        *m_pMainLayout;

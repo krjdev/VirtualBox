@@ -40,11 +40,6 @@
   <!-- Sub-command style command (true) or single command (false). -->
   <xsl:variable name="g_fSubCommands" select="not(not(//refsect2[@id]))" />
 
-  <!-- Translatable strings -->
-  <xsl:variable name="sUsage"           select="'Usage'"/>
-  <xsl:variable name="sUsageUnderscore" select="'====='"/>
-
-
   <!-- Default action, do nothing. -->
   <xsl:template match="node()|@*"/>
 
@@ -129,9 +124,9 @@ static const RTMSGREFENTRYSTR </xsl:text><xsl:value-of select="$sDataBaseSym"/><
     <!-- The follows the usage (synopsis) section. -->
     <xsl:text>
     {   RTMSGREFENTRYSTR_SCOPE_GLOBAL,
-        "</xsl:text><xsl:value-of select="$sUsage"/><xsl:text>" },
+        "Usage" },
     {   RTMSGREFENTRYSTR_SCOPE_SAME,
-        "</xsl:text><xsl:value-of select="$sUsageUnderscore"/><xsl:text>" },</xsl:text>
+        "=====" },</xsl:text>
         <xsl:apply-templates select="./refsynopsisdiv/node()"/>
 
     <!-- Then comes the description and other refsect1 -->
@@ -203,7 +198,7 @@ static const RTMSGREFENTRY </xsl:text><xsl:value-of select="$sDataBaseSym"/><xsl
     <xsl:if test="text()"><xsl:message terminate="yes"><xsl:call-template name="error-prefix"/>cmdsynopsis with text is not supported.</xsl:message></xsl:if>
     <xsl:if test="position() = 1">
       <xsl:text>
-    {   </xsl:text><xsl:call-template name="calc-scope-cmdsynopsis"/><xsl:text> | RTMSGREFENTRYSTR_FLAGS_SYNOPSIS, "" },</xsl:text>
+    {   </xsl:text><xsl:call-template name="calc-scope-cmdsynopsis"/><xsl:text> | RTMSGREFENTRYSTR_FLAGS_SYNOPSIS, "" }, </xsl:text>
     </xsl:if>
     <xsl:text>
     {   </xsl:text><xsl:call-template name="calc-scope-cmdsynopsis"/><xsl:text> | RTMSGREFENTRYSTR_FLAGS_SYNOPSIS,
@@ -227,12 +222,8 @@ static const RTMSGREFENTRY </xsl:text><xsl:value-of select="$sDataBaseSym"/><xsl
     <xsl:apply-templates select="node()|@*"/>
   </xsl:template>
 
-  <xsl:template match="command|option|computeroutput|literal|emphasis|filename|citetitle|note">
+  <xsl:template match="command|option|computeroutput|literal|emphasis|filename">
     <xsl:apply-templates select="node()|@*"/>
-  </xsl:template>
-
-  <xsl:template match="ulink">
-    <xsl:value-of select="@url"/>
   </xsl:template>
 
   <xsl:template match="replaceable">
@@ -372,8 +363,8 @@ static const RTMSGREFENTRY </xsl:text><xsl:value-of select="$sDataBaseSym"/><xsl
 
   <xsl:template match="varlistentry/listitem">
     <xsl:call-template name="check-children">
-      <xsl:with-param name="UnsupportedNodes" select="*[not(self::para or self::itemizedlist or self::orderedlist or self::variablelist or self::note)]|text()"/>
-      <xsl:with-param name="SupportedNames">para, itemizedlist, orderedlist and note</xsl:with-param>
+      <xsl:with-param name="UnsupportedNodes" select="*[not(self::para or self::itemizedlist or self::orderedlist or self::variablelist)]|text()"/>
+      <xsl:with-param name="SupportedNames">para, itemizedlist and orderedlist</xsl:with-param>
     </xsl:call-template>
 
     <xsl:apply-templates select="*"/>
@@ -605,10 +596,6 @@ static const RTMSGREFENTRY </xsl:text><xsl:value-of select="$sDataBaseSym"/><xsl
     -->
   <xsl:template match="synopfragment|synopfragmentref|title|refsect1">
     <xsl:message terminate="yes"><xsl:call-template name="error-prefix"/>The <xsl:value-of select="name()"/> element is not supported</xsl:message>
-  </xsl:template>
-
-  <xsl:template match="xref">
-    <xsl:message terminate="yes"><xsl:call-template name="error-prefix"/>The <xsl:value-of select="name()"/> element is not supported, most likely the linkend is not defined or incorrectly processed by docbook-refentry-link-replacement-xsl-gen.xsl</xsl:message>
   </xsl:template>
 
   <!--

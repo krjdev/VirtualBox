@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -729,12 +729,10 @@
 #ifdef IPRT_ASM_AMD64_X86_WATCOM_16_INSTANTIATE
 #pragma aux ASMOutStrU8 = \
     ".186" \
-    "mov ax, ds" \
-    "mov ds, di" \
+    "mov ds, bx" \
     "rep outsb" \
-    "mov ds, ax" \
-    parm [dx] [si di] [cx] nomemory \
-    modify exact [si cx ax] nomemory;
+    parm [dx] [bx si] [cx] nomemory \
+    modify exact [si cx ds] nomemory;
 #endif
 
 #undef      ASMInStrU8
@@ -742,7 +740,7 @@
 #pragma aux ASMInStrU8 = \
     ".186" \
     "rep insb" \
-    parm [dx] [di es] [cx] \
+    parm [dx] [es di] [cx] \
     modify exact [di cx];
 #endif
 
@@ -750,12 +748,10 @@
 #ifdef IPRT_ASM_AMD64_X86_WATCOM_16_INSTANTIATE
 #pragma aux ASMOutStrU16 = \
     ".186" \
-    "mov ax, ds" \
-    "mov ds, di" \
+    "mov ds, bx" \
     "rep outsw" \
-    "mov ds, ax" \
-    parm [dx] [si di] [cx] nomemory \
-    modify exact [si cx ax] nomemory;
+    parm [dx] [bx si] [cx] nomemory \
+    modify exact [si cx ds] nomemory;
 #endif
 
 #undef      ASMInStrU16
@@ -763,7 +759,7 @@
 #pragma aux ASMInStrU16 = \
     ".186" \
     "rep insw" \
-    parm [dx] [di es] [cx] \
+    parm [dx] [es di] [cx] \
     modify exact [di cx];
 #endif
 
@@ -771,12 +767,10 @@
 #ifdef IPRT_ASM_AMD64_X86_WATCOM_16_INSTANTIATE
 #pragma aux ASMOutStrU32 = \
     ".386" \
-    "mov ax, ds" \
-    "mov ds, di" \
+    "mov ds, bx" \
     "rep outsd" \
-    "mov ds, ax" \
-    parm [dx] [si di] [cx] nomemory \
-    modify exact [si cx ax] nomemory;
+    parm [dx] [bx si] [cx] nomemory \
+    modify exact [si cx ds] nomemory;
 #endif
 
 #undef      ASMInStrU32

@@ -1,10 +1,10 @@
-/* $Id: UIModalWindowManager.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIModalWindowManager.cpp $ */
 /** @file
  * VBox Qt GUI - UIModalWindowManager class implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,7 +18,8 @@
 /* GUI includes: */
 #include "UIModalWindowManager.h"
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
-# include "UINetworkRequestManager.h"
+# include "UINetworkManager.h"
+# include "UINetworkManagerDialog.h"
 #endif
 #include "UIProgressDialog.h"
 
@@ -70,6 +71,14 @@ UIModalWindowManager::~UIModalWindowManager()
     /* Unassign instance: */
     s_pInstance = 0;
 }
+
+#ifdef VBOX_GUI_WITH_NETWORK_MANAGER
+QWidget *UIModalWindowManager::networkManagerOrMainWindowShown() const
+{
+    /* Return main application window before network-manager initialization: */
+    return gNetworkManager && gNetworkManager->window()->isVisible() ? gNetworkManager->window() : mainWindowShown();
+}
+#endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
 
 QWidget *UIModalWindowManager::realParentWindow(QWidget *pWidget)
 {

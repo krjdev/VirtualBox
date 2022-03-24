@@ -1,10 +1,10 @@
-/* $Id: RTLdrCheckImports.cpp 93317 2022-01-18 15:15:17Z vboxsync $ */
+/* $Id: RTLdrCheckImports.cpp $ */
 /** @file
  * IPRT - Module dependency checker.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -407,8 +407,7 @@ static int rtCheckImportsForImage(PCRTCHECKIMPORTSOPTS pOpts, const char *pszIma
     uint32_t        offError;
     RTERRINFOSTATIC ErrInfo;
     RTLDRMOD        hLdrMod;
-    int rc = RTLdrOpenVfsChain(pszImage, RTLDR_O_FOR_DEBUG, RTLDRARCH_WHATEVER,
-                               &hLdrMod, &offError, RTErrInfoInitStatic(&ErrInfo));
+    int rc = RTLdrOpenVfsChain(pszImage, 0 /*fFlags*/, RTLDRARCH_WHATEVER, &hLdrMod, &offError, RTErrInfoInitStatic(&ErrInfo));
     if (RT_FAILURE(rc))
     {
         if (RT_FAILURE(rc) && RTErrInfoIsSet(&ErrInfo.Core))

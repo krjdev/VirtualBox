@@ -1,10 +1,10 @@
-/* $Id: VBoxLwipCore.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxLwipCore.cpp $ */
 /** @file
  * VBox Lwip Core Initiatetor/Finilizer.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,8 +45,7 @@ extern "C" {
 #include "lwip/tcpip.h"
 }
 
-typedef struct LWIPCOREUSERCALLBACK
-{
+typedef struct {
     PFNRT1 pfn;
     void *pvUser;
 } LWIPCOREUSERCALLBACK, *PLWIPCOREUSERCALLBACK;
@@ -64,9 +63,9 @@ static LWIPCORE g_LwipCore;
 
 
 /**
- * @note this function executes on TCPIP thread.
+ * @note: this function executes on TCPIP thread.
  */
-static void lwipCoreUserCallback(void *pvArg) RT_NOTHROW_DEF
+static void lwipCoreUserCallback(void *pvArg)
 {
     LogFlowFunc(("ENTER: pvArg:%p\n", pvArg));
 
@@ -81,9 +80,9 @@ static void lwipCoreUserCallback(void *pvArg) RT_NOTHROW_DEF
 
 
 /**
- * @note this function executes on TCPIP thread.
+ * @note: this function executes on TCPIP thread.
  */
-static void lwipCoreInitDone(void *pvArg) RT_NOTHROW_DEF
+static void lwipCoreInitDone(void *pvArg)
 {
     LogFlowFunc(("ENTER: pvArg:%p\n", pvArg));
 
@@ -95,9 +94,9 @@ static void lwipCoreInitDone(void *pvArg) RT_NOTHROW_DEF
 
 
 /**
- * @note this function executes on TCPIP thread.
+ * @note: this function executes on TCPIP thread.
  */
-static void lwipCoreFiniDone(void *pvArg) RT_NOTHROW_DEF
+static void lwipCoreFiniDone(void *pvArg)
 {
     LogFlowFunc(("ENTER: pvArg:%p\n", pvArg));
 

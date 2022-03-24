@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerSearchPanel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMLogViewerSearchPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,6 +34,7 @@ class QLabel;
 class QWidget;
 class QIToolButton;
 class UISearchLineEdit;
+class UIVMLogViewerSearchField;
 class UIVMLogViewerWidget;
 
 /** UIVMLogViewerPanel extension
@@ -54,22 +55,23 @@ public:
     UIVMLogViewerSearchPanel(QWidget *pParent, UIVMLogViewerWidget *pViewer);
     /** Resets the search position and starts a new search. */
     void refresh();
+    void reset();
     const QVector<float> &matchLocationVector() const;
-    virtual QString panelName() const RT_OVERRIDE;
+    virtual QString panelName() const /* override */;
     /** Returns the number of the matches to the current search. */
     int matchCount() const;
 
 protected:
 
-    virtual void prepareWidgets() RT_OVERRIDE;
-    virtual void prepareConnections() RT_OVERRIDE;
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void prepareWidgets() /* override */;
+    virtual void prepareConnections() /* override */;
+    virtual void retranslateUi() /* override */;
     /** Handles Qt key-press @a pEevent. */
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
     /** Handles Qt @a pEvent, used for keyboard processing. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
-    virtual void hideEvent(QHideEvent* pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
+    virtual void hideEvent(QHideEvent* pEvent) /* override */;
 
 private slots:
 
@@ -93,7 +95,7 @@ private:
       * @param  highlight      if false highlight function is not called
                                thus we avoid calling highlighting for the same string repeatedly. */
     void performSearch(SearchDirection eDirection, bool highlight);
-    void highlightAll(const QString &searchString);
+    void highlightAll(QTextDocument *pDocument, const QString &searchString);
     void findAll(QTextDocument *pDocument, const QString &searchString);
     void selectMatch(int iMatchIndex, const QString &searchString);
     void moveSelection(bool fForward);
@@ -102,8 +104,6 @@ private:
     QTextDocument::FindFlags constructFindFlags(SearchDirection eDirection) const;
     /** Searches the whole document and return the number of matches to the current search term. */
     int countMatches(QTextDocument *pDocument, const QString &searchString) const;
-    void reset();
-
     /** Holds the instance of search-editor we create. */
     UISearchLineEdit *m_pSearchEditor;
 

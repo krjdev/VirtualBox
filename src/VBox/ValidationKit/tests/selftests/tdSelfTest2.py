@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: tdSelfTest2.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: tdSelfTest2.py $
 
 """
 Test Manager / Suite Self Test #2 - Everything should succeed.
@@ -8,7 +8,7 @@ Test Manager / Suite Self Test #2 - Everything should succeed.
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.

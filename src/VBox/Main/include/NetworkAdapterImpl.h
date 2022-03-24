@@ -1,10 +1,10 @@
-/* $Id: NetworkAdapterImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NetworkAdapterImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ class ATL_NO_VTABLE NetworkAdapter :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(NetworkAdapter)
+    DECLARE_EMPTY_CTOR_DTOR(NetworkAdapter)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -78,8 +78,6 @@ private:
     HRESULT setBridgedInterface(const com::Utf8Str &aBridgedInterface);
     HRESULT getHostOnlyInterface(com::Utf8Str &aHostOnlyInterface);
     HRESULT setHostOnlyInterface(const com::Utf8Str &aHostOnlyInterface);
-    HRESULT getHostOnlyNetwork(com::Utf8Str &aHostOnlyNetwork);
-    HRESULT setHostOnlyNetwork(const com::Utf8Str &aHostOnlyNetwork);
     HRESULT getInternalNetwork(com::Utf8Str &aInternalNetwork);
     HRESULT setInternalNetwork(const com::Utf8Str &aInternalNetwork);
     HRESULT getNATNetwork(com::Utf8Str &aNATNetwork);

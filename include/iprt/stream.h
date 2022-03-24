@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,10 +40,8 @@ RT_C_DECLS_BEGIN
  * @{
  */
 
-#ifndef IPRT_INCLUDED_message_h
 /** Pointer to a stream. */
 typedef struct RTSTREAM *PRTSTREAM;
-#endif
 
 /** Pointer to the standard input stream. */
 extern RTDATADECL(PRTSTREAM)    g_pStdIn;

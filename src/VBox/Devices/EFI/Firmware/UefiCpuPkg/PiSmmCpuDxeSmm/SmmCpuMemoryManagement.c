@@ -32,7 +32,7 @@ PAGE_ATTRIBUTE_TABLE mPageAttributeTable[] = {
   {Page1G,  SIZE_1GB, PAGING_1G_ADDRESS_MASK_64},
 };
 
-UINTN  mInternalCr3;
+UINTN  mInternalGr3;
 
 /**
   Set the internal page table base address.
@@ -46,7 +46,23 @@ SetPageTableBase (
   IN UINTN   Cr3
   )
 {
-  mInternalCr3 = Cr3;
+  mInternalGr3 = Cr3;
+}
+
+/**
+  Return page table base.
+
+  @return page table base.
+**/
+UINTN
+GetPageTableBase (
+  VOID
+  )
+{
+  if (mInternalGr3 != 0) {
+    return mInternalGr3;
+  }
+  return (AsmReadCr3 () & PAGING_4K_ADDRESS_MASK_64);
 }
 
 /**
@@ -115,10 +131,8 @@ GetPageTableEntry (
   UINT64                *L3PageTable;
   UINT64                *L4PageTable;
   UINT64                *L5PageTable;
-  UINTN                 PageTableBase;
+  IA32_CR4              Cr4;
   BOOLEAN               Enable5LevelPaging;
-
-  GetPageTable (&PageTableBase, &Enable5LevelPaging);
 
   Index5 = ((UINTN)RShiftU64 (Address, 48)) & PAGING_PAE_INDEX_MASK;
   Index4 = ((UINTN)RShiftU64 (Address, 39)) & PAGING_PAE_INDEX_MASK;
@@ -126,9 +140,12 @@ GetPageTableEntry (
   Index2 = ((UINTN)Address >> 21) & PAGING_PAE_INDEX_MASK;
   Index1 = ((UINTN)Address >> 12) & PAGING_PAE_INDEX_MASK;
 
+  Cr4.UintN = AsmReadCr4 ();
+  Enable5LevelPaging = (BOOLEAN) (Cr4.Bits.LA57 == 1);
+
   if (sizeof(UINTN) == sizeof(UINT64)) {
     if (Enable5LevelPaging) {
-      L5PageTable = (UINT64 *)PageTableBase;
+      L5PageTable = (UINT64 *)GetPageTableBase ();
       if (L5PageTable[Index5] == 0) {
         *PageAttribute = PageNone;
         return NULL;
@@ -136,7 +153,7 @@ GetPageTableEntry (
 
       L4PageTable = (UINT64 *)(UINTN)(L5PageTable[Index5] & ~mAddressEncMask & PAGING_4K_ADDRESS_MASK_64);
     } else {
-      L4PageTable = (UINT64 *)PageTableBase;
+      L4PageTable = (UINT64 *)GetPageTableBase ();
     }
     if (L4PageTable[Index4] == 0) {
       *PageAttribute = PageNone;
@@ -145,7 +162,7 @@ GetPageTableEntry (
 
     L3PageTable = (UINT64 *)(UINTN)(L4PageTable[Index4] & ~mAddressEncMask & PAGING_4K_ADDRESS_MASK_64);
   } else {
-    L3PageTable = (UINT64 *)PageTableBase;
+    L3PageTable = (UINT64 *)GetPageTableBase ();
   }
   if (L3PageTable[Index3] == 0) {
     *PageAttribute = PageNone;
@@ -235,7 +252,7 @@ ConvertPageEntryAttribute (
   if ((Attributes & EFI_MEMORY_RO) != 0) {
     if (IsSet) {
       NewPageEntry &= ~(UINT64)IA32_PG_RW;
-      if (mInternalCr3 != 0) {
+      if (mInternalGr3 != 0) {
         // Environment setup
         // ReadOnly page need set Dirty bit for shadow stack
         NewPageEntry |= IA32_PG_D;
@@ -418,7 +435,7 @@ ConvertMemoryPageAttributes (
   EFI_PHYSICAL_ADDRESS              MaximumSupportMemAddress;
 
   ASSERT (Attributes != 0);
-  ASSERT ((Attributes & ~EFI_MEMORY_ATTRIBUTE_MASK) == 0);
+  ASSERT ((Attributes & ~(EFI_MEMORY_RP | EFI_MEMORY_RO | EFI_MEMORY_XP)) == 0);
 
   ASSERT ((BaseAddress & (SIZE_4KB - 1)) == 0);
   ASSERT ((Length & (SIZE_4KB - 1)) == 0);
@@ -448,7 +465,7 @@ ConvertMemoryPageAttributes (
   }
 
   //
-  // Below logic is to check 2M/4K page to make sure we do not waste memory.
+  // Below logic is to check 2M/4K page to make sure we donot waist memory.
   //
   while (Length != 0) {
     PageEntry = GetPageTableEntry (BaseAddress, &PageAttribute);
@@ -1048,7 +1065,7 @@ IsUefiPageNotPresent (
 }
 
 /**
-  Merge continuous memory map entries whose type is
+  Merge continous memory map entries whose type is
   EfiLoaderCode/Data, EfiBootServicesCode/Data, EfiConventionalMemory,
   EfiUnusableMemory, EfiACPIReclaimMemory, because the memory described by
   these entries will be set as NOT present in SMM page table.

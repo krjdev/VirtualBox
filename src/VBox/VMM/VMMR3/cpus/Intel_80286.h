@@ -1,11 +1,11 @@
-/* $Id: Intel_80286.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Intel_80286.h $ */
 /** @file
  * CPU database entry "Intel 80286".
  * Handcrafted.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,7 +59,7 @@ static CPUMDBENTRY const g_Entry_Intel_80286 =
     /*.uStepping        = */ 0,
     /*.enmMicroarch     = */ kCpumMicroarch_Intel_80286,
     /*.uScalableBusFreq = */ CPUM_SBUSFREQ_UNKNOWN,
-    /*.fFlags           = */ CPUMDB_F_EXECUTE_ALL_IN_IEM,
+    /*.fFlags           = */ CPUDB_F_EXECUTE_ALL_IN_IEM,
     /*.cMaxPhysAddrWidth= */ 24,
     /*.fMxCsrMask       = */ 0,
     /*.paCpuIdLeaves    = */ NULL_ALONE(g_aCpuIdLeaves_Intel_80286),

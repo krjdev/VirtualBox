@@ -1,10 +1,10 @@
-/* $Id: DBGCOps.cpp 94262 2022-03-16 02:11:04Z vboxsync $ */
+/* $Id: DBGCOps.cpp $ */
 /** @file
  * DBGC - Debugger Console, Operators.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -481,7 +481,7 @@ DECLCALLBACK(int) dbgcOpRegister(PDBGC pDbgc, PCDBGCVAR pArg, DBGCVARCAT enmCat,
 #ifdef RT_COMPILER_WITH_80BIT_LONG_DOUBLE
                 DBGCVAR_INIT_NUMBER(pResult, (uint64_t)Value.r80Ex.lrd);
 #else
-                DBGCVAR_INIT_NUMBER(pResult, (uint64_t)Value.r80Ex.sj64.uFraction);
+                DBGCVAR_INIT_NUMBER(pResult, (uint64_t)Value.r80Ex.sj64.u63Fraction);
 #endif
                 return VINF_SUCCESS;
 

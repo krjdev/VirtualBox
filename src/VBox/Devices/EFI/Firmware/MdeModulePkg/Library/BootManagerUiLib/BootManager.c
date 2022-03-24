@@ -535,9 +535,9 @@ UpdateBootManager (
     mKeyInput++;
 
     //
-    // Don't display hidden boot options, but retain inactive ones.
+    // Don't display the hidden/inactive boot option
     //
-    if ((BootOption[Index].Attributes & LOAD_OPTION_HIDDEN) != 0) {
+    if (((BootOption[Index].Attributes & LOAD_OPTION_HIDDEN) != 0) || ((BootOption[Index].Attributes & LOAD_OPTION_ACTIVE) == 0)) {
       continue;
     }
 

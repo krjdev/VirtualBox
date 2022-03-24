@@ -1,4 +1,4 @@
-/* $Id: SystemPropertiesImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SystemPropertiesImpl.h $ */
 
 /** @file
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 #include "MediumFormatImpl.h"
 #include "SystemPropertiesWrap.h"
 
-class CPUProfile;
 
 namespace settings
 {
@@ -38,9 +37,8 @@ class ATL_NO_VTABLE SystemProperties :
 {
 public:
     typedef std::list<ComObjPtr<MediumFormat> > MediumFormatList;
-    typedef std::list<ComObjPtr<CPUProfile> > CPUProfileList_T;
 
-    DECLARE_COMMON_CLASS_METHODS(SystemProperties)
+    DECLARE_EMPTY_CTOR_DTOR(SystemProperties)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -141,20 +139,6 @@ private:
     HRESULT getSupportedStorageBuses(std::vector<StorageBus_T> &aSupportedStorageBuses) RT_OVERRIDE;
     HRESULT getSupportedStorageControllerTypes(std::vector<StorageControllerType_T> &aSupportedStorageControllerTypes) RT_OVERRIDE;
     HRESULT getSupportedChipsetTypes(std::vector<ChipsetType_T> &aSupportedChipsetTypes) RT_OVERRIDE;
-    HRESULT getSupportedIommuTypes(std::vector<IommuType_T> &aSupportedIommuTypes) RT_OVERRIDE;
-    HRESULT getSupportedVBoxUpdateTargetTypes(std::vector<VBoxUpdateTarget_T> &aSupportedVBoxUpdateTargetTypes) RT_OVERRIDE;
-    HRESULT getVBoxUpdateEnabled(BOOL *aVBoxUpdateEnabled) RT_OVERRIDE;
-    HRESULT setVBoxUpdateEnabled(BOOL aVBoxUpdateEnabled) RT_OVERRIDE;
-    HRESULT getVBoxUpdateFrequency(ULONG *aVBoxUpdateFrequency) RT_OVERRIDE;
-    HRESULT setVBoxUpdateFrequency(ULONG aVBoxUpdateFrequency) RT_OVERRIDE;
-    HRESULT getVBoxUpdateLastCheckDate(com::Utf8Str &aVBoxUpdateLastCheckDate) RT_OVERRIDE;
-    HRESULT setVBoxUpdateLastCheckDate(const com::Utf8Str &aVBoxUpdateLastCheckDate) RT_OVERRIDE;
-    HRESULT getVBoxUpdateTarget(VBoxUpdateTarget_T *aVBoxUpdateTarget) RT_OVERRIDE;
-    HRESULT setVBoxUpdateTarget(VBoxUpdateTarget_T aVBoxUpdateTarget) RT_OVERRIDE;
-    HRESULT getVBoxUpdateCount(ULONG *aVBoxUpdateCount) RT_OVERRIDE;
-    HRESULT setVBoxUpdateCount(ULONG aVBoxUpdateCount) RT_OVERRIDE;
-    HRESULT getLanguageId(com::Utf8Str &aLanguageId) RT_OVERRIDE;
-    HRESULT setLanguageId(const com::Utf8Str &aLanguageId) RT_OVERRIDE;
 
     // wrapped ISystemProperties methods
     HRESULT getMaxNetworkAdapters(ChipsetType_T aChipset,
@@ -184,8 +168,6 @@ private:
     HRESULT getMaxInstancesOfUSBControllerType(ChipsetType_T aChipset,
                                                USBControllerType_T aType,
                                                ULONG *aMaxInstances) RT_OVERRIDE;
-    HRESULT getCPUProfiles(CPUArchitecture_T aArchitecture, const com::Utf8Str &aNamePattern,
-                           std::vector<ComPtr<ICPUProfile> > &aProfiles) RT_OVERRIDE;
 
     HRESULT i_getUserHomeDirectory(Utf8Str &strPath);
     HRESULT i_setDefaultMachineFolder(const Utf8Str &strPath);
@@ -198,16 +180,12 @@ private:
     HRESULT i_setAutostartDatabasePath(const com::Utf8Str &aPath);
     HRESULT i_setDefaultAdditionsISO(const com::Utf8Str &aPath);
     HRESULT i_setDefaultFrontend(const com::Utf8Str &aDefaultFrontend);
-    HRESULT i_setVBoxUpdateLastCheckDate(const com::Utf8Str &aVBoxUpdateLastCheckDate);
 
     VirtualBox * const  mParent;
 
     settings::SystemProperties *m;
 
     MediumFormatList m_llMediumFormats;
-
-    bool                m_fLoadedX86CPUProfiles;    /**< Set if we've loaded the x86 and AMD64 CPU profiles. */
-    CPUProfileList_T    m_llCPUProfiles;            /**< List of loaded CPU profiles. */
 
     friend class VirtualBox;
 };

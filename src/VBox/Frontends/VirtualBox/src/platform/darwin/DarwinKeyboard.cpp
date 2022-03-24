@@ -1,10 +1,10 @@
-/* $Id: DarwinKeyboard.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DarwinKeyboard.cpp $ */
 /** @file
  * VBox Qt GUI - Declarations of utility functions for handling Darwin Keyboard specific tasks.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -560,7 +560,7 @@ void DarwinDisableGlobalHotKeys(bool fDisable)
 
 /** Callback function for consuming queued events.
   * @param   pvTarget  Brings the queue?
-  * @param   rcIn      Brings what?
+  * @param   rcIn      Brigns what?
   * @param   pvRefcon  Brings the pointer to the keyboard cache entry.
   * @param   pvSender  Brings what? */
 static void darwinQueueCallback(void *pvTarget, IOReturn rcIn, void *pvRefcon, void *pvSender)
@@ -1753,10 +1753,9 @@ static int darwinUsbHidSubscribeInterestNotifications(VBoxHidsState_t *pHidState
             CFRunLoopAddSource(CFRunLoopGetCurrent(), IONotificationPortGetRunLoopSource(pHidState->pNotificationPrortRef), kCFRunLoopDefaultMode);
 
             rc = IOServiceAddMatchingNotification(pHidState->pNotificationPrortRef, kIOMatchedNotification,
-                                                  pDictionary, darwinUsbHidDeviceMatchCb, pHidState,
-                                                  &pHidState->pUsbHidDeviceMatchNotify);
+                pDictionary, darwinUsbHidDeviceMatchCb, pHidState, &pHidState->pUsbHidDeviceMatchNotify);
 
-            if (rc == kIOReturnSuccess && pHidState->pUsbHidDeviceMatchNotify != IO_OBJECT_NULL)
+            if (rc == kIOReturnSuccess && &pHidState->pUsbHidDeviceMatchNotify != NULL)
             {
                 darwinUsbHidDeviceMatchCb(pHidState, pHidState->pUsbHidDeviceMatchNotify);
                 LogRel2(("Successfully subscribed to IOUSBInterface IOService match notifications\n"));
@@ -1932,8 +1931,7 @@ static int darwinAddCarbonHandler(VBoxHidsState_t *pHidState)
         return kIOReturnError;
     }
 
-    pTapRef = CGEventTapCreate(kCGSessionEventTap, kCGTailAppendEventTap, kCGEventTapOptionDefault, fMask,
-                               darwinCarbonCallback, (void *)pHidState);
+    pTapRef = CGEventTapCreate(kCGSessionEventTap, kCGTailAppendEventTap, 0, fMask, darwinCarbonCallback, (void *)pHidState);
     if (pTapRef)
     {
         CFRunLoopSourceRef pLoopSourceRef;

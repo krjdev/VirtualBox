@@ -1,10 +1,10 @@
-/* $Id: UISlidingToolBar.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UISlidingToolBar.cpp $ */
 /** @file
  * VBox Qt GUI - UISlidingToolBar class implementation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,6 @@
 
 /* GUI includes: */
 #include "UICommon.h"
-#include "UIDesktopWidgetWatchdog.h"
 #include "UISlidingToolBar.h"
 #include "UIAnimationFramework.h"
 #include "UIMachineWindow.h"
@@ -165,7 +164,7 @@ void UISlidingToolBar::prepareContents()
             {
                 /* Configure child-widget: */
                 QPalette pal2 = m_pWidget->palette();
-                pal2.setColor(QPalette::Window, QApplication::palette().color(QPalette::Window));
+                pal2.setColor(QPalette::Window, palette().color(QPalette::Window));
                 m_pWidget->setPalette(pal2);
                 /* Using abstract (old-style) connection here(!) since the base classes can be different: */
                 connect(m_pWidget, SIGNAL(sigCancelClicked()), this, SLOT(close()));
@@ -187,14 +186,14 @@ void UISlidingToolBar::prepareGeometry()
     {
         case Position_Top:
         {
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y()                         + m_indentRect.height(),
+            UICommon::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y()                         + m_indentRect.height(),
                                                   qMax(m_parentRect.width(), sh.width()), sh.height());
             m_pWidget->setGeometry(0, -sh.height(), qMax(width(), sh.width()), sh.height());
             break;
         }
         case Position_Bottom:
         {
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y() + m_parentRect.height() - m_indentRect.height() - sh.height(),
+            UICommon::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y() + m_parentRect.height() - m_indentRect.height() - sh.height(),
                                                   qMax(m_parentRect.width(), sh.width()), sh.height());
             m_pWidget->setGeometry(0,  sh.height(), qMax(width(), sh.width()), sh.height());
             break;
@@ -245,13 +244,13 @@ void UISlidingToolBar::adjustGeometry()
     {
         case Position_Top:
         {
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y()                         + m_indentRect.height(),
+            UICommon::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y()                         + m_indentRect.height(),
                                                   qMax(m_parentRect.width(), sh.width()), sh.height());
             break;
         }
         case Position_Bottom:
         {
-            UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y() + m_parentRect.height() - m_indentRect.height() - sh.height(),
+            UICommon::setTopLevelGeometry(this, m_parentRect.x(), m_parentRect.y() + m_parentRect.height() - m_indentRect.height() - sh.height(),
                                                   qMax(m_parentRect.width(), sh.width()), sh.height());
             break;
         }

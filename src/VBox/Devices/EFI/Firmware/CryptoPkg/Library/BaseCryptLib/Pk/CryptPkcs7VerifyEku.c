@@ -15,13 +15,13 @@
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
 #include <openssl/bio.h>
-#include <crypto/x509.h>
+#include <internal/x509_int.h>
 #include <openssl/pkcs7.h>
 #include <openssl/bn.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/pem.h>
 #include <openssl/evp.h>
-#include <crypto/asn1.h>
+#include <internal/asn1_int.h>
 
 /**
   This function will return the leaf signer certificate in a chain.  This is
@@ -506,6 +506,10 @@ Exit:
   //
   if (!IsWrapped && SignedData) {
     free (SignedData);
+  }
+
+  if (SignerCert != NULL) {
+    X509_free (SignerCert);
   }
 
   if (Pkcs7 != NULL) {

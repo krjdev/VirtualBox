@@ -1,10 +1,10 @@
-/* $Id: UIChooserNodeGlobal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserNodeGlobal.h $ */
 /** @file
  * VBox Qt GUI - UIChooserNodeGlobal class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,66 +33,66 @@ class UIChooserNodeGlobal : public UIChooserNode
 public:
 
     /** Constructs chooser node passing @a pParent to the base-class.
-      * @param  iPosition  Brings the initial node position.
       * @param  fFavorite  Brings whether the node is favorite.
+      * @param  iPosition  Brings the initial node position.
       * @param  strTip     Brings the dummy tip. */
     UIChooserNodeGlobal(UIChooserNode *pParent,
-                        int iPosition,
                         bool fFavorite,
+                        int iPosition,
                         const QString &strTip);
     /** Constructs chooser node passing @a pParent to the base-class.
-      * @param  iPosition  Brings the initial node position.
-      * @param  pCopyFrom  Brings the node to copy data from. */
+      * @param  pCopyFrom  Brings the node to copy data from.
+      * @param  iPosition  Brings the initial node position. */
     UIChooserNodeGlobal(UIChooserNode *pParent,
-                        int iPosition,
-                        UIChooserNodeGlobal *pCopyFrom);
+                        UIChooserNodeGlobal *pCopyFrom,
+                        int iPosition);
     /** Destructs chooser node. */
-    virtual ~UIChooserNodeGlobal() RT_OVERRIDE;
+    virtual ~UIChooserNodeGlobal() /* override */;
 
     /** Returns RTTI node type. */
-    virtual UIChooserNodeType type() const RT_OVERRIDE { return UIChooserNodeType_Global; }
+    virtual UIChooserItemType type() const /* override */ { return UIChooserItemType_Global; }
 
     /** Returns node name. */
-    virtual QString name() const RT_OVERRIDE;
+    virtual QString name() const /* override */;
     /** Returns full node name. */
-    virtual QString fullName() const RT_OVERRIDE;
+    virtual QString fullName() const /* override */;
     /** Returns item description. */
-    virtual QString description() const RT_OVERRIDE;
-    /** Returns item definition.
-      * @param  fFull  Brings whether full definition is required
-      *                which is used while saving group definitions,
-      *                otherwise short definition will be returned,
-      *                which is used while saving last chosen node. */
-    virtual QString definition(bool fFull = false) const RT_OVERRIDE;
+    virtual QString description() const /* override */;
+    /** Returns item definition. */
+    virtual QString definition() const /* override */;
 
     /** Returns whether there are children of certain @a enmType. */
-    virtual bool hasNodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+    virtual bool hasNodes(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
     /** Returns a list of nodes of certain @a enmType. */
-    virtual QList<UIChooserNode*> nodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+    virtual QList<UIChooserNode*> nodes(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
 
     /** Adds passed @a pNode to specified @a iPosition. */
-    virtual void addNode(UIChooserNode *pNode, int iPosition) RT_OVERRIDE;
+    virtual void addNode(UIChooserNode *pNode, int iPosition) /* override */;
     /** Removes passed @a pNode. */
-    virtual void removeNode(UIChooserNode *pNode) RT_OVERRIDE;
+    virtual void removeNode(UIChooserNode *pNode) /* override */;
 
     /** Removes all children with specified @a uId recursively. */
-    virtual void removeAllNodes(const QUuid &uId) RT_OVERRIDE;
+    virtual void removeAllNodes(const QUuid &uId) /* override */;
     /** Updates all children with specified @a uId recursively. */
-    virtual void updateAllNodes(const QUuid &uId) RT_OVERRIDE;
+    virtual void updateAllNodes(const QUuid &uId) /* override */;
+
+    /** Returns whether this node is a cloud node itself
+      * or contains at least one cloud VM node child. */
+    virtual bool hasAtLeastOneCloudNode() const /* override */;
 
     /** Returns position of specified node inside this one. */
-    virtual int positionOf(UIChooserNode *pNode) RT_OVERRIDE;
+    virtual int positionOf(UIChooserNode *pNode) /* override */;
 
-    /** Updates the @a matchedItems wrt. @strSearchTerm and @a iSearchFlags. */
-    virtual void searchForNodes(const QString &strSearchTerm, int iSearchFlags, QList<UIChooserNode*> &matchedItems) RT_OVERRIDE;
+    /** Updates the @a matchedItems wrt. @strSearchTerm and @a iItemSearchFlags. */
+    virtual void searchForNodes(const QString &strSearchTerm, int iItemSearchFlags, QList<UIChooserNode*> &matchedItems) /* override */;
 
     /** Performs sorting of children nodes. */
-    virtual void sortNodes() RT_OVERRIDE;
+    virtual void sortNodes() /* override */;
 
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private:
 

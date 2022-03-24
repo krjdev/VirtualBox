@@ -1,11 +1,11 @@
-/* $Id: TestVBox.java 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: TestVBox.java $ */
 /*! file
  * Small sample/testcase which demonstrates that the same source code can
  * be used to connect to the webservice and (XP)COM APIs.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,7 @@
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
 
-import org.virtualbox_6_2.*;
+import org.virtualbox_5_0.*;
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;

@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestR3LibDragAndDrop.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestR3LibDragAndDrop.cpp $ */
 /** @file
  * VBoxGuestR3Lib - Ring-3 Support Library for VirtualBox guest additions, Drag & Drop.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,7 +60,6 @@ using namespace DragAndDropSvc;
  * Receives the next upcoming message for a given DnD context.
  *
  * @returns IPRT status code.
- *          Will return VERR_CANCELLED (implemented by the host service) if we need to bail out.
  * @param   pCtx                DnD context to use.
  * @param   puMsg               Where to store the message type.
  * @param   pcParms             Where to store the number of parameters required for receiving the message.
@@ -72,24 +71,18 @@ static int vbglR3DnDGetNextMsgType(PVBGLR3GUESTDNDCMDCTX pCtx, uint32_t *puMsg, 
     AssertPtrReturn(puMsg,   VERR_INVALID_POINTER);
     AssertPtrReturn(pcParms, VERR_INVALID_POINTER);
 
-    int rc;
+    HGCMMsgGetNext Msg;
+    VBGL_HGCM_HDR_INIT(&Msg.hdr, pCtx->uClientID, GUEST_DND_FN_GET_NEXT_HOST_MSG, 3);
+    Msg.uMsg.SetUInt32(0);
+    Msg.cParms.SetUInt32(0);
+    Msg.fBlock.SetUInt32(fWait ? 1 : 0);
 
-    do
+    int rc = VbglR3HGCMCall(&Msg.hdr, sizeof(Msg));
+    if (RT_SUCCESS(rc))
     {
-        HGCMMsgGetNext Msg;
-        VBGL_HGCM_HDR_INIT(&Msg.hdr, pCtx->uClientID, GUEST_DND_FN_GET_NEXT_HOST_MSG, 3);
-        Msg.uMsg.SetUInt32(0);
-        Msg.cParms.SetUInt32(0);
-        Msg.fBlock.SetUInt32(fWait ? 1 : 0);
-
-        rc = VbglR3HGCMCall(&Msg.hdr, sizeof(Msg));
-        if (RT_SUCCESS(rc))
-        {
-            rc = Msg.uMsg.GetUInt32(puMsg);     AssertRC(rc);
-            rc = Msg.cParms.GetUInt32(pcParms); AssertRC(rc);
-        }
-
-    } while (rc == VERR_INTERRUPTED);
+        rc = Msg.uMsg.GetUInt32(puMsg);     AssertRC(rc);
+        rc = Msg.cParms.GetUInt32(pcParms); AssertRC(rc);
+    }
 
     return rc;
 }
@@ -1084,14 +1077,9 @@ VBGLR3DECL(int) VbglR3DnDConnect(PVBGLR3GUESTDNDCMDCTX pCtx)
 VBGLR3DECL(int) VbglR3DnDDisconnect(PVBGLR3GUESTDNDCMDCTX pCtx)
 {
     AssertPtrReturn(pCtx, VERR_INVALID_POINTER);
-
-    if (!pCtx->uClientID) /* Already disconnected? Bail out early. */
-        return VINF_SUCCESS;
-
     int rc = VbglR3HGCMDisconnect(pCtx->uClientID);
     if (RT_SUCCESS(rc))
         pCtx->uClientID = 0;
-
     return rc;
 }
 
@@ -1173,15 +1161,6 @@ VBGLR3DECL(int) VbglR3DnDEventGetNext(PVBGLR3GUESTDNDCMDCTX pCtx, PVBGLR3DNDEVEN
             if (RT_SUCCESS(rc))
                 rc = VbglR3DnDConnect(pCtx);
         }
-    }
-
-    if (rc == VERR_CANCELLED) /* Host service told us that we have to bail out. */
-    {
-        pEvent->enmType = VBGLR3DNDEVENTTYPE_QUIT;
-
-        *ppEvent = pEvent;
-
-        return VINF_SUCCESS;
     }
 
     if (RT_SUCCESS(rc))

@@ -1,10 +1,10 @@
-/* $Id: Wrapper.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Wrapper.h $ */
 /** @file
  * VirtualBox COM - API wrapper helpers.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,10 +37,10 @@
     do { \
         if (RT_LIKELY(RT_VALID_PTR(arg))) \
         { /* likely */ }\
-        /* Have to use use VirtualBoxBase::tr here or lupdate won't be able to figure out the context, \
-           as it is picking it up right here rather than in the places where the macro is actually used. */ \
-        else throw setError(E_POINTER, VirtualBoxBase::tr("Output argument %s points to invalid memory location (%p)"), \
-                            #arg, (void *)(arg)); \
+        else \
+            throw setError(E_POINTER, \
+                tr("Output argument %s points to invalid memory location (%p)"), \
+                #arg, (void *)(arg)); \
     } while (0)
 
 

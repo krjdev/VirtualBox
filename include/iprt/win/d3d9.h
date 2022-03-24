@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,10 +29,6 @@
 # pragma once
 #endif
 
-/* d3d9.h includes windows.h (via objbase.h -> rpc.h), so do it up front using
-   our wrappers to avoid needing to duplicate warning workarounds for it. */
-#include <iprt/win/windows.h>
-
 #ifdef _MSC_VER
 # pragma warning(push)
 /*# pragma warning(disable:4163)*/
@@ -40,11 +36,6 @@
 # pragma warning(disable:4255) /* warning C4255: 'ObGetFilterVersion' : no function prototype given: converting '()' to '(void)' */
 # if _MSC_VER >= 1800 /*RT_MSC_VER_VC120*/
 #  pragma warning(disable:4005) /* sdk/v7.1/include/sal_supp.h(57) : warning C4005: '__useHeader' : macro redefinition */
-# endif
-# ifdef __cplusplus
-#  if _MSC_VER >= 1900 /*RT_MSC_VER_VC140*/
-#   pragma warning(disable:5039) /* winbase.h(13179): warning C5039: 'TpSetCallbackCleanupGroup': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception. */
-#  endif
 # endif
 #endif
 

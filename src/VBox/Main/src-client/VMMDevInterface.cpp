@@ -1,10 +1,10 @@
-/* $Id: VMMDevInterface.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: VMMDevInterface.cpp $ */
 /** @file
  * VirtualBox Driver Interface to VMM device.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -186,7 +186,8 @@ DECLCALLBACK(void) vmmdevUpdateGuestUserState(PPDMIVMMDEVCONNECTOR pInterface,
     Guest* pGuest = pConsole->i_getGuest();
     AssertPtrReturnVoid(pGuest);
 
-    pGuest->i_onUserStateChanged(Utf8Str(pszUser), Utf8Str(pszDomain), (VBoxGuestUserState)uState, pabDetails, cbDetails);
+    pGuest->i_onUserStateChange(Bstr(pszUser), Bstr(pszDomain), (VBoxGuestUserState)uState,
+                                pabDetails, cbDetails);
 }
 
 
@@ -229,7 +230,7 @@ DECLCALLBACK(void) vmmdevUpdateGuestInfo(PPDMIVMMDEVCONNECTOR pInterface, const 
     else
     {
         /*
-         * The Guest Additions was disabled because of a reset
+         * The guest additions was disabled because of a reset
          * or driver unload.
          */
         guest->i_setAdditionsInfo(Bstr(), guestInfo->osType); /* Clear interface version + OS type. */
@@ -268,8 +269,8 @@ DECLCALLBACK(void) vmmdevUpdateGuestInfo2(PPDMIVMMDEVCONNECTOR pInterface, uint3
 }
 
 /**
- * Update the Guest Additions capabilities.
- * This is called when the Guest Additions capabilities change. The new capabilities
+ * Update the guest additions capabilities.
+ * This is called when the guest additions capabilities change. The new capabilities
  * are given and the connector should update its internal state.
  *
  * @param   pInterface          Pointer to this interface.
@@ -460,15 +461,12 @@ DECLCALLBACK(int) vmmdevSetVisibleRegion(PPDMIVMMDEVCONNECTOR pInterface, uint32
     return VINF_SUCCESS;
 }
 
-/**
- * @interface_method_impl{PDMIVMMDEVCONNECTOR,pfnUpdateMonitorPositions}
- */
-static DECLCALLBACK(int) vmmdevUpdateMonitorPositions(PPDMIVMMDEVCONNECTOR pInterface, uint32_t cPositions, PCRTPOINT paPositions)
+DECLCALLBACK(int) vmmdevUpdateMonitorPositions(PPDMIVMMDEVCONNECTOR pInterface, uint32_t cPositions, PRTPOINT pPositions)
 {
     PDRVMAINVMMDEV pDrv = RT_FROM_MEMBER(pInterface, DRVMAINVMMDEV, Connector);
     Console *pConsole = pDrv->pVMMDev->getParent();
 
-    pConsole->i_getDisplay()->i_handleUpdateMonitorPositions(cPositions, paPositions);
+    pConsole->i_getDisplay()->i_handleUpdateMonitorPositions(cPositions, pPositions);
 
     return VINF_SUCCESS;
 }
@@ -683,15 +681,11 @@ static DECLCALLBACK(void) iface_hgcmCancelled(PPDMIHGCMCONNECTOR pInterface, PVB
  * @param   pDrvIns         Driver instance of the driver which registered the data unit.
  * @param   pSSM            SSM operation handle.
  */
-/*static*/ DECLCALLBACK(int) VMMDev::hgcmSave(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM)
+static DECLCALLBACK(int) iface_hgcmSave(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM)
 {
-    PDRVMAINVMMDEV pThis = PDMINS_2_DATA(pDrvIns, PDRVMAINVMMDEV);
+    RT_NOREF(pDrvIns);
     Log9(("Enter\n"));
-
-    AssertReturn(pThis->pVMMDev, VERR_INTERNAL_ERROR_2);
-    Console::SafeVMPtrQuiet ptrVM(pThis->pVMMDev->mParent);
-    AssertReturn(ptrVM.isOk(), VERR_INTERNAL_ERROR_3);
-    return HGCMHostSaveState(pSSM, ptrVM.vtable());
+    return HGCMHostSaveState(pSSM);
 }
 
 
@@ -704,9 +698,9 @@ static DECLCALLBACK(void) iface_hgcmCancelled(PPDMIHGCMCONNECTOR pInterface, PVB
  * @param   uVersion        Data layout version.
  * @param   uPass           The data pass.
  */
-/*static*/ DECLCALLBACK(int) VMMDev::hgcmLoad(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass)
+static DECLCALLBACK(int) iface_hgcmLoad(PPDMDRVINS pDrvIns, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass)
 {
-    PDRVMAINVMMDEV pThis = PDMINS_2_DATA(pDrvIns, PDRVMAINVMMDEV);
+    RT_NOREF(pDrvIns);
     LogFlowFunc(("Enter\n"));
 
     if (   uVersion != HGCM_SAVED_STATE_VERSION
@@ -714,10 +708,7 @@ static DECLCALLBACK(void) iface_hgcmCancelled(PPDMIHGCMCONNECTOR pInterface, PVB
         return VERR_SSM_UNSUPPORTED_DATA_UNIT_VERSION;
     Assert(uPass == SSM_PASS_FINAL); NOREF(uPass);
 
-    AssertReturn(pThis->pVMMDev, VERR_INTERNAL_ERROR_2);
-    Console::SafeVMPtrQuiet ptrVM(pThis->pVMMDev->mParent);
-    AssertReturn(ptrVM.isOk(), VERR_INTERNAL_ERROR_3);
-    return HGCMHostLoadState(pSSM, ptrVM.vtable(), uVersion);
+    return HGCMHostLoadState(pSSM, uVersion);
 }
 
 int VMMDev::hgcmLoadService(const char *pszServiceLibrary, const char *pszServiceName)
@@ -734,7 +725,7 @@ int VMMDev::hgcmLoadService(const char *pszServiceLibrary, const char *pszServic
            || !strcmp(pszServiceLibrary, "VBoxSharedCrOpenGL")
            );
     Console::SafeVMPtrQuiet ptrVM(mParent);
-    return HGCMHostLoad(pszServiceLibrary, pszServiceName, ptrVM.rawUVM(), ptrVM.vtable(), mpDrv ? mpDrv->pHGCMPort : NULL);
+    return HGCMHostLoad(pszServiceLibrary, pszServiceName, ptrVM.rawUVM(), mpDrv ? mpDrv->pHGCMPort : NULL);
 }
 
 int VMMDev::hgcmHostCall(const char *pszServiceName, uint32_t u32Function,
@@ -1054,17 +1045,18 @@ int VMMDev::i_guestPropLoadAndConfigure()
 /**
  * @interface_method_impl{PDMDRVREG,pfnConstruct}
  */
-DECLCALLBACK(int) VMMDev::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
+DECLCALLBACK(int) VMMDev::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfgHandle, uint32_t fFlags)
 {
+    RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    RT_NOREF(fFlags, pCfg);
     PDRVMAINVMMDEV pThis = PDMINS_2_DATA(pDrvIns, PDRVMAINVMMDEV);
     LogFlow(("Keyboard::drvConstruct: iInstance=%d\n", pDrvIns->iInstance));
 
     /*
      * Validate configuration.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "", "");
+    if (!CFGMR3AreValuesValid(pCfgHandle, "Object\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
     AssertMsgReturn(PDMDrvHlpNoAttach(pDrvIns) == VERR_PDM_NO_ATTACHED_DRIVER,
                     ("Configuration error: Not possible to attach anything to this driver!\n"),
                     VERR_PDM_DRVINS_NO_ATTACH);
@@ -1115,16 +1107,17 @@ DECLCALLBACK(int) VMMDev::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint3
     /*
      * Get the Console object pointer and update the mpDrv member.
      */
-    com::Guid uuid(VMMDEV_OID);
-    pThis->pVMMDev = (VMMDev *)PDMDrvHlpQueryGenericUserObject(pDrvIns, uuid.raw());
-    if (!pThis->pVMMDev)
+    void *pv;
+    int rc = CFGMR3QueryPtr(pCfgHandle, "Object", &pv);
+    if (RT_FAILURE(rc))
     {
-        AssertMsgFailed(("Configuration error: No/bad VMMDev object!\n"));
-        return VERR_NOT_FOUND;
+        AssertMsgFailed(("Configuration error: No/bad \"Object\" value! rc=%Rrc\n", rc));
+        return rc;
     }
+
+    pThis->pVMMDev = (VMMDev*)pv;        /** @todo Check this cast! */
     pThis->pVMMDev->mpDrv = pThis;
 
-    int rc = VINF_SUCCESS;
 #ifdef VBOX_WITH_HGCM
     /*
      * Load & configure the shared folders service.
@@ -1191,8 +1184,8 @@ DECLCALLBACK(int) VMMDev::drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint3
      */
     rc = PDMDrvHlpSSMRegisterEx(pDrvIns, HGCM_SAVED_STATE_VERSION, 4096 /* bad guess */,
                                 NULL, NULL, NULL,
-                                NULL, VMMDev::hgcmSave, NULL,
-                                NULL, VMMDev::hgcmLoad, NULL);
+                                NULL, iface_hgcmSave, NULL,
+                                NULL, iface_hgcmLoad, NULL);
     if (RT_FAILURE(rc))
         return rc;
 

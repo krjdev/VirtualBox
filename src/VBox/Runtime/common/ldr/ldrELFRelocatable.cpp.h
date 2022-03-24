@@ -1,10 +1,10 @@
-/* $Id: ldrELFRelocatable.cpp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ldrELFRelocatable.cpp.h $ */
 /** @file
  * IPRT - Binary Image Loader, Template for ELF Relocatable Images.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1700,62 +1700,6 @@ static DECLCALLBACK(int) RTLDRELF_NAME(ReadDbgInfo)(PRTLDRMODINTERNAL pMod, uint
 }
 
 
-/** @interface_method_impl{RTLDROPS,pfnQueryProp} */
-static DECLCALLBACK(int) RTLDRELF_NAME(QueryProp)(PRTLDRMODINTERNAL pMod, RTLDRPROP enmProp, void const *pvBits,
-                                                  void *pvBuf, size_t cbBuf, size_t *pcbRet)
-{
-    PRTLDRMODELF pThis = (PRTLDRMODELF)pMod;
-
-    if (enmProp != RTLDRPROP_BUILDID)
-        return VERR_NOT_FOUND;
-
-    /*
-     * Map the image bits if not already done and setup pointer into it.
-     */
-    int rc = RTLDRELF_NAME(MapBits)(pThis, true);
-    if (RT_FAILURE(rc))
-        return rc;
-
-    /*
-     * Search for the build ID.
-     */
-    const Elf_Shdr *paShdrs = pThis->paOrgShdrs;
-    for (unsigned iShdr = 0; iShdr < pThis->Ehdr.e_shnum; iShdr++)
-    {
-        const char *pszSectName = ELF_SH_STR(pThis, paShdrs[iShdr].sh_name);
-
-        if (!strcmp(pszSectName, ".note.gnu.build-id"))
-        {
-            if ((paShdrs[iShdr].sh_size & 3) || paShdrs[iShdr].sh_size < sizeof(Elf_Nhdr))
-                return VERR_BAD_EXE_FORMAT;
-
-            Elf_Nhdr *pNHdr = (Elf_Nhdr *)((uintptr_t)pThis->pvBits + (uintptr_t)paShdrs[iShdr].sh_offset);
-            if (   pNHdr->n_namesz > paShdrs[iShdr].sh_size
-                || pNHdr->n_descsz > paShdrs[iShdr].sh_size
-                || (paShdrs[iShdr].sh_size - pNHdr->n_descsz) < pNHdr->n_namesz
-                || pNHdr->n_type != NT_GNU_BUILD_ID)
-                return VERR_BAD_EXE_FORMAT;
-
-            const char *pszOwner = (const char *)(pNHdr + 1);
-            if (   !RTStrEnd(pszOwner, pNHdr->n_namesz)
-                || strcmp(pszOwner, "GNU"))
-                return VERR_BAD_EXE_FORMAT;
-
-            if (cbBuf < pNHdr->n_descsz)
-                return VERR_BUFFER_OVERFLOW;
-
-            memcpy(pvBuf, pszOwner + pNHdr->n_namesz, pNHdr->n_descsz);
-            *pcbRet = pNHdr->n_descsz;
-            return VINF_SUCCESS;
-        }
-    }
-
-    NOREF(cbBuf);
-    RT_NOREF_PV(pvBits);
-    return VERR_NOT_FOUND;
-}
-
-
 /**
  * @interface_method_impl{RTLDROPS,pfnUnwindFrame}
  */
@@ -1864,7 +1808,7 @@ static RTLDROPS RTLDRELF_MID(s_rtldrElf,Ops) =
     RTLDRELF_NAME(SegOffsetToRva),
     RTLDRELF_NAME(RvaToSegOffset),
     RTLDRELF_NAME(ReadDbgInfo),
-    RTLDRELF_NAME(QueryProp),
+    NULL /*pfnQueryProp*/,
     NULL /*pfnVerifySignature*/,
     NULL /*pfnHashImage*/,
     RTLDRELF_NAME(UnwindFrame),
@@ -2385,20 +2329,6 @@ static int RTLDRELF_NAME(ValidateAndProcessDynamicInfo)(PRTLDRMODELF pModElf, ui
                 Elf_Addr        uAddr   = pPhdr->p_vaddr;
                 Elf_Xword       cbMem   = pPhdr->p_memsz;
                 Elf_Xword       cbFile  = pPhdr->p_filesz;
-
-                /* HACK to allow loading isolinux-debug.elf where program headers aren't
-                   sorted by virtual address. */
-                if (   (fFlags & RTLDR_O_FOR_DEBUG)
-                    && uAddr != paShdrs[iLoadShdr].sh_addr)
-                {
-                    for (unsigned iShdr = 1; iShdr < pModElf->Ehdr.e_shnum; iShdr++)
-                        if (uAddr == paShdrs[iShdr].sh_addr)
-                        {
-                            iLoadShdr = iShdr;
-                            break;
-                        }
-                }
-
                 while (cbMem > 0)
                 {
                     if (iLoadShdr < pModElf->Ehdr.e_shnum)
@@ -2486,11 +2416,9 @@ static int RTLDRELF_NAME(ValidateAndProcessDynamicInfo)(PRTLDRMODELF pModElf, ui
                         && (  paShdrs[iLoadShdr].sh_type != SHT_NOBITS
                             ?    off    == paShdrs[iLoadShdr].sh_offset
                               && cbFile >= paShdrs[iLoadShdr].sh_size /* this might be too strict... */
-                            :    cbFile == 0
-                              || cbMem > paShdrs[iLoadShdr].sh_size /* isolinux.elf: linker merge no-bits and progbits sections */) )
+                            : cbFile == 0) )
                     {
-                        if (   paShdrs[iLoadShdr].sh_type != SHT_NOBITS
-                            || cbFile != 0)
+                        if (paShdrs[iLoadShdr].sh_type != SHT_NOBITS)
                         {
                             off    += paShdrs[iLoadShdr].sh_size;
                             cbFile -= paShdrs[iLoadShdr].sh_size;
@@ -2772,9 +2700,8 @@ static int RTLDRELF_NAME(ValidateAndProcessDynamicInfo)(PRTLDRMODELF pModElf, ui
                 ONLY_FOR_DEBUG_OR_VALIDATION_RET("DT_PREINIT_ARRAYSZ");
                 break;
             default:
-                if (   paDynamic[i].d_tag <  DT_ENCODING
-                    || paDynamic[i].d_tag >= DT_LOOS
-                    || (paDynamic[i].d_tag & 1))
+                if (   paDynamic[i].d_un.d_val < DT_ENCODING
+                    || (paDynamic[i].d_un.d_val & 1))
                     Log3(("RTLdrELF: DT[%u]: %#010RX64       %#RX64%s\n", i, (uint64_t)paDynamic[i].d_tag,
                           (uint64_t)paDynamic[i].d_un.d_val, paDynamic[i].d_un.d_val >= DT_ENCODING ? " (val)" : ""));
                 else

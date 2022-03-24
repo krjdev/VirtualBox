@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -220,25 +220,6 @@ RTDECL(int) RTNetMaskToPrefixIPv6(PCRTNETADDRIPV6 pMask, int *piPrefix);
  * @param   pMask           Where to store the netmask.
  */
 RTDECL(int) RTNetPrefixToMaskIPv6(int iPrefix, PRTNETADDRIPV6 pMask);
-
-/**
- * Parses IPv6 prefix notation into RTNETADDRIPV6 representation and
- * prefix length.  Missing prefix specification is treated as exact
- * address specification (prefix length 128).  Leading and trailing
- * whitespace is ignored.
- *
- * "CIDR" in the name is a misnomer as IPv6 doesn't have network
- * classes, but is parallel to the IPv4 name (and naming things is
- * hard).
- *
- * @returns VINF_SUCCESS on success, VERR_INVALID_PARAMETER on
- *          failure.
- *
- * @param   pcszAddr        The value to convert.
- * @param   pAddr           Where to store the address.
- * @param   piPrefix        Where to store the prefix length;
- */
-RTDECL(int) RTNetStrToIPv6Cidr(const char *pcszAddr, PRTNETADDRIPV6 pAddr, int *piPrefix);
 
 
 /**

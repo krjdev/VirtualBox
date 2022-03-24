@@ -1,10 +1,10 @@
-/* $Id: QIWithRestorableGeometry.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIWithRestorableGeometry.h $ */
 /** @file
  * VBox Qt GUI - QIWithRestorableGeometry class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,14 +48,14 @@ class QIWithRestorableGeometry : public Base
 public:
 
     /** Constructs main window passing @a pParent and @a enmFlags to base-class. */
-    QIWithRestorableGeometry(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags())
+    QIWithRestorableGeometry(QWidget *pParent = 0, Qt::WindowFlags enmFlags = 0)
         : Base(pParent, enmFlags)
     {}
 
 protected:
 
     /** Handles move @a pEvent. */
-    virtual void moveEvent(QMoveEvent *pEvent) RT_OVERRIDE
+    virtual void moveEvent(QMoveEvent *pEvent) /* override */
     {
         /* Call to base-class: */
         QMainWindow::moveEvent(pEvent);
@@ -80,7 +80,7 @@ protected:
     }
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */
     {
         /* Call to base-class: */
         QMainWindow::resizeEvent(pEvent);
@@ -112,7 +112,7 @@ protected:
         this->resize(m_geometry.size());
 #else
         /* Use the new approach otherwise: */
-        UIDesktopWidgetWatchdog::setTopLevelGeometry(this, m_geometry);
+        UICommon::setTopLevelGeometry(this, m_geometry);
 #endif
 
         /* Maximize (if necessary): */

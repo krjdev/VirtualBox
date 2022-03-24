@@ -1,10 +1,10 @@
-/* $Id: HostDnsServiceResolvConf.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HostDnsServiceResolvConf.cpp $ */
 /** @file
  * Base class for Host DNS & Co services.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ typedef int socklen_t;
 
 #include <VBox/log.h>
 
-#include <iprt/sanitized/string>
+#include <string>
 
 #include "HostDnsService.h"
 #include "../../Devices/Network/slirp/resolv_conf_parser.h"

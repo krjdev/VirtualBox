@@ -1,10 +1,10 @@
-/* $Id: DevLsiLogicSCSI.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevLsiLogicSCSI.h $ */
 /** @file
  * VBox storage devices: LsiLogic LSI53c1030 SCSI controller - Defines and structures.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

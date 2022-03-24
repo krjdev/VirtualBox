@@ -1,10 +1,10 @@
-/* $Id: DisplayPNGUtil.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DisplayPNGUtil.cpp $ */
 /** @file
  * PNG utilities
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,7 +32,7 @@ typedef struct PNGWriteCtx
     int rc;
 } PNGWriteCtx;
 
-static void PNGAPI png_write_data_fn(png_structp png_ptr, png_bytep p, png_size_t cb) RT_NOTHROW_DEF
+static void PNGAPI png_write_data_fn(png_structp png_ptr, png_bytep p, png_size_t cb)
 {
     PNGWriteCtx *pCtx = (PNGWriteCtx *)png_get_io_ptr(png_ptr);
     LogFlowFunc(("png_ptr %p, p %p, cb %d, pCtx %p\n", png_ptr, p, cb, pCtx));
@@ -61,7 +61,7 @@ static void PNGAPI png_write_data_fn(png_structp png_ptr, png_bytep p, png_size_
     }
 }
 
-static void PNGAPI png_output_flush_fn(png_structp png_ptr) RT_NOTHROW_DEF
+static void PNGAPI png_output_flush_fn(png_structp png_ptr)
 {
     NOREF(png_ptr);
     /* Do nothing. */
@@ -106,11 +106,19 @@ int DisplayMakePNG(uint8_t *pu8Data, uint32_t cx, uint32_t cy,
 
         if (pu8Bitmap)
         {
-            BitmapScale32(pu8Bitmap /*dst*/,
-                          (int)cxBitmap, (int)cyBitmap,
-                          pu8Data /*src*/,
-                          (int)cx * 4,
-                          (int)cx, (int)cy);
+            uint8_t *dst = pu8Bitmap;
+            uint8_t *src = pu8Data;
+            int dstW = cxBitmap;
+            int dstH = cyBitmap;
+            int srcW = cx;
+            int srcH = cy;
+            int iDeltaLine = cx * 4;
+
+            BitmapScale32 (dst,
+                           dstW, dstH,
+                           src,
+                           iDeltaLine,
+                           srcW, srcH);
         }
         else
         {
@@ -135,13 +143,7 @@ int DisplayMakePNG(uint8_t *pu8Data, uint32_t cx, uint32_t cy,
                 info_ptr = png_create_info_struct(png_ptr);
                 if (info_ptr)
                 {
-#if RT_MSC_PREREQ(RT_MSC_VER_VC140)
-#pragma warning(push,3)
                     if (!setjmp(png_jmpbuf(png_ptr)))
-#pragma warning(pop)
-#else
-                    if (!setjmp(png_jmpbuf(png_ptr)))
-#endif
                     {
                         PNGWriteCtx ctx;
                         ctx.pu8PNG = NULL;

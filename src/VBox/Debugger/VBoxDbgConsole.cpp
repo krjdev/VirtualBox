@@ -1,10 +1,10 @@
-/* $Id: VBoxDbgConsole.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDbgConsole.cpp $ */
 /** @file
  * VBox Debugger GUI - Console.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -389,7 +389,7 @@ VBoxDbgConsoleInput::VBoxDbgConsoleInput(QWidget *pParent/* = NULL*/, const char
 
     setEditable(true);
     setInsertPolicy(NoInsert);
-    setCompleter(0);
+    setAutoCompletion(false);
     setMaxCount(50);
     const QLineEdit *pEdit = lineEdit();
     if (pEdit)
@@ -638,12 +638,6 @@ VBoxDbgConsole::~VBoxDbgConsole()
     m_pFocusToInput = NULL;
     delete m_pFocusToOutput;
     m_pFocusToOutput = NULL;
-
-    if (m_pszOutputBuf)
-    {
-        RTMemFree(m_pszOutputBuf);
-        m_pszOutputBuf = NULL;
-    }
 }
 
 
@@ -739,9 +733,9 @@ VBoxDbgConsole::unlock()
  * @param   cMillies    Number of milliseconds to wait on input data.
  */
 /*static*/ DECLCALLBACK(bool)
-VBoxDbgConsole::backInput(PCDBGCIO pBack, uint32_t cMillies)
+VBoxDbgConsole::backInput(PDBGCBACK pBack, uint32_t cMillies)
 {
-    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCIO(pBack);
+    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCBACK(pBack);
     pThis->lock();
 
     bool fRc = true;
@@ -774,9 +768,9 @@ VBoxDbgConsole::backInput(PCDBGCIO pBack, uint32_t cMillies)
  *                      successful return.
  */
 /*static*/ DECLCALLBACK(int)
-VBoxDbgConsole::backRead(PCDBGCIO pBack, void *pvBuf, size_t cbBuf, size_t *pcbRead)
+VBoxDbgConsole::backRead(PDBGCBACK pBack, void *pvBuf, size_t cbBuf, size_t *pcbRead)
 {
-    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCIO(pBack);
+    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCBACK(pBack);
     Assert(pcbRead); /** @todo implement this bit */
     if (pcbRead)
         *pcbRead = 0;
@@ -816,9 +810,9 @@ VBoxDbgConsole::backRead(PCDBGCIO pBack, void *pvBuf, size_t cbBuf, size_t *pcbR
  *                      If NULL the entire buffer must be successfully written.
  */
 /*static*/ DECLCALLBACK(int)
-VBoxDbgConsole::backWrite(PCDBGCIO pBack, const void *pvBuf, size_t cbBuf, size_t *pcbWritten)
+VBoxDbgConsole::backWrite(PDBGCBACK pBack, const void *pvBuf, size_t cbBuf, size_t *pcbWritten)
 {
-    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCIO(pBack);
+    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCBACK(pBack);
     int rc = VINF_SUCCESS;
 
     pThis->lock();
@@ -863,9 +857,9 @@ VBoxDbgConsole::backWrite(PCDBGCIO pBack, const void *pvBuf, size_t cbBuf, size_
 
 
 /*static*/ DECLCALLBACK(void)
-VBoxDbgConsole::backSetReady(PCDBGCIO pBack, bool fReady)
+VBoxDbgConsole::backSetReady(PDBGCBACK pBack, bool fReady)
 {
-    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCIO(pBack);
+    VBoxDbgConsole *pThis = VBOXDBGCONSOLE_FROM_DBGCBACK(pBack);
     if (fReady)
         QApplication::postEvent(pThis, new VBoxDbgConsoleEvent(VBoxDbgConsoleEvent::kInputEnable));
 }

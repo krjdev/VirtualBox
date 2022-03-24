@@ -1,10 +1,10 @@
-/* $Id: UIVisoConfigurationPanel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVisoConfigurationPanel.cpp $ */
 /** @file
  * VBox Qt GUI - UIVisoConfigurationPanel class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,9 +25,11 @@
 #include "QILineEdit.h"
 #include "QIToolButton.h"
 #include "UIVisoConfigurationPanel.h"
+#include "UIVisoCreator.h"
 
-UIVisoConfigurationPanel::UIVisoConfigurationPanel(QWidget *pParent /* =0 */)
+UIVisoConfigurationPanel::UIVisoConfigurationPanel(UIVisoCreator *pCreator, QWidget *pParent /* =0 */)
     : UIDialogPanel(pParent)
+    , m_pCreator(pCreator)
     , m_pVisoNameLabel(0)
     , m_pCustomOptionsLabel(0)
     , m_pVisoNameLineEdit(0)
@@ -69,8 +71,11 @@ void UIVisoConfigurationPanel::prepareObjects()
     if (!mainLayout())
         return;
 
+    /* Install creator's event-filter: */
+    m_pCreator->installEventFilter(this);
+
     /* Name edit and and label: */
-    m_pVisoNameLabel = new QILabel(QApplication::translate("UIVisoCreatorWidget", "VISO Name:"));
+    m_pVisoNameLabel = new QILabel(QApplication::translate("UIVisoCreator", "VISO Name:"));
     m_pVisoNameLineEdit = new QILineEdit;
     if (m_pVisoNameLabel && m_pVisoNameLineEdit)
     {
@@ -82,7 +87,7 @@ void UIVisoConfigurationPanel::prepareObjects()
     addVerticalSeparator();
 
     /* Cutom Viso options stuff: */
-    m_pCustomOptionsLabel = new QILabel(QApplication::translate("UIVisoCreatorWidget", "Custom VISO options:"));
+    m_pCustomOptionsLabel = new QILabel(QApplication::translate("UIVisoCreator", "Custom VISO options:"));
     m_pCustomOptionsComboBox = new QComboBox;
     m_pDeleteButton = new QIToolButton;
 
@@ -108,14 +113,38 @@ void UIVisoConfigurationPanel::prepareConnections()
         connect(m_pDeleteButton, &QIToolButton::clicked, this, &UIVisoConfigurationPanel::sltHandleDeleteCurrentCustomOption);
 }
 
+bool UIVisoConfigurationPanel::eventFilter(QObject *pObject, QEvent *pEvent)
+{
+    /* Handle only events sent to creator only: */
+    if (pObject != m_pCreator)
+        return UIDialogPanel::eventFilter(pObject, pEvent);
+
+    switch (pEvent->type())
+    {
+        case QEvent::KeyPress:
+        {
+            QKeyEvent *pKeyEvent = static_cast<QKeyEvent*>(pEvent);
+            if (pKeyEvent->key() == Qt::Key_Return && m_pCustomOptionsComboBox && m_pCustomOptionsComboBox->hasFocus())
+                addCustomVisoOption();
+            return true;
+            break;
+        }
+        default:
+        break;
+    }
+
+    /* Call to base-class: */
+    return UIDialogPanel::eventFilter(pObject, pEvent);
+}
+
 void UIVisoConfigurationPanel::retranslateUi()
 {
     if (m_pVisoNameLabel)
-        m_pVisoNameLabel->setText(QApplication::translate("UIVisoCreatorWidget", "VISO Name:"));
+        m_pVisoNameLabel->setText(QApplication::translate("UIVisoCreator", "VISO Name:"));
     if (m_pCustomOptionsLabel)
-        m_pCustomOptionsLabel->setText(QApplication::translate("UIVisoCreatorWidget", "Custom VISO options:"));
+        m_pCustomOptionsLabel->setText(QApplication::translate("UIVisoCreator", "Custom VISO options:"));
     if (m_pDeleteButton)
-        m_pDeleteButton->setToolTip(QApplication::translate("UIVisoCreatorWidget", "Remove current option."));
+        m_pDeleteButton->setToolTip(QApplication::translate("UIVisoCreator", "Remove current option."));
 }
 
 void UIVisoConfigurationPanel::addCustomVisoOption()

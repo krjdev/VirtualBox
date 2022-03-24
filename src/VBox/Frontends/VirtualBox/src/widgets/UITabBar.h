@@ -1,10 +1,10 @@
-/* $Id: UITabBar.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UITabBar.h $ */
 /** @file
  * VBox Qt GUI - UITabBar class declaration.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,9 +26,6 @@
 #include <QString>
 #include <QUuid>
 #include <QWidget>
-
-/* Other VBox includes: */
-#include <iprt/cdefs.h>
 
 /* Forward declarations: */
 class QAction;
@@ -82,16 +79,16 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Handles drag-enter @a pEvent. */
-    virtual void dragEnterEvent(QDragEnterEvent *pEvent) RT_OVERRIDE;
+    virtual void dragEnterEvent(QDragEnterEvent *pEvent) /* override */;
     /** Handles drag-move @a pEvent. */
-    virtual void dragMoveEvent(QDragMoveEvent *pEvent) RT_OVERRIDE;
+    virtual void dragMoveEvent(QDragMoveEvent *pEvent) /* override */;
     /** Handles drag-leave @a pEvent. */
-    virtual void dragLeaveEvent(QDragLeaveEvent *pEvent) RT_OVERRIDE;
+    virtual void dragLeaveEvent(QDragLeaveEvent *pEvent) /* override */;
     /** Handles drop @a pEvent. */
-    virtual void dropEvent(QDropEvent *pEvent) RT_OVERRIDE;
+    virtual void dropEvent(QDropEvent *pEvent) /* override */;
 
 private slots:
 

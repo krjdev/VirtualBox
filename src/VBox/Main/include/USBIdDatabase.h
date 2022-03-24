@@ -1,10 +1,10 @@
-/* $Id: USBIdDatabase.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBIdDatabase.h $ */
 /** @file
  * USB device vendor and product ID database.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -91,7 +91,7 @@ public:
     {
         char szTmp[USB_ID_DATABASE_MAX_STRING * 2];
         ssize_t cchTmp = RTBldProgStrTabQueryString(&s_StrTab, pStr->off, pStr->cch, szTmp, sizeof(szTmp));
-        return RTCString(szTmp, (size_t)RT_MAX(cchTmp, 0));
+        return RTCString(szTmp, RT_MAX(cchTmp, 0));
     }
 
 private:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: testboxtasks.py 94125 2022-03-08 14:15:09Z vboxsync $
+# $Id: testboxtasks.py $
 
 """
 TestBox Script - Async Tasks.
@@ -7,7 +7,7 @@ TestBox Script - Async Tasks.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94125 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -183,41 +183,44 @@ class TestBoxTestDriverTask(TestBoxBaseTask):
         No exceptions.
         """
         fRc = True;
+        self._oBackLogFlushLock.acquire();
 
-        with self._oBackLogFlushLock:
-            # Grab the current back log.
-            with self._oBackLogLock:
-                asBackLog = self._asBackLog;
-                self._asBackLog  = [];
-                self._cchBackLog = 0;
-                self._secTsBackLogFlush = utils.timestampSecond();
+        # Grab the current back log.
+        self._oBackLogLock.acquire();
+        asBackLog = self._asBackLog;
+        self._asBackLog  = [];
+        self._cchBackLog = 0;
+        self._secTsBackLogFlush = utils.timestampSecond();
+        self._oBackLogLock.release();
 
-            # If there is anything to flush, flush it.
-            if asBackLog:
-                sBody = '';
-                for sLine in asBackLog:
-                    sBody += sLine + '\n';
+        # If there is anything to flush, flush it.
+        if asBackLog:
+            sBody = '';
+            for sLine in asBackLog:
+                sBody += sLine + '\n';
 
-                oConnection = None;
-                try:
-                    if oGivenConnection is None:
-                        oConnection = self._oTestBoxScript.openTestManagerConnection();
-                        oConnection.postRequest(constants.tbreq.LOG_MAIN, {constants.tbreq.LOG_PARAM_BODY: sBody});
-                        oConnection.close();
-                    else:
-                        oGivenConnection.postRequest(constants.tbreq.LOG_MAIN, {constants.tbreq.LOG_PARAM_BODY: sBody});
-                except Exception as oXcpt:
-                    testboxcommons.log('_logFlush error: %s' % (oXcpt,));
-                    if len(sBody) < self.kcchMaxBackLog * 4:
-                        with self._oBackLogLock:
-                            asBackLog.extend(self._asBackLog);
-                            self._asBackLog = asBackLog;
-                            # Don't restore _cchBackLog as there is no point in retrying immediately.
-                    if oConnection is not None: # Be kind to apache.
-                        try:    oConnection.close();
-                        except: pass;
-                    fRc = False;
+            oConnection = None;
+            try:
+                if oGivenConnection is None:
+                    oConnection = self._oTestBoxScript.openTestManagerConnection();
+                    oConnection.postRequest(constants.tbreq.LOG_MAIN, {constants.tbreq.LOG_PARAM_BODY: sBody});
+                    oConnection.close();
+                else:
+                    oGivenConnection.postRequest(constants.tbreq.LOG_MAIN, {constants.tbreq.LOG_PARAM_BODY: sBody});
+            except Exception as oXcpt:
+                testboxcommons.log('_logFlush error: %s' % (oXcpt,));
+                if len(sBody) < self.kcchMaxBackLog * 4:
+                    self._oBackLogLock.acquire();
+                    asBackLog.extend(self._asBackLog);
+                    self._asBackLog = asBackLog;
+                    # Don't restore _cchBackLog as there is no point in retrying immediately.
+                    self._oBackLogLock.release();
+                if oConnection is not None: # Be kind to apache.
+                    try:    oConnection.close();
+                    except: pass;
+                fRc = False;
 
+        self._oBackLogFlushLock.release();
         return fRc;
 
     def flushLogOnConnection(self, oConnection):
@@ -244,11 +247,12 @@ class TestBoxTestDriverTask(TestBoxBaseTask):
         else:
             sFullMsg = sMessage;
 
-        with self._oBackLogLock:
-            self._asBackLog.append(sFullMsg);
-            cchBackLog = self._cchBackLog + len(sFullMsg) + 1;
-            self._cchBackLog = cchBackLog;
-            secTsBackLogFlush = self._secTsBackLogFlush;
+        self._oBackLogLock.acquire();
+        self._asBackLog.append(sFullMsg);
+        cchBackLog = self._cchBackLog + len(sFullMsg) + 1;
+        self._cchBackLog = cchBackLog;
+        secTsBackLogFlush = self._secTsBackLogFlush;
+        self._oBackLogLock.release();
 
         testboxcommons.log(sFullMsg);
         return fFlushCheck \
@@ -637,9 +641,10 @@ class TestBoxCleanupTask(TestBoxTestDriverTask):
         an exception.
         """
         try:
-            with open(sPath, "rb") as oFile:
-                sStr = oFile.read();
+            oFile = open(sPath, "rb");
+            sStr = oFile.read();
             sStr = sStr.decode('utf-8');
+            oFile.close();
             return sStr.strip();
         except Exception as oXcpt:
             raise Exception('Failed to read "%s": %s' % (sPath, oXcpt));
@@ -656,7 +661,8 @@ class TestBoxCleanupTask(TestBoxTestDriverTask):
         sScriptCmdLine = os.path.join(self._oTestBoxScript.getPathState(), 'script-cmdline.txt');
         try:
             os.remove(sScriptCmdLine);
-            open(sScriptCmdLine, 'wb').close();                 # pylint: disable=consider-using-with
+            oFile = open(sScriptCmdLine, 'wb');
+            oFile.close();
         except Exception as oXcpt:
             self._log('Error truncating "%s": %s' % (sScriptCmdLine, oXcpt));
 
@@ -774,11 +780,12 @@ class TestBoxExecTask(TestBoxTestDriverTask):
         Writes a state file, raising an exception on failure.
         """
         try:
-            with open(sPath, "wb") as oFile:
-                oFile.write(sContent.encode('utf-8'));
-                oFile.flush();
-                try:     os.fsync(oFile.fileno());
-                except:  pass;
+            oFile = open(sPath, "wb");
+            oFile.write(sContent.encode('utf-8'));
+            oFile.flush();
+            try:     os.fsync(oFile.fileno());
+            except:  pass;
+            oFile.close();
         except Exception as oXcpt:
             raise Exception('Failed to write "%s": %s' % (sPath, oXcpt));
         return True;

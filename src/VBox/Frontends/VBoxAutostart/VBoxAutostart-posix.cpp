@@ -1,10 +1,10 @@
-/* $Id: VBoxAutostart-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxAutostart-posix.cpp $ */
 /** @file
  * VBoxAutostart - VirtualBox Autostart service.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -52,6 +52,9 @@
 #include <iprt/ctype.h>
 #include <iprt/dir.h>
 
+#include <algorithm>
+#include <list>
+#include <string>
 #include <signal.h>
 
 #include "VBoxAutostart.h"
@@ -264,18 +267,29 @@ static void displayHelp(const char *pszImage)
     displayHeader();
 
     RTStrmPrintf(g_pStdErr,
-                 "Usage: %s [-v|--verbose] [-h|-?|--help]\n"
-                 "           [-F|--logfile=<file>] [-R|--logrotate=<num>]\n"
-                 "           [-S|--logsize=<bytes>] [-I|--loginterval=<seconds>]\n"
-                 "           [-c|--config=<config file>]\n",
-                 pszImage);
+                 "Usage:\n"
+                 " %s [-v|--verbose] [-h|-?|--help]\n"
+                 " [-F|--logfile=<file>] [-R|--logrotate=<num>] [-S|--logsize=<bytes>]\n"
+                 " [-I|--loginterval=<seconds>]\n"
+                 " [-c|--config=<config file>]\n", pszImage);
 
-    RTStrmPrintf(g_pStdErr,
-                 "\n"
+    RTStrmPrintf(g_pStdErr, "\n"
                  "Options:\n");
-    for (unsigned i = 0; i < RT_ELEMENTS(g_aOptions); i++)
+
+    for (unsigned i = 0;
+         i < RT_ELEMENTS(g_aOptions);
+         ++i)
     {
-        const char *pcszDescr;
+        std::string str(g_aOptions[i].pszLong);
+        if (g_aOptions[i].iShort < 1000) /* Don't show short options which are defined by an ID! */
+        {
+            str += ", -";
+            str += g_aOptions[i].iShort;
+        }
+        str += ":";
+
+        const char *pcszDescr = "";
+
         switch (g_aOptions[i].iShort)
         {
             case 'h':
@@ -307,23 +321,12 @@ static void displayHelp(const char *pszImage)
             case 'c':
                 pcszDescr = "Name of the configuration file for the global overrides.";
                 break;
-            default:
-                AssertFailedBreakStmt(pcszDescr = "");
         }
 
-        if (g_aOptions[i].iShort < 1000)
-            RTStrmPrintf(g_pStdErr,
-                         "  %s, -%c\n"
-                         "      %s\n", g_aOptions[i].pszLong, g_aOptions[i].iShort, pcszDescr);
-        else
-            RTStrmPrintf(g_pStdErr,
-                         "  %s\n"
-                         "      %s\n", g_aOptions[i].pszLong, pcszDescr);
+        RTStrmPrintf(g_pStdErr, "%-23s%s\n", str.c_str(), pcszDescr);
     }
 
-    RTStrmPrintf(g_pStdErr,
-                 "\n"
-                 "Use environment variable VBOXAUTOSTART_RELEASE_LOG for logging options.\n");
+    RTStrmPrintf(g_pStdErr, "\nUse environment variable VBOXAUTOSTART_RELEASE_LOG for logging options.\n");
 }
 
 int main(int argc, char *argv[])

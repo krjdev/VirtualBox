@@ -1,10 +1,10 @@
-/* $Id: bs3-mode-TestDoModesByOne.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-mode-TestDoModesByOne.c $ */
 /** @file
  * BS3Kit - Bs3TestDoModesByOne
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -102,9 +102,6 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
         const char *pszFmtStr   = "Error #%u (%#x) in %s!\n";
         bool        fSkipped    = true;
         bool const  fOnlyPaging = RT_BOOL(paEntries[i].fFlags & BS3TESTMODEBYONEENTRY_F_ONLY_PAGING);
-        bool const  fMinimal    = RT_BOOL(paEntries[i].fFlags & BS3TESTMODEBYONEENTRY_F_MINIMAL);
-        bool const  fCurDoV86Modes      = fDoV86Modes && !fMinimal;
-        bool const  fCurDoWeirdV86Modes = fDoWeirdV86Modes && fCurDoV86Modes;
         uint8_t     bErrNo;
         Bs3TestSub(paEntries[i].pszSubTest);
 
@@ -143,7 +140,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
         /*
          * Unpaged prot mode.
          */
-        if (!fOnlyPaging && (!fMinimal || bCpuType < BS3CPU_80386))
+        if (!fOnlyPaging)
         {
             PRE_DO_CALL(g_szBs3ModeName_pe16);
 # if ARCH_BITS == 16
@@ -171,7 +168,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pe16_32);
         }
 
-        if (fCurDoWeirdV86Modes && !fOnlyPaging)
+        if (fDoWeirdV86Modes && !fOnlyPaging)
         {
             PRE_DO_CALL(g_szBs3ModeName_pe16_v86);
 # if ARCH_BITS == 16
@@ -193,7 +190,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pe32);
         }
 
-        if (!fOnlyPaging && !fMinimal)
+        if (!fOnlyPaging)
         {
             PRE_DO_CALL(g_szBs3ModeName_pe32_16);
 # if ARCH_BITS == 16
@@ -204,7 +201,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pe32_16);
         }
 
-        if (fCurDoV86Modes && !fOnlyPaging)
+        if (fDoV86Modes && !fOnlyPaging)
         {
             PRE_DO_CALL(g_szBs3ModeName_pev86);
 # if ARCH_BITS == 16
@@ -218,7 +215,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
         /*
          * Paged protected mode.
          */
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pp16);
 # if ARCH_BITS == 16
@@ -229,7 +226,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pp16);
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pp16_32);
 # if ARCH_BITS == 32
@@ -240,7 +237,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pp16_32);
         }
 
-        if (fCurDoWeirdV86Modes)
+        if (fDoWeirdV86Modes)
         {
             PRE_DO_CALL(g_szBs3ModeName_pp16_v86);
 # if ARCH_BITS == 16
@@ -262,7 +259,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pp32);
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pp32_16);
 # if ARCH_BITS == 16
@@ -273,7 +270,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pp32_16);
         }
 
-        if (fCurDoV86Modes)
+        if (fDoV86Modes)
         {
             PRE_DO_CALL(g_szBs3ModeName_ppv86);
 # if ARCH_BITS == 16
@@ -288,7 +285,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
         /*
          * Protected mode with PAE paging.
          */
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pae16);
 # if ARCH_BITS == 16
@@ -299,7 +296,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pae16);
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pae16_32);
 # if ARCH_BITS == 32
@@ -310,7 +307,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pae16_32);
         }
 
-        if (fCurDoWeirdV86Modes)
+        if (fDoWeirdV86Modes)
         {
             PRE_DO_CALL(g_szBs3ModeName_pae16_v86);
 # if ARCH_BITS == 16
@@ -332,7 +329,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pae32);
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_pae32_16);
 # if ARCH_BITS == 16
@@ -343,7 +340,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_pae32_16);
         }
 
-        if (fCurDoV86Modes)
+        if (fDoV86Modes)
         {
             PRE_DO_CALL(g_szBs3ModeName_paev86);
 # if ARCH_BITS == 16
@@ -366,7 +363,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             continue;
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_lm16);
 #if ARCH_BITS == 16
@@ -377,7 +374,7 @@ BS3_MODE_DEF(void, Bs3TestDoModesByOne,(PCBS3TESTMODEBYONEENTRY paEntries, size_
             CHECK_RESULT(g_szBs3ModeName_lm16);
         }
 
-        if (!fMinimal)
+        if (true)
         {
             PRE_DO_CALL(g_szBs3ModeName_lm32);
 #if ARCH_BITS == 32

@@ -1,10 +1,10 @@
-/* $Id: timesupref.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: timesupref.h $ */
 /** @file
  * IPRT - Time using SUPLib, the C Code Template.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,9 +40,8 @@
  *
  * @returns Nanosecond timestamp.
  * @param   pData       Pointer to the data structure.
- * @param   pExtra      Where to return extra time info. Optional.
  */
-RTDECL(uint64_t) rtTimeNanoTSInternalRef(PRTTIMENANOTSDATA pData, PRTITMENANOTSEXTRA pExtra)
+RTDECL(uint64_t) rtTimeNanoTSInternalRef(PRTTIMENANOTSDATA pData)
 {
 #if TMPL_MODE == TMPL_MODE_SYNC_INVAR_WITH_DELTA && defined(IN_RING3)
     PSUPGIPCPU pGipCpuAttemptedTscRecalibration = NULL;
@@ -246,9 +245,6 @@ RTDECL(uint64_t) rtTimeNanoTSInternalRef(PRTTIMENANOTSDATA pData, PRTITMENANOTSE
                             ASMSetFlags(uFlags);
 #endif
 
-                            if (pExtra)
-                                pExtra->uTSCValue = u64Delta;
-
                             /*
                              * Calc NanoTS delta.
                              */
@@ -377,9 +373,9 @@ RTDECL(uint64_t) rtTimeNanoTSInternalRef(PRTTIMENANOTSDATA pData, PRTITMENANOTSE
   || (   TMPL_GET_CPU_METHOD != SUPGIPGETCPU_APIC_ID \
       && TMPL_GET_CPU_METHOD != SUPGIPGETCPU_APIC_ID_EXT_0B /*?*/ \
       && TMPL_GET_CPU_METHOD != SUPGIPGETCPU_APIC_ID_EXT_8000001E /*?*/)
-                return pData->pfnBadCpuIndex(pData, pExtra, UINT16_MAX-1, iCpuSet, iGipCpu);
+                return pData->pfnBadCpuIndex(pData, UINT16_MAX-1, iCpuSet, iGipCpu);
 # else
-                return pData->pfnBadCpuIndex(pData, pExtra, idApic, UINT16_MAX-1, iGipCpu);
+                return pData->pfnBadCpuIndex(pData, idApic, UINT16_MAX-1, iGipCpu);
 # endif
             }
 #endif
@@ -392,7 +388,7 @@ RTDECL(uint64_t) rtTimeNanoTSInternalRef(PRTTIMENANOTSDATA pData, PRTITMENANOTSE
 #ifndef IN_RING3
         ASMSetFlags(uFlags);
 #endif
-        return pData->pfnRediscover(pData, pExtra);
+        return pData->pfnRediscover(pData);
     }
 }
 

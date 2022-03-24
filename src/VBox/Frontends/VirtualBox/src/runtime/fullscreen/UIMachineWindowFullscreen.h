@@ -1,10 +1,10 @@
-/* $Id: UIMachineWindowFullscreen.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineWindowFullscreen.h $ */
 /** @file
  * VBox Qt GUI - UIMachineWindowFullscreen class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,10 +69,6 @@ private slots:
 
     /** Revokes window activation. */
     void sltRevokeWindowActivation();
-
-    /** Handles signal about mini-toolbar auto-hide toggled.
-      * @param  fEnabled  Brings whether auto-hide is enabled. */
-    void sltHandleMiniToolBarAutoHideToggled(bool fEnabled);
 #endif /* VBOX_WS_WIN || VBOX_WS_X11 */
 
 #ifdef RT_OS_DARWIN
@@ -87,8 +83,6 @@ private slots:
 
 private:
 
-    /** Prepare notification-center routine. */
-    void prepareNotificationCenter();
     /** Prepare visual-state routine. */
     void prepareVisualState();
 #if defined(VBOX_WS_WIN) || defined(VBOX_WS_X11)
@@ -102,8 +96,6 @@ private:
 #endif /* VBOX_WS_WIN || VBOX_WS_X11 */
     /** Cleanup visual-state routine. */
     void cleanupVisualState();
-    /** Cleanup notification-center routine. */
-    void cleanupNotificationCenter();
 
     /** Updates geometry according to visual-state. */
     void placeOnScreen();

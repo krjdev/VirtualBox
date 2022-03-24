@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestR3LibVideo.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestR3LibVideo.cpp $ */
 /** @file
  * VBoxGuestR3Lib - Ring-3 Support Library for VirtualBox guest additions, Video.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -404,7 +404,6 @@ VBGLR3DECL(int) VbglR3VideoModeGetHighestSavedScreen(unsigned *pcScreen)
         *pcScreen = cHighestScreen;
     return rc;
 #else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(pcScreen);
     return VERR_NOT_SUPPORTED;
 #endif /* !VBOX_WITH_GUEST_PROPS */
 }
@@ -482,7 +481,6 @@ VBGLR3DECL(int) VbglR3SaveVideoMode(unsigned idScreen, unsigned cx, unsigned cy,
     }
     return rc;
 #else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(idScreen, cx, cy, cBits, x, y, fEnabled);
     return VERR_NOT_SUPPORTED;
 #endif /* !VBOX_WITH_GUEST_PROPS */
 }
@@ -572,7 +570,6 @@ VBGLR3DECL(int) VbglR3RetrieveVideoMode(unsigned idScreen,
 
     return rc;
 #else /* !VBOX_WITH_GUEST_PROPS */
-    RT_NOREF(idScreen, pcx, pcy, pcBits, px, py, pfEnabled);
     return VERR_NOT_SUPPORTED;
 #endif /* !VBOX_WITH_GUEST_PROPS */
 }

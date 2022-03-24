@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: systemchangelog.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: systemchangelog.py $
 
 """
 Test Manager - System changelog compilation.
@@ -7,7 +7,7 @@ Test Manager - System changelog compilation.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Validation Kit imports.
@@ -79,8 +79,8 @@ class SystemChangelogLogic(ModelLogicBase):
         ksWhat_FailureCategory:  ( 'FailureCategories',  'idFailureCategory',   None, ),
         ksWhat_FailureReason:    ( 'FailureReasons',     'idFailureReason',     None, ),
         ksWhat_GlobalRsrc:       ( 'GlobalResources',    'idGlobalRsrc',        None, ),
-        ksWhat_SchedGroup:       ( 'SchedGroups',        'idSchedGroup',        None, ),
-        ksWhat_TestGroup:        ( 'TestGroups',         'idTestGroup',         None, ),
+        ksWhat_SchedGroup:       ( 'SchedGroupes',       'idSchedGroup',        None, ),
+        ksWhat_TestGroup:        ( 'TestGroupes',        'idTestGroup',         None, ),
         ksWhat_User:             ( 'Users',              'idUser',              None, ),
         ksWhat_TestResult:       ( 'TestResults',        'idTestResult',        None, ),
     }, **{sEvent: ( 'SystemLog',  'tsCreated',  'TimestampId', ) for sEvent in SystemLogData.kasEvents});
@@ -153,7 +153,7 @@ class SystemChangelogLogic(ModelLogicBase):
 
         # Special entry for the system log.
         sQuery  = '(\n'
-        sQuery += '    SELECT NULL      AS uidAuthor,\n';
+        sQuery += '    SELECT NULL AS uidAuthor,\n';
         sQuery += '           tsCreated AS tsEffective,\n';
         sQuery += '           sEvent    AS sEvent,\n';
         sQuery += '           NULL      AS idWhat,\n';

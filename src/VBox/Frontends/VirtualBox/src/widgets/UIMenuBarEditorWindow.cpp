@@ -1,10 +1,10 @@
-/* $Id: UIMenuBarEditorWindow.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMenuBarEditorWindow.cpp $ */
 /** @file
  * VBox Qt GUI - UIMenuBarEditorWindow class implementation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@
 #include "UIIconPool.h"
 #include "UIMachineWindow.h"
 #include "UIMenuBarEditorWindow.h"
-#include "QIToolBar.h"
+#include "UIToolBar.h"
 
 /* Forward declarations: */
 class QAccessibleInterface;
@@ -66,34 +66,34 @@ public:
                                                             UIMenuBarEditorSegment enmIndex);
 
     /** Returns whether the interface is valid. */
-    virtual bool isValid() const RT_OVERRIDE { return true; }
+    virtual bool isValid() const /* override */ { return true; }
 
     /** Returns the wrapped object. */
-    virtual QObject *object() const RT_OVERRIDE { return 0; }
+    virtual QObject *object() const /* override */ { return 0; }
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE;
+    virtual QAccessibleInterface *parent() const /* override */;
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE { return 0; }
+    virtual int childCount() const /* override */ { return 0; }
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int /* iIndex */) const RT_OVERRIDE { return 0; }
+    virtual QAccessibleInterface *child(int /* iIndex */) const /* override */ { return 0; }
     /** Returns the child at position QPoint(@a x, @a y). */
-    virtual QAccessibleInterface *childAt(int /* x */, int /* y */) const RT_OVERRIDE { return 0; }
+    virtual QAccessibleInterface *childAt(int /* x */, int /* y */) const /* override */ { return 0; }
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const RT_OVERRIDE { return -1; }
+    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const /* override */ { return -1; }
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE;
+    virtual QRect rect() const /* override */;
 
     /** Defines a @a strText for the passed @a enmTextRole. */
-    virtual void setText(QAccessible::Text /* enmTextRole */, const QString & /* strText */) RT_OVERRIDE {}
+    virtual void setText(QAccessible::Text /* enmTextRole */, const QString & /* strText */) /* override */ {}
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text /* enmTextRole */) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text /* enmTextRole */) const /* override */;
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE { return QAccessible::Button; }
+    virtual QAccessible::Role role() const /* override */ { return QAccessible::Button; }
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE { return QAccessible::State(); }
+    virtual QAccessible::State state() const /* override */ { return QAccessible::State(); }
 
 private:
 
@@ -119,12 +119,12 @@ public:
     ~UIAccessibilityInterfaceForUIMenuBarEditorButton();
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE;
+    virtual QAccessible::Role role() const /* override */;
 
     /** Returns the rect of sub-element @a enmSegment. */
     QRect subRect(UIMenuBarEditorSegment enmSegment) const;
@@ -673,7 +673,7 @@ void UIMenuBarEditorWidget::paintEvent(QPaintEvent *)
     QPainter painter(this);
 
     /* Prepare palette colors: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     QColor color0 = pal.color(QPalette::Window);
     QColor color1 = pal.color(QPalette::Window).lighter(110);
     color1.setAlpha(0);
@@ -989,7 +989,7 @@ void UIMenuBarEditorWidget::prepare()
         m_pMainLayout->setContentsMargins(iLeft, iTop, iRight, iBottom);
         m_pMainLayout->setSpacing(0);
         /* Create tool-bar: */
-        m_pToolBar = new QIToolBar;
+        m_pToolBar = new UIToolBar;
         AssertPtrReturnVoid(m_pToolBar);
         {
             /* Prepare menus: */
@@ -1246,12 +1246,18 @@ void UIMenuBarEditorWidget::prepareMenuApplication()
     {
 #ifdef VBOX_WS_MAC
         prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_About));
+# ifdef VBOX_GUI_WITH_NETWORK_MANAGER
+        prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_NetworkAccessManager));
+# endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
         prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_ResetWarnings));
         pMenu->addSeparator();
         prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_Preferences));
 #else /* !VBOX_WS_MAC */
         prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_Preferences));
         pMenu->addSeparator();
+# ifdef VBOX_GUI_WITH_NETWORK_MANAGER
+        prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_NetworkAccessManager));
+# endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
         prepareCopiedAction(pMenu, actionPool()->action(UIActionIndex_M_Application_S_ResetWarnings));
 #endif /* !VBOX_WS_MAC */
     }

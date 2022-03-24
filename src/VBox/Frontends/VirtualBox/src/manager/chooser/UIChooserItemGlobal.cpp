@@ -1,10 +1,10 @@
-/* $Id: UIChooserItemGlobal.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: UIChooserItemGlobal.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserItemGlobal class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,17 +28,18 @@
 #include "UIIconPool.h"
 #include "UIVirtualBoxManager.h"
 
+/* Other VBox includes: */
+#include "iprt/cpp/utils.h"
+
 
 UIChooserItemGlobal::UIChooserItemGlobal(UIChooserItem *pParent, UIChooserNodeGlobal *pNode)
-    : UIChooserItem(pParent, pNode)
-#ifdef VBOX_WS_MAC
-    , m_iDefaultDarknessStart(0)
-    , m_iDefaultDarknessFinal(0)
-#endif
-    , m_iHoverLightnessStart(0)
-    , m_iHoverLightnessFinal(0)
-    , m_iHighlightLightnessStart(0)
-    , m_iHighlightLightnessFinal(0)
+    : UIChooserItem(pParent, pNode, 0, 100)
+    , m_iDefaultLightnessMin(0)
+    , m_iDefaultLightnessMax(0)
+    , m_iHoverLightnessMin(0)
+    , m_iHoverLightnessMax(0)
+    , m_iHighlightLightnessMin(0)
+    , m_iHighlightLightnessMax(0)
     , m_iMinimumNameWidth(0)
     , m_iMaximumNameWidth(0)
     , m_iHeightHint(0)
@@ -49,11 +50,6 @@ UIChooserItemGlobal::UIChooserItemGlobal(UIChooserItem *pParent, UIChooserNodeGl
 UIChooserItemGlobal::~UIChooserItemGlobal()
 {
     cleanup();
-}
-
-UIChooserNodeGlobal *UIChooserItemGlobal::nodeToGlobalType() const
-{
-    return node() ? node()->toGlobalNode() : 0;
 }
 
 bool UIChooserItemGlobal::isToolButtonArea(const QPoint &position, int iMarginMultiplier /* = 1 */) const
@@ -193,7 +189,7 @@ void UIChooserItemGlobal::updateToolTip()
     // Nothing for now..
 }
 
-QList<UIChooserItem*> UIChooserItemGlobal::items(UIChooserNodeType) const
+QList<UIChooserItem*> UIChooserItemGlobal::items(UIChooserItemType) const
 {
     AssertMsgFailedReturn(("Global graphics item do NOT support children!"), QList<UIChooserItem*>());
 }
@@ -208,10 +204,10 @@ void UIChooserItemGlobal::removeItem(UIChooserItem *)
     AssertMsgFailed(("Global graphics item do NOT support children!"));
 }
 
-UIChooserItem *UIChooserItemGlobal::searchForItem(const QString &, int iSearchFlags)
+UIChooserItem *UIChooserItemGlobal::searchForItem(const QString &, int iItemSearchFlags)
 {
-    /* Ignore if we are not searching for the global-item: */
-    if (!(iSearchFlags & UIChooserItemSearchFlag_Global))
+    /* Ignoring if we are not searching for the global-item? */
+    if (!(iItemSearchFlags & UIChooserItemSearchFlag_Global))
         return 0;
 
     /* Returning this: */
@@ -328,25 +324,22 @@ void UIChooserItemGlobal::sltHandleWindowRemapped()
 
 void UIChooserItemGlobal::prepare()
 {
-    /* Color tones: */
-#if defined(VBOX_WS_MAC)
-    m_iDefaultDarknessStart = 105;
-    m_iDefaultDarknessFinal = 115;
-    m_iHoverLightnessStart = 125;
-    m_iHoverLightnessFinal = 115;
-    m_iHighlightLightnessStart = 115;
-    m_iHighlightLightnessFinal = 105;
-#elif defined(VBOX_WS_WIN)
-    m_iHoverLightnessStart = 220;
-    m_iHoverLightnessFinal = 210;
-    m_iHighlightLightnessStart = 190;
-    m_iHighlightLightnessFinal = 180;
-#else /* !VBOX_WS_MAC && !VBOX_WS_WIN */
-    m_iHoverLightnessStart = 125;
-    m_iHoverLightnessFinal = 115;
-    m_iHighlightLightnessStart = 110;
-    m_iHighlightLightnessFinal = 100;
-#endif /* !VBOX_WS_MAC && !VBOX_WS_WIN */
+    /* Colors: */
+#ifdef VBOX_WS_MAC
+    m_iHighlightLightnessMin = 105;
+    m_iHighlightLightnessMax = 115;
+    m_iHoverLightnessMin = 115;
+    m_iHoverLightnessMax = 125;
+    m_iDefaultLightnessMin = 125;
+    m_iDefaultLightnessMax = 130;
+#else /* VBOX_WS_MAC */
+    m_iHighlightLightnessMin = 130;
+    m_iHighlightLightnessMax = 160;
+    m_iHoverLightnessMin = 160;
+    m_iHoverLightnessMax = 190;
+    m_iDefaultLightnessMin = 160;
+    m_iDefaultLightnessMax = 190;
+#endif /* !VBOX_WS_MAC */
 
     /* Fonts: */
     m_nameFont = font();
@@ -498,12 +491,7 @@ void UIChooserItemGlobal::updateMinimumNameWidth()
     /* Calculate new minimum name width: */
     QPaintDevice *pPaintDevice = model()->paintDevice();
     const QFontMetrics fm(m_nameFont, pPaintDevice);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    const int iMinimumNameWidth = fm.horizontalAdvance(compressText(m_nameFont, pPaintDevice, name(),
-                                                                    textWidth(m_nameFont, pPaintDevice, 15)));
-#else
     const int iMinimumNameWidth = fm.width(compressText(m_nameFont, pPaintDevice, name(), textWidth(m_nameFont, pPaintDevice, 15)));
-#endif
 
     /* Is there something changed? */
     if (m_iMinimumNameWidth == iMinimumNameWidth)
@@ -559,23 +547,23 @@ void UIChooserItemGlobal::updateVisibleName()
     }
 }
 
-void UIChooserItemGlobal::paintBackground(QPainter *pPainter, const QRect &rectangle)
+void UIChooserItemGlobal::paintBackground(QPainter *pPainter, const QRect &rectangle) const
 {
     /* Save painter: */
     pPainter->save();
 
     /* Prepare color: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
 
     /* Selected-item background: */
-    if (model()->selectedItems().contains(this))
+    if (model()->selectedItems().contains(unconst(this)))
     {
         /* Prepare color: */
         const QColor backgroundColor = pal.color(QPalette::Active, QPalette::Highlight);
         /* Draw gradient: */
         QLinearGradient bgGrad(rectangle.topLeft(), rectangle.bottomLeft());
-        bgGrad.setColorAt(0, backgroundColor.lighter(m_iHighlightLightnessStart));
-        bgGrad.setColorAt(1, backgroundColor.lighter(m_iHighlightLightnessFinal));
+        bgGrad.setColorAt(0, backgroundColor.lighter(m_iHighlightLightnessMax));
+        bgGrad.setColorAt(1, backgroundColor.lighter(m_iHighlightLightnessMin));
         pPainter->fillRect(rectangle, bgGrad);
 
         if (isHovered())
@@ -611,8 +599,8 @@ void UIChooserItemGlobal::paintBackground(QPainter *pPainter, const QRect &recta
         const QColor backgroundColor = pal.color(QPalette::Active, QPalette::Highlight);
         /* Draw gradient: */
         QLinearGradient bgGrad(rectangle.topLeft(), rectangle.bottomLeft());
-        bgGrad.setColorAt(0, backgroundColor.lighter(m_iHoverLightnessStart));
-        bgGrad.setColorAt(1, backgroundColor.lighter(m_iHoverLightnessFinal));
+        bgGrad.setColorAt(0, backgroundColor.lighter(m_iHoverLightnessMax));
+        bgGrad.setColorAt(1, backgroundColor.lighter(m_iHoverLightnessMin));
         pPainter->fillRect(rectangle, bgGrad);
 
         /* Prepare color: */
@@ -643,15 +631,17 @@ void UIChooserItemGlobal::paintBackground(QPainter *pPainter, const QRect &recta
     {
 #ifdef VBOX_WS_MAC
         /* Prepare color: */
-        const QColor backgroundColor = pal.color(QPalette::Active, QPalette::Window);
+        const QColor backgroundColor = pal.color(QPalette::Active, QPalette::Mid);
         /* Draw gradient: */
         QLinearGradient bgGrad(rectangle.topLeft(), rectangle.bottomLeft());
-        bgGrad.setColorAt(0, backgroundColor.darker(m_iDefaultDarknessStart));
-        bgGrad.setColorAt(1, backgroundColor.darker(m_iDefaultDarknessFinal));
+        bgGrad.setColorAt(0, backgroundColor.lighter(m_iDefaultLightnessMax));
+        bgGrad.setColorAt(1, backgroundColor.lighter(m_iDefaultLightnessMin));
         pPainter->fillRect(rectangle, bgGrad);
 #else
-        /* Draw simple background: */
-        pPainter->fillRect(rectangle, pal.color(QPalette::Active, QPalette::Window));
+        /* Prepare color: */
+        QColor backgroundColor = pal.color(QPalette::Active, QPalette::Mid).lighter(160);
+        /* Draw gradient: */
+        pPainter->fillRect(rectangle, backgroundColor);
 #endif
     }
 
@@ -659,25 +649,28 @@ void UIChooserItemGlobal::paintBackground(QPainter *pPainter, const QRect &recta
     pPainter->restore();
 }
 
-void UIChooserItemGlobal::paintFrame(QPainter *pPainter, const QRect &rectangle)
+void UIChooserItemGlobal::paintFrame(QPainter *pPainter, const QRect &rectangle) const
 {
     /* Only selected and/or hovered item should have a frame: */
-    if (!model()->selectedItems().contains(this) && !isHovered())
+    if (!model()->selectedItems().contains(unconst(this)) && !isHovered())
         return;
 
     /* Save painter: */
     pPainter->save();
 
     /* Prepare color: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     QColor strokeColor;
 
     /* Selected-item frame: */
-    if (model()->selectedItems().contains(this))
-        strokeColor = pal.color(QPalette::Active, QPalette::Highlight).lighter(m_iHighlightLightnessStart - 40);
+    if (model()->selectedItems().contains(unconst(this)))
+        strokeColor = pal.color(QPalette::Active, QPalette::Highlight).lighter(m_iHighlightLightnessMin - 40);
     /* Hovered-item frame: */
     else if (isHovered())
-        strokeColor = pal.color(QPalette::Active, QPalette::Highlight).lighter(m_iHoverLightnessStart - 40);
+        strokeColor = pal.color(QPalette::Active, QPalette::Highlight).lighter(m_iHoverLightnessMin - 50);
+    /* Default frame: */
+    else
+        strokeColor = pal.color(QPalette::Active, QPalette::Mid).lighter(m_iDefaultLightnessMin);
 
     /* Create/assign pen: */
     QPen pen(strokeColor);
@@ -693,7 +686,7 @@ void UIChooserItemGlobal::paintFrame(QPainter *pPainter, const QRect &rectangle)
     pPainter->restore();
 }
 
-void UIChooserItemGlobal::paintGlobalInfo(QPainter *pPainter, const QRect &rectangle)
+void UIChooserItemGlobal::paintGlobalInfo(QPainter *pPainter, const QRect &rectangle) const
 {
     /* Prepare variables: */
     const int iFullWidth = rectangle.width();
@@ -703,35 +696,23 @@ void UIChooserItemGlobal::paintGlobalInfo(QPainter *pPainter, const QRect &recta
     const int iSpacing = data(GlobalItemData_Spacing).toInt();
     const int iButtonMargin = data(GlobalItemData_ButtonMargin).toInt();
 
-    /* Selected or hovered item foreground: */
-    if (model()->selectedItems().contains(this) || isHovered())
+    /* Selected-item foreground: */
+    if (model()->selectedItems().contains(unconst(this)))
     {
-        /* Prepare palette: */
-        const QPalette pal = QApplication::palette();
-
-        /* Get background color: */
+        const QPalette pal = palette();
+        pPainter->setPen(pal.color(QPalette::HighlightedText));
+    }
+    /* Hovered item foreground: */
+    else if (isHovered())
+    {
+        /* Prepare color: */
+        const QPalette pal = palette();
         const QColor highlight = pal.color(QPalette::Active, QPalette::Highlight);
-        const QColor background = model()->selectedItems().contains(this)
-                                ? highlight.lighter(m_iHighlightLightnessStart)
-                                : highlight.lighter(m_iHoverLightnessStart);
-
-        /* Get foreground color: */
-        const QColor simpleText = pal.color(QPalette::Active, QPalette::Text);
-        const QColor highlightText = pal.color(QPalette::Active, QPalette::HighlightedText);
-        QColor lightText = simpleText.black() < highlightText.black() ? simpleText : highlightText;
-        QColor darkText = simpleText.black() > highlightText.black() ? simpleText : highlightText;
-        if (lightText.black() > 128)
-            lightText = QColor(Qt::white);
-        if (darkText.black() < 128)
-            darkText = QColor(Qt::black);
-
-        /* Gather foreground color for background one: */
-        double dLuminance = (0.299 * background.red() + 0.587 * background.green() + 0.114 * background.blue()) / 255;
-        //printf("luminance = %f\n", dLuminance);
-        if (dLuminance > 0.5)
-            pPainter->setPen(darkText);
+        const QColor hhl = highlight.lighter(m_iHoverLightnessMax);
+        if (hhl.value() - hhl.saturation() > 0)
+            pPainter->setPen(pal.color(QPalette::Active, QPalette::Text));
         else
-            pPainter->setPen(lightText);
+            pPainter->setPen(pal.color(QPalette::Active, QPalette::HighlightedText));
     }
 
     /* Calculate indents: */

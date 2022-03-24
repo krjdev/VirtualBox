@@ -1496,11 +1496,9 @@ string result = service.SayHello("Peter");  // invoke remote procedure</screen>
         layer that abstracts out most platform-specific details from the
         application and allows the developer to focus on application logic.
         The VirtualBox installer automatically sets up this glue layer for the
-        system default Python installation.</para>
-
-        <para>See <xref linkend="glue-python-setup"/> for details on how to
-        set up the glue layer if you want to use a different Python installation,
-        or if the VirtualBox installer failed to detect and set it up accordingly.</para>
+        system default Python install. See below for details on how to set up
+        the glue layer if you want to use a different Python
+        installation.</para>
 
         <para>The minimum supported Python version is 2.6.</para>
 
@@ -1570,20 +1568,12 @@ for m in mgr.getArray(vbox, 'machines'):
         uniform session creation and closing
         (<computeroutput>mgr.getSessionObject()</computeroutput>).</para>
 
-        <sect3 id="glue-python-setup">
-          <title>Manual or subsequent setup</title>
-
-          <para>In case you want to use the glue layer with a different Python
-            installation or the installer failed to set it up, use these steps
-            in a shell to install the necessary files:</para>
+        <para>In case you want to use the glue layer with a different Python
+        installation, use these steps in a shell to add the necessary
+        files:</para>
 
         <screen>    # cd VBOX_INSTALL_PATH/sdk/installer
     # PYTHON vboxapisetup.py install</screen>
-
-           <note> <para>On Windows hosts, a Python distribution along with the
-             win32api bindings package need to be installed as a prerequisite. </para></note>
-        </sect3>
-
       </sect2>
 
       <sect2 id="cppcom">
@@ -2170,7 +2160,7 @@ if (atexit(g_pVBoxFuncs-&gt;pfnClientUninitialize()) != 0) {
           similar to:<screen># Where is the SDK directory?
 PATH_SDK      = ../../..
 CAPI_INC      = -I$(PATH_SDK)/bindings/c/include
-ifdef ProgramFiles
+ifeq ($(BUILD_PLATFORM),win)
 PLATFORM_INC  = -I$(PATH_SDK)/bindings/mscom/include
 PLATFORM_LIB  = $(PATH_SDK)/bindings/mscom/lib
 else
@@ -4138,22 +4128,6 @@ AuthResult AUTHCALL AuthEntry(
     interfaces and similar). In other words, the list does not contain new
     interfaces, methods or attributes or other changes that do not affect
     existing client code.</para>
-
-    <sect1>
-      <title>Incompatible API changes with version 7.0</title>
-
-      <itemizedlist>
-
-        <listitem><para><link linkend="IGuestSession__directoryCopyFromGuest">IGuestSession::directoryCopyFromGuest()</link> and
-          <link linkend="IGuestSession__directoryCopyToGuest">IGuestSession::directoryCopyToGuest()</link> no longer implicitly
-          copy recursively and follow symbolic links -- for this to continue working, the newly introduced flags
-          <link linkend="DirectoryCopyFlag__Recursive">DirectoryCopyFlag::Recursive</link> and/or
-          <link linkend="DirectoryCopyFlag__FollowLinks">DirectoryCopyFlag::FollowLinks</link> have to be used.</para>
-        </listitem>
-
-      </itemizedlist>
-
-    </sect1>
 
     <sect1>
       <title>Incompatible API changes with version 6.1</title>

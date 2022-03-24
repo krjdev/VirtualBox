@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: xcode-4.1-extrator.sh 69210 2017-10-24 13:38:47Z vboxsync $
+# $Id: xcode-4.1-extrator.sh $
 ## @file
 # Extracts the necessary bits from the Xcode 4.1 lion package (inside installercode_41_lion.dmg).
 

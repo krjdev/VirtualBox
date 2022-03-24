@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,10 +38,6 @@
  * @{
  */
 
-/** Apple developer ID for iPhone application software development signing. */
-#define RTCR_APPLE_CS_DEVID_IPHONE_SW_DEV_OID           "1.2.840.113635.100.6.1.2"
-/** Apple developer ID for Mac application software development signing. */
-#define RTCR_APPLE_CS_DEVID_MAC_SW_DEV_OID              "1.2.840.113635.100.6.1.12"
 /** Apple developer ID for application signing. */
 #define RTCR_APPLE_CS_DEVID_APPLICATION_OID             "1.2.840.113635.100.6.1.13"
 /** Apple developer ID for installer signing. */
@@ -255,7 +251,7 @@ RTDECL(int) RTCrAppleCsInit(PRTCRAPLCS pDesc, void const *pvBlob, size_t cbBlob,
  * @param   cb          Number of bytes to digest.
  * @param   pvUser      User argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTCRAPPLECSDIGESTAREA,(RTCRDIGEST hDigest, size_t off, size_t cb, void *pvUser));
+typedef DECLCALLBACK(int) FNRTCRAPPLECSDIGESTAREA(RTCRDIGEST hDigest, size_t off, size_t cb, void *pvUser);
 /** Pointer to a image digest callback. */
 typedef FNRTCRAPPLECSDIGESTAREA *PFNRTCRAPPLECSDIGESTAREA;
 

@@ -1,11 +1,11 @@
 # !kmk_ash
-# $Id: gen-slickedit-workspace.sh 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: gen-slickedit-workspace.sh $
 ## @file
 # Script for generating a SlickEdit workspace.
 #
 
 #
-# Copyright (C) 2009-2022 Oracle Corporation
+# Copyright (C) 2009-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -38,8 +38,11 @@ MY_SORT="sort"
 MY_PROJECT_FILES=""
 MY_OUT_DIRS="\
 out/${KBUILD_TARGET}.${KBUILD_TARGET_ARCH}/${KBUILD_TYPE} \
+out/${BUILD_TARGET}.${BUILD_TARGET_ARCH}/${BUILD_TYPE} \
 out/${KBUILD_TARGET}.${KBUILD_TARGET_ARCH}/debug \
+out/${BUILD_TARGET}.${BUILD_TARGET_ARCH}/debug \
 out/${KBUILD_TARGET}.${KBUILD_TARGET_ARCH}/release \
+out/${BUILD_TARGET}.${BUILD_TARGET_ARCH}/release \
 out/linux.amd64/debug \
 out/linux.x86/debug \
 out/win.amd64/debug \
@@ -64,6 +67,10 @@ MY_WINDOWS_HOST=""
 MY_OPT_MINIMAL=""
 MY_OPT_USE_WILDCARDS="yes"
 
+#MY_KBUILD_PATH="${KBUILD_PATH}"
+#test -z "${MY_KBUILD_PATH}" && MY_KBUILD_PATH="${PATH_KBUILD}"
+#MY_KBUILD=""
+
 
 ##
 # Gets the absolute path to an existing directory.
@@ -73,7 +80,6 @@ my_abs_dir()
 {
     if test -n "${PWD}"; then
         MY_ABS_DIR=`cd ${MY_ROOT_DIR}/${1} && echo ${PWD}`
-
     else
         # old cygwin shell has no PWD and need adjusting.
         MY_ABS_DIR=`cd ${MY_ROOT_DIR}/${1} && pwd | ${MY_SED} -e 's,^/cygdrive/\(.\)/,\1:/,'`
@@ -108,11 +114,11 @@ my_get_name()
 # @param    $1      The library base path relative to root.
 my_get_newest_ver()
 {
-    cd "${MY_ROOT_DIR}" > /dev/null
+    cd "${MY_ABS_DIR}"
     latest=
     for ver in "$1"*;
     do
-        if test -z "${latest}" || "${MY_EXPR}" "${ver}" ">" "${latest}" > /dev/null; then
+        if test -z "${latest}" || "${MY_EXPR}" "${ver}" ">" "${latest}"; then
             latest="${ver}"
         fi
     done
@@ -513,13 +519,11 @@ my_generate_usercpp_h()
     #
     # Probe the slickedit user config, picking the most recent version.
     #
-    MY_VSLICK_DB_OLD=
     if test -z "${MY_SLICK_CONFIG}"; then
         if test -d "${HOME}/Library/Application Support/SlickEdit"; then
             MY_SLICKDIR_="${HOME}/Library/Application Support/SlickEdit"
             MY_USERCPP_H="unxcpp.h"
             MY_VSLICK_DB="vslick.sta" # was .stu earlier, 24 is using .sta.
-            MY_VSLICK_DB_OLD="vslick.stu"
         elif test -d "${HOMEDRIVE}${HOMEPATH}/Documents/My SlickEdit Config"; then
             MY_SLICKDIR_="${HOMEDRIVE}${HOMEPATH}/Documents/My SlickEdit Config"
             MY_USERCPP_H="usercpp.h"
@@ -527,8 +531,7 @@ my_generate_usercpp_h()
         else
             MY_SLICKDIR_="${HOME}/.slickedit"
             MY_USERCPP_H="unxcpp.h"
-            MY_VSLICK_DB="vslick.sta"
-            MY_VSLICK_DB_OLD="vslick.stu"
+            MY_VSLICK_DB="vslick.stu"
         fi
     else
         MY_SLICKDIR_="${MY_SLICK_CONFIG}"
@@ -537,8 +540,7 @@ my_generate_usercpp_h()
             MY_VSLICK_DB="vslick.sta"
         else
             MY_USERCPP_H="unxcpp.h"
-            MY_VSLICK_DB="vslick.sta"
-            MY_VSLICK_DB_OLD="vslick.stu"
+            MY_VSLICK_DB="vslick.stu"
         fi
         # MacOS: Implement me!
     fi
@@ -547,9 +549,7 @@ my_generate_usercpp_h()
     MY_VER="0.0.0"
     for subdir in "${MY_SLICKDIR_}/"*;
     do
-        if test    -f "${subdir}/${MY_USERCPP_H}"  \
-                -o -f "${subdir}/${MY_VSLICK_DB}" \
-                -o '(' -n "${MY_VSLICK_DB_OLD}" -a -f "${subdir}/${MY_VSLICK_DB_OLD}" ')'; then
+        if test -f "${subdir}/${MY_USERCPP_H}"  -o  -f "${subdir}/${MY_VSLICK_DB}"; then
             MY_CUR_VER_NUM=0
             MY_CUR_VER=`echo "${subdir}" | ${MY_SED} -e 's,^.*/,,g'`
 
@@ -584,7 +584,6 @@ my_generate_usercpp_h()
         echo "Found SlickEdit v${MY_VER} preprocessor file: ${MY_USERCPP_H_FULL}"
     else
         echo "Failed to locate SlickEdit preprocessor file. You need to manually merge ${MY_USERCPP_H}."
-        echo "dbg: MY_SLICKDIR=${MY_SLICKDIR}  MY_USERCPP_H_FULL=${MY_USERCPP_H_FULL}"
         MY_USERCPP_H_FULL=""
     fi
 
@@ -594,17 +593,13 @@ my_generate_usercpp_h()
 #define IN_SLICKEDIT
 #define RT_C_DECLS_BEGIN
 #define RT_C_DECLS_END
-#define RT_NOTHROW_PROTO
-#define RT_NOTHROW_DEF
-#define RT_NO_THROW_PROTO
-#define RT_NO_THROW_DEF
+#define RT_NO_THROW
 #define RT_NOEXCEPT
 #define RT_OVERRIDE
-#define RT_THROW(type)                  throw(type)
+#define RT_THROW(type) throw(type)
 #define RT_GCC_EXTENSION
 #define RT_COMPILER_GROKS_64BIT_BITFIELDS
 #define RT_COMPILER_WITH_80BIT_LONG_DOUBLE
-#define RT_DECL_NTAPI(type)             type
 
 #define ATL_NO_VTABLE
 #define BEGIN_COM_MAP(a)
@@ -626,16 +621,6 @@ my_generate_usercpp_h()
 #define DECLARE_PROTECT_FINAL_CONSTRUCT(a)
 #define DECLARE_EMPTY_CTOR_DTOR(a)      a(); ~a();
 #define DEFINE_EMPTY_CTOR_DTOR(a)       a::a() {}   a::~a() {}
-#define DECLARE_TRANSLATE_METHODS(cls) \
-    static inline const char *tr(const char *aSourceText, \
-                                 const char *aComment = NULL, \
-                                 const int   aNum = -1) \
-    { \
-        return VirtualBoxTranslator::translate(#cls, aSourceText, aComment, aNum); \
-    }
-#define DECLARE_COMMON_CLASS_METHODS(cls) \
-    DECLARE_EMPTY_CTOR_DTOR(cls) \
-    DECLARE_TRANSLATE_METHODS(cls)
 #define NS_DECL_ISUPPORTS
 #define NS_IMETHOD                      virtual nsresult
 #define NS_IMETHOD_(type)               virtual type
@@ -688,7 +673,6 @@ EOF
 #define RT_IPRT_FORMAT_ATTR(a_iFmt, a_iArgs)
 #define RT_IPRT_FORMAT_ATTR_MAYBE_NULL(a_iFmt, a_iArgs)
 #define DECLINLINE(type)                inline type
-#define DECL_INLINE_THROW(type)         inline type
 #define DECL_FORCE_INLINE(type)         inline type
 #define DECL_INVALID(type)              type
 
@@ -696,48 +680,44 @@ EOF
 #define VBOX_WITH_HGCM                  1
 #define VBOXCALL
 
-#define HM_NAMELESS_UNION_TAG(a_Tag)
-#define HM_UNION_NM(a_Nm)
-#define HM_STRUCT_NM(a_Nm)
-
 #define PGM_ALL_CB_DECL(type)           type
 #define PGM_ALL_CB2_DECL(type)          type
 #define PGM_CTX(a,b)                    b
 #define PGM_CTX3(a,b,c)                 c
 #define PGM_GST_NAME(name)              PGM_GST_NAME_AMD64(name)
-#define PGM_GST_NAME_REAL(name)         pgmGstReal##name
-#define PGM_GST_NAME_PROT(name)         pgmGstProt##name
-#define PGM_GST_NAME_32BIT(name)        pgmGst32Bit##name
-#define PGM_GST_NAME_PAE(name)          pgmGstPAE##name
-#define PGM_GST_NAME_AMD64(name)        pgmGstAMD64##name
+#define PGM_GST_NAME_REAL(name)         PGM_CTX3(name)
+#define PGM_GST_NAME_PROT(name)         PGM_CTX3(pgm,GstProt,name)
+#define PGM_GST_NAME_32BIT(name)        PGM_CTX3(pgm,Gst32Bit,name)
+#define PGM_GST_NAME_PAE(name)          PGM_CTX3(pgm,GstPAE,name)
+#define PGM_GST_NAME_AMD64(name)        PGM_CTX3(pgm,GstAMD64,name)
 #define PGM_GST_DECL(type, name)        type PGM_GST_NAME(name)
 #define PGM_SHW_NAME(name)              PGM_GST_NAME_AMD64(name)
-#define PGM_SHW_NAME_32BIT(name)        pgmShw32Bit##name
-#define PGM_SHW_NAME_PAE(name)          pgmShwPAE##name
-#define PGM_SHW_NAME_AMD64(name)        pgmShwAMD64##name
-#define PGM_SHW_NAME_NESTED(name)       pgmShwNested##name
-#define PGM_SHW_NAME_EPT(name)          pgmShwEPT##name
+#define PGM_SHW_NAME_32BIT(name)        PGM_CTX3(pgm,Shw32Bit,name)
+#define PGM_SHW_NAME_PAE(name)          PGM_CTX3(pgm,ShwPAE,name)
+#define PGM_SHW_NAME_AMD64(name)        PGM_CTX3(pgm,ShwAMD64,name)
+#define PGM_SHW_NAME_NESTED(name)       PGM_CTX3(pgm,ShwNested,name)
+#define PGM_SHW_NAME_EPT(name)          PGM_CTX3(pgm,ShwEPT,name)
 #define PGM_SHW_DECL(type, name)        type PGM_SHW_NAME(name)
 #define PGM_BTH_NAME(name)              PGM_BTH_NAME_NESTED_AMD64(name)
-#define PGM_BTH_NAME_32BIT_REAL(name)   pgmBth##name
-#define PGM_BTH_NAME_32BIT_PROT(name)   pgmBth##name
-#define PGM_BTH_NAME_32BIT_32BIT(name)  pgmBth##name
-#define PGM_BTH_NAME_PAE_REAL(name)     pgmBth##name
-#define PGM_BTH_NAME_PAE_PROT(name)     pgmBth##name
-#define PGM_BTH_NAME_PAE_32BIT(name)    pgmBth##name
-#define PGM_BTH_NAME_PAE_PAE(name)      pgmBth##name
-#define PGM_BTH_NAME_AMD64_PROT(name)   pgmBth##name
-#define PGM_BTH_NAME_AMD64_AMD64(name)  pgmBth##name
-#define PGM_BTH_NAME_NESTED_REAL(name)  pgmBth##name
-#define PGM_BTH_NAME_NESTED_PROT(name)  pgmBth##name
-#define PGM_BTH_NAME_NESTED_32BIT(name) pgmBth##name
-#define PGM_BTH_NAME_NESTED_PAE(name)   pgmBth##name
-#define PGM_BTH_NAME_NESTED_AMD64(name) pgmBth##name
-#define PGM_BTH_NAME_EPT_REAL(name)     pgmBth##name
-#define PGM_BTH_NAME_EPT_PROT(name)     pgmBth##name
-#define PGM_BTH_NAME_EPT_32BIT(name)    pgmBth##name
-#define PGM_BTH_NAME_EPT_PAE(name)      pgmBth##name
-#define PGM_BTH_NAME_EPT_AMD64(name)    pgmBth##name
+#define PGM_BTH_NAME_32BIT_REAL(name)   PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_32BIT_PROT(name)   PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_32BIT_32BIT(name)  PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_PAE_REAL(name)     PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_PAE_PROT(name)     PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_PAE_32BIT(name)    PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_PAE_PAE(name)      PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_AMD64_PROT(name)   PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_AMD64_AMD64(name)  PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_NESTED_REAL(name)  PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_NESTED_PROT(name)  PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_NESTED_32BIT(name) PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_NESTED_PAE(name)   PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_NESTED_AMD64(name) PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_EPT_REAL(name)     PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_EPT_PROT(name)     PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_EPT_32BIT(name)    PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_EPT_PAE(name)      PGM_CTX3(pgm,Bth,name)
+#define PGM_BTH_NAME_EPT_AMD64(name)    PGM_CTX3(pgm,Bth,name)
 #define PGM_BTH_DECL(type, name)        type PGM_BTH_NAME(name)
 
 #define FNIEMOP_STUB(a_Name)               VBOXSTRICTRC a_Name(PIEMCPU pIemCpu) { return VERR_NOT_IMPLEMENTED; }
@@ -759,10 +739,6 @@ EOF
 #define RTASN1_IMPL_GEN_SET_OF_TYPEDEFS_AND_PROTOS(a_SetOfType, a_ItemType, a_DeclMacro, a_ImplExtNm) typedef struct a_SetOfType { RTASN1SETCORE SetCore; RTASN1ALLOCATION Allocation; uint32_t cItems; RT_CONCAT(P,a_ItemType) paItems; } a_SetOfType; typedef a_SetOfType *P##a_SetOfType, const *PC##a_SetOfType; int a_ImplExtNm##_DecodeAsn1(struct RTASN1CURSOR *pCursor, uint32_t fFlags, P##a_SetOfType pThis, const char *pszErrorTag); int a_ImplExtNm##_Compare(PC##a_SetOfType pLeft, PC##a_SetOfType pRight)
 #define RTASN1TYPE_STANDARD_PROTOTYPES_NO_GET_CORE(a_TypeNm, a_DeclMacro, a_ImplExtNm) int  a_ImplExtNm##_Init(P##a_TypeNm pThis, PCRTASN1ALLOCATORVTABLE pAllocator); int  a_ImplExtNm##_Clone(P##a_TypeNm pThis, PC##a_TypeNm) pSrc, PCRTASN1ALLOCATORVTABLE pAllocator); void a_ImplExtNm##_Delete(P##a_TypeNm pThis); int  a_ImplExtNm##_Enum(P##a_TypeNm pThis, PFNRTASN1ENUMCALLBACK pfnCallback, uint32_t uDepth, void *pvUser); int  a_ImplExtNm##_Compare(PC##a_TypeNm) pLeft, PC##a_TypeNm pRight); int  a_ImplExtNm##_DecodeAsn1(PRTASN1CURSOR pCursor, uint32_t fFlags, P##a_TypeNm pThis, const char *pszErrorTag); int  a_ImplExtNm##_CheckSanity(PC##a_TypeNm pThis, uint32_t fFlags, PRTERRINFO pErrInfo, const char *pszErrorTag)
 #define RTASN1TYPE_STANDARD_PROTOTYPES(a_TypeNm, a_DeclMacro, a_ImplExtNm, a_Asn1CoreNm) inline PRTASN1CORE a_ImplExtNm##_GetAsn1Core(PC##a_TypeNm pThis) { return (PRTASN1CORE)&pThis->a_Asn1CoreNm; } inline bool a_ImplExtNm##_IsPresent(PC##a_TypeNm pThis) { return pThis && RTASN1CORE_IS_PRESENT(&pThis->a_Asn1CoreNm); } RTASN1TYPE_STANDARD_PROTOTYPES_NO_GET_CORE(a_TypeNm, a_DeclMacro, a_ImplExtNm)
-
-#define RTLDRELF_NAME(name)             rtldrELF64##name
-#define RTLDRELF_SUFF(name)             name##64
-#define RTLDRELF_MID(pre,suff)          pre##64##suff
 
 #define BS3_DECL(type)                  type
 #define BS3_DECL_CALLBACK(type)         type
@@ -909,15 +885,9 @@ EOF
         -e 's/(type) DECLHIDDEN(type)/(type) type/' \
         -e 's/(type) DECLEXPORT(type)/(type) type/' \
         -e 's/(type) DECLIMPORT(type)/(type) type/' \
-        -e 's/(type) DECL_HIDDEN_NOTHROW(type)/(type) type/' \
-        -e 's/(type) DECL_EXPORT_NOTHROW(type)/(type) type/' \
-        -e 's/(type) DECL_IMPORT_NOTHROW(type)/(type) type/' \
         -e 's/(a_Type) DECLHIDDEN(a_Type)/(a_Type) a_Type/' \
         -e 's/(a_Type) DECLEXPORT(a_Type)/(a_Type) a_Type/' \
         -e 's/(a_Type) DECLIMPORT(a_Type)/(a_Type) a_Type/' \
-        -e 's/(a_Type) DECL_HIDDEN_NOTHROW(a_Type)/(a_Type) a_Type/' \
-        -e 's/(a_Type) DECL_EXPORT_NOTHROW(a_Type)/(a_Type) a_Type/' \
-        -e 's/(a_Type) DECL_IMPORT_NOTHROW(a_Type)/(a_Type) a_Type/' \
         \
         --append "${MY_FILE}" \
         ${MY_HDR_FILES}
@@ -1064,7 +1034,7 @@ cd "${MY_OUT_DIR}"
 #
 my_abs_dir "tools"
 if test -n "${MY_WINDOWS_HOST}"; then
-    MY_KMK_INVOCATION="cscript.exe /Nologo ${MY_ABS_DIR}/envSub.vbs --quiet -- kmk.exe"
+    MY_KMK_INVOCATION="${MY_ABS_DIR}/win.x86/bin/rexx.exe ${MY_ABS_DIR}/envSub.cmd kmk.exe"
 else
     MY_KMK_INVOCATION="/usr/bin/env LANG=C ${MY_ABS_DIR}/env.sh --quiet --no-wine kmk"
 fi
@@ -1238,19 +1208,16 @@ my_generate_project "misc"          "."                                     --be
     "Config.kmk" \
     "Makefile.kmk" \
     "src/Makefile.kmk" \
-    "src/VBox/Makefile.kmk" \
-    "tools/env.sh" \
-    "tools/env.cmd" \
-    "tools/envSub.vbs" \
-    "tools/envSub.cmd" \
-    "tools/win/vbscript"
+    "src/VBox/Makefile.kmk"
 
 
 # out/x.y/z/bin/sdk/bindings/xpcom
 XPCOM_INCS="src/libs/xpcom18a4"
 for d in \
     "out/${KBUILD_TARGET}.${KBUILD_TARGET_ARCH}/${KBUILD_TYPE}/dist/sdk/bindings/xpcom" \
+    "out/${BUILD_TARGET}.${BUILD_TARGET_ARCH}/${BUILD_TYPE}/dist/sdk/bindings/xpcom" \
     "out/${KBUILD_TARGET}.${KBUILD_TARGET_ARCH}/${KBUILD_TYPE}/bin/sdk/bindings/xpcom" \
+    "out/${BUILD_TARGET}.${BUILD_TARGET_ARCH}/${BUILD_TYPE}/bin/sdk/bindings/xpcom" \
     "out/linux.amd64/debug/bin/sdk/bindings/xpcom" \
     "out/linux.x86/debug/bin/sdk/bindings/xpcom" \
     "out/darwin.amd64/debug/dist/sdk/bindings/xpcom" \

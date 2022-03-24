@@ -1,10 +1,10 @@
-/* $Id: UITools.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UITools.cpp $ */
 /** @file
  * VBox Qt GUI - UITools class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -19,21 +19,28 @@
 #include <QVBoxLayout>
 
 /* GUI includes: */
-#include "UICommon.h"
 #include "UITools.h"
 #include "UIToolsModel.h"
 #include "UIToolsView.h"
 #include "UIVirtualBoxManagerWidget.h"
+#include "UICommon.h"
 
 
-UITools::UITools(UIVirtualBoxManagerWidget *pParent /* = 0 */)
+UITools::UITools(UIVirtualBoxManagerWidget *pParent)
     : QWidget(pParent, Qt::Popup)
     , m_pManagerWidget(pParent)
     , m_pMainLayout(0)
     , m_pToolsModel(0)
     , m_pToolsView(0)
 {
+    /* Prepare: */
     prepare();
+}
+
+UITools::~UITools()
+{
+    /* Cleanup: */
+    cleanup();
 }
 
 UIActionPool *UITools::actionPool() const
@@ -71,14 +78,14 @@ UIToolType UITools::lastSelectedToolMachine() const
     return m_pToolsModel->lastSelectedToolMachine();
 }
 
-void UITools::setToolClassEnabled(UIToolClass enmClass, bool fEnabled)
+void UITools::setToolsEnabled(UIToolClass enmClass, bool fEnabled)
 {
-    m_pToolsModel->setToolClassEnabled(enmClass, fEnabled);
+    m_pToolsModel->setToolsEnabled(enmClass, fEnabled);
 }
 
-bool UITools::toolClassEnabled(UIToolClass enmClass) const
+bool UITools::areToolsEnabled(UIToolClass enmClass) const
 {
-    return m_pToolsModel->toolClassEnabled(enmClass);
+    return m_pToolsModel->areToolsEnabled(enmClass);
 }
 
 void UITools::setRestrictedToolTypes(const QList<UIToolType> &types)
@@ -98,48 +105,59 @@ UIToolsItem *UITools::currentItem() const
 
 void UITools::prepare()
 {
-    /* Prepare everything: */
-    prepareContents();
+    /* Prepare palette: */
+    preparePalette();
+    /* Prepare layout: */
+    prepareLayout();
+    /* Prepare model: */
+    prepareModel();
+    /* Prepare view: */
+    prepareView();
+    /* Prepare connections: */
     prepareConnections();
 
-    /* Init model finally: */
-    initModel();
+    /* Load settings: */
+    loadSettings();
 }
 
-void UITools::prepareContents()
+void UITools::preparePalette()
+{
+    /* Setup palette: */
+    setAutoFillBackground(true);
+    QPalette pal = palette();
+    QColor bodyColor = pal.color(QPalette::Active, QPalette::Midlight).darker(110);
+    pal.setColor(QPalette::Window, bodyColor);
+    setPalette(pal);
+}
+
+void UITools::prepareLayout()
 {
     /* Setup own layout rules: */
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::MinimumExpanding);
 
-    /* Prepare main-layout: */
+    /* Create main-layout: */
     m_pMainLayout = new QVBoxLayout(this);
     if (m_pMainLayout)
     {
+        /* Configure main-layout: */
         m_pMainLayout->setContentsMargins(1, 1, 1, 1);
         m_pMainLayout->setSpacing(0);
-
-        /* Prepare model: */
-        prepareModel();
     }
 }
 
 void UITools::prepareModel()
 {
-    /* Prepare model: */
+    /* Create Tools-model: */
     m_pToolsModel = new UIToolsModel(this);
-    if (m_pToolsModel)
-        prepareView();
 }
 
 void UITools::prepareView()
 {
-    AssertPtrReturnVoid(m_pToolsModel);
-    AssertPtrReturnVoid(m_pMainLayout);
-
-    /* Prepare view: */
+    /* Setup Tools-view: */
     m_pToolsView = new UIToolsView(this);
     if (m_pToolsView)
     {
+        /* Configure Tools-view. */
         m_pToolsView->setScene(m_pToolsModel->scene());
         m_pToolsView->show();
         setFocusProxy(m_pToolsView);
@@ -151,7 +169,7 @@ void UITools::prepareView()
 
 void UITools::prepareConnections()
 {
-    /* Model connections: */
+    /* Setup Tools-model connections: */
     connect(m_pToolsModel, &UIToolsModel::sigItemMinimumWidthHintChanged,
             m_pToolsView, &UIToolsView::sltMinimumWidthHintChanged);
     connect(m_pToolsModel, &UIToolsModel::sigItemMinimumHeightHintChanged,
@@ -159,12 +177,25 @@ void UITools::prepareConnections()
     connect(m_pToolsModel, &UIToolsModel::sigFocusChanged,
             m_pToolsView, &UIToolsView::sltFocusChanged);
 
-    /* View connections: */
+    /* Setup Tools-view connections: */
     connect(m_pToolsView, &UIToolsView::sigResized,
             m_pToolsModel, &UIToolsModel::sltHandleViewResized);
 }
 
-void UITools::initModel()
+void UITools::loadSettings()
 {
+    /* Init model: */
     m_pToolsModel->init();
+}
+
+void UITools::saveSettings()
+{
+    /* Deinit model: */
+    m_pToolsModel->deinit();
+}
+
+void UITools::cleanup()
+{
+    /* Save settings: */
+    saveSettings();
 }

@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsSF.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineSettingsSF.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsSF class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,27 +23,22 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIMachineSettingsSF.gen.h"
 
 /* COM includes: */
 #include "CSharedFolder.h"
 
 /* Forward declarations: */
-class QHBoxLayout;
-class QTreeWidgetItem;
-class QITreeWidget;
-class QILabelSeparator;
 class SFTreeViewItem;
-class QIToolBar;
-
 struct UIDataSettingsSharedFolder;
 struct UIDataSettingsSharedFolders;
 enum UISharedFolderType { MachineType, ConsoleType };
 typedef UISettingsCache<UIDataSettingsSharedFolder> UISettingsCacheSharedFolder;
 typedef UISettingsCachePool<UIDataSettingsSharedFolders, UISettingsCacheSharedFolder> UISettingsCacheSharedFolders;
 
-
 /** Machine settings: Shared Folders page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsSF : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsSF : public UISettingsPageMachine,
+                                                 public Ui::UIMachineSettingsSF
 {
     Q_OBJECT;
 
@@ -57,33 +52,33 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *aEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *aEvent) /* override */;
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
 private slots:
 
@@ -110,12 +105,10 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares Widgets. */
-    void prepareWidgets();
-    /** Prepares shared folders tree-wdget. */
-    void prepareTreeWidget();
+    /** Prepares shared folders tree. */
+    void prepareFoldersTree();
     /** Prepares shared folders toolbar. */
-    void prepareToolbar();
+    void prepareFoldersToolbar();
     /** Prepares connections. */
     void prepareConnections();
     /** Cleanups all. */
@@ -150,26 +143,15 @@ private:
     /** Creates shared folder defined by a @a folderCache. */
     bool createSharedFolder(const UISettingsCacheSharedFolder &folderCache);
 
+    /** Holds the Add action instance. */
+    QAction *m_pActionAdd;
+    /** Holds the Edit action instance. */
+    QAction *m_pActionEdit;
+    /** Holds the Remove action instance. */
+    QAction *m_pActionRemove;
+
     /** Holds the page data cache instance. */
     UISettingsCacheSharedFolders *m_pCache;
-
-    /** @name Widgets
-      * @{ */
-        /** Holds the widget separator instance. */
-        QILabelSeparator *m_pLabelSeparator;
-        /** Holds the tree layout instance. */
-        QHBoxLayout      *m_pLayoutTree;
-        /** Holds the tree-widget instance. */
-        QITreeWidget     *m_pTreeWidget;
-        /** Holds the toolbar instance. */
-        QIToolBar        *m_pToolbar;
-        /** Holds the 'add shared folder' action instance. */
-        QAction          *m_pActionAdd;
-        /** Holds the 'edit shared folder' action instance. */
-        QAction          *m_pActionEdit;
-        /** Holds the 'remove shared folder' action instance. */
-        QAction          *m_pActionRemove;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsSF_h */

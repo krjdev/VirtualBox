@@ -1,10 +1,10 @@
-/* $Id: DrvAudio.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvAudio.cpp $ */
 /** @file
  * Intermediate audio driver - Connects the audio device emulation with the host backend.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -4123,10 +4123,10 @@ static DECLCALLBACK(void) drvAudioHostPort_StreamNotifyDeviceChanged(PPDMIHOSTAU
  * got notification as there can be further notifications following shortly
  * after the first one.  Also good to get it of random COM/whatever threads.
  */
-static DECLCALLBACK(void) drvAudioEnumerateTimer(PPDMDRVINS pDrvIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) drvAudioEnumerateTimer(PPDMDRVINS pDrvIns, PTMTIMER pTimer, void *pvUser)
 {
     PDRVAUDIO pThis = PDMINS_2_DATA(pDrvIns, PDRVAUDIO);
-    RT_NOREF(hTimer, pvUser);
+    RT_NOREF(pTimer, pvUser);
 
     /* Try push the work over to the thread-pool if we've got one. */
     RTCritSectRwEnterShared(&pThis->CritSectHotPlug);
@@ -4632,8 +4632,7 @@ static DECLCALLBACK(void) drvAudioDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvAudioConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVAUDIO       pThis = PDMINS_2_DATA(pDrvIns, PDRVAUDIO);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVAUDIO pThis = PDMINS_2_DATA(pDrvIns, PDRVAUDIO);
     LogFlowFunc(("pDrvIns=%#p, pCfgHandle=%#p, fFlags=%x\n", pDrvIns, pCfg, fFlags));
 
     /*
@@ -4670,21 +4669,21 @@ static DECLCALLBACK(int) drvAudioConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, u
                                   "PreBufferSizeMsOut",
                                   "In|Out");
 
-    int rc = pHlp->pfnCFGMQueryStringDef(pCfg, "DriverName", pThis->BackendCfg.szName, sizeof(pThis->BackendCfg.szName), "Untitled");
+    int rc = CFGMR3QueryStringDef(pCfg, "DriverName", pThis->BackendCfg.szName, sizeof(pThis->BackendCfg.szName), "Untitled");
     AssertLogRelRCReturn(rc, rc);
 
     /* Neither input nor output by default for security reasons. */
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "InputEnabled",  &pThis->In.fEnabled, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "InputEnabled",  &pThis->In.fEnabled, false);
     AssertLogRelRCReturn(rc, rc);
 
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "OutputEnabled", &pThis->Out.fEnabled, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "OutputEnabled", &pThis->Out.fEnabled, false);
     AssertLogRelRCReturn(rc, rc);
 
     /* Debug stuff (same for both directions). */
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "DebugEnabled", &pThis->CfgIn.Dbg.fEnabled, false);
+    rc = CFGMR3QueryBoolDef(pCfg, "DebugEnabled", &pThis->CfgIn.Dbg.fEnabled, false);
     AssertLogRelRCReturn(rc, rc);
 
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "DebugPathOut", pThis->CfgIn.Dbg.szPathOut, sizeof(pThis->CfgIn.Dbg.szPathOut), "");
+    rc = CFGMR3QueryStringDef(pCfg, "DebugPathOut", pThis->CfgIn.Dbg.szPathOut, sizeof(pThis->CfgIn.Dbg.szPathOut), "");
     AssertLogRelRCReturn(rc, rc);
     if (pThis->CfgIn.Dbg.szPathOut[0] == '\0')
     {
@@ -4720,10 +4719,10 @@ static DECLCALLBACK(int) drvAudioConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, u
 
 #define QUERY_VAL_RET(a_Width, a_szName, a_pValue, a_uDefault, a_ExprValid, a_szValidRange) \
             do { \
-                rc = RT_CONCAT(pHlp->pfnCFGMQueryU,a_Width)(pDirNode, strcpy(szNm, a_szName), a_pValue); \
+                rc = RT_CONCAT(CFGMR3QueryU,a_Width)(pDirNode, strcpy(szNm, a_szName), a_pValue); \
                 if (rc == VERR_CFGM_VALUE_NOT_FOUND || rc == VERR_CFGM_NO_PARENT) \
                 { \
-                    rc = RT_CONCAT(pHlp->pfnCFGMQueryU,a_Width)(pCfg, strcat(szNm, pszDir), a_pValue); \
+                    rc = RT_CONCAT(CFGMR3QueryU,a_Width)(pCfg, strcat(szNm, pszDir), a_pValue); \
                     if (rc == VERR_CFGM_VALUE_NOT_FOUND || rc == VERR_CFGM_NO_PARENT) \
                     { \
                         *(a_pValue) = a_uDefault; \
@@ -4739,17 +4738,17 @@ static DECLCALLBACK(int) drvAudioConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, u
                                                N_("Configuration error: Unsupported %s value %u. " a_szValidRange), szNm, *(a_pValue)); \
             } while (0)
 
-        PCFGMNODE const pDirNode = pHlp->pfnCFGMGetChild(pCfg, pszDir);
-        rc = pHlp->pfnCFGMValidateConfig(pDirNode, iDir == 0 ? "In/" : "Out/",
-                                         "PCMSampleBit|"
-                                         "PCMSampleHz|"
-                                         "PCMSampleSigned|"
-                                         "PCMSampleSwapEndian|"
-                                         "PCMSampleChannels|"
-                                         "PeriodSizeMs|"
-                                         "BufferSizeMs|"
-                                         "PreBufferSizeMs",
-                                         "", pDrvIns->pReg->szName, pDrvIns->iInstance);
+        PCFGMNODE const pDirNode = CFGMR3GetChild(pCfg, pszDir);
+        rc = CFGMR3ValidateConfig(pDirNode, iDir == 0 ? "In/" : "Out/",
+                                  "PCMSampleBit|"
+                                  "PCMSampleHz|"
+                                  "PCMSampleSigned|"
+                                  "PCMSampleSwapEndian|"
+                                  "PCMSampleChannels|"
+                                  "PeriodSizeMs|"
+                                  "BufferSizeMs|"
+                                  "PreBufferSizeMs",
+                                  "", pDrvIns->pReg->szName, pDrvIns->iInstance);
         AssertRCReturn(rc, rc);
 
         uint8_t cSampleBits = 0;

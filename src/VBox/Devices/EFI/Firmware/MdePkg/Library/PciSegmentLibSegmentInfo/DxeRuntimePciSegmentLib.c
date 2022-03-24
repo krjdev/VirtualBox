@@ -109,11 +109,12 @@ DxeRuntimePciSegmentLibConstructor (
   //
   // Register SetVirtualAddressMap () notify function
   //
-  Status = gBS->CreateEvent (
-                  EVT_SIGNAL_VIRTUAL_ADDRESS_CHANGE,
+  Status = gBS->CreateEventEx (
+                  EVT_NOTIFY_SIGNAL,
                   TPL_NOTIFY,
                   DxeRuntimePciSegmentLibVirtualNotify,
                   NULL,
+                  &gEfiEventVirtualAddressChangeGuid,
                   &mDxeRuntimePciSegmentLibVirtualNotifyEvent
                   );
   ASSERT_EFI_ERROR (Status);
@@ -210,7 +211,7 @@ PciSegmentRegisterForRuntimeAccess (
   Address = (UINTN)EcamAddress;
 
   //
-  // See if Address has already been registered for runtime access
+  // See if Address has already been registerd for runtime access
   //
   for (Index = 0; Index < mDxeRuntimePciSegmentLibNumberOfRuntimeRanges; Index++) {
     if (mDxeRuntimePciSegmentLibRegistrationTable[Index].PhysicalAddress == Address) {

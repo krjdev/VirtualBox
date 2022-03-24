@@ -1,10 +1,10 @@
-/* $Id: dbg.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbg.h $ */
 /** @file
  * IPRT - Debugging Routines.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -282,7 +282,7 @@ typedef struct RTDBGUNWINDSTATE
      * @param   cbToRead    The number of bytes to read.
      * @param   pvDst       Where to put the bytes we read.
      */
-    DECLCALLBACKMEMBER(int, pfnReadStack,(struct RTDBGUNWINDSTATE *pThis, RTUINTPTR uSp, size_t cbToRead, void *pvDst));
+    DECLCALLBACKMEMBER(int, pfnReadStack)(struct RTDBGUNWINDSTATE *pThis, RTUINTPTR uSp, size_t cbToRead, void *pvDst);
     /** User argument (useful for pfnReadStack). */
     void               *pvUser;
 
@@ -652,7 +652,7 @@ RTDECL(int) RTDbgCfgQueryUInt(RTDBGCFG hDbgCfg, RTDBGCFGPROP enmProp, uint64_t *
  * @param   pszMsg          The message.
  * @param   pvUser          User argument.
  */
-typedef DECLCALLBACKTYPE(void, FNRTDBGCFGLOG,(RTDBGCFG hDbgCfg, uint32_t iLevel, const char *pszMsg, void *pvUser));
+typedef DECLCALLBACK(void) FNRTDBGCFGLOG(RTDBGCFG hDbgCfg, uint32_t iLevel, const char *pszMsg, void *pvUser);
 /** Pointer to a log callback. */
 typedef FNRTDBGCFGLOG *PFNRTDBGCFGLOG;
 
@@ -685,7 +685,7 @@ RTDECL(int) RTDbgCfgSetLogCallback(RTDBGCFG hDbgCfg, PFNRTDBGCFGLOG pfnCallback,
  * @param   pvUser1             First user parameter.
  * @param   pvUser2             Second user parameter.
  */
-typedef DECLCALLBACKTYPE(int, FNRTDBGCFGOPEN,(RTDBGCFG hDbgCfg, const char *pszFilename, void *pvUser1, void *pvUser2));
+typedef DECLCALLBACK(int) FNRTDBGCFGOPEN(RTDBGCFG hDbgCfg, const char *pszFilename, void *pvUser1, void *pvUser2);
 /** Pointer to a open-file callback used to the RTDbgCfgOpen functions. */
 typedef FNRTDBGCFGOPEN *PFNRTDBGCFGOPEN;
 
@@ -703,8 +703,6 @@ RTDECL(int) RTDbgCfgOpenDbg(RTDBGCFG hDbgCfg, const char *pszFilename, uint32_t 
                             PFNRTDBGCFGOPEN pfnCallback, void *pvUser1, void *pvUser2);
 RTDECL(int) RTDbgCfgOpenDwo(RTDBGCFG hDbgCfg, const char *pszFilename, uint32_t uCrc32,
                             PFNRTDBGCFGOPEN pfnCallback, void *pvUser1, void *pvUser2);
-RTDECL(int) RTDbgCfgOpenDwoBuildId(RTDBGCFG hDbgCfg, const char *pszFilename, const uint8_t *pbBuildId,
-                                   size_t cbBuildId, PFNRTDBGCFGOPEN pfnCallback, void *pvUser1, void *pvUser2);
 RTDECL(int) RTDbgCfgOpenDsymBundle(RTDBGCFG hDbgCfg, const char *pszFilename, PCRTUUID pUuid,
                                    PFNRTDBGCFGOPEN pfnCallback, void *pvUser1, void *pvUser2);
 RTDECL(int) RTDbgCfgOpenMachOImage(RTDBGCFG hDbgCfg, const char *pszFilename, PCRTUUID pUuid,
@@ -714,8 +712,6 @@ RTDECL(int) RTDbgCfgOpenMachOImage(RTDBGCFG hDbgCfg, const char *pszFilename, PC
  * @{ */
 /** The operative system mask.  The values are RT_OPSYS_XXX. */
 #define RTDBGCFG_O_OPSYS_MASK           UINT32_C(0x000000ff)
-/** Use debuginfod style symbol servers when encountered in the path. */
-#define RTDBGCFG_O_DEBUGINFOD           RT_BIT_32(24)
 /** Same as RTDBGCFG_FLAGS_NO_SYSTEM_PATHS. */
 #define RTDBGCFG_O_NO_SYSTEM_PATHS      RT_BIT_32(25)
 /** The files may be compressed MS styled. */
@@ -731,7 +727,7 @@ RTDECL(int) RTDbgCfgOpenMachOImage(RTDBGCFG hDbgCfg, const char *pszFilename, PC
 /** Use Windbg style symbol servers when encountered in the path. */
 #define RTDBGCFG_O_SYMSRV               RT_BIT_32(31)
 /** Mask of valid flags. */
-#define RTDBGCFG_O_VALID_MASK           UINT32_C(0xff0000ff)
+#define RTDBGCFG_O_VALID_MASK           UINT32_C(0xfe0000ff)
 /** @} */
 
 

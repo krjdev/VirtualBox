@@ -1,4 +1,4 @@
-/* $Id: DevPCI.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevPCI.cpp $ */
 /** @file
  * DevPCI - PCI BUS Device.
  *
@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -245,7 +245,6 @@ static void apic_set_irq(PPDMDEVINS pDevIns, PDEVPCIBUS pBus, PDEVPCIBUSCC pBusC
 {
     /* This is only allowed to be called with a pointer to the host bus. */
     AssertMsg(pBus->iBus == 0, ("iBus=%u\n", pBus->iBus));
-    uint16_t const uBusDevFn = PCIBDF_MAKE(pBus->iBus, uDevFn);
 
     if (iAcpiIrq == -1) {
         int apic_irq, apic_level;
@@ -261,7 +260,7 @@ static void apic_set_irq(PPDMDEVINS pDevIns, PDEVPCIBUS pBus, PDEVPCIBUSCC pBusC
         apic_level = get_pci_irq_apic_level(pGlobals, irq_num);
         Log3Func(("%s: irq_num1=%d level=%d apic_irq=%d apic_level=%d irq_num1=%d\n",
               R3STRING(pPciDev->pszNameR3), irq_num1, iLevel, apic_irq, apic_level, irq_num));
-        pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, uBusDevFn, apic_irq, apic_level, uTagSrc);
+        pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, apic_irq, apic_level, uTagSrc);
 
         if ((iLevel & PDM_IRQ_LEVEL_FLIP_FLOP) == PDM_IRQ_LEVEL_FLIP_FLOP) {
             ASMAtomicDecU32(&pGlobals->auPciApicIrqLevels[irq_num]);
@@ -269,11 +268,12 @@ static void apic_set_irq(PPDMDEVINS pDevIns, PDEVPCIBUS pBus, PDEVPCIBUSCC pBusC
             apic_level = get_pci_irq_apic_level(pGlobals, irq_num);
             Log3Func(("%s: irq_num1=%d level=%d apic_irq=%d apic_level=%d irq_num1=%d (flop)\n",
                   R3STRING(pPciDev->pszNameR3), irq_num1, iLevel, apic_irq, apic_level, irq_num));
-            pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, uBusDevFn, apic_irq, apic_level, uTagSrc);
+            pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, apic_irq, apic_level, uTagSrc);
         }
     } else {
-        Log3Func(("%s: irq_num1=%d level=%d iAcpiIrq=%d\n", R3STRING(pPciDev->pszNameR3), irq_num1, iLevel, iAcpiIrq));
-        pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, uBusDevFn, iAcpiIrq, iLevel, uTagSrc);
+        Log3Func(("%s: irq_num1=%d level=%d iAcpiIrq=%d\n",
+              R3STRING(pPciDev->pszNameR3), irq_num1, iLevel, iAcpiIrq));
+        pBusCC->CTX_SUFF(pPciHlp)->pfnIoApicSetIrq(pDevIns, iAcpiIrq, iLevel, uTagSrc);
     }
 }
 
@@ -655,24 +655,20 @@ static void pci_bios_init_device(PPDMDEVINS pDevIns, PDEVPCIROOT pGlobals, PDEVP
                         else
                         {
                             paddr = &pGlobals->uPciBiosMmio;
-                            if (devclass == 0x0300)
+                            bool fPrefetch =    (u8ResourceType & ((uint8_t)(PCI_ADDRESS_SPACE_MEM_PREFETCH | PCI_ADDRESS_SPACE_IO)))
+                                             == PCI_ADDRESS_SPACE_MEM_PREFETCH;
+
+                            if (devclass == 0x0300 && (vendor_id == 0x80ee || vendor_id == 0x15ad) && fPrefetch)
                             {
+                                /* VGA: map frame buffer to default Bochs VBE address */
+                                paddr = &uPciBiosSpecialVRAM;
                                 /*
-                                 * Because legacy VGA I/O ports are implicitly decoded
-                                 * by a VGA class device without needing a BAR, we must
-                                 * enable I/O decoding for such devices.
+                                 * For VBoxVGA must enable I/O decoding, because legacy
+                                 * VGA I/O ports are implicitly decoded by a VGA class
+                                 * device. Not needed for VMSVGA or VBoxSVGA, because
+                                 * they have an explicit I/O BAR.
                                  */
                                 fActiveIORegion = true;
-
-                                if (vendor_id == 0x80ee || vendor_id == 0x15ad)
-                                {
-                                    bool fPrefetch =    (u8ResourceType & ((uint8_t)(PCI_ADDRESS_SPACE_MEM_PREFETCH | PCI_ADDRESS_SPACE_IO)))
-                                                     == PCI_ADDRESS_SPACE_MEM_PREFETCH;
-                                    /* VGA: map frame buffer to default Bochs VBE address. Only
-                                     * needed for legacy guest drivers. */
-                                    if (fPrefetch)
-                                        paddr = &uPciBiosSpecialVRAM;
-                                }
                             }
                         }
                         uint32_t uNew = *paddr;
@@ -745,6 +741,11 @@ static int pciR3FakePCIBIOS(PPDMDEVINS pDevIns)
 {
     uint8_t         elcr[2]    = {0, 0};
     PDEVPCIROOT     pGlobals   = PDMINS_2_DATA(pDevIns, PDEVPCIROOT);
+    PVM             pVM        = PDMDevHlpGetVM(pDevIns); Assert(pVM);
+    PVMCPU          pVCpu      = PDMDevHlpGetVMCPU(pDevIns); Assert(pVM);
+    uint32_t const  cbBelow4GB = MMR3PhysGetRamSizeBelow4GB(pVM);
+    uint64_t const  cbAbove4GB = MMR3PhysGetRamSizeAbove4GB(pVM);
+    RT_NOREF(cbBelow4GB, cbAbove4GB);
 
     LogRel(("PCI: Setting up resources and interrupts\n"));
 
@@ -769,12 +770,9 @@ static int pciR3FakePCIBIOS(PPDMDEVINS pDevIns)
     }
 
     /* Tell to the PIC. */
-    /** @todo r=aeichner We should really move this to the BIOS code and get rid of this fake PCI BIOS thing,
-     * DevPciIch9.cpp lacks this code and has a todo for this.
-     */
-    VBOXSTRICTRC rcStrict = pDevIns->pHlpR3->pfnIoPortWrite(pDevIns, 0x4d0, elcr[0], sizeof(uint8_t));
+    VBOXSTRICTRC rcStrict = IOMIOPortWrite(pVM, pVCpu, 0x4d0, elcr[0], sizeof(uint8_t));
     if (rcStrict == VINF_SUCCESS)
-        rcStrict = pDevIns->pHlpR3->pfnIoPortWrite(pDevIns, 0x4d1, elcr[1], sizeof(uint8_t));
+        rcStrict = IOMIOPortWrite(pVM, pVCpu, 0x4d1, elcr[1], sizeof(uint8_t));
     if (rcStrict != VINF_SUCCESS)
     {
         AssertMsgFailed(("Writing to PIC failed! rcStrict=%Rrc\n", VBOXSTRICTRC_VAL(rcStrict)));
@@ -816,7 +814,7 @@ pciIOPortAddressWrite(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32
     if (cb == 4)
     {
         PDEVPCIROOT pThis = PDMINS_2_DATA(pDevIns, PDEVPCIROOT);
-        PCI_LOCK_RET(pDevIns, VINF_IOM_R3_IOPORT_WRITE);
+        PCI_LOCK(pDevIns, VINF_IOM_R3_IOPORT_WRITE);
         pThis->uConfigReg = u32 & ~3; /* Bits 0-1 are reserved and we silently clear them */
         PCI_UNLOCK(pDevIns);
     }
@@ -836,7 +834,7 @@ pciIOPortAddressRead(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_
     if (cb == 4)
     {
         PDEVPCIROOT pThis = PDMINS_2_DATA(pDevIns, PDEVPCIROOT);
-        PCI_LOCK_RET(pDevIns, VINF_IOM_R3_IOPORT_READ);
+        PCI_LOCK(pDevIns, VINF_IOM_R3_IOPORT_READ);
         *pu32 = pThis->uConfigReg;
         PCI_UNLOCK(pDevIns);
         LogFunc(("offPort=%#x cb=%d -> %#x\n", offPort, cb, *pu32));
@@ -860,7 +858,7 @@ pciIOPortDataWrite(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_t 
     VBOXSTRICTRC rcStrict = VINF_SUCCESS;
     if (!(offPort % cb))
     {
-        PCI_LOCK_RET(pDevIns, VINF_IOM_R3_IOPORT_WRITE);
+        PCI_LOCK(pDevIns, VINF_IOM_R3_IOPORT_WRITE);
         rcStrict = pci_data_write(pDevIns, PDMINS_2_DATA(pDevIns, PDEVPCIROOT), offPort, u32, cb);
         PCI_UNLOCK(pDevIns);
     }
@@ -879,7 +877,7 @@ pciIOPortDataRead(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_t *
     Assert(offPort < 4); NOREF(pvUser);
     if (!(offPort % cb))
     {
-        PCI_LOCK_RET(pDevIns, VINF_IOM_R3_IOPORT_READ);
+        PCI_LOCK(pDevIns, VINF_IOM_R3_IOPORT_READ);
         VBOXSTRICTRC rcStrict = pci_data_read(PDMINS_2_DATA(pDevIns, PDEVPCIROOT), offPort, cb, pu32);
         PCI_UNLOCK(pDevIns);
         LogFunc(("offPort=%#x cb=%#x -> %#x (%Rrc)\n", offPort, cb, *pu32, VBOXSTRICTRC_VAL(rcStrict)));
@@ -1118,7 +1116,7 @@ static int pciR3CommonLoadExec(PPDMDEVINS pDevIns, PDEVPCIBUS pBus, PSSMHANDLE p
                                            uDevFn, pDev->pszNameR3, u.DevTmp.abConfig, pDev->abConfig);
 
         /* commit the loaded device config. */
-        rc = devpciR3CommonRestoreRegions(pHlp, pSSM, pDev, u.DevTmp.Int.s.aIORegions,
+        rc = devpciR3CommonRestoreRegions(pSSM, pDev, u.DevTmp.Int.s.aIORegions,
                                           uVersion >= VBOX_PCI_SAVED_STATE_VERSION_REGION_SIZES);
         if (RT_FAILURE(rc))
             break;
@@ -1435,7 +1433,7 @@ const PDMDEVREG g_DevicePCI =
     /* .uReserved0 = */             0,
     /* .szName = */                 "pci",
     /* .fFlags = */                 PDM_DEVREG_FLAGS_DEFAULT_BITS | PDM_DEVREG_FLAGS_RZ | PDM_DEVREG_FLAGS_NEW_STYLE,
-    /* .fClass = */                 PDM_DEVREG_CLASS_BUS_PCI,
+    /* .fClass = */                 PDM_DEVREG_CLASS_BUS_PCI | PDM_DEVREG_CLASS_BUS_ISA,
     /* .cMaxInstances = */          1,
     /* .uSharedVersion = */         42,
     /* .cbInstanceShared = */       sizeof(DEVPCIROOT),

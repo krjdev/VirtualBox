@@ -1,10 +1,10 @@
-/* $Id: netif.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: netif.h $ */
 /** @file
  * Main - Network Interfaces.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -116,16 +116,16 @@ DECLINLINE(Bstr) getDefaultIPv4Address(Bstr bstrIfName)
     /* Get the index from the name */
     Utf8Str strTmp = bstrIfName;
     const char *pcszIfName = strTmp.c_str();
+    int iInstance = 0;
     size_t iPos = strcspn(pcszIfName, "0123456789");
-    uint32_t uInstance = 0;
     if (pcszIfName[iPos])
-        uInstance = RTStrToUInt32(pcszIfName + iPos);
+        iInstance = RTStrToUInt32(pcszIfName + iPos);
 
     in_addr tmp;
 #if defined(RT_OS_WINDOWS)
-    tmp.S_un.S_addr = VBOXNET_IPV4ADDR_DEFAULT + (uInstance << 16);
+    tmp.S_un.S_addr = VBOXNET_IPV4ADDR_DEFAULT + (iInstance << 16);
 #else
-    tmp.s_addr = VBOXNET_IPV4ADDR_DEFAULT + (uInstance << 16);
+    tmp.s_addr = VBOXNET_IPV4ADDR_DEFAULT + (iInstance << 16);
 #endif
     char *addr = inet_ntoa(tmp);
     return Bstr(addr);

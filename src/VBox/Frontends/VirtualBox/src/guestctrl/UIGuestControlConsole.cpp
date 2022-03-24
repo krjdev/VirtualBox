@@ -1,10 +1,10 @@
-/* $Id: UIGuestControlConsole.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIGuestControlConsole.cpp $ */
 /** @file
  * VBox Qt GUI - UIGuestControlConsole class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

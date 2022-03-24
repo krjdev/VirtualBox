@@ -1,11 +1,11 @@
-/* $Id: GuestDnDPrivate.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDnDPrivate.h $ */
 /** @file
  * Private guest drag and drop code, used by GuestDnDTarget +
  * GuestDnDSource.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -803,7 +803,6 @@ class GuestDnDState
 {
 
 public:
-    DECLARE_TRANSLATE_METHODS(GuestDnDState)
 
     GuestDnDState(const ComObjPtr<Guest>& pGuest);
     virtual ~GuestDnDState(void);
@@ -930,8 +929,7 @@ public:
     GuestDnDMIMEList  defaultFormats(void) const { return m_strDefaultFormats; }
     /** @}  */
 
-    /** @name Source / target management.
-     * @{ */
+    /** @name Source / target management. */
     int               registerSource(const ComObjPtr<GuestDnDSource> &Source);
     int               unregisterSource(const ComObjPtr<GuestDnDSource> &Source);
     size_t            getSourceCount(void);

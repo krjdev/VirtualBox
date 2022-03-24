@@ -1,10 +1,10 @@
-/* $Id: pipe-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pipe-posix.cpp $ */
 /** @file
  * IPRT - Anonymous Pipes, POSIX Implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,8 +69,6 @@ typedef struct RTPIPEINTERNAL
     int                 fd;
     /** Set if this is the read end, clear if it's the write end. */
     bool                fRead;
-    /** RTPipeFromNative: Leave it open on RTPipeClose. */
-    bool                fLeaveOpen;
     /** Atomically operated state variable.
      *
      *  - Bits 0 thru 29 - Users of the new mode.
@@ -182,16 +180,14 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
             RTPIPEINTERNAL *pThisW = (RTPIPEINTERNAL *)RTMemAlloc(sizeof(RTPIPEINTERNAL));
             if (pThisW)
             {
-                pThisR->u32Magic    = RTPIPE_MAGIC;
-                pThisW->u32Magic    = RTPIPE_MAGIC;
-                pThisR->fd          = aFds[0];
-                pThisW->fd          = aFds[1];
-                pThisR->fRead       = true;
-                pThisW->fRead       = false;
-                pThisR->fLeaveOpen  = false;
-                pThisW->fLeaveOpen  = false;
-                pThisR->u32State    = RTPIPE_POSIX_BLOCKING;
-                pThisW->u32State    = RTPIPE_POSIX_BLOCKING;
+                pThisR->u32Magic = RTPIPE_MAGIC;
+                pThisW->u32Magic = RTPIPE_MAGIC;
+                pThisR->fd       = aFds[0];
+                pThisW->fd       = aFds[1];
+                pThisR->fRead    = true;
+                pThisW->fRead    = false;
+                pThisR->u32State = RTPIPE_POSIX_BLOCKING;
+                pThisW->u32State = RTPIPE_POSIX_BLOCKING;
 
                 *phPipeRead  = pThisR;
                 *phPipeWrite = pThisW;
@@ -216,7 +212,7 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
 }
 
 
-RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
+RTDECL(int)  RTPipeClose(RTPIPE hPipe)
 {
     RTPIPEINTERNAL *pThis = hPipe;
     if (pThis == NIL_RTPIPE)
@@ -231,8 +227,7 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
 
     int fd = pThis->fd;
     pThis->fd = -1;
-    if (!fLeaveOpen && !pThis->fLeaveOpen)
-        close(fd);
+    close(fd);
 
     if (ASMAtomicReadU32(&pThis->u32State) & RTPIPE_POSIX_USERS_MASK)
     {
@@ -245,17 +240,10 @@ RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen)
     return VINF_SUCCESS;
 }
 
-
-RTDECL(int)  RTPipeClose(RTPIPE hPipe)
-{
-    return RTPipeCloseEx(hPipe, false /*fLeaveOpen*/);
-}
-
-
 RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t fFlags)
 {
     AssertPtrReturn(phPipe, VERR_INVALID_POINTER);
-    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK_FN), VERR_INVALID_PARAMETER);
+    AssertReturn(!(fFlags & ~RTPIPE_N_VALID_MASK), VERR_INVALID_PARAMETER);
     AssertReturn(!!(fFlags & RTPIPE_N_READ) != !!(fFlags & RTPIPE_N_WRITE), VERR_INVALID_PARAMETER);
 
     /*
@@ -279,11 +267,10 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
     if (!pThis)
         return VERR_NO_MEMORY;
 
-    pThis->u32Magic   = RTPIPE_MAGIC;
-    pThis->fd         = hNative;
-    pThis->fRead      = RT_BOOL(fFlags & RTPIPE_N_READ);
-    pThis->fLeaveOpen = RT_BOOL(fFlags & RTPIPE_N_LEAVE_OPEN);
-    pThis->u32State   = fFd & O_NONBLOCK ? 0 : RTPIPE_POSIX_BLOCKING;
+    pThis->u32Magic = RTPIPE_MAGIC;
+    pThis->fd       = hNative;
+    pThis->fRead    = !!(fFlags & RTPIPE_N_READ);
+    pThis->u32State = fFd & O_NONBLOCK ? 0 : RTPIPE_POSIX_BLOCKING;
 
     /*
      * Fix up inheritability and shut up SIGPIPE and we're done.

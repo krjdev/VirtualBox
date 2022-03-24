@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,11 @@
 #endif
 
 /* Make sure we get the right prototypes. */
-#include <iprt/sanitized/intrin.h>
+#pragma warning(push)
+#pragma warning(disable:4668) /* Several incorrect __cplusplus uses. */
+#pragma warning(disable:4255) /* Incorrect __slwpcb prototype. */
+#include <intrin.h>
+#pragma warning(pop)
 
 #define _InterlockedExchange           _InterlockedExchange_StupidDDKVsCompilerCrap
 #define _InterlockedExchangeAdd        _InterlockedExchangeAdd_StupidDDKVsCompilerCrap
@@ -50,11 +54,6 @@
 # pragma warning(disable:4005) /* sdk/v7.1/include/sal_supp.h(57) : warning C4005: '__useHeader' : macro redefinition */
 # pragma warning(disable:4471) /* wdm.h(11057) : warning C4471: '_POOL_TYPE' : a forward declaration of an unscoped enumeration must have an underlying type (int assumed) */
 #endif
-# if _MSC_VER >= 1900 /*RT_MSC_VER_VC140*/
-#  ifdef __cplusplus
-#   pragma warning(disable:5039) /* warning C5039: 'KeInitializeDpc': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception. */
-#  endif
-# endif
 #include <wdm.h>
 #pragma warning(pop)
 

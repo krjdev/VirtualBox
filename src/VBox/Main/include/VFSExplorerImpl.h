@@ -1,10 +1,10 @@
-/* $Id: VFSExplorerImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VFSExplorerImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,7 @@ class ATL_NO_VTABLE VFSExplorer :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(VFSExplorer)
+    DECLARE_EMPTY_CTOR_DTOR(VFSExplorer)
 
     // public initializer/uninitializer for internal purposes only
     HRESULT FinalConstruct() { return BaseFinalConstruct(); }
@@ -38,13 +38,10 @@ public:
     void uninit();
 
     /* public methods only for internal purposes */
-    static HRESULT setErrorStatic(HRESULT aResultCode, const char *aText, ...)
+    static HRESULT setErrorStatic(HRESULT aResultCode,
+                                  const Utf8Str &aText)
     {
-        va_list va;
-        va_start(va, aText);
-        HRESULT hrc = setErrorInternalV(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, va, false, true);
-        va_end(va);
-        return hrc;
+        return setErrorInternal(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, false, true);
     }
 
 private:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: schedulerbase.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: schedulerbase.py $
 # pylint: disable=too-many-lines
 
 
@@ -9,7 +9,7 @@ Test Manager - Base class and utilities for the schedulers.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -68,18 +68,15 @@ class ReCreateQueueData(object):
         #
         # Load data from the database.
         #
-        oSchedGroupLogic = SchedGroupLogic(oDb);
-        self.oSchedGroup = oSchedGroupLogic.cachedLookup(idSchedGroup);
 
         # Will extend the entries with aoTestCases and dTestCases members
-        # further down (SchedGroupMemberDataEx).  checkForGroupDepCycles
-        # will add aidTestGroupPreReqs.
-        self.aoTestGroups       = oSchedGroupLogic.getMembers(idSchedGroup);
+        # further down.  checkForGroupDepCycles will add aidTestGroupPreReqs.
+        self.aoTestGroups       = SchedGroupLogic(oDb).getMembers(idSchedGroup);
 
         # aoTestCases entries are TestCaseData instance with iSchedPriority
         # and idTestGroup added for our purposes.
         # We will add oTestGroup and aoArgsVariations members to each further down.
-        self.aoTestCases        = oSchedGroupLogic.getTestCasesForGroup(idSchedGroup, cMax = 4096);
+        self.aoTestCases        = SchedGroupLogic(oDb).getTestCasesForGroup(idSchedGroup, cMax = 4096);
 
         # Load dependencies.
         oTestCaseLogic = TestCaseLogic(oDb)
@@ -89,7 +86,7 @@ class ReCreateQueueData(object):
         # aoTestCases entries are TestCaseArgsData instance with iSchedPriority
         # and idTestGroup added for our purposes.
         # We will add oTestGroup and oTestCase members to each further down.
-        self.aoArgsVariations   = oSchedGroupLogic.getTestCaseArgsForGroup(idSchedGroup, cMax = 65536);
+        self.aoArgsVariations   = SchedGroupLogic(oDb).getTestCaseArgsForGroup(idSchedGroup, cMax = 65536);
 
         #
         # Generate global lookups.
@@ -264,7 +261,7 @@ class ReCreateQueueData(object):
             iGrpPrio = oTestGroup.iSchedPriority;
 
             if oTestGroup.aoTestCases:
-                iTstPrio = oTestGroup.aoTestCases[0].iSchedPriority;
+                iTstPrio = oTestGroup.aoTestCases[0];
                 for iTestCase, oTestCase in enumerate(oTestGroup.aoTestCases):
                     if oTestCase.iSchedPriority > iTstPrio:
                         raise TMExceptionBase('Incorrectly sorted testcases returned by database: i=%s prio=%s idGrp=%s %s'
@@ -624,11 +621,7 @@ class SchedulerBase(object):
             # little for gang gathering).
             #
             aoItems = list();
-            if not oData.oSchedGroup.fEnabled:
-                self.msgInfo('Disabled.');
-            elif not oData.aoArgsVariations:
-                self.msgInfo('Found no test case argument variations.');
-            else:
+            if oData.aoArgsVariations:
                 aoItems = self._recreateQueueItems(oData);
                 self.msgDebug('len(aoItems)=%s' % (len(aoItems),));
                 #for i in range(len(aoItems)):
@@ -641,7 +634,7 @@ class SchedulerBase(object):
                     self._oDb.execute('SELECT COUNT(*) FROM SchedQueues WHERE idSchedGroup = %s'
                                       , (self._oSchedGrpData.idSchedGroup,));
                     cItems  = self._oDb.fetchOne()[0];
-                    offQueueNew = (offQueue * cItems) // len(aoItems);
+                    offQueueNew = (offQueue * cItems) / len(aoItems);
                     if offQueueNew != 0:
                         aoItems = aoItems[offQueueNew:] + aoItems[:offQueueNew];
 
@@ -652,16 +645,15 @@ class SchedulerBase(object):
             #
             self._recreateQueueCancelGatherings();
             self._oDb.execute('DELETE FROM SchedQueues WHERE idSchedGroup = %s\n', (self._oSchedGrpData.idSchedGroup,));
-            if aoItems:
-                self._oDb.insertList('INSERT INTO SchedQueues (\n'
-                                      '         idSchedGroup,\n'
-                                      '         offQueue,\n'
-                                      '         idGenTestCaseArgs,\n'
-                                      '         idTestGroup,\n'
-                                      '         aidTestGroupPreReqs,\n'
-                                      '         bmHourlySchedule,\n'
-                                      '         cMissingGangMembers )\n',
-                                     aoItems, self._formatItemForInsert);
+            self._oDb.insertList('INSERT INTO SchedQueues (\n'
+                                  '         idSchedGroup,\n'
+                                  '         offQueue,\n'
+                                  '         idGenTestCaseArgs,\n'
+                                  '         idTestGroup,\n'
+                                  '         aidTestGroupPreReqs,\n'
+                                  '         bmHourlySchedule,\n'
+                                  '         cMissingGangMembers )\n',
+                                 aoItems, self._formatItemForInsert);
         return (aoErrors, self._asMessages);
 
     def _formatItemForInsert(self, oItem):
@@ -730,39 +722,6 @@ class SchedulerBase(object):
         return (aoErrors, aoExtraMsgs + asMessages);
 
 
-    @staticmethod
-    def cleanUpOrphanedQueues(oDb):
-        """
-        Removes orphan scheduling queues from the SchedQueues table.
-
-        Queues becomes orphaned when the scheduling group they belongs to has been deleted.
-
-        Returns number of orphaned queues.
-        Raises exception database error.
-        """
-        cRet = 0;
-        try:
-            oDb.rollback();
-            oDb.begin();
-            oDb.execute('''
-SELECT  SchedQueues.idSchedGroup
-FROM    SchedQueues
-        LEFT OUTER JOIN SchedGroups
-                     ON SchedGroups.idSchedGroup = SchedQueues.idSchedGroup
-                    AND SchedGroups.tsExpire     = 'infinity'::TIMESTAMP
-WHERE   SchedGroups.idSchedGroup is NULL
-GROUP BY SchedQueues.idSchedGroup''');
-            aaoOrphanRows = oDb.fetchAll();
-            cRet = len(aaoOrphanRows);
-            if cRet > 0:
-                oDb.execute('DELETE FROM SchedQueues WHERE idSchedGroup IN (%s)'
-                            % (','.join([str(aoRow[0]) for aoRow in aaoOrphanRows]),));
-                oDb.commit();
-        except:
-            oDb.rollback();
-            raise;
-        return cRet;
-
 
     #
     # Schedule Task.
@@ -804,7 +763,7 @@ GROUP BY SchedQueues.idSchedGroup''');
             sCmdLine += ' ' + self._composeGangArguments(idTestSet);
 
         cSecTimeout = oTestEx.cSecTimeout if oTestEx.cSecTimeout is not None else oTestEx.oTestCase.cSecTimeout;
-        cSecTimeout = cSecTimeout * oTestBox.pctScaleTimeout // 100;
+        cSecTimeout = cSecTimeout * oTestBox.pctScaleTimeout / 100;
 
         dResponse   = \
         {
@@ -911,7 +870,7 @@ GROUP BY SchedQueues.idSchedGroup''');
         idTestSet = self._oDb.fetchOne()[0];
 
         sBaseFilename = '%04d/%02d/%02d/%02d/TestSet-%s' \
-                      % (tsNow.year, tsNow.month, tsNow.day, (tsNow.hour // 6) * 6, idTestSet);
+                      % (tsNow.year, tsNow.month, tsNow.day, (tsNow.hour / 6) * 6, idTestSet);
 
         #
         # Gang scheduling parameters.  Changes the oTask data for updating by caller.

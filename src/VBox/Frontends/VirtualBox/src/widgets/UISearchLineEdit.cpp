@@ -1,10 +1,10 @@
-/* $Id: UISearchLineEdit.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: UISearchLineEdit.cpp $ */
 /** @file
  * VBox Qt GUI - UIsearchLineEdit class definitions.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,8 +29,8 @@ UISearchLineEdit::UISearchLineEdit(QWidget *pParent /* = 0 */)
     , m_fMark(true)
     , m_unmarkColor(palette().color(QPalette::Base))
     , m_markColor(QColor(m_unmarkColor.red(),
-                         0.7 * m_unmarkColor.green(),
-                         0.7 * m_unmarkColor.blue()))
+                         0.5 * m_unmarkColor.green(),
+                         0.5 * m_unmarkColor.blue()))
 {
 }
 
@@ -48,13 +48,8 @@ void UISearchLineEdit::paintEvent(QPaintEvent *pEvent)
     QPainter painter(this);
     QFont pfont = font();
     QString strText = QString("%1/%2").arg(QString::number(m_iScrollToIndex + 1)).arg(QString::number(m_iMatchCount));
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    QSize textSize(QApplication::fontMetrics().horizontalAdvance(strText),
-                   QApplication::fontMetrics().height());
-#else
     QSize textSize(QApplication::fontMetrics().width(strText),
                    QApplication::fontMetrics().height());
-#endif
 
     /* Dont draw anything if we dont have enough space: */
     if (textSize.width() > 0.5 * width())
@@ -62,7 +57,7 @@ void UISearchLineEdit::paintEvent(QPaintEvent *pEvent)
     int iTopMargin = (height() - textSize.height()) / 2;
     int iRightMargin = iTopMargin;
 
-    QColor fontColor(Qt::black);
+    QColor fontColor(Qt::darkGray);
     painter.setPen(fontColor);
     painter.setFont(pfont);
 
@@ -79,7 +74,7 @@ void UISearchLineEdit::setMatchCount(int iMatchCount)
     repaint();
 }
 
-void UISearchLineEdit::setScrollToIndex(int iScrollToIndex)
+void UISearchLineEdit::setScroolToIndex(int iScrollToIndex)
 {
     if (m_iScrollToIndex == iScrollToIndex)
         return;
@@ -97,7 +92,7 @@ void UISearchLineEdit::reset()
 
 void UISearchLineEdit::colorBackground(bool fWarning)
 {
-    QPalette mPalette = QApplication::palette();
+    QPalette mPalette = palette();
     /** Make sure we reset color. */
     if (!fWarning || !m_fMark)
     {

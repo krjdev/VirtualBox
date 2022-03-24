@@ -1,10 +1,10 @@
-/* $Id: tstSupSem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstSupSem.cpp $ */
 /** @file
  * Support Library Testcase - Ring-3 Semaphore interface.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
     /*
      * Init.
      */
-    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
     if (RT_FAILURE(rc))
         return RTMsgInitFailure(rc);
 

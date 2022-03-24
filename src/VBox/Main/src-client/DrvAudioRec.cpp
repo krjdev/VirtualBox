@@ -1,4 +1,4 @@
-/* $Id: DrvAudioRec.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: DrvAudioRec.cpp $ */
 /** @file
  * Video recording audio backend for Main.
  *
@@ -16,7 +16,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -95,7 +95,6 @@
 #include <VBox/vmm/pdmdrv.h>
 #include <VBox/vmm/pdmaudioifs.h>
 #include <VBox/vmm/pdmaudioinline.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <VBox/err.h>
 
 #ifdef VBOX_WITH_LIBOPUS
@@ -321,34 +320,37 @@ int AudioVideoRec::applyConfiguration(const settings::RecordingSettings &Setting
 }
 
 
-int AudioVideoRec::configureDriver(PCFGMNODE pLunCfg, PCVMMR3VTABLE pVMM)
+/**
+ * @copydoc AudioDriver::configureDriver
+ */
+int AudioVideoRec::configureDriver(PCFGMNODE pLunCfg)
 {
-    int rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "Object",    (uintptr_t)mpConsole->i_recordingGetAudioDrv());
+    int rc = CFGMR3InsertInteger(pLunCfg, "Object",    (uintptr_t)mpConsole->i_recordingGetAudioDrv());
     AssertRCReturn(rc, rc);
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "ObjectConsole", (uintptr_t)mpConsole);
+    rc = CFGMR3InsertInteger(pLunCfg, "ObjectConsole", (uintptr_t)mpConsole);
     AssertRCReturn(rc, rc);
 
     /** @todo For now we're using the configuration of the first screen here audio-wise. */
     Assert(mVideoRecCfg.mapScreens.size() >= 1);
     const settings::RecordingScreenSettings &Screen0Settings = mVideoRecCfg.mapScreens[0];
 
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "ContainerType", (uint64_t)Screen0Settings.enmDest);
+    rc = CFGMR3InsertInteger(pLunCfg, "ContainerType", (uint64_t)Screen0Settings.enmDest);
     AssertRCReturn(rc, rc);
     if (Screen0Settings.enmDest == RecordingDestination_File)
     {
-        rc = pVMM->pfnCFGMR3InsertString(pLunCfg, "ContainerFileName", Utf8Str(Screen0Settings.File.strName).c_str());
+        rc = CFGMR3InsertString(pLunCfg, "ContainerFileName", Utf8Str(Screen0Settings.File.strName).c_str());
         AssertRCReturn(rc, rc);
     }
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "CodecHz", Screen0Settings.Audio.uHz);
+    rc = CFGMR3InsertInteger(pLunCfg, "CodecHz", Screen0Settings.Audio.uHz);
     AssertRCReturn(rc, rc);
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "CodecBits", Screen0Settings.Audio.cBits);
+    rc = CFGMR3InsertInteger(pLunCfg, "CodecBits", Screen0Settings.Audio.cBits);
     AssertRCReturn(rc, rc);
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "CodecChannels", Screen0Settings.Audio.cChannels);
+    rc = CFGMR3InsertInteger(pLunCfg, "CodecChannels", Screen0Settings.Audio.cChannels);
     AssertRCReturn(rc, rc);
-    rc = pVMM->pfnCFGMR3InsertInteger(pLunCfg, "CodecBitrate", 0); /* Let Opus decide for now. */
+    rc = CFGMR3InsertInteger(pLunCfg, "CodecBitrate", 0); /* Let Opus decide for now. */
     AssertRCReturn(rc, rc);
 
-    return AudioDriver::configureDriver(pLunCfg, pVMM);
+    return AudioDriver::configureDriver(pLunCfg);
 }
 
 
@@ -1125,17 +1127,10 @@ static int avRecSinkInit(PDRVAUDIORECORDING pThis, PAVRECSINK pSink, PAVRECCONTA
     pThis->IHostAudio.pfnStreamCapture              = drvAudioVideoRecHA_StreamCapture;
 
     /*
-     * Read configuration.
-     */
-    PCPDMDRVHLPR3 const pHlp = pDrvIns->pHlpR3;
-    /** @todo validate it.    */
-
-    /*
      * Get the Console object pointer.
      */
-    /** @todo No pointers!  */
     void *pvUser;
-    int rc = pHlp->pfnCFGMQueryPtr(pCfg, "ObjectConsole", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
+    int rc = CFGMR3QueryPtr(pCfg, "ObjectConsole", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
     AssertRCReturn(rc, rc);
 
     /* CFGM tree saves the pointer to Console in the Object node of AudioVideoRec. */
@@ -1145,7 +1140,7 @@ static int avRecSinkInit(PDRVAUDIORECORDING pThis, PAVRECSINK pSink, PAVRECCONTA
     /*
      * Get the pointer to the audio driver instance.
      */
-    rc = pHlp->pfnCFGMQueryPtr(pCfg, "Object", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
+    rc = CFGMR3QueryPtr(pCfg, "Object", &pvUser); /** @todo r=andy Get rid of this hack and use IHostAudio::SetCallback. */
     AssertRCReturn(rc, rc);
 
     pThis->pAudioVideoRec = (AudioVideoRec *)pvUser;
@@ -1160,13 +1155,13 @@ static int avRecSinkInit(PDRVAUDIORECORDING pThis, PAVRECSINK pSink, PAVRECCONTA
     RT_ZERO(pThis->ContainerParms);
     RT_ZERO(pThis->CodecParms);
 
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "ContainerType", (uint32_t *)&pConParams->enmType);
+    rc = CFGMR3QueryU32(pCfg, "ContainerType", (uint32_t *)&pConParams->enmType);
     AssertRCReturn(rc, rc);
 
     switch (pConParams->enmType)
     {
         case AVRECCONTAINERTYPE_WEBM:
-            rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "ContainerFileName", &pConParams->WebM.pszFile);
+            rc = CFGMR3QueryStringAlloc(pCfg, "ContainerFileName", &pConParams->WebM.pszFile);
             AssertRCReturn(rc, rc);
             break;
 
@@ -1175,22 +1170,22 @@ static int avRecSinkInit(PDRVAUDIORECORDING pThis, PAVRECSINK pSink, PAVRECCONTA
     }
 
     uint32_t uHz = 0;
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "CodecHz", &uHz);
+    rc = CFGMR3QueryU32(pCfg, "CodecHz", &uHz);
     AssertRCReturn(rc, rc);
 
     uint8_t cSampleBits = 0;
-    rc = pHlp->pfnCFGMQueryU8(pCfg,  "CodecBits", &cSampleBits); /** @todo CodecBits != CodecBytes */
+    rc = CFGMR3QueryU8(pCfg,  "CodecBits", &cSampleBits); /** @todo CodecBits != CodecBytes */
     AssertRCReturn(rc, rc);
 
     uint8_t cChannels = 0;
-    rc = pHlp->pfnCFGMQueryU8(pCfg,  "CodecChannels", &cChannels);
+    rc = CFGMR3QueryU8(pCfg,  "CodecChannels", &cChannels);
     AssertRCReturn(rc, rc);
 
     PDMAudioPropsInit(&pCodecParms->PCMProps, cSampleBits / 8, true /*fSigned*/, cChannels, uHz);
     AssertMsgReturn(PDMAudioPropsAreValid(&pCodecParms->PCMProps),
                     ("Configuration error: Audio configuration is invalid!\n"), VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES); /** @todo wrong status code. */
 
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "CodecBitrate", &pCodecParms->uBitrate);
+    rc = CFGMR3QueryU32(pCfg, "CodecBitrate", &pCodecParms->uBitrate);
     AssertRCReturn(rc, rc);
 
     pThis->pAudioVideoRec = (AudioVideoRec *)pvUser;

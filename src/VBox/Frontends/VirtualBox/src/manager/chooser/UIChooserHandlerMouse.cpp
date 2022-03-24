@@ -1,10 +1,10 @@
-/* $Id: UIChooserHandlerMouse.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIChooserHandlerMouse.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserHandlerMouse class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -135,6 +135,7 @@ bool UIChooserHandlerMouse::handleMousePress(QGraphicsSceneMouseEvent *pEvent) c
                             model()->addToSelectedItems(pClickedItem);
                         /* Make clicked item current one: */
                         model()->setCurrentItem(pClickedItem);
+                        model()->makeSureSomeItemIsSelected();
                     }
                     /* Was no modifiers pressed? */
                     else if (pEvent->modifiers() == Qt::NoModifier)
@@ -210,10 +211,10 @@ bool UIChooserHandlerMouse::handleMouseDoubleClick(QGraphicsSceneMouseEvent *pEv
                     return true;
                 }
                 /* Or a machine one? */
-                else if (pItemUnderMouse->type() == UIChooserNodeType_Machine)
+                else if (pItemUnderMouse->type() == UIChooserItemType_Machine)
                 {
-                    /* Start or show selected items: */
-                    model()->startOrShowSelectedItems();
+                    /* Activate machine-item: */
+                    model()->activateMachineItem();
                 }
                 break;
             }

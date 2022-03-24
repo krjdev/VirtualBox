@@ -1,10 +1,10 @@
-/* $Id: UITools.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UITools.h $ */
 /** @file
  * VBox Qt GUI - UITools class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -56,7 +56,9 @@ signals:
 public:
 
     /** Constructs Tools-pane passing @a pParent to the base-class. */
-    UITools(UIVirtualBoxManagerWidget *pParent = 0);
+    UITools(UIVirtualBoxManagerWidget *pParent);
+    /** Destructs Tools-pane. */
+    virtual ~UITools() /* override */;
 
     /** @name General stuff.
       * @{ */
@@ -87,9 +89,9 @@ public:
         UIToolType lastSelectedToolMachine() const;
 
         /** Defines whether certain @a enmClass of tools is @a fEnabled.*/
-        void setToolClassEnabled(UIToolClass enmClass, bool fEnabled);
+        void setToolsEnabled(UIToolClass enmClass, bool fEnabled);
         /** Returns whether certain class of tools is enabled.*/
-        bool toolClassEnabled(UIToolClass enmClass) const;
+        bool areToolsEnabled(UIToolClass enmClass) const;
 
         /** Defines restructed tool @a types. */
         void setRestrictedToolTypes(const QList<UIToolType> &types);
@@ -109,16 +111,23 @@ private:
       * @{ */
         /** Prepares all. */
         void prepare();
-        /** Prepares contents. */
-        void prepareContents();
+        /** Prepares palette. */
+        void preparePalette();
+        /** Prepares layout. */
+        void prepareLayout();
         /** Prepares model. */
         void prepareModel();
         /** Prepares view. */
         void prepareView();
         /** Prepares connections. */
         void prepareConnections();
-        /** Inits model. */
-        void initModel();
+        /** Loads settings. */
+        void loadSettings();
+
+        /** Saves settings. */
+        void saveSettings();
+        /** Cleanups all. */
+        void cleanup();
     /** @} */
 
     /** @name General stuff.

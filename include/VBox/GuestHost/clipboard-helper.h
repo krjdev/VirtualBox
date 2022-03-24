@@ -1,10 +1,10 @@
-/* $Id: clipboard-helper.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: clipboard-helper.h $ */
 /** @file
  * Shared Clipboard - Some helper function for converting between the various EOLs.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -164,6 +164,49 @@ int ShClConvUtf8LFToUtf16CRLF(const char *pcszSrc, size_t cbSrc, PRTUTF16 *ppwsz
  */
 int ShClConvLatin1LFToUtf16CRLF(const char *pcszSrc, size_t cbSrc, PRTUTF16 *ppwszDst, size_t *pcwDst);
 
+#pragma pack(1)
+/** @todo r=bird: Why duplicate these structures here, we've got them in
+ *        DevVGA.cpp already! */
+/**
+ * Bitmap File Header. Official win32 name is BITMAPFILEHEADER
+ * Always Little Endian.
+ */
+typedef struct BMFILEHEADER
+{
+    uint16_t uType;
+    uint32_t uSize;
+    uint16_t uReserved1;
+    uint16_t uReserved2;
+    uint32_t uOffBits;
+} BMFILEHEADER;
+#pragma pack()
+
+/** Pointer to a BMFILEHEADER structure. */
+typedef BMFILEHEADER *PBMFILEHEADER;
+/** BMP file magic number */
+#define BITMAPHEADERMAGIC (RT_H2LE_U16_C(0x4d42))
+
+/**
+ * Bitmap Info Header. Official win32 name is BITMAPINFOHEADER
+ * Always Little Endian.
+ */
+typedef struct BMINFOHEADER
+{
+    uint32_t uSize;
+    uint32_t uWidth;
+    uint32_t uHeight;
+    uint16_t uPlanes;
+    uint16_t uBitCount;
+    uint32_t uCompression;
+    uint32_t uSizeImage;
+    uint32_t uXBitsPerMeter;
+    uint32_t uYBitsPerMeter;
+    uint32_t uClrUsed;
+    uint32_t uClrImportant;
+} BMINFOHEADER;
+/** Pointer to a BMINFOHEADER structure. */
+typedef BMINFOHEADER *PBMINFOHEADER;
+
 /**
  * Convert CF_DIB data to full BMP data by prepending the BM header.
  * Allocates with RTMemAlloc.
@@ -233,8 +276,6 @@ const char *ShClHostMsgToStr(uint32_t uMsg);
  * @param   uMsg                The message to translate.
  */
 const char *ShClGuestMsgToStr(uint32_t uMsg);
-
-char *ShClFormatsToStrA(SHCLFORMATS fFormats);
 
 #endif /* !VBOX_INCLUDED_GuestHost_clipboard_helper_h */
 

@@ -1,10 +1,10 @@
-/* $Id: tstDBGCStubs.cpp 93470 2022-01-27 23:51:28Z vboxsync $ */
+/* $Id: tstDBGCStubs.cpp $ */
 /** @file
  * DBGC Testcase - Command Parser, VMM Stub Functions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 
 
 #include <VBox/vmm/dbgf.h>
-#include <VBox/vmm/dbgfflowtrace.h>
 VMMR3DECL(PDBGFADDRESS) DBGFR3AddrFromFlat(PUVM pUVM, PDBGFADDRESS pAddress, RTGCUINTPTR FlatPtr)
 {
     return NULL;
@@ -94,7 +93,7 @@ VMMR3DECL(int) DBGFR3DisasInstrEx(PUVM pUVM, VMCPUID idCpu, RTSEL Sel, RTGCPTR G
 {
     return VERR_INTERNAL_ERROR;
 }
-VMMR3DECL(int) DBGFR3EventWait(PUVM pUVM, RTMSINTERVAL cMillies, PDBGFEVENT pEvent)
+VMMR3DECL(int) DBGFR3EventWait(PUVM pUVM, RTMSINTERVAL cMillies, PCDBGFEVENT *ppEvent)
 {
     return VERR_INTERNAL_ERROR;
 }
@@ -107,7 +106,7 @@ VMMR3DECL(int) DBGFR3InterruptConfigEx(PUVM pUVM, PCDBGFINTERRUPTCONFIG paConfig
     return VERR_INTERNAL_ERROR;
 }
 
-VMMR3DECL(int) DBGFR3Halt(PUVM pUVM, VMCPUID idCpu)
+VMMR3DECL(int) DBGFR3Halt(PUVM pUVM)
 {
     return VERR_INTERNAL_ERROR;
 }
@@ -119,10 +118,10 @@ VMMR3DECL(int) DBGFR3InfoEx(PUVM pUVM, VMCPUID idCpu, const char *pszName, const
 {
     return VERR_INTERNAL_ERROR;
 }
-VMMR3DECL(void) DBGFR3InfoGenericGetOptError(PCDBGFINFOHLP pHlp, int rc, union RTGETOPTUNION *pValueUnion, struct RTGETOPTSTATE *pState)
+VMMR3DECL(void) DBGFR3InfoGenricGetOptError(PCDBGFINFOHLP pHlp, int rc, union RTGETOPTUNION *pValueUnion, struct RTGETOPTSTATE *pState)
 {
 }
-VMMR3DECL(bool) DBGFR3IsHalted(PUVM pUVM, VMCPUID idCpu)
+VMMR3DECL(bool) DBGFR3IsHalted(PUVM pUVM)
 {
     return true;
 }
@@ -164,7 +163,7 @@ VMMR3DECL(int) DBGFR3AsLineByAddr(PUVM pUVM, RTDBGAS hDbgAs, PCDBGFADDRESS pAddr
 {
     return VERR_DBG_LINE_NOT_FOUND;
 }
-VMMR3DECL(int) DBGFR3Resume(PUVM pUVM, VMCPUID idCpu)
+VMMR3DECL(int) DBGFR3Resume(PUVM pUVM)
 {
     return VERR_INTERNAL_ERROR;
 }
@@ -560,143 +559,12 @@ VMMR3DECL(int) DBGFR3FlowBranchTblItReset(DBGFFLOWBRANCHTBLIT hFlowBranchTblIt)
 {
     return VERR_INTERNAL_ERROR;
 }
-VMMR3DECL(int) DBGFR3FlowTraceModCreateFromFlowGraph(PUVM pUVM, VMCPUID idCpu, DBGFFLOW hFlow,
-                                                     DBGFFLOWTRACEPROBE hFlowTraceProbeCommon,
-                                                     DBGFFLOWTRACEPROBE hFlowTraceProbeEntry,
-                                                     DBGFFLOWTRACEPROBE hFlowTraceProbeRegular,
-                                                     DBGFFLOWTRACEPROBE hFlowTraceProbeExit,
-                                                     PDBGFFLOWTRACEMOD phFlowTraceMod)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceModRetain(DBGFFLOWTRACEMOD hFlowTraceMod)
-{
-    return 0;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceModRelease(DBGFFLOWTRACEMOD hFlowTraceMod)
-{
-    return 0;
-}
-VMMR3DECL(int) DBGFR3FlowTraceModEnable(DBGFFLOWTRACEMOD hFlowTraceMod, uint32_t cHits, uint32_t cRecordsMax)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceModDisable(DBGFFLOWTRACEMOD hFlowTraceMod)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceModQueryReport(DBGFFLOWTRACEMOD hFlowTraceMod,
-                                             PDBGFFLOWTRACEREPORT phFlowTraceReport)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceModClear(DBGFFLOWTRACEMOD hFlowTraceMod)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceModAddProbe(DBGFFLOWTRACEMOD hFlowTraceMod, PCDBGFADDRESS pAddrProbe,
-                                          DBGFFLOWTRACEPROBE hFlowTraceProbe, uint32_t fFlags)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceProbeCreate(PUVM pUVM, const char *pszDescr, PDBGFFLOWTRACEPROBE phFlowTraceProbe)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceProbeRetain(DBGFFLOWTRACEPROBE hFlowTraceProbe)
-{
-    return 0;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceProbeRelease(DBGFFLOWTRACEPROBE hFlowTraceProbe)
-{
-    return 0;
-}
-VMMR3DECL(int) DBGFR3FlowTraceProbeEntriesAdd(DBGFFLOWTRACEPROBE hFlowTraceProbe,
-                                              PCDBGFFLOWTRACEPROBEENTRY paEntries, uint32_t cEntries)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceReportRetain(DBGFFLOWTRACEREPORT hFlowTraceReport)
-{
-    return 0;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceReportRelease(DBGFFLOWTRACEREPORT hFlowTraceReport)
-{
-    return 0;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceReportGetRecordCount(DBGFFLOWTRACEREPORT hFlowTraceReport)
-{
-    return 0;
-}
-VMMR3DECL(int) DBGFR3FlowTraceReportQueryRecord(DBGFFLOWTRACEREPORT hFlowTraceReport, uint32_t idxRec, PDBGFFLOWTRACERECORD phFlowTraceRec)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceReportQueryFiltered(DBGFFLOWTRACEREPORT hFlowTraceReport, uint32_t fFlags,
-                                                  PDBGFFLOWTRACEREPORTFILTER paFilters, uint32_t cFilters,
-                                                  DBGFFLOWTRACEREPORTFILTEROP enmOp,
-                                                  PDBGFFLOWTRACEREPORT phFlowTraceReportFiltered)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(int) DBGFR3FlowTraceReportEnumRecords(DBGFFLOWTRACEREPORT hFlowTraceReport,
-                                                PFNDBGFFLOWTRACEREPORTENUMCLBK pfnEnum,
-                                                void *pvUser)
-{
-    return VERR_INTERNAL_ERROR;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceRecordRetain(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceRecordRelease(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
-VMMR3DECL(uint64_t) DBGFR3FlowTraceRecordGetSeqNo(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
-VMMR3DECL(uint64_t) DBGFR3FlowTraceRecordGetTimestamp(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
-VMMR3DECL(PDBGFADDRESS) DBGFR3FlowTraceRecordGetAddr(DBGFFLOWTRACERECORD hFlowTraceRecord, PDBGFADDRESS pAddr)
-{
-    return NULL;
-}
-VMMR3DECL(DBGFFLOWTRACEPROBE) DBGFR3FlowTraceRecordGetProbe(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return NULL;
-}
-VMMR3DECL(uint32_t) DBGFR3FlowTraceRecordGetValCount(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
-VMMR3DECL(PCDBGFFLOWTRACEPROBEVAL) DBGFR3FlowTraceRecordGetVals(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return NULL;
-}
-VMMR3DECL(PCDBGFFLOWTRACEPROBEVAL) DBGFR3FlowTraceRecordGetValsCommon(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return NULL;
-}
-VMMR3DECL(VMCPUID) DBGFR3FlowTraceRecordGetCpuId(DBGFFLOWTRACERECORD hFlowTraceRecord)
-{
-    return 0;
-}
 
 VMMR3DECL(int) DBGFR3FormatBugCheck(PUVM pUVM, char *pszDetails, size_t cbDetails,
                                     uint64_t uP0, uint64_t uP1, uint64_t uP2, uint64_t uP3, uint64_t uP4)
 {
     pszDetails[0] = '\0';
     return VERR_INTERNAL_ERROR;
-}
-
-VMMR3DECL(PDBGFADDRESS) DBGFR3AddrAdd(PDBGFADDRESS pAddress, RTGCUINTPTR uAddend)
-{
-    RT_NOREF(uAddend);
-    return pAddress;
 }
 
 #include <VBox/vmm/cfgm.h>
@@ -841,10 +709,6 @@ VMMR3DECL(PVMCPU) VMMR3GetCpuByIdU(PUVM pUVM, RTCPUID idCpu)
     return NULL;
 }
 
-VMMR3DECL(PCVMMR3VTABLE) VMMR3GetVTable(void)
-{
-    return NULL;
-}
 
 VMMR3DECL(PVM) VMR3GetVM(PUVM pUVM)
 {

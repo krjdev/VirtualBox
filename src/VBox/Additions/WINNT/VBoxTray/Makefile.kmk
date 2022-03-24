@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for VBoxTray.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -25,11 +25,9 @@ ifdef VBOX_SIGN_ADDITIONS # (See the parent makefile.)
  VBoxTray_DEBUG_INSTTYPE = both
 endif
 VBoxTray_SDKS     = ReorderCompilerIncs $(VBOX_WINDDK_GST)
-ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
- VBoxTray_DEFS   := VBOX_WITH_HGCM VBOX_BUILD_TARGET="$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)"
-else
- VBoxTray_DEFS   := VBOX_WITH_HGCM VBOX_BUILD_TARGET=\"$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)\"
-endif
+VBoxTray_DEFS     = \
+	VBOX_WITH_HGCM \
+	VBOX_BUILD_TARGET=\"$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)\"
 VBoxTray_INCS     = \
 	../include \
 	$(PATH_ROOT)/src/VBox/Additions/WINNT/Graphics/Video/disp/wddm/shared \
@@ -56,6 +54,7 @@ ifdef VBOX_WITH_SHARED_CLIPBOARD
  ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
   VBoxTray_DEFS     += VBOX_WITH_SHARED_CLIPBOARD_GUEST
   VBoxTray_SOURCES  += \
+ 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardArea.cpp \
 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardDataObjectImpl-win.cpp \
 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardEnumFormatEtcImpl-win.cpp \
 	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/ClipboardPath.cpp \
@@ -96,3 +95,4 @@ VBoxTray.cpp_DEPS = $(VBOX_SVN_REV_KMK)
 $(call VBOX_SET_VER_INFO_EXE,VBoxTray,VirtualBox Guest Additions Tray Application,$(VBOX_WINDOWS_ADDITIONS_ICON_FILE))
 
 include $(FILE_KBUILD_SUB_FOOTER)
+

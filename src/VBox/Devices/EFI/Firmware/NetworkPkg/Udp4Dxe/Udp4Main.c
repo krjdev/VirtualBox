@@ -367,7 +367,7 @@ Udp4Groups (
   // Keep a local copy of the configured multicast IPs because IpIo receives
   // datagrams from the 0 station address IP instance and then UDP delivers to
   // the matched instance. This copy of multicast IPs is used to avoid receive
-  // the multicast datagrams destined to multicast IPs the other instances configured.
+  // the mutlicast datagrams destined to multicast IPs the other instances configured.
   //
   if (JoinFlag) {
 
@@ -844,7 +844,7 @@ Udp4Cancel (
   OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
 
   //
-  // Cancel the tokens specified by Token for this instance.
+  // Cancle the tokens specified by Token for this instance.
   //
   Status = Udp4InstanceCancelToken (Instance, Token);
 

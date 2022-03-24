@@ -562,7 +562,11 @@ UsbHcAllocateAlignedPages (
 {
   EFI_STATUS            Status;
   VOID                  *Memory;
+  UINTN                 AlignedMemory;
+  UINTN                 AlignmentMask;
   EFI_PHYSICAL_ADDRESS  DeviceMemory;
+  UINTN                 AlignedDeviceMemory;
+  UINTN                 RealPages;
 
   //
   // Alignment must be a power of two or zero.
@@ -578,9 +582,18 @@ UsbHcAllocateAlignedPages (
   }
 
   if (Alignment > EFI_PAGE_SIZE) {
-    Status = IoMmuAllocateAlignedBuffer (
+    //
+    // Calculate the total number of pages since alignment is larger than page size.
+    //
+    AlignmentMask  = Alignment - 1;
+    RealPages      = Pages + EFI_SIZE_TO_PAGES (Alignment);
+    //
+    // Make sure that Pages plus EFI_SIZE_TO_PAGES (Alignment) does not overflow.
+    //
+    ASSERT (RealPages > Pages);
+
+    Status = IoMmuAllocateBuffer (
                Pages,
-               Alignment,
                &Memory,
                &DeviceMemory,
                Mapping
@@ -588,6 +601,8 @@ UsbHcAllocateAlignedPages (
     if (EFI_ERROR (Status)) {
       return EFI_OUT_OF_RESOURCES;
     }
+    AlignedMemory = ((UINTN) Memory + AlignmentMask) & ~AlignmentMask;
+    AlignedDeviceMemory = ((UINTN) DeviceMemory + AlignmentMask) & ~AlignmentMask;
   } else {
     //
     // Do not over-allocate pages in this case.
@@ -601,10 +616,12 @@ UsbHcAllocateAlignedPages (
     if (EFI_ERROR (Status)) {
       return EFI_OUT_OF_RESOURCES;
     }
+    AlignedMemory = (UINTN) Memory;
+    AlignedDeviceMemory = (UINTN) DeviceMemory;
   }
 
-  *HostAddress = Memory;
-  *DeviceAddress = DeviceMemory;
+  *HostAddress = (VOID *) AlignedMemory;
+  *DeviceAddress = (EFI_PHYSICAL_ADDRESS) AlignedDeviceMemory;
 
   return EFI_SUCCESS;
 }

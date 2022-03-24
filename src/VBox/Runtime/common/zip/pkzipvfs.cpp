@@ -1,10 +1,10 @@
-/* $Id: pkzipvfs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pkzipvfs.cpp $ */
 /** @file
  * IPRT - PKZIP Virtual Filesystem.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1263,7 +1263,7 @@ RTDECL(int) RTZipPkzipFsStreamFromIoStream(RTVFSIOSTREAM hVfsIosIn, uint32_t fFl
      */
     PRTZIPPKZIPFSSTREAM pThis;
     RTVFSFSSTREAM     hVfsFss;
-    int rc = RTVfsNewFsStream(&rtZipPkzipFssOps, sizeof(*pThis), NIL_RTVFS, NIL_RTVFSLOCK, RTFILE_O_READ,
+    int rc = RTVfsNewFsStream(&rtZipPkzipFssOps, sizeof(*pThis), NIL_RTVFS, NIL_RTVFSLOCK, true /*fReadOnly*/,
                               &hVfsFss, (void **)&pThis);
     if (RT_SUCCESS(rc))
     {

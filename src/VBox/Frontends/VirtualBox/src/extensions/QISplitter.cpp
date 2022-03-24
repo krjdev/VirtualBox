@@ -1,10 +1,10 @@
-/* $Id: QISplitter.cpp 94060 2022-03-02 15:33:28Z vboxsync $ */
+/* $Id: QISplitter.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QISplitter class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,9 +23,7 @@
 
 /* GUI includes: */
 #include "QISplitter.h"
-#ifdef VBOX_WS_MAC
-# include "UICursor.h"
-#endif
+#include "UICommon.h"
 
 
 /** QSplitterHandle subclass representing flat line. */
@@ -44,7 +42,7 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 
@@ -69,7 +67,7 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 
@@ -99,7 +97,7 @@ public:
 protected:
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 };
 #endif /* VBOX_WS_MAC */
 
@@ -133,12 +131,12 @@ void QIFlatSplitterHandle::paintEvent(QPaintEvent *pEvent)
 QIShadeSplitterHandle::QIShadeSplitterHandle(Qt::Orientation enmOrientation, QISplitter *pParent)
     : QSplitterHandle(enmOrientation, pParent)
 {
-    QColor windowColor = QApplication::palette().color(QPalette::Active, QPalette::Window);
-    QColor frameColor = QApplication::palette().color(QPalette::Active, QPalette::Text);
-    frameColor.setAlpha(100);
+    QPalette pal = qApp->palette();
+    QColor windowColor = pal.color(QPalette::Active, QPalette::Window);
+    QColor darkColor = pal.color(QPalette::Active, QPalette::Dark);
     m_color1 = windowColor;
     m_color2 = windowColor;
-    m_color = frameColor;
+    m_color = darkColor;
 }
 
 void QIShadeSplitterHandle::configureColors(const QColor &color1, const QColor &color2)
@@ -311,6 +309,12 @@ bool QISplitter::eventFilter(QObject *pWatched, QEvent *pEvent)
                     if (   pHandle
                         && pHandle != pWatched)
                     {
+                        /* Create new mouse event with translated mouse positions. */
+                        QMouseEvent newME(pMouseEvent->type(),
+                                          pHandle->mapFromGlobal(pMouseEvent->globalPos()),
+                                          pMouseEvent->button(),
+                                          pMouseEvent->buttons(),
+                                          pMouseEvent->modifiers());
                         /* Check if we hit the handle */
                         bool fMarginHit = QRect(pHandle->mapToGlobal(QPoint(0, 0)), pHandle->size()).adjusted(-margin, 0, margin, 0).contains(pMouseEvent->globalPos());
                         if (pEvent->type() == QEvent::MouseButtonPress)
@@ -320,12 +324,8 @@ bool QISplitter::eventFilter(QObject *pWatched, QEvent *pEvent)
                                 && pMouseEvent->buttons().testFlag(Qt::LeftButton))
                             {
                                 m_fHandleGrabbed = true;
-                                UICursor::setCursor(this, Qt::SplitHCursor);
-                                qApp->postEvent(pHandle, new QMouseEvent(pMouseEvent->type(),
-                                                                         pHandle->mapFromGlobal(pMouseEvent->globalPos()),
-                                                                         pMouseEvent->button(),
-                                                                         pMouseEvent->buttons(),
-                                                                         pMouseEvent->modifiers()));
+                                UICommon::setCursor(this, Qt::SplitHCursor);
+                                qApp->postEvent(pHandle, new QMouseEvent(newME));
                                 return true;
                             }
                         }
@@ -336,18 +336,16 @@ bool QISplitter::eventFilter(QObject *pWatched, QEvent *pEvent)
                                 || (   m_fHandleGrabbed
                                     && pMouseEvent->buttons().testFlag(Qt::LeftButton)))
                             {
-                                UICursor::setCursor(this, Qt::SplitHCursor);
-                                qApp->postEvent(pHandle, new QMouseEvent(pMouseEvent->type(),
-                                                                         pHandle->mapFromGlobal(pMouseEvent->globalPos()),
-                                                                         pMouseEvent->button(),
-                                                                         pMouseEvent->buttons(),
-                                                                         pMouseEvent->modifiers()));
+                                UICommon::setCursor(this, Qt::SplitHCursor);
+                                qApp->postEvent(pHandle, new QMouseEvent(newME));
                                 return true;
                             }
-
-                            /* If not, reset the state. */
-                            m_fHandleGrabbed = false;
-                            UICursor::setCursor(this, Qt::ArrowCursor);
+                            else
+                            {
+                                /* If not, reset the state. */
+                                m_fHandleGrabbed = false;
+                                UICommon::setCursor(this, Qt::ArrowCursor);
+                            }
                         }
                     }
                 }
@@ -357,7 +355,7 @@ bool QISplitter::eventFilter(QObject *pWatched, QEvent *pEvent)
             case QEvent::MouseButtonRelease:
             {
                 m_fHandleGrabbed = false;
-                UICursor::setCursor(this, Qt::ArrowCursor);
+                UICommon::setCursor(this, Qt::ArrowCursor);
                 break;
             }
             default:

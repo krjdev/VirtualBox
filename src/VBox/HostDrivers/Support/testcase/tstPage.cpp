@@ -1,10 +1,10 @@
-/* $Id: tstPage.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstPage.cpp $ */
 /** @file
  * SUP Testcase - Page allocation interface (ring 3).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,13 +39,13 @@ int main(int argc, char **argv)
 {
     int cErrors = 0;
 
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
     int rc = SUPR3Init(NULL);
     cErrors += rc != 0;
     if (!rc)
     {
         void *pv;
-        rc = SUPR3PageAlloc(1, 0, &pv);
+        rc = SUPR3PageAlloc(1, &pv);
         cErrors += rc != 0;
         if (!rc)
         {
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
         /*
          * Big chunk.
          */
-        rc = SUPR3PageAlloc(1023, 0, &pv);
+        rc = SUPR3PageAlloc(1023, &pv);
         cErrors += rc != 0;
         if (!rc)
         {

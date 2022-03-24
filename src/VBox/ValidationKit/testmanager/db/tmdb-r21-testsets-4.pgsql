@@ -1,11 +1,11 @@
--- $Id: tmdb-r21-testsets-4.pgsql 93115 2022-01-01 11:31:46Z vboxsync $
+-- $Id: tmdb-r21-testsets-4.pgsql $
 --- @file
 -- VBox Test Manager Database - Adds an idSchedGroup to TestSets in
 -- preparation for testboxes belonging to multiple scheduling queues.
 --
 
 --
--- Copyright (C) 2013-2022 Oracle Corporation
+-- Copyright (C) 2013-2020 Oracle Corporation
 --
 -- This file is part of VirtualBox Open Source Edition (OSE), as
 -- available from http://www.virtualbox.org. This file is free software;

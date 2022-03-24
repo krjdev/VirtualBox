@@ -1,10 +1,10 @@
-/* $Id: UIChooserView.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserView.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserView class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,6 +20,7 @@
 #include <QScrollBar>
 
 /* GUI includes: */
+#include "UIChooser.h"
 #include "UIChooserItem.h"
 #include "UIChooserModel.h"
 #include "UIChooserSearchWidget.h"
@@ -51,29 +52,29 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE
+    virtual int childCount() const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
 
-        /* Return the number of model children if model really assigned: */
-        return view()->model() ? view()->model()->root()->items().size() : 0;
+        /* Return the number of children: */
+        return view()->chooser()->model()->root()->items().size();
     }
 
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE
+    virtual QAccessibleInterface *child(int iIndex) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), 0);
         /* Make sure index is valid: */
         AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
 
-        /* Return the model child with the passed iIndex if model really assigned: */
-        return QAccessible::queryAccessibleInterface(view()->model() ? view()->model()->root()->items().at(iIndex) : 0);
+        /* Return the child with the passed iIndex: */
+        return QAccessible::queryAccessibleInterface(view()->chooser()->model()->root()->items().at(iIndex));
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */
     {
         /* Make sure view still alive: */
         AssertPtrReturn(view(), QString());
@@ -90,29 +91,20 @@ private:
 };
 
 
-UIChooserView::UIChooserView(QWidget *pParent)
+UIChooserView::UIChooserView(UIChooser *pParent)
     : QIWithRetranslateUI<QIGraphicsView>(pParent)
-    , m_pChooserModel(0)
+    , m_pChooser(pParent)
     , m_pSearchWidget(0)
     , m_iMinimumWidthHint(0)
 {
+    /* Prepare: */
     prepare();
-}
-
-void UIChooserView::setModel(UIChooserModel *pChooserModel)
-{
-    m_pChooserModel = pChooserModel;
-}
-
-UIChooserModel *UIChooserView::model() const
-{
-    return m_pChooserModel;
 }
 
 bool UIChooserView::isSearchWidgetVisible() const
 {
-    /* Make sure search widget exists: */
-    AssertPtrReturn(m_pSearchWidget, false);
+    if (!m_pSearchWidget)
+        return false;
 
     /* Return widget visibility state: */
     return m_pSearchWidget->isVisible();
@@ -120,8 +112,8 @@ bool UIChooserView::isSearchWidgetVisible() const
 
 void UIChooserView::setSearchWidgetVisible(bool fVisible)
 {
-    /* Make sure search widget exists: */
-    AssertPtrReturnVoid(m_pSearchWidget);
+    if (!m_pSearchWidget)
+        return;
 
     /* Make sure keyboard focus is managed correctly: */
     if (fVisible)
@@ -136,45 +128,31 @@ void UIChooserView::setSearchWidgetVisible(bool fVisible)
     /* Set widget visibility state: */
     m_pSearchWidget->setVisible(fVisible);
 
-    /* Notify listeners: */
-    emit sigSearchWidgetVisibilityChanged(fVisible);
-
     /* Update geometry if widget is visible: */
     if (m_pSearchWidget->isVisible())
         updateSearchWidgetGeometry();
 
-    /* Reset search each time widget visibility changed,
-     * Model can be undefined.. */
-    if (model())
-        model()->resetSearch();
+    /* Reset search each time widget visibility changed: */
+    UIChooserModel *pModel = m_pChooser->model();
+    if (pModel)
+        pModel->resetSearch();
 }
 
-void UIChooserView::setSearchResultsCount(int iTotalMatchCount, int iCurrentlyScrolledItemIndex)
+void UIChooserView::setSearchResultsCount(int iTotalMacthCount, int iCurrentlyScrolledItemIndex)
 {
-    /* Make sure search widget exists: */
-    AssertPtrReturnVoid(m_pSearchWidget);
+    if (!m_pSearchWidget)
+        return;
 
-    /* Update count of search results and scroll to certain result: */
-    m_pSearchWidget->setMatchCount(iTotalMatchCount);
+    m_pSearchWidget->setMatchCount(iTotalMacthCount);
     m_pSearchWidget->setScroolToIndex(iCurrentlyScrolledItemIndex);
 }
 
 void UIChooserView::appendToSearchString(const QString &strSearchText)
 {
-    /* Make sure search widget exists: */
-    AssertPtrReturnVoid(m_pSearchWidget);
+    if (!m_pSearchWidget)
+        return;
 
-    /* Update search string with passed text: */
     m_pSearchWidget->appendToSearchString(strSearchText);
-}
-
-void UIChooserView::redoSearch()
-{
-    /* Make sure search widget exists: */
-    AssertPtrReturnVoid(m_pSearchWidget);
-
-    /* Pass request to search widget: */
-    m_pSearchWidget->redoSearch();
 }
 
 void UIChooserView::sltMinimumWidthHintChanged(int iHint)
@@ -189,33 +167,35 @@ void UIChooserView::sltMinimumWidthHintChanged(int iHint)
     /* Set minimum view width according passed width-hint: */
     setMinimumWidth(2 * frameWidth() + m_iMinimumWidthHint + verticalScrollBar()->sizeHint().width());
 
-    /* Update scene rectangle: */
+    /* Update scene-rect: */
     updateSceneRect();
 }
 
-void UIChooserView::sltRedoSearch(const QString &strSearchTerm, int iSearchFlags)
+void UIChooserView::sltRedoSearch(const QString &strSearchTerm, int iItemSearchFlags)
 {
-    /* Model can be undefined: */
-    if (!model())
+    if (!m_pChooser)
+        return;
+    UIChooserModel *pModel =  m_pChooser->model();
+    if (!pModel)
         return;
 
-    /* Perform search: */
-    model()->performSearch(strSearchTerm, iSearchFlags);
+    pModel->performSearch(strSearchTerm, iItemSearchFlags);
 }
 
-void UIChooserView::sltHandleScrollToSearchResult(bool fNext)
+void UIChooserView::sltHandleScrollToSearchResult(bool fIsNext)
 {
-    /* Model can be undefined: */
-    if (!model())
+    if (!m_pChooser)
+        return;
+    UIChooserModel *pModel =  m_pChooser->model();
+    if (!pModel)
         return;
 
-    /* Move to requested search result: */
-    model()->selectSearchResult(fNext);
+    pModel->selectSearchResult(fIsNext);
 }
 
-void UIChooserView::sltHandleSearchWidgetVisibilityToggle(bool fVisible)
+void UIChooserView::sltHandleSearchWidgetVisibilityToggle(bool fIsVisible)
 {
-    setSearchWidgetVisible(fVisible);
+    setSearchWidgetVisible(fIsVisible);
 }
 
 void UIChooserView::retranslateUi()
@@ -231,50 +211,44 @@ void UIChooserView::prepare()
     /* Install Chooser-view accessibility interface factory: */
     QAccessible::installFactory(UIAccessibilityInterfaceForUIChooserView::pFactory);
 
-    /* Prepare everything: */
-    prepareThis();
-    prepareWidget();
+    /* Prepare palette: */
+    preparePalette();
 
-    /* Update everything: */
+    /* Setup frame: */
+    setFrameShape(QFrame::NoFrame);
+    setFrameShadow(QFrame::Plain);
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
+
+    /* Setup scroll-bars policy: */
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    /* Create the search widget (hidden): */
+    m_pSearchWidget = new UIChooserSearchWidget(this);
+    m_pSearchWidget->hide();
+    connect(m_pSearchWidget, &UIChooserSearchWidget::sigRedoSearch,
+            this, &UIChooserView::sltRedoSearch);
+    connect(m_pSearchWidget, &UIChooserSearchWidget::sigScrollToMatch,
+            this, &UIChooserView::sltHandleScrollToSearchResult);
+    connect(m_pSearchWidget, &UIChooserSearchWidget::sigToggleVisibility,
+            this, &UIChooserView::sltHandleSearchWidgetVisibilityToggle);
+
+    /* Update scene-rect: */
     updateSceneRect();
+    /* Update the location and size of the search widget: */
     updateSearchWidgetGeometry();
 
     /* Apply language settings: */
     retranslateUi();
 }
 
-void UIChooserView::prepareThis()
+void UIChooserView::preparePalette()
 {
-    /* Prepare palette: */
-    QPalette pal = QApplication::palette();
-    pal.setColor(QPalette::Active, QPalette::Base, pal.color(QPalette::Active, QPalette::Window));
-    pal.setColor(QPalette::Inactive, QPalette::Base, pal.color(QPalette::Inactive, QPalette::Window));
+    /* Setup palette: */
+    QPalette pal = qApp->palette();
+    const QColor bodyColor = pal.color(QPalette::Active, QPalette::Midlight).darker(110);
+    pal.setColor(QPalette::Base, bodyColor);
     setPalette(pal);
-
-    /* Prepare frame: */
-    setFrameShape(QFrame::NoFrame);
-    setFrameShadow(QFrame::Plain);
-    setAlignment(Qt::AlignLeft | Qt::AlignTop);
-
-    /* Prepare scroll-bars policy: */
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-}
-
-void UIChooserView::prepareWidget()
-{
-    /* Create the search widget (initially hidden): */
-    m_pSearchWidget = new UIChooserSearchWidget(this);
-    if (m_pSearchWidget)
-    {
-        m_pSearchWidget->hide();
-        connect(m_pSearchWidget, &UIChooserSearchWidget::sigRedoSearch,
-                this, &UIChooserView::sltRedoSearch);
-        connect(m_pSearchWidget, &UIChooserSearchWidget::sigScrollToMatch,
-                this, &UIChooserView::sltHandleScrollToSearchResult);
-        connect(m_pSearchWidget, &UIChooserSearchWidget::sigToggleVisibility,
-                this, &UIChooserView::sltHandleSearchWidgetVisibilityToggle);
-    }
 }
 
 void UIChooserView::resizeEvent(QResizeEvent *pEvent)
@@ -284,8 +258,9 @@ void UIChooserView::resizeEvent(QResizeEvent *pEvent)
     /* Notify listeners: */
     emit sigResized();
 
-    /* Update everything: */
+    /* Update scene-rect: */
     updateSceneRect();
+    /* Update the location and size of the search widget: */
     updateSearchWidgetGeometry();
 }
 
@@ -296,13 +271,9 @@ void UIChooserView::updateSceneRect()
 
 void UIChooserView::updateSearchWidgetGeometry()
 {
-    /* Make sure search widget exists: */
-    AssertPtrReturnVoid(m_pSearchWidget);
+    if (!m_pSearchWidget || !m_pSearchWidget->isVisible())
+        return;
 
-    /* Update visible widget only: */
-    if (m_pSearchWidget->isVisible())
-    {
-        const int iHeight = m_pSearchWidget->height();
-        m_pSearchWidget->setGeometry(QRect(0, height() - iHeight, width(), iHeight));
-    }
+    const int iHeight = m_pSearchWidget->height();
+    m_pSearchWidget->setGeometry(QRect(0, height() - iHeight, width(), iHeight));
 }

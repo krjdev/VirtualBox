@@ -3,7 +3,7 @@
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,13 +34,13 @@ BEGINCODE
 ; Get the dr1 register value.
 ; @returns dr1.
 ;
-RT_BEGINPROC ASMGetDR1
+BEGINPROC_EXPORTED ASMGetDR1
         mov     rax, dr1
         ret
 ENDPROC ASMGetDR1
 
 
-RT_BEGINPROC ASMSetDR1
+BEGINPROC_EXPORTED ASMSetDR1
         mov     dr1, rcx
         ret
 ENDPROC ASMSetDR1

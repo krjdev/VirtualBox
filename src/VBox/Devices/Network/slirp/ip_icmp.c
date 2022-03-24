@@ -1,10 +1,10 @@
-/* $Id: ip_icmp.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ip_icmp.c $ */
 /** @file
  * NAT - IP/ICMP handling.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -480,11 +480,6 @@ icmp_input(PNATState pData, struct mbuf *m, int hlen)
                 || CTL_CHECK(dst, CTL_DNS)
                 || CTL_CHECK(dst, CTL_TFTP))
             {
-                /* Don't reply to ping requests for the hosts loopback interface if it is disabled. */
-                if (   CTL_CHECK(dst, CTL_ALIAS)
-                    && !pData->fLocalhostReachable)
-                    goto done;
-
                 uint8_t echo_reply = ICMP_ECHOREPLY;
                 m_copyback(pData, m, hlen + RT_OFFSETOF(struct icmp, icmp_type),
                            sizeof(echo_reply), (caddr_t)&echo_reply);

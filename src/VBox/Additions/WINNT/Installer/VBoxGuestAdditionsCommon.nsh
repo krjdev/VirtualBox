@@ -1,10 +1,10 @@
-; $Id: VBoxGuestAdditionsCommon.nsh 94160 2022-03-10 19:29:09Z vboxsync $
+; $Id: VBoxGuestAdditionsCommon.nsh $
 ;; @file
 ; VBoxGuestAdditionsCommon.nsh - Common / shared utility functions.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -30,11 +30,7 @@ Function Common_CopyFiles
 
   FILE "$%PATH_OUT%\bin\additions\VBoxVideo.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxVideo.cat"
-  ${Else}
-    FILE "/oname=VBoxVideo.cat" "$%PATH_OUT%\bin\additions\VBoxVideo-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxVideo.cat"
 !endif
 
   FILE "iexplore.ico"
@@ -48,7 +44,7 @@ Function ExtractFiles
   ; and keep the redundancy low
 
   Push $0
-  StrCpy "$0" "$INSTDIR\$%KBUILD_TARGET_ARCH%"
+  StrCpy "$0" "$INSTDIR\$%BUILD_TARGET_ARCH%"
 
   ; Root files
   SetOutPath "$0"
@@ -61,11 +57,7 @@ Function ExtractFiles
   FILE "$%PATH_OUT%\bin\additions\VBoxVideo.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxVideo.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxVideo.cat"
-  ${Else}
-    FILE "/oname=VBoxVideo.cat" "$%PATH_OUT%\bin\additions\VBoxVideo-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxVideo.cat"
 !endif
   FILE "$%PATH_OUT%\bin\additions\VBoxDisp.dll"
 
@@ -74,11 +66,7 @@ Function ExtractFiles
   SetOutPath "$0\VBoxWddm"
 
   !ifdef VBOX_SIGN_ADDITIONS
-    ${If} $g_strWinVersion == "10"
-      FILE "$%PATH_OUT%\bin\additions\VBoxWddm.cat"
-    ${Else}
-      FILE "/oname=VBoxWddm.cat" "$%PATH_OUT%\bin\additions\VBoxWddm-PreW10.cat"
-    ${EndIf}
+    FILE "$%PATH_OUT%\bin\additions\VBoxWddm.cat"
   !endif
   FILE "$%PATH_OUT%\bin\additions\VBoxWddm.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxWddm.inf"
@@ -90,7 +78,7 @@ Function ExtractFiles
     FILE "$%PATH_OUT%\bin\additions\VBoxGL.dll"
   !endif
 
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     FILE "$%PATH_OUT%\bin\additions\VBoxDispD3D-x86.dll"
     !if $%VBOX_WITH_MESA3D% == "1"
       FILE "$%PATH_OUT%\bin\additions\VBoxNine-x86.dll"
@@ -99,7 +87,7 @@ Function ExtractFiles
       FILE "$%PATH_OUT%\bin\additions\VBoxGL-x86.dll"
     !endif
 
-  !endif ; $%KBUILD_TARGET_ARCH% == "amd64"
+  !endif ; $%BUILD_TARGET_ARCH% == "amd64"
 !endif ; $%VBOX_WITH_WDDM% == "1"
 
   ; Mouse driver
@@ -107,14 +95,10 @@ Function ExtractFiles
   FILE "$%PATH_OUT%\bin\additions\VBoxMouse.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxMouse.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxMouse.cat"
-  ${Else}
-    FILE "/oname=VBoxMouse.cat" "$%PATH_OUT%\bin\additions\VBoxMouse-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxMouse.cat"
 !endif
 
-!if $%KBUILD_TARGET_ARCH% == "x86"
+!if $%BUILD_TARGET_ARCH% == "x86"
   SetOutPath "$0\VBoxMouse\NT4"
   FILE "$%PATH_OUT%\bin\additions\VBoxMouseNT.sys"
 !endif
@@ -124,11 +108,7 @@ Function ExtractFiles
   FILE "$%PATH_OUT%\bin\additions\VBoxGuest.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxGuest.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxGuest.cat"
-  ${Else}
-    FILE "/oname=VBoxGuest.cat" "$%PATH_OUT%\bin\additions\VBoxGuest-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxGuest.cat"
 !endif
   FILE "$%PATH_OUT%\bin\additions\VBoxTray.exe"
   FILE "$%PATH_OUT%\bin\additions\VBoxHook.dll"
@@ -142,7 +122,7 @@ Function ExtractFiles
   SetOutPath "$0\VBoxSF"
   FILE "$%PATH_OUT%\bin\additions\VBoxSF.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxMRXNP.dll"
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     ; Only 64-bit installer: Also copy 32-bit DLLs on 64-bit target
     FILE "$%PATH_OUT%\bin\additions\VBoxMRXNP-x86.dll"
   !endif
@@ -156,11 +136,8 @@ Function ExtractFiles
   SetOutPath "$0\Tools"
   FILE "$%PATH_OUT%\bin\additions\VBoxDrvInst.exe"
   FILE "$%VBOX_PATH_DIFX%\DIFxAPI.dll"
-!ifdef VBOX_WITH_ADDITIONS_SHIPPING_AUDIO_TEST
-  FILE "$%PATH_OUT%\bin\additions\VBoxAudioTest.exe"
-!endif
 
-!if $%KBUILD_TARGET_ARCH% == "x86"
+!if $%BUILD_TARGET_ARCH% == "x86"
   SetOutPath "$0\Tools\NT4"
   FILE "$%PATH_OUT%\bin\additions\VBoxGuestDrvInst.exe"
   FILE "$%PATH_OUT%\bin\additions\RegCleanup.exe"
@@ -180,7 +157,7 @@ Function ${un}CheckArchitecture
   System::Call "kernel32::IsWow64Process(i s, *i .r0)"
   ; R0 now contains 1 if we're a 64-bit process, or 0 if not
 
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
   IntCmp $0 0 wrong_platform
 !else ; 32-bit
   IntCmp $0 1 wrong_platform
@@ -506,7 +483,7 @@ FunctionEnd
 ; 32-bit mode (SysWOW64) on 64-bit guests
 !macro SetAppMode32 un
 Function ${un}SetAppMode32
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     ${EnableX64FSRedirection}
     SetRegView 32
   !endif
@@ -519,7 +496,7 @@ FunctionEnd
 ; do some tricks for the Windows paths + registry on 64-bit guests
 !macro SetAppMode64 un
 Function ${un}SetAppMode64
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     ${DisableX64FSRedirection}
     SetRegView 64
   !endif
@@ -745,13 +722,6 @@ FunctionEnd
   Push "${FileSrc}"
   Call ${un}VerifyFile
   Pop $0
-
-  Push "${Architecture}"
-  Push "Oracle Corporation"
-  Push "${FileDest}"
-  Call ${un}VerifyFile
-  Pop $0
-
   ${If} $0 == "0"
     ${LogVerbose} "Copying verified file $\"${FileSrc}$\" to $\"${FileDest}$\" ..."
     ClearErrors
@@ -841,16 +811,26 @@ Function ${un}RestoreFilesDirect3D
   ; "system32" on a 64-bit guest
   Call ${un}SetAppMode64
 
+  ; Note: Not finding a file (like *d3d8.dll) on Windows Vista/7 is fine;
+  ;       it simply is not present there.
+
+  ; Note 2: On 64-bit systems there are no 64-bit *d3d8 DLLs, only 32-bit ones
+  ;         in SysWOW64 (or in system32 on 32-bit systems).
+
   ${LogVerbose} "Restoring original D3D files ..."
-  ${CopyFileEx} "${un}" "$SYSDIR\msd3d8.dll" "$SYSDIR\d3d8.dll" "Microsoft Corporation" "$%KBUILD_TARGET_ARCH%"
-  ${CopyFileEx} "${un}" "$SYSDIR\msd3d9.dll" "$SYSDIR\d3d9.dll" "Microsoft Corporation" "$%KBUILD_TARGET_ARCH%"
+!if $%BUILD_TARGET_ARCH% == "x86"
+  ${CopyFileEx} "${un}" "$SYSDIR\msd3d8.dll" "$SYSDIR\d3d8.dll" "Microsoft Corporation" "$%BUILD_TARGET_ARCH%"
+!endif
+  ${CopyFileEx} "${un}" "$SYSDIR\msd3d9.dll" "$SYSDIR\d3d9.dll" "Microsoft Corporation" "$%BUILD_TARGET_ARCH%"
 
   ${If} $g_bCapDllCache == "true"
-    ${CopyFileEx} "${un}" "$SYSDIR\dllcache\msd3d8.dll" "$SYSDIR\dllcache\d3d8.dll" "Microsoft Corporation" "$%KBUILD_TARGET_ARCH%"
-    ${CopyFileEx} "${un}" "$SYSDIR\dllcache\msd3d9.dll" "$SYSDIR\dllcache\d3d9.dll" "Microsoft Corporation" "$%KBUILD_TARGET_ARCH%"
+!if $%BUILD_TARGET_ARCH% == "x86"
+    ${CopyFileEx} "${un}" "$SYSDIR\dllcache\msd3d8.dll" "$SYSDIR\dllcache\d3d8.dll" "Microsoft Corporation" "$%BUILD_TARGET_ARCH%"
+!endif
+    ${CopyFileEx} "${un}" "$SYSDIR\dllcache\msd3d9.dll" "$SYSDIR\dllcache\d3d9.dll" "Microsoft Corporation" "$%BUILD_TARGET_ARCH%"
   ${EndIf}
 
-!if $%KBUILD_TARGET_ARCH% == "amd64"
+!if $%BUILD_TARGET_ARCH% == "amd64"
   ${CopyFileEx} "${un}" "$g_strSysWow64\msd3d8.dll" "$g_strSysWow64\d3d8.dll" "Microsoft Corporation" "x86"
   ${CopyFileEx} "${un}" "$g_strSysWow64\msd3d9.dll" "$g_strSysWow64\d3d9.dll" "Microsoft Corporation" "x86"
 

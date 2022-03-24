@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -430,22 +430,6 @@ RTASN1_IMPL_GEN_SET_OF_TYPEDEFS_AND_PROTOS(RTCRPKCS7SETOFSIGNEDDATA, RTCRPKCS7SI
 #define RTCRPKCS7SIGNEDDATA_SANITY_F_SIGNING_CERT_PRESENT RT_BIT_32(2)
 /** @} */
 
-/** PKCS\#7/CMS (content info) markers. */
-extern RTDATADECL(RTCRPEMMARKER const) g_aRTCrPkcs7Markers[];
-/** Number of entries in g_aRTCrPkcs7Markers. */
-extern RTDATADECL(uint32_t const)      g_cRTCrPkcs7Markers;
-
-/** @name Flags for RTCrPkcs7ContentInfo_ReadFromBuffer
- * @{ */
-/** Only allow PEM certificates, not binary ones.
- * @sa RTCRPEMREADFILE_F_ONLY_PEM  */
-#define RTCRPKCS7_READ_F_PEM_ONLY        RT_BIT(1)
-/** @} */
-
-RTDECL(int) RTCrPkcs7_ReadFromBuffer(PRTCRPKCS7CONTENTINFO pContentInfo, const void *pvBuf, size_t cbBuf,
-                                     uint32_t fFlags, PCRTASN1ALLOCATORVTABLE pAllocator,
-                                     bool *pfCmsLabeled, PRTERRINFO pErrInfo, const char *pszErrorTag);
-
 
 /**
  * PKCS \#7 DigestInfo (IPRT representation).
@@ -484,8 +468,8 @@ RTASN1TYPE_STANDARD_PROTOTYPES(RTCRPKCS7DIGESTINFO, RTDECL, RTCrPkcs7DigestInfo,
  * @param   pvUser              The user argument.
  * @param   pErrInfo            Optional error info buffer.
  */
-typedef DECLCALLBACKTYPE(int, FNRTCRPKCS7VERIFYCERTCALLBACK,(PCRTCRX509CERTIFICATE pCert, RTCRX509CERTPATHS hCertPaths,
-                                                             uint32_t fFlags, void *pvUser, PRTERRINFO pErrInfo));
+typedef DECLCALLBACK(int) FNRTCRPKCS7VERIFYCERTCALLBACK(PCRTCRX509CERTIFICATE pCert, RTCRX509CERTPATHS hCertPaths,
+                                                        uint32_t fFlags, void *pvUser, PRTERRINFO pErrInfo);
 /** Pointer to a FNRTCRPKCS7VERIFYCERTCALLBACK callback. */
 typedef FNRTCRPKCS7VERIFYCERTCALLBACK *PFNRTCRPKCS7VERIFYCERTCALLBACK;
 
@@ -526,9 +510,6 @@ RTDECL(int) RTCrPkcs7VerifyCertCallbackCodeSigning(PCRTCRX509CERTIFICATE pCert, 
  * @param   pValidationTime     The time we're supposed to validate the
  *                              certificates chains at.  Ignored for signatures
  *                              with valid signing time attributes.
- *                              When RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
- *                              is set, this is updated to the actual validation
- *                              time used.
  * @param   pfnVerifyCert       Callback for checking that a certificate used
  *                              for signing the data is suitable.
  * @param   pvUser              User argument for the callback.
@@ -556,9 +537,6 @@ RTDECL(int) RTCrPkcs7VerifySignedData(PCRTCRPKCS7CONTENTINFO pContentInfo, uint3
  * @param   pValidationTime     The time we're supposed to validate the
  *                              certificates chains at.  Ignored for signatures
  *                              with valid signing time attributes.
- *                              When RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME
- *                              is set, this is updated to the actual validation
- *                              time used.
  * @param   pfnVerifyCert       Callback for checking that a certificate used
  *                              for signing the data is suitable.
  * @param   pvUser              User argument for the callback.
@@ -573,17 +551,16 @@ RTDECL(int) RTCrPkcs7VerifySignedDataWithExternalData(PCRTCRPKCS7CONTENTINFO pCo
                                                       PFNRTCRPKCS7VERIFYCERTCALLBACK pfnVerifyCert, void *pvUser,
                                                       void const *pvData, size_t cbData, PRTERRINFO pErrInfo);
 
-/** @name RTCRPKCS7VERIFY_SD_F_XXX - Flags for RTCrPkcs7VerifySignedData and
- *                                   RTCrPkcs7VerifySignedDataWithExternalData
+/** @name RTCRPKCS7VERIFY_SD_F_XXX - Flags for RTCrPkcs7VerifySignedData
  * @{ */
 /** Always use the signing time attribute if present, requiring it to be
  * verified as valid.  The default behavior is to ignore unverifiable
  * signing time attributes and use the @a pValidationTime instead. */
 #define RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_SIGNING_TIME_IF_PRESENT     RT_BIT_32(0)
 /** Same as RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_SIGNING_TIME_IF_PRESENT for the MS
- *  timestamp counter signatures. */
+ *  timestamp counter sigantures. */
 #define RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_MS_TIMESTAMP_IF_PRESENT     RT_BIT_32(1)
-/** Only use signing time attributes from counter signatures. */
+/** Only use signging time attributes from counter signatures. */
 #define RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY    RT_BIT_32(2)
 /** Don't validate the counter signature containing the signing time, just use
  * it unverified.  This is useful if we don't necessarily have the root
@@ -599,50 +576,11 @@ RTDECL(int) RTCrPkcs7VerifySignedDataWithExternalData(PCRTCRPKCS7CONTENTINFO pCo
  * usage bit present.  This is used for recursivly verifying MS timestamp
  * signatures. */
 #define RTCRPKCS7VERIFY_SD_F_USAGE_TIMESTAMPING                     RT_BIT_32(6)
-/** Skip the verification of the certificate trust paths, taking all
- * certificates to be trustworthy. */
-#define RTCRPKCS7VERIFY_SD_F_TRUST_ALL_CERTS                        RT_BIT_32(7)
-/** Update @a pValidationTime with the actual validation time used.
- * This requires RTCRPKCS7VERIFY_SD_F_HAS_SIGNER_INDEX to get a consistent
- * result.  And yeah, it unconst the parameter, which is patently ugly. */
-#define RTCRPKCS7VERIFY_SD_F_UPDATE_VALIDATION_TIME                 RT_BIT_32(8)
-/** Check trust anchors (@sa RTCrX509CertPathsSetTrustAnchorChecks). */
-#define RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS                    RT_BIT_32(9)
-
-/** This can be used to only verify one given signer info.
- * Max index value is 15.  */
-#define RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX(a_idxSignerInfo) \
-    (  RTCRPKCS7VERIFY_SD_F_HAS_SIGNER_INDEX \
-     | (((a_idxSignerInfo) & RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_MAX) << RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_SHIFT) )
-/** Has a valid value in RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_MASK. */
-#define RTCRPKCS7VERIFY_SD_F_HAS_SIGNER_INDEX                       RT_BIT_32(23)
-/** Signer index shift value. */
-#define RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_SHIFT                     24
-/** Signer index mask. */
-#define RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_MASK                      UINT32_C(0x0f000000)
-/** Max signer index value (inclusive). */
-#define RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_MAX \
-    (RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_MASK >> RTCRPKCS7VERIFY_SD_F_SIGNER_INDEX_SHIFT)
 
 /** Indicates internally that we're validating a counter signature and should
  * use different rules when checking out the authenticated attributes.
  * @internal  */
 #define RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE                      RT_BIT_32(31)
-/** @} */
-
-
-RTDECL(int) RTCrPkcs7SimpleSignSignedData(uint32_t fFlags, PCRTCRX509CERTIFICATE pSigner, RTCRKEY hPrivateKey,
-                                          void const *pvData, size_t cbData, RTDIGESTTYPE enmDigestType,
-                                          RTCRSTORE hAdditionalCerts, void *pvResult, size_t *pcbResult, PRTERRINFO pErrInfo);
-
-/** @name RTCRPKCS7SIGN_SD_F_XXX - Flags for RTCrPkcs7SimpleSign.
- * @{ */
-/** Detached data. */
-#define RTCRPKCS7SIGN_SD_F_DEATCHED      RT_BIT_32(0)
-/** No SMIME capabilities attribute. */
-#define RTCRPKCS7SIGN_SD_F_NO_SMIME_CAP  RT_BIT_32(1)
-/** Valid flag mask.   */
-#define RTCRPKCS7SIGN_SD_F_VALID_MASK    UINT32_C(0x00000003)
 /** @} */
 
 /** @} */

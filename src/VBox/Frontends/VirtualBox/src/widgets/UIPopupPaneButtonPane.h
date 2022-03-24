@@ -1,10 +1,10 @@
-/* $Id: UIPopupPaneButtonPane.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIPopupPaneButtonPane.h $ */
 /** @file
  * VBox Qt GUI - UIPopupPaneButtonPane class declaration.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -74,7 +74,7 @@ private:
     void cleanupButtons();
 
     /** Handles key-press @a pEvent. */
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
 
     /** Adds button with @a iButtonID and @a strToolTip. */
     static QIToolButton *addButton(int iButtonID, const QString &strToolTip);

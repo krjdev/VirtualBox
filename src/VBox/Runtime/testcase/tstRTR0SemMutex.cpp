@@ -1,10 +1,10 @@
-/* $Id: tstRTR0SemMutex.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTR0SemMutex.cpp $ */
 /** @file
  * IPRT R0 Testcase - Mutex Semaphores.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,7 +58,7 @@ DECLEXPORT(int) TSTRTR0SemMutexSrvReqHandler(PSUPDRVSESSION pSession, uint32_t u
                                              uint64_t u64Arg, PSUPR0SERVICEREQHDR pReqHdr)
 {
     NOREF(pSession);
-    if (!RT_VALID_PTR(pReqHdr))
+    if (!VALID_PTR(pReqHdr))
         return VERR_INVALID_PARAMETER;
     char   *pszErr = (char *)(pReqHdr + 1);
     size_t  cchErr = pReqHdr->cbReq - sizeof(*pReqHdr);

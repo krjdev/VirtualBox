@@ -1,10 +1,10 @@
-/* $Id: asn1-ut-time.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: asn1-ut-time.cpp $ */
 /** @file
  * IPRT - ASN.1, UTC TIME and GENERALIZED TIME Types.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

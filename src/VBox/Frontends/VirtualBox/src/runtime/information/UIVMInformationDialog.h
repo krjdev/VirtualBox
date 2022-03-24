@@ -1,10 +1,10 @@
-/* $Id: UIVMInformationDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVMInformationDialog.h $ */
 /** @file
  * VBox Qt GUI - UIVMInformationDialog class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,11 +48,13 @@ class UIVMInformationDialog : public QMainWindowWithRestorableGeometryAndRetrans
 {
     Q_OBJECT;
 
-signals:
-
-    void sigClose();
-
 public:
+
+    /** Shows (and creates if necessary)
+      * information-dialog for passed @a pMachineWindow. */
+    static void invoke(UIMachineWindow *pMachineWindow);
+
+protected:
 
     /** Constructs information dialog for passed @a pMachineWindow. */
     UIVMInformationDialog(UIMachineWindow *pMachineWindow);
@@ -60,29 +62,20 @@ public:
     ~UIVMInformationDialog();
 
     /** Returns whether the dialog should be maximized when geometry being restored. */
-    virtual bool shouldBeMaximized() const RT_OVERRIDE;
-
-protected:
+    virtual bool shouldBeMaximized() const /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
-    virtual void closeEvent(QCloseEvent *pEvent) RT_OVERRIDE;
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    void retranslateUi();
 
 private slots:
 
+    /** Destroys dialog immediately. */
+    void suicide() { delete this; }
     /** Handles tab-widget page change. */
     void sltHandlePageChanged(int iIndex);
-    void sltMachineStateChange(const QUuid &uMachineId, const KMachineState state);
 
 private:
-    enum Tabs
-    {
-        Tabs_ConfigurationDetails = 0,
-        Tabs_RuntimeInformation,
-        Tabs_ActivityMonitor,
-        Tabs_GuestControl
-    };
+
     /** Prepares all. */
     void prepare();
     /** Prepares this. */
@@ -95,23 +88,32 @@ private:
     void prepareTab(int iTabIndex);
     /** Prepares button-box. */
     void prepareButtonBox();
-    void loadDialogGeometry();
-    void saveDialogGeometry();
+    /** Loads settings. */
+    void loadSettings();
+
+    /** Saves settings. */
+    void saveSettings();
+    /** Cleanups all. */
+    void cleanup();
+
+    /** @name General variables.
+     * @{ */
+    /** Holds the dialog instance. */
+    static UIVMInformationDialog *s_pInstance;
+    /** @} */
 
     /** @name Widget variables.
      * @{ */
-       /** Holds the dialog tab-widget instance. */
-       QITabWidget                  *m_pTabWidget;
-       /** Holds the map of dialog tab instances. */
-       QMap<int, QWidget*>           m_tabs;
-       /** Holds the dialog button-box instance. */
-       QIDialogButtonBox            *m_pButtonBox;
-       /** Holds the machine-window reference. */
-       UIMachineWindow              *m_pMachineWindow;
+    /** Holds the dialog tab-widget instance. */
+    QITabWidget                  *m_pTabWidget;
+    /** Holds the map of dialog tab instances. */
+    QMap<int, QWidget*>           m_tabs;
+    /** Holds the dialog button-box instance. */
+    QIDialogButtonBox            *m_pButtonBox;
+    /** Holds the machine-window reference. */
+    UIMachineWindow              *m_pMachineWindow;
     /** @} */
-    bool m_fCloseEmitted;
-    int m_iGeometrySaveTimerId;
-    QUuid m_uMachineId;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_runtime_information_UIVMInformationDialog_h */
+

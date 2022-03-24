@@ -1,10 +1,10 @@
-/* $Id: PasswordInput.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PasswordInput.h $ */
 /** @file
  * Frontend shared bits - Password file and console input helpers.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

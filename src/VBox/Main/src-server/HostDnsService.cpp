@@ -1,10 +1,10 @@
-/* $Id: HostDnsService.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HostDnsService.cpp $ */
 /** @file
  * Base class for Host DNS & Co services.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,39 +31,21 @@
 
 #include <algorithm>
 #include <set>
-#include <iprt/sanitized/string>
+#include <string>
 #include "HostDnsService.h"
 
 
+static void dumpHostDnsInformation(const HostDnsInformation&);
+static void dumpHostDnsStrVector(const std::string &prefix, const std::vector<std::string> &v);
 
-static void dumpHostDnsStrVector(const std::string &prefix, const std::vector<std::string> &v)
-{
-    int i = 1;
-    for (std::vector<std::string>::const_iterator it = v.begin();
-         it != v.end();
-         ++it, ++i)
-        LogRel(("  %s %d: %s\n", prefix.c_str(), i, it->c_str()));
-    if (v.empty())
-        LogRel(("  no %s entries\n", prefix.c_str()));
-}
-
-static void dumpHostDnsInformation(const HostDnsInformation &info)
-{
-    dumpHostDnsStrVector("server", info.servers);
-
-    if (!info.domain.empty())
-        LogRel(("  domain: %s\n", info.domain.c_str()));
-    else
-        LogRel(("  no domain set\n"));
-
-    dumpHostDnsStrVector("search string", info.searchList);
-}
 
 bool HostDnsInformation::equals(const HostDnsInformation &info, uint32_t fLaxComparison) const
 {
     bool fSameServers;
     if ((fLaxComparison & IGNORE_SERVER_ORDER) == 0)
+    {
         fSameServers = (servers == info.servers);
+    }
     else
     {
         std::set<std::string> l(servers.begin(), servers.end());
@@ -79,22 +61,20 @@ bool HostDnsInformation::equals(const HostDnsInformation &info, uint32_t fLaxCom
         fSameSearchList = (searchList == info.searchList);
     }
     else
+    {
         fSameDomain = fSameSearchList = true;
+    }
 
     return fSameServers && fSameDomain && fSameSearchList;
 }
 
-DECLINLINE(void) detachVectorOfString(const std::vector<std::string>& v, std::vector<com::Utf8Str> &aArray)
+inline static void detachVectorOfString(const std::vector<std::string>& v,
+                                        std::vector<com::Utf8Str> &aArray)
 {
     aArray.resize(v.size());
     size_t i = 0;
     for (std::vector<std::string>::const_iterator it = v.begin(); it != v.end(); ++it, ++i)
-        aArray[i] = Utf8Str(it->c_str()); /** @todo r=bird: *it isn't necessarily UTF-8 clean!!
-                                           * On darwin we do silly shit like using CFStringGetSystemEncoding()
-                                           * that may be UTF-8 but doesn't need to be.
-                                           *
-                                           * Why on earth are we using std::string here anyway?
-                                           */
+        aArray[i] = Utf8Str(it->c_str());
 }
 
 struct HostDnsServiceBase::Data
@@ -428,3 +408,26 @@ bool HostDnsMonitorProxy::updateInfo(const HostDnsInformation &info)
     return true;
 }
 
+static void dumpHostDnsInformation(const HostDnsInformation &info)
+{
+    dumpHostDnsStrVector("server", info.servers);
+
+    if (!info.domain.empty())
+        LogRel(("  domain: %s\n", info.domain.c_str()));
+    else
+        LogRel(("  no domain set\n"));
+
+    dumpHostDnsStrVector("search string", info.searchList);
+}
+
+
+static void dumpHostDnsStrVector(const std::string &prefix, const std::vector<std::string> &v)
+{
+    int i = 1;
+    for (std::vector<std::string>::const_iterator it = v.begin();
+         it != v.end();
+         ++it, ++i)
+        LogRel(("  %s %d: %s\n", prefix.c_str(), i, it->c_str()));
+    if (v.empty())
+        LogRel(("  no %s entries\n", prefix.c_str()));
+}

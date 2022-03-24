@@ -1,11 +1,11 @@
 @echo off
-rem $Id: loadall.cmd 93239 2022-01-14 19:15:41Z vboxsync $
+rem $Id: loadall.cmd $
 rem rem @file
 rem Windows NT batch script for loading the host drivers.
 rem
 
 rem
-rem Copyright (C) 2009-2022 Oracle Corporation
+rem Copyright (C) 2009-2020 Oracle Corporation
 rem
 rem This file is part of VirtualBox Open Source Edition (OSE), as
 rem available from http://www.virtualbox.org. This file is free software;
@@ -50,7 +50,7 @@ if not exist "%MY_ALTDIR%" mkdir "%MY_ALTDIR%"
 rem
 rem Display device states.
 rem
-for %%i in (VBoxNetAdp VBoxNetAdp6 VBoxNetFlt VBoxNetLwf VBoxUSBMon VBoxUSB VBoxSup) do (
+for %%i in (VBoxNetAdp VBoxNetAdp6 VBoxNetFlt VBoxNetLwf VBoxUSBMon VBoxUSB VBoxDrv) do (
     set type=
     for /f "usebackq tokens=*" %%f in (`sc query %%i`) do (set xxx=%%f&&if "!xxx:~0,5!" =="STATE" set type=!xxx!)
     for /f "usebackq tokens=2 delims=:" %%f in ('!type!') do set type=%%f
@@ -88,7 +88,7 @@ echo ** Copying drivers into %MY_ALTDIR%...
 echo **
 set MY_FAILED=no
 for %%i in (^
-    VBoxSup.sys     VBoxSup.inf      VBoxSup.cat     VBoxSup-PreW10.cat ^
+    VBoxDrv.sys     VBoxDrv.inf      VBoxDrv.cat     VBoxDrv-PreW10.cat ^
     VBoxNetAdp.sys  VBoxNetAdp.inf   VBoxNetAdp.cat ^
     VBoxNetAdp6.sys VBoxNetAdp6.inf  VBoxNetAdp6.cat VBoxNetAdp6-PreW10.cat ^
     VBoxNetFlt.sys  VBoxNetFlt.inf   VBoxNetFlt.cat                         VBoxNetFltNobj.dll ^

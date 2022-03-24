@@ -1,10 +1,10 @@
-/* $Id: UIVirtualMachineItem.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVirtualMachineItem.h $ */
 /** @file
  * VBox Qt GUI - UIVirtualMachineItem class declarations.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,12 +25,14 @@
 #include <QIcon>
 #include <QMimeData>
 #include <QPixmap>
-#include <QUuid>
 
 /* GUI includes: */
 #include "QIWithRetranslateUI.h"
-#include "UIManagerDefs.h"
 #include "UISettingsDefs.h"
+
+/* COM includes: */
+#include "COMEnums.h"
+#include "CVirtualBoxErrorInfo.h"
 
 /* Forward declarations: */
 class UIVirtualMachineItemCloud;
@@ -46,15 +48,18 @@ class UIVirtualMachineItem : public QIWithRetranslateUI3<QObject>
 
 public:
 
+    /** Item types. */
+    enum ItemType { ItemType_Local, ItemType_CloudFake, ItemType_CloudReal };
+
     /** Constructs VM item on the basis of taken @a enmType. */
-    UIVirtualMachineItem(UIVirtualMachineItemType enmType);
+    UIVirtualMachineItem(ItemType enmType);
     /** Destructs VM item. */
     virtual ~UIVirtualMachineItem();
 
     /** @name RTTI stuff.
       * @{ */
         /** Returns item type. */
-        UIVirtualMachineItemType itemType() const { return m_enmType; }
+        ItemType itemType() const { return m_enmType; }
         /** Returns item casted to local type. */
         UIVirtualMachineItemLocal *toLocal();
         /** Returns item casted to cloud type. */
@@ -66,13 +71,13 @@ public:
         /** Returns whether VM was accessible. */
         bool accessible() const { return m_fAccessible; }
         /** Returns the last cached access error. */
-        QString accessError() const { return m_strAccessError; }
+        const CVirtualBoxErrorInfo &accessError() const { return m_comAccessError; }
     /** @} */
 
     /** @name Basic attributes.
       * @{ */
         /** Returns cached machine id. */
-        QUuid id() const { return m_uId; }
+        QString id() const { return m_strId; }
         /** Returns cached machine name. */
         QString name() const { return m_strName; }
         /** Returns cached machine OS type id. */
@@ -84,6 +89,8 @@ public:
 
     /** @name State attributes.
       * @{ */
+        /** Returns cached machine state. */
+        KMachineState machineState() const { return m_enmMachineState; }
         /** Returns cached machine state name. */
         QString machineStateName() const { return m_strMachineStateName; }
         /** Returns cached machine state icon. */
@@ -115,26 +122,22 @@ public:
 
     /** @name Validation stuff.
       * @{ */
-        /** Returns whether this item is editable. */
+        /** Returns whether passed machine @a pItem is editable. */
         virtual bool isItemEditable() const = 0;
-        /** Returns whether this item is removable. */
-        virtual bool isItemRemovable() const = 0;
-        /** Returns whether this item is saved. */
+        /** Returns whether passed machine @a pItem is saved. */
         virtual bool isItemSaved() const = 0;
-        /** Returns whether this item is powered off. */
+        /** Returns whether passed machine @a pItem is powered off. */
         virtual bool isItemPoweredOff() const = 0;
-        /** Returns whether this item is started. */
+        /** Returns whether passed machine @a pItem is started. */
         virtual bool isItemStarted() const = 0;
-        /** Returns whether this item is running. */
+        /** Returns whether passed machine @a pItem is running. */
         virtual bool isItemRunning() const = 0;
-        /** Returns whether this item is running headless. */
+        /** Returns whether passed machine @a pItem is running headless. */
         virtual bool isItemRunningHeadless() const = 0;
-        /** Returns whether this item is paused. */
+        /** Returns whether passed machine @a pItem is paused. */
         virtual bool isItemPaused() const = 0;
-        /** Returns whether this item is stuck. */
+        /** Returns whether passed machine @a pItem is stuck. */
         virtual bool isItemStuck() const = 0;
-        /** Returns whether this item can be switched to. */
-        virtual bool isItemCanBeSwitchedTo() const = 0;
     /** @} */
 
 protected:
@@ -142,37 +145,39 @@ protected:
     /** @name RTTI stuff.
       * @{ */
         /** Holds item type. */
-        UIVirtualMachineItemType  m_enmType;
+        ItemType  m_enmType;
     /** @} */
 
     /** @name VM access attributes.
       * @{ */
         /** Holds whether VM was accessible. */
-        bool     m_fAccessible;
+        bool                  m_fAccessible;
         /** Holds the last cached access error. */
-        QString  m_strAccessError;
+        CVirtualBoxErrorInfo  m_comAccessError;
     /** @} */
 
     /** @name Basic attributes.
       * @{ */
         /** Holds cached machine id. */
-        QUuid    m_uId;
+        QString      m_strId;
         /** Holds cached machine name. */
-        QString  m_strName;
+        QString      m_strName;
         /** Holds cached machine OS type id. */
-        QString  m_strOSTypeId;
+        QString      m_strOSTypeId;
         /** Holds cached machine OS type pixmap. */
-        QPixmap  m_pixmap;
+        QPixmap      m_pixmap;
         /** Holds cached machine OS type pixmap size. */
-        QSize    m_logicalPixmapSize;
+        QSize        m_logicalPixmapSize;
     /** @} */
 
     /** @name State attributes.
       * @{ */
+        /** Holds cached machine state. */
+        KMachineState             m_enmMachineState;
         /** Holds cached machine state name. */
-        QString        m_strMachineStateName;
+        QString                   m_strMachineStateName;
         /** Holds cached machine state name. */
-        QIcon          m_machineStateIcon;
+        QIcon                     m_machineStateIcon;
 
         /** Holds configuration access level. */
         ConfigurationAccessLevel  m_enmConfigurationAccessLevel;
@@ -208,7 +213,7 @@ public:
     UIVirtualMachineItem *item() const { return m_pItem; }
 
     /** Returns supported format list. */
-    virtual QStringList formats() const RT_OVERRIDE;
+    virtual QStringList formats() const /* override */;
 
     /** Returns UIVirtualMachineItem mime data type. */
     static QString type() { return m_type; }

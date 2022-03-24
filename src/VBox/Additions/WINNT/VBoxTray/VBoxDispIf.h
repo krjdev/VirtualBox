@@ -1,10 +1,10 @@
-/* $Id: VBoxDispIf.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDispIf.h $ */
 /** @file
  * VBoxTray - Display Settings Interface abstraction for XPDM & WDDM
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +25,7 @@
 
 #ifdef VBOX_WITH_WDDM
 # define D3DKMDT_SPECIAL_MULTIPLATFORM_TOOL
-# include <iprt/win/d3dkmthk.h>
+# include <d3dkmthk.h>
 # include <VBoxDispKmt.h>
 #endif
 
@@ -57,18 +57,15 @@ typedef struct VBOXDISPIF
     {
         struct
         {
-            DECLCALLBACKMEMBER_EX(LONG, WINAPI, pfnChangeDisplaySettingsEx,(LPCSTR lpszDeviceName, LPDEVMODE lpDevMode,
-                                                                            HWND hwnd, DWORD dwflags, LPVOID lParam));
+            LONG (WINAPI *pfnChangeDisplaySettingsEx)(LPCSTR lpszDeviceName, LPDEVMODE lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam);
         } xpdm;
 #ifdef VBOX_WITH_WDDM
         struct
         {
             /* ChangeDisplaySettingsEx does not exist in NT. ResizeDisplayDevice uses the function. */
-            DECLCALLBACKMEMBER_EX(LONG, WINAPI, pfnChangeDisplaySettingsEx,(LPCTSTR lpszDeviceName, LPDEVMODE lpDevMode,
-                                                                            HWND hwnd, DWORD dwflags, LPVOID lParam));
+            LONG (WINAPI *pfnChangeDisplaySettingsEx)(LPCTSTR lpszDeviceName, LPDEVMODE lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam);
             /* EnumDisplayDevices does not exist in NT. isVBoxDisplayDriverActive et al. are using these functions. */
-            DECLCALLBACKMEMBER_EX(BOOL, WINAPI, pfnEnumDisplayDevices,(IN LPCSTR lpDevice, IN DWORD iDevNum,
-                                                                       OUT PDISPLAY_DEVICEA lpDisplayDevice, IN DWORD dwFlags));
+            BOOL (WINAPI *pfnEnumDisplayDevices)(IN LPCSTR lpDevice, IN DWORD iDevNum, OUT PDISPLAY_DEVICEA lpDisplayDevice, IN DWORD dwFlags);
 
             VBOXDISPKMT_CALLBACKS KmtCallbacks;
         } wddm;

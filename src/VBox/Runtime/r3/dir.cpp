@@ -1,10 +1,10 @@
-/* $Id: dir.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dir.cpp $ */
 /** @file
  * IPRT - Directory Manipulation, Part 1.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -684,8 +684,8 @@ RTDECL(int) RTDirOpen(RTDIR *phDir, const char *pszPath)
     /*
      * Validate input.
      */
-    AssertPtrReturn(phDir, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszPath, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(phDir), ("%p\n", phDir), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszPath), ("%p\n", pszPath), VERR_INVALID_POINTER);
 
     /*
      * Take common cause with RTDirOpenFiltered().
@@ -702,8 +702,8 @@ DECLHIDDEN(int) rtDirOpenRelativeOrHandle(RTDIR *phDir, const char *pszPath, RTD
     /*
      * Validate input.
      */
-    AssertPtrReturn(phDir, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszPath, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(phDir), ("%p\n", phDir), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszPath), ("%p\n", pszPath), VERR_INVALID_POINTER);
     AssertReturn(!(fFlags & ~RTDIR_F_VALID_MASK), VERR_INVALID_FLAGS);
     switch (enmFilter)
     {

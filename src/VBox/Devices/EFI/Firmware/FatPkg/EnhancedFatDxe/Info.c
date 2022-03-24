@@ -407,7 +407,7 @@ FatSetFileInfo (
     //
     if (OFile->ODir != NULL) {
       //
-      // Synchronize its dot entry
+      // Syncronize its dot entry
       //
       FatResetODirCursor (OFile);
       ASSERT (OFile->Parent != NULL);

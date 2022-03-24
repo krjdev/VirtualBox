@@ -1,10 +1,10 @@
-/* $Id: PDMBlkCache.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PDMBlkCache.cpp $ */
 /** @file
  * PDM Block Cache.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -735,7 +735,7 @@ static void pdmBlkCacheCommit(PPDMBLKCACHE pBlkCache)
     /* Reset the commit timer if we don't have any dirty bits. */
     if (   !(cbDirtyOld - cbCommitted)
         && pBlkCache->pCache->u32CommitTimeoutMs != 0)
-        TMTimerStop(pBlkCache->pCache->pVM, pBlkCache->pCache->hTimerCommit);
+        TMTimerStop(pBlkCache->pCache->pTimerCommit);
 }
 
 /**
@@ -807,7 +807,7 @@ static bool pdmBlkCacheAddDirtyEntry(PPDMBLKCACHE pBlkCache, PPDMBLKCACHEENTRY p
         else if (!cbDirty && pCache->u32CommitTimeoutMs > 0)
         {
             /* Arm the commit timer. */
-            TMTimerSetMillies(pCache->pVM, pCache->hTimerCommit, pCache->u32CommitTimeoutMs);
+            TMTimerSetMillies(pCache->pTimerCommit, pCache->u32CommitTimeoutMs);
         }
     }
 
@@ -832,12 +832,12 @@ static PPDMBLKCACHE pdmR3BlkCacheFindById(PPDMBLKCACHEGLOBAL pBlkCacheGlobal, co
 }
 
 /**
- * @callback_method_impl{FNTMTIMERINT, Commit timer callback.}
+ * Commit timer callback.
  */
-static DECLCALLBACK(void) pdmBlkCacheCommitTimerCallback(PVM pVM, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) pdmBlkCacheCommitTimerCallback(PVM pVM, PTMTIMER pTimer, void *pvUser)
 {
     PPDMBLKCACHEGLOBAL pCache = (PPDMBLKCACHEGLOBAL)pvUser;
-    RT_NOREF(pVM, hTimer);
+    NOREF(pVM); NOREF(pTimer);
 
     LogFlowFunc(("Commit interval expired, commiting dirty entries\n"));
 
@@ -1156,8 +1156,11 @@ int pdmR3BlkCacheInit(PVM pVM)
     {
         /* Create the commit timer */
         if (pBlkCacheGlobal->u32CommitTimeoutMs > 0)
-            rc = TMR3TimerCreate(pVM, TMCLOCK_REAL, pdmBlkCacheCommitTimerCallback, pBlkCacheGlobal,
-                                 TMTIMER_FLAGS_NO_RING0,  "BlkCache-Commit", &pBlkCacheGlobal->hTimerCommit);
+            rc = TMR3TimerCreateInternal(pVM, TMCLOCK_REAL,
+                                         pdmBlkCacheCommitTimerCallback,
+                                         pBlkCacheGlobal,
+                                         "BlkCache-Commit",
+                                         &pBlkCacheGlobal->pTimerCommit);
 
         if (RT_SUCCESS(rc))
         {
@@ -1450,6 +1453,12 @@ static DECLCALLBACK(int) pdmBlkCacheEntryDestroy(PAVLRU64NODECORE pNode, void *p
     return VINF_SUCCESS;
 }
 
+/**
+ * Destroys all cache resources used by the given endpoint.
+ *
+ * @returns nothing.
+ * @param   pBlkCache       Block cache handle.
+ */
 VMMR3DECL(void) PDMR3BlkCacheRelease(PPDMBLKCACHE pBlkCache)
 {
     PPDMBLKCACHEGLOBAL pCache = pBlkCache->pCache;
@@ -2777,6 +2786,7 @@ VMMR3DECL(int) PDMR3BlkCacheResume(PPDMBLKCACHE pBlkCache)
 
 VMMR3DECL(int) PDMR3BlkCacheClear(PPDMBLKCACHE pBlkCache)
 {
+    int rc = VINF_SUCCESS;
     PPDMBLKCACHEGLOBAL pCache = pBlkCache->pCache;
 
     /*
@@ -2794,6 +2804,6 @@ VMMR3DECL(int) PDMR3BlkCacheClear(PPDMBLKCACHE pBlkCache)
     RTSemRWReleaseWrite(pBlkCache->SemRWEntries);
 
     pdmBlkCacheLockLeave(pCache);
-    return VINF_SUCCESS;
+    return rc;
 }
 

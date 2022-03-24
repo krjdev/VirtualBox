@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,7 @@
 
 #ifndef VBOX_FOR_DTRACE_LIB
 # ifndef USING_VMM_COMMON_DEFS
-#  error "Compile job does not include VMM_COMMON_DEFS from src/VBox/VMM/Config.kmk - make sure you really need to include this file!"
+#  error "Compile job does not include VMM_COMMON_DEFS from src/VBox/Config.kmk - make sure you really need to include this file!"
 # endif
 # include <iprt/param.h>
 # include <VBox/param.h>
@@ -119,8 +119,14 @@ typedef struct VMCPU
     /** The CPU state. */
     VMCPUSTATE volatile     enmState;
 
+    /** Which host CPU ID is this EMT running on.
+     * Only valid when in RC or HMR0 with scheduling disabled. */
+    RTCPUID volatile        idHostCpu;
+    /** The CPU set index corresponding to idHostCpu, UINT32_MAX if not valid.
+     * @remarks Best to make sure iHostCpuSet shares cache line with idHostCpu! */
+    uint32_t volatile       iHostCpuSet;
     /** Padding up to 64 bytes. */
-    uint8_t                 abAlignment0[64 - 12];
+    uint8_t                 abAlignment0[64 - 20];
     /** @} */
 
     /** IEM part.
@@ -135,7 +141,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_IEMInternal_h
         struct IEMCPU       s;
 #endif
-        uint8_t             padding[26688];     /* multiple of 64 */
+        uint8_t             padding[18496];     /* multiple of 64 */
     } iem;
 
     /** @name Static per-cpu data.
@@ -155,8 +161,6 @@ typedef struct VMCPU
     RTNATIVETHREAD          hNativeThread;
     /** The native R0 thread handle. (different from the R3 handle!) */
     RTNATIVETHREAD          hNativeThreadR0;
-    /** The IPRT thread handle (for VMMDevTesting). */
-    RTTHREAD                hThread;
     /** The CPU ID.
      * This is the index into the VM::aCpu array. */
 #ifdef IN_RING0
@@ -173,7 +177,7 @@ typedef struct VMCPU
      *          data could be lumped together at the end with a < 64 byte padding
      *          following it (to grow into and align the struct size).
      */
-    uint8_t                 abAlignment1[64 - 6 * (HC_ARCH_BITS == 32 ? 4 : 8) - 8 - 4];
+    uint8_t                 abAlignment1[64 - 5 * (HC_ARCH_BITS == 32 ? 4 : 8) - 8 - 4];
     /** @} */
 
     /** HM part. */
@@ -182,7 +186,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_HMInternal_h
         struct HMCPU    s;
 #endif
-        uint8_t             padding[9984];      /* multiple of 64 */
+        uint8_t             padding[5888];      /* multiple of 64 */
     } hm;
 
     /** NEM part. */
@@ -191,7 +195,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_NEMInternal_h
         struct NEMCPU       s;
 #endif
-        uint8_t             padding[4608];      /* multiple of 64 */
+        uint8_t             padding[512];       /* multiple of 64 */
     } nem;
 
     /** TRPM part. */
@@ -218,7 +222,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_VMMInternal_h
         struct VMMCPU       s;
 #endif
-        uint8_t             padding[9536];       /* multiple of 64 */
+        uint8_t             padding[960];       /* multiple of 64 */
     } vmm;
 
     /** PDM part. */
@@ -246,7 +250,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_DBGFInternal_h
         struct DBGFCPU      s;
 #endif
-        uint8_t             padding[512];       /* multiple of 64 */
+        uint8_t             padding[256];       /* multiple of 64 */
     } dbgf;
 
     /** GIM part. */
@@ -264,7 +268,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_APICInternal_h
         struct APICCPU      s;
 #endif
-        uint8_t             padding[3840];      /* multiple of 64 */
+        uint8_t             padding[1792];      /* multiple of 64 */
     } apic;
 
     /*
@@ -274,14 +278,13 @@ typedef struct VMCPU
 
     /** Trace groups enable flags.  */
     uint32_t                fTraceGroups;                           /* 64 / 44 */
-    /** Number of collisions hashing the ring-0 EMT handle. */
-    uint8_t                 cEmtHashCollisions;
-    uint8_t                 abAdHoc[3];
+    /** State data for use by ad hoc profiling. */
+    uint32_t                uAdHoc;
     /** Profiling samples for use by ad hoc profiling. */
     STAMPROFILEADV          aStatAdHoc[8];                          /* size: 40*8 = 320 */
 
     /** Align the following members on page boundary. */
-    uint8_t                 abAlignment2[2744];
+    uint8_t                 abAlignment2[1336];
 
     /** PGM part. */
     union VMCPUUNIONPGM
@@ -289,7 +292,7 @@ typedef struct VMCPU
 #ifdef VMM_INCLUDED_SRC_include_PGMInternal_h
         struct PGMCPU       s;
 #endif
-        uint8_t             padding[4096 + 28672]; /* multiple of 4096 */
+        uint8_t             padding[4096];      /* multiple of 4096 */
     } pgm;
 
     /** CPUM part. */
@@ -304,7 +307,7 @@ typedef struct VMCPU
          * others.  The rest will use the function based CPUM API. */
         CPUMCTX             GstCtx;
 #endif
-        uint8_t             padding[102400];     /* multiple of 4096 */
+        uint8_t             padding[4096];      /* multiple of 4096 */
     } cpum;
 
     /** EM part. */
@@ -315,14 +318,11 @@ typedef struct VMCPU
 #endif
         uint8_t             padding[40960];      /* multiple of 4096 */
     } em;
-
-    /** Align the structure size on 16384 boundrary for arm64 purposes. */
-    uint8_t                 abStructPadding[4096];
 } VMCPU;
 
 
 #ifndef VBOX_FOR_DTRACE_LIB
-AssertCompileSizeAlignment(VMCPU, 16384);
+AssertCompileSizeAlignment(VMCPU, 4096);
 
 /** @name Operations on VMCPU::enmState
  * @{ */
@@ -343,18 +343,8 @@ AssertCompileSizeAlignment(VMCPU, 16384);
                   ("enmState=%d  enmExpectedState=%d idCpu=%u\n", \
                   enmState, enmExpectedState, (pVCpu)->idCpu)); \
     } while (0)
-
-# define VMCPU_ASSERT_STATE_2(pVCpu, enmExpectedState, a_enmExpectedState2) \
-    do { \
-        VMCPUSTATE enmState = VMCPU_GET_STATE(pVCpu); \
-        AssertMsg(   enmState == (enmExpectedState) \
-                  || enmState == (a_enmExpectedState2), \
-                  ("enmState=%d  enmExpectedState=%d enmExpectedState2=%d idCpu=%u\n", \
-                  enmState, enmExpectedState, a_enmExpectedState2, (pVCpu)->idCpu)); \
-    } while (0)
 #else
 # define VMCPU_ASSERT_STATE(pVCpu, enmExpectedState) do { } while (0)
-# define VMCPU_ASSERT_STATE_2(pVCpu, enmExpectedState, a_enmExpectedState2) do { } while (0)
 #endif
 /** Tests if the state means that the CPU is started. */
 #define VMCPUSTATE_IS_STARTED(enmState)     ( (enmState) > VMCPUSTATE_STOPPED )
@@ -485,11 +475,12 @@ AssertCompileSizeAlignment(VMCPU, 16384);
 /** Hardware virtualized nested-guest interrupt pending. */
 #define VMCPU_FF_INTERRUPT_NESTED_GUEST     RT_BIT_64(VMCPU_FF_INTERRUPT_NESTED_GUEST_BIT)
 #define VMCPU_FF_INTERRUPT_NESTED_GUEST_BIT 11
-/** This action forces PGM to update changes to CR3 when the guest was in HM mode
- *  (when using nested paging). */
 #define VMCPU_FF_HM_UPDATE_CR3              RT_BIT_64(VMCPU_FF_HM_UPDATE_CR3_BIT)
 #define VMCPU_FF_HM_UPDATE_CR3_BIT          12
-/* Bit 13 used to be VMCPU_FF_HM_UPDATE_PAE_PDPES. */
+/** This action forces the VM to service any pending updates to PAE PDPEs (used
+ *  only by HM). */
+#define VMCPU_FF_HM_UPDATE_PAE_PDPES        RT_BIT_64(VMCPU_FF_HM_UPDATE_PAE_PDPES_BIT)
+#define VMCPU_FF_HM_UPDATE_PAE_PDPES_BIT    13
 /** This action forces the VM to resync the page tables before going
  * back to execute guest code. (GLOBAL FLUSH) */
 #define VMCPU_FF_PGM_SYNC_CR3               RT_BIT_64(VMCPU_FF_PGM_SYNC_CR3_BIT)
@@ -580,7 +571,9 @@ AssertCompileSizeAlignment(VMCPU, 16384);
 /** High priority post-execution actions. */
 #define VM_FF_HIGH_PRIORITY_POST_MASK           (  VM_FF_PGM_NO_MEMORY )
 /** High priority post-execution actions. */
-#define VMCPU_FF_HIGH_PRIORITY_POST_MASK        (  VMCPU_FF_PDM_CRITSECT | VMCPU_FF_HM_UPDATE_CR3 | VMCPU_FF_IEM | VMCPU_FF_IOM )
+#define VMCPU_FF_HIGH_PRIORITY_POST_MASK        (  VMCPU_FF_PDM_CRITSECT \
+                                                 | VMCPU_FF_HM_UPDATE_CR3  | VMCPU_FF_HM_UPDATE_PAE_PDPES \
+                                                 | VMCPU_FF_IEM | VMCPU_FF_IOM )
 
 /** Normal priority VM post-execution actions. */
 #define VM_FF_NORMAL_PRIORITY_POST_MASK         (  VM_FF_CHECK_VM_STATE | VM_FF_DBGF | VM_FF_RESET \
@@ -1090,16 +1083,20 @@ AssertCompileSizeAlignment(VMCPU, 16384);
     } while (0)
 
 /**
- * Checks whether iem-executes-all-mode is used.
+ * Checks whether raw-mode is used.
  *
- * @retval  true if IEM is used.
- * @retval  false if not.
+ * @retval  true if either is used.
+ * @retval  false if software virtualization (raw-mode) is used.
  *
  * @param   a_pVM       The cross context VM structure.
  * @sa      VM_IS_HM_OR_NEM_ENABLED, VM_IS_HM_ENABLED, VM_IS_NEM_ENABLED.
  * @internal
  */
-#define VM_IS_EXEC_ENGINE_IEM(a_pVM)      ((a_pVM)->bMainExecutionEngine == VM_EXEC_ENGINE_IEM)
+#ifdef VBOX_WITH_RAW_MODE
+# define VM_IS_RAW_MODE_ENABLED(a_pVM)      ((a_pVM)->bMainExecutionEngine == VM_EXEC_ENGINE_RAW_MODE)
+#else
+# define VM_IS_RAW_MODE_ENABLED(a_pVM)      (false)
+#endif
 
 /**
  * Checks whether HM (VT-x/AMD-V) or NEM is being used by this VM.
@@ -1108,10 +1105,10 @@ AssertCompileSizeAlignment(VMCPU, 16384);
  * @retval  false if software virtualization (raw-mode) is used.
  *
  * @param   a_pVM       The cross context VM structure.
- * @sa      VM_IS_EXEC_ENGINE_IEM, VM_IS_HM_ENABLED, VM_IS_NEM_ENABLED.
+ * @sa      VM_IS_RAW_MODE_ENABLED, VM_IS_HM_ENABLED, VM_IS_NEM_ENABLED.
  * @internal
  */
-#define VM_IS_HM_OR_NEM_ENABLED(a_pVM)      ((a_pVM)->bMainExecutionEngine != VM_EXEC_ENGINE_IEM)
+#define VM_IS_HM_OR_NEM_ENABLED(a_pVM)      ((a_pVM)->bMainExecutionEngine != VM_EXEC_ENGINE_RAW_MODE)
 
 /**
  * Checks whether HM is being used by this VM.
@@ -1120,7 +1117,7 @@ AssertCompileSizeAlignment(VMCPU, 16384);
  * @retval  false if not.
  *
  * @param   a_pVM       The cross context VM structure.
- * @sa      VM_IS_NEM_ENABLED, VM_IS_EXEC_ENGINE_IEM, VM_IS_HM_OR_NEM_ENABLED.
+ * @sa      VM_IS_NEM_ENABLED, VM_IS_RAW_MODE_ENABLED, VM_IS_HM_OR_NEM_ENABLED.
  * @internal
  */
 #define VM_IS_HM_ENABLED(a_pVM)             ((a_pVM)->bMainExecutionEngine == VM_EXEC_ENGINE_HW_VIRT)
@@ -1132,7 +1129,7 @@ AssertCompileSizeAlignment(VMCPU, 16384);
  * @retval  false if not.
  *
  * @param   a_pVM       The cross context VM structure.
- * @sa      VM_IS_HM_ENABLED, VM_IS_EXEC_ENGINE_IEM, VM_IS_HM_OR_NEM_ENABLED.
+ * @sa      VM_IS_HM_ENABLED, VM_IS_RAW_MODE_ENABLED, VM_IS_HM_OR_NEM_ENABLED.
  * @internal
  */
 #define VM_IS_NEM_ENABLED(a_pVM)             ((a_pVM)->bMainExecutionEngine == VM_EXEC_ENGINE_NATIVE_API)
@@ -1215,10 +1212,15 @@ typedef struct VM
      * This is placed here for performance reasons.
      * @todo obsoleted by bMainExecutionEngine, eliminate. */
     bool                        fHMEnabled;
+
+    /** Large page enabled flag.
+     * @todo This doesn't need to be here, PGM should store it in it's own
+     *       structures instead. */
+    bool                        fUseLargePages;
     /** @} */
 
     /** Alignment padding. */
-    uint8_t                     uPadding1[6];
+    uint8_t                     uPadding1[5];
 
     /** @name Debugging
      * @{ */
@@ -1228,11 +1230,8 @@ typedef struct VM
     R0PTRTYPE(RTTRACEBUF)       hTraceBufR0;
     /** @} */
 
-    /** Max EMT hash lookup collisions (in GVMM). */
-    uint8_t                     cMaxEmtHashCollisions;
-
     /** Padding - the unions must be aligned on a 64 bytes boundary. */
-    uint8_t                     abAlignment3[HC_ARCH_BITS == 64 ? 23 : 51];
+    uint8_t                     abAlignment3[HC_ARCH_BITS == 64 ? 24 : 52];
 
     /** CPUM part. */
     union
@@ -1252,20 +1251,8 @@ typedef struct VM
             CPUMFEATURES            GuestFeatures;
         } const ro;
 #endif
-        /** @todo this is rather bloated because of static MSR range allocation.
-         *        Probably a good idea to move it to a separate R0 allocation... */
-        uint8_t     padding[8832 + 128*8192 + 0x1d00]; /* multiple of 64 */
+        uint8_t     padding[1536];      /* multiple of 64 */
     } cpum;
-
-    /** PGM part.
-     * @note 16384 aligned for zero and mmio page storage. */
-    union
-    {
-#ifdef VMM_INCLUDED_SRC_include_PGMInternal_h
-        struct PGM  s;
-#endif
-        uint8_t     padding[53888];     /* multiple of 64 */
-    } pgm;
 
     /** VMM part. */
     union
@@ -1275,6 +1262,15 @@ typedef struct VM
 #endif
         uint8_t     padding[1600];      /* multiple of 64 */
     } vmm;
+
+    /** PGM part. */
+    union
+    {
+#ifdef VMM_INCLUDED_SRC_include_PGMInternal_h
+        struct PGM  s;
+#endif
+        uint8_t     padding[21120];      /* multiple of 64 */
+    } pgm;
 
     /** HM part. */
     union
@@ -1291,7 +1287,7 @@ typedef struct VM
 #ifdef VMM_INCLUDED_SRC_include_TRPMInternal_h
         struct TRPM s;
 #endif
-        uint8_t     padding[2048];      /* multiple of 64 */
+        uint8_t     padding[5248];      /* multiple of 64 */
     } trpm;
 
     /** SELM part. */
@@ -1318,7 +1314,7 @@ typedef struct VM
 #ifdef VMM_INCLUDED_SRC_include_PDMInternal_h
         struct PDM s;
 #endif
-        uint8_t     padding[22400];     /* multiple of 64 */
+        uint8_t     padding[7808];      /* multiple of 64 */
     } pdm;
 
     /** IOM part. */
@@ -1345,7 +1341,7 @@ typedef struct VM
 #ifdef VMM_INCLUDED_SRC_include_NEMInternal_h
         struct NEM  s;
 #endif
-        uint8_t     padding[4608];       /* multiple of 64 */
+        uint8_t     padding[512];       /* multiple of 64 */
     } nem;
 
     /** TM part. */
@@ -1354,7 +1350,7 @@ typedef struct VM
 #ifdef VMM_INCLUDED_SRC_include_TMInternal_h
         struct TM   s;
 #endif
-        uint8_t     padding[10112];      /* multiple of 64 */
+        uint8_t     padding[7872];      /* multiple of 64 */
     } tm;
 
     /** DBGF part. */
@@ -1385,9 +1381,9 @@ typedef struct VM
             uint8_t                     cEnabledHwBreakpoints;
             /** The number of enabled hardware I/O breakpoints. */
             uint8_t                     cEnabledHwIoBreakpoints;
-            uint8_t                     au8Alignment1[2]; /**< Alignment padding. */
             /** The number of enabled INT3 breakpoints. */
-            uint32_t volatile           cEnabledInt3Breakpoints;
+            uint8_t                     cEnabledInt3Breakpoints;
+            uint8_t                     abPadding[1]; /**< Unused padding space up for grabs. */
         } const     ro;
 #endif
         uint8_t     padding[2432];      /* multiple of 64 */
@@ -1438,15 +1434,6 @@ typedef struct VM
         uint8_t     padding[8];         /* multiple of 8 */
     } cfgm;
 
-    /** IEM part. */
-    union
-    {
-#ifdef VMM_INCLUDED_SRC_include_IEMInternal_h
-        struct IEM  s;
-#endif
-        uint8_t     padding[8];         /* multiple of 8 */
-    } iem;
-
     /** Statistics for ring-0 only components. */
     struct
     {
@@ -1462,18 +1449,13 @@ typedef struct VM
     } R0Stats;
 
     /** Padding for aligning the structure size on a page boundrary. */
-    uint8_t         abAlignment2[8912 - sizeof(PVMCPUR3) * VMM_MAX_CPU_COUNT];
+    uint8_t         abAlignment2[4504 - sizeof(PVMCPUR3) * VMM_MAX_CPU_COUNT];
 
     /* ---- end small stuff ---- */
 
     /** Array of VMCPU ring-3 pointers. */
     PVMCPUR3        apCpusR3[VMM_MAX_CPU_COUNT];
-
-    /* This point is aligned on a 16384 boundrary (for arm64 purposes). */
 } VM;
-#ifndef VBOX_FOR_DTRACE_LIB
-//AssertCompileSizeAlignment(VM, 16384);
-#endif
 
 
 #ifdef IN_RC

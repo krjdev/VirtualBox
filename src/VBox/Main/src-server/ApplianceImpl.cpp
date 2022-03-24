@@ -1,10 +1,10 @@
-/* $Id: ApplianceImpl.cpp 93480 2022-01-28 16:09:52Z vboxsync $ */
+/* $Id: ApplianceImpl.cpp $ */
 /** @file
  * IAppliance and IVirtualSystem COM class implementations.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -353,7 +353,6 @@ Utf8Str convertNetworkAttachmentTypeToString(NetworkAttachmentType_T type)
         case NetworkAttachmentType_Bridged: strType = "Bridged"; break;
         case NetworkAttachmentType_Internal: strType = "Internal"; break;
         case NetworkAttachmentType_HostOnly: strType = "HostOnly"; break;
-        case NetworkAttachmentType_HostOnlyNetwork: strType = "HostOnlyNetwork"; break;
         case NetworkAttachmentType_Generic: strType = "Generic"; break;
         case NetworkAttachmentType_NATNetwork: strType = "NATNetwork"; break;
         case NetworkAttachmentType_Null: strType = "Null"; break;
@@ -941,7 +940,7 @@ RTVFSIOSTREAM Appliance::i_manifestSetupDigestCalculationForGivenIoStream(RTVFSI
     if (RT_SUCCESS(vrc))
         return hVfsIosPt;
 
-    setErrorVrc(vrc, tr("RTManifestEntryAddPassthruIoStream failed with rc=%Rrc"), vrc);
+    setErrorVrc(vrc, "RTManifestEntryAddPassthruIoStream failed with rc=%Rrc", vrc);
     return NIL_RTVFSIOSTREAM;
 }
 
@@ -969,12 +968,12 @@ bool Appliance::i_isApplianceIdle()
     return false;
 }
 
-HRESULT Appliance::i_searchUniqueVMName(Utf8Str &aName) const
+HRESULT Appliance::i_searchUniqueVMName(Utf8Str& aName) const
 {
-    ComPtr<IMachine> ptrMachine;
+    IMachine *machine = NULL;
     char *tmpName = RTStrDup(aName.c_str());
     int i = 1;
-    while (mVirtualBox->FindMachine(Bstr(tmpName).raw(), ptrMachine.asOutParam()) != VBOX_E_OBJECT_NOT_FOUND)
+    while (mVirtualBox->FindMachine(Bstr(tmpName).raw(), &machine) != VBOX_E_OBJECT_NOT_FOUND)
     {
         RTStrFree(tmpName);
         RTStrAPrintf(&tmpName, "%s %d", aName.c_str(), i);
@@ -986,14 +985,14 @@ HRESULT Appliance::i_searchUniqueVMName(Utf8Str &aName) const
     return S_OK;
 }
 
-HRESULT Appliance::i_ensureUniqueImageFilePath(const Utf8Str &aMachineFolder, DeviceType_T aDeviceType, Utf8Str &aName) const
+HRESULT Appliance::i_searchUniqueImageFilePath(const Utf8Str &aMachineFolder, DeviceType_T aDeviceType, Utf8Str &aName) const
 {
     /*
      * Check if the file exists or if a medium with this path is registered already
      */
     Utf8Str strAbsName;
-    size_t  offDashNum = ~(size_t)0;
-    size_t  cchDashNum = 0;
+    ssize_t offDashNum = -1;
+    ssize_t cchDashNum = 0;
     for (unsigned i = 1;; i++)
     {
         /* Complete the path (could be relative to machine folder). */
@@ -1011,10 +1010,10 @@ HRESULT Appliance::i_ensureUniqueImageFilePath(const Utf8Str &aMachineFolder, De
         }
 
         /* Insert '_%i' before the suffix and try again. */
-        if (offDashNum == ~(size_t)0)
+        if (offDashNum < 0)
         {
             const char *pszSuffix = RTPathSuffix(aName.c_str());
-            offDashNum = pszSuffix ? (size_t)(pszSuffix - aName.c_str()) : aName.length();
+            offDashNum = pszSuffix ? pszSuffix - aName.c_str() : aName.length();
         }
         char   szTmp[32];
         size_t cchTmp = RTStrPrintf(szTmp, sizeof(szTmp),  "_%u", i);
@@ -1760,8 +1759,9 @@ void VirtualSystemDescription::i_removeByType(VirtualSystemDescriptionType_T aTy
  * the given reference ID. Useful when needing the controller for a particular
  * virtual disk.
  */
-const VirtualSystemDescriptionEntry* VirtualSystemDescription::i_findControllerFromID(const Utf8Str &id)
+const VirtualSystemDescriptionEntry* VirtualSystemDescription::i_findControllerFromID(uint32_t id)
 {
+    Utf8Str strRef = Utf8StrFmt("%RI32", id);
     vector<VirtualSystemDescriptionEntry>::const_iterator it;
     for (it = m->maDescriptions.begin();
          it != m->maDescriptions.end();
@@ -1773,9 +1773,8 @@ const VirtualSystemDescriptionEntry* VirtualSystemDescription::i_findControllerF
             case VirtualSystemDescriptionType_HardDiskControllerIDE:
             case VirtualSystemDescriptionType_HardDiskControllerSATA:
             case VirtualSystemDescriptionType_HardDiskControllerSCSI:
-            case VirtualSystemDescriptionType_HardDiskControllerVirtioSCSI:
             case VirtualSystemDescriptionType_HardDiskControllerSAS:
-                if (d.strRef == id)
+                if (d.strRef == strRef)
                     return &d;
                 break;
             default: break; /* Shut up MSC. */
@@ -1825,24 +1824,5 @@ void VirtualSystemDescription::i_importVBoxMachineXML(const xml::ElementNode &el
 const settings::MachineConfigFile* VirtualSystemDescription::i_getMachineConfig() const
 {
     return m->pConfig;
-}
-
-/**
- * Private method; walks through the array of VirtualSystemDescriptionEntry entries
- * and returns the one matching the given index.
- */
-const VirtualSystemDescriptionEntry* VirtualSystemDescription::i_findByIndex(const uint32_t aIndex)
-{
-    vector<VirtualSystemDescriptionEntry>::const_iterator it;
-    for (it = m->maDescriptions.begin();
-         it != m->maDescriptions.end();
-         ++it)
-    {
-        const VirtualSystemDescriptionEntry &d = *it;
-        if (d.ulIndex == aIndex)
-            return &d;
-    }
-
-    return NULL;
 }
 

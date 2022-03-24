@@ -1,10 +1,10 @@
-# $Id: Makefile 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile $
 ## @file
 # Makefile for the VirtualBox Linux Host Virtual Network Adapter Driver.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,7 @@ VBOXMOD_NAME = vboxnetadp
 VBOXMOD_OBJS = \
 	linux/VBoxNetAdp-linux.o \
 	VBoxNetAdp.o
-ifeq ($(VBOX_KBUILD_TARGET_ARCH),x86)
+ifeq ($(BUILD_TARGET_ARCH),x86)
 VBOXMOD_OBJS += \
 	math/gcc/divdi3.o \
 	math/gcc/moddi3.o \

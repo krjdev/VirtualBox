@@ -1,10 +1,10 @@
-/* $Id: server.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: server.cpp $ */
 /** @file
  * XPCOM server process (VBoxSVC) start point.
  */
 
 /*
- * Copyright (C) 2004-2022 Oracle Corporation
+ * Copyright (C) 2004-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -163,7 +163,7 @@ public:
 
                 int vrc = RTTimerLRStart(sTimer, gShutdownDelayMs * RT_NS_1MS_64);
                 AssertRC(vrc);
-                timerStarted = RT_BOOL(RT_SUCCESS(vrc));
+                timerStarted = !!(SUCCEEDED(vrc));
             }
             else
             {
@@ -912,9 +912,11 @@ int main(int argc, char **argv)
             vrc = RTFileOpen(&hPidFile, g_pszPidFile, RTFILE_O_WRITE | RTFILE_O_CREATE_REPLACE | RTFILE_O_DENY_NONE);
             if (RT_SUCCESS(vrc))
             {
-                char szBuf[64];
-                size_t cchToWrite = RTStrPrintf(szBuf, sizeof(szBuf), "%ld\n", (long)getpid());
-                RTFileWrite(hPidFile, szBuf, cchToWrite, NULL);
+                char szBuf[32];
+                const char *lf = "\n";
+                RTStrFormatNumber(szBuf, getpid(), 10, 0, 0, 0);
+                RTFileWrite(hPidFile, szBuf, strlen(szBuf), NULL);
+                RTFileWrite(hPidFile, lf, strlen(lf), NULL);
                 RTFileClose(hPidFile);
             }
         }

@@ -1,10 +1,10 @@
-/* $Id: VBoxVideoGuest.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVideoGuest.h $ */
 /** @file
  * VBox Host Guest Shared Memory Interface (HGSMI) - OS-independent guest structures.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -144,7 +144,9 @@ struct VBVAINFOVIEW;
  * @param  pInfo   array of @a VBVAINFOVIEW structures to be filled in
  * @todo  explicitly pass the array size
  */
-typedef DECLCALLBACKTYPE(int, FNHGSMIFILLVIEWINFO,(void *pvData, struct VBVAINFOVIEW *pInfo, uint32_t cViews));
+typedef DECLCALLBACK(int) FNHGSMIFILLVIEWINFO(void *pvData,
+                                              struct VBVAINFOVIEW *pInfo,
+                                              uint32_t cViews);
 /** Pointer to a FNHGSMIFILLVIEWINFO callback */
 typedef FNHGSMIFILLVIEWINFO *PFNHGSMIFILLVIEWINFO;
 

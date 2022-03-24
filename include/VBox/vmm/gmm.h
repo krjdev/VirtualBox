@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,10 +82,10 @@ RT_C_DECLS_BEGIN
 #define GMM_CHUNK_SHIFT                 21
 /** The allocation chunk size. */
 #define GMM_CHUNK_SIZE                  (1U << GMM_CHUNK_SHIFT)
-/** The allocation chunk size in (guest) pages. */
-#define GMM_CHUNK_NUM_PAGES             (1U << (GMM_CHUNK_SHIFT - GUEST_PAGE_SHIFT))
+/** The allocation chunk size in pages. */
+#define GMM_CHUNK_NUM_PAGES             (1U << (GMM_CHUNK_SHIFT - PAGE_SHIFT))
 /** The shift factor for converting a page id into a chunk id. */
-#define GMM_CHUNKID_SHIFT               (GMM_CHUNK_SHIFT - GUEST_PAGE_SHIFT)
+#define GMM_CHUNKID_SHIFT               (GMM_CHUNK_SHIFT - PAGE_SHIFT)
 /** The last valid Chunk ID value. */
 #define GMM_CHUNKID_LAST                (GMM_PAGEID_LAST >> GMM_CHUNKID_SHIFT)
 /** The last valid Page ID value. */
@@ -231,24 +231,19 @@ typedef struct GMMPAGEDESC
      *
      * @input   GMMR0AllocateHandyPages expects the guest physical address
      *          to update the GMMPAGE structure with. Pass GMM_GCPHYS_UNSHAREABLE
-     *          when appropriate and NIL_GMMPAGEDESC_PHYS when the page wasn't used
+     *          when appropriate and NIL_RTHCPHYS when the page wasn't used
      *          for any specific guest address.
      *
      *          GMMR0AllocatePage expects the guest physical address to put in
      *          the GMMPAGE structure for the page it allocates for this entry.
-     *          Pass NIL_GMMPAGEDESC_PHYS and GMM_GCPHYS_UNSHAREABLE as above.
+     *          Pass NIL_RTHCPHYS and GMM_GCPHYS_UNSHAREABLE as above.
      *
      * @output  The host physical address of the allocated page.
-     *          NIL_GMMPAGEDESC_PHYS on allocation failure.
+     *          NIL_RTHCPHYS on allocation failure.
      *
-     * ASSUMES: sizeof(RTHCPHYS) >= sizeof(RTGCPHYS) and that physical addresses are
-     *          limited to 63 or fewer bits (52 by AMD64 arch spec).
+     * ASSUMES: sizeof(RTHCPHYS) >= sizeof(RTGCPHYS).
      */
-    RT_GCC_EXTENSION
-    RTHCPHYS                    HCPhysGCPhys : 63;
-    /** Set if the memory was zeroed. */
-    RT_GCC_EXTENSION
-    RTHCPHYS                    fZeroed : 1;
+    RTHCPHYS                    HCPhysGCPhys;
 
     /** The Page ID.
      *
@@ -278,9 +273,6 @@ typedef struct GMMPAGEDESC
 AssertCompileSize(GMMPAGEDESC, 16);
 /** Pointer to a page allocation. */
 typedef GMMPAGEDESC *PGMMPAGEDESC;
-
-/** Special NIL value for GMMPAGEDESC::HCPhysGCPhys. */
-#define NIL_GMMPAGEDESC_PHYS        UINT64_C(0x7fffffffffffffff)
 
 /** GMMPAGEDESC::HCPhysGCPhys value that indicates that the page is unsharable.
  * @note    This corresponds to GMM_PAGE_PFN_UNSHAREABLE. */
@@ -420,6 +412,7 @@ GMMR0DECL(int)  GMMR0FreePages(PGVM pGVM, VMCPUID idCpu, uint32_t cPages, PGMMFR
 GMMR0DECL(int)  GMMR0FreeLargePage(PGVM pGVM, VMCPUID idCpu, uint32_t idPage);
 GMMR0DECL(int)  GMMR0BalloonedPages(PGVM pGVM, VMCPUID idCpu, GMMBALLOONACTION enmAction, uint32_t cBalloonedPages);
 GMMR0DECL(int)  GMMR0MapUnmapChunk(PGVM pGVM, uint32_t idChunkMap, uint32_t idChunkUnmap, PRTR3PTR ppvR3);
+GMMR0DECL(int)  GMMR0SeedChunk(PGVM pGVM, VMCPUID idCpu, RTR3PTR pvR3);
 GMMR0DECL(int)  GMMR0PageIdToVirt(PGVM pGVM, uint32_t idPage, void **ppv);
 GMMR0DECL(int)  GMMR0RegisterSharedModule(PGVM pGVM, VMCPUID idCpu, VBOXOSFAMILY enmGuestOS, char *pszModuleName,
                                           char *pszVersion, RTGCPTR GCBaseAddr,  uint32_t cbModule, uint32_t cRegions,
@@ -795,6 +788,7 @@ GMMR3DECL(void) GMMR3FreeAllocatedPages(PVM pVM, GMMALLOCATEPAGESREQ const *pAll
 GMMR3DECL(int)  GMMR3AllocateLargePage(PVM pVM,  uint32_t cbPage);
 GMMR3DECL(int)  GMMR3FreeLargePage(PVM pVM,  uint32_t idPage);
 GMMR3DECL(int)  GMMR3MapUnmapChunk(PVM pVM, uint32_t idChunkMap, uint32_t idChunkUnmap, PRTR3PTR ppvR3);
+GMMR3DECL(int)  GMMR3SeedChunk(PVM pVM, RTR3PTR pvR3);
 GMMR3DECL(int)  GMMR3QueryHypervisorMemoryStats(PVM pVM, uint64_t *pcTotalAllocPages, uint64_t *pcTotalFreePages, uint64_t *pcTotalBalloonPages, uint64_t *puTotalBalloonSize);
 GMMR3DECL(int)  GMMR3QueryMemoryStats(PVM pVM, uint64_t *pcAllocPages, uint64_t *pcMaxPages, uint64_t *pcBalloonPages);
 GMMR3DECL(int)  GMMR3BalloonedPages(PVM pVM, GMMBALLOONACTION enmAction, uint32_t cBalloonedPages);

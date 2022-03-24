@@ -1,10 +1,10 @@
-/* $Id: UICocoaDockIconPreview.mm 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UICocoaDockIconPreview.mm $ */
 /** @file
  * VBox Qt GUI - Cocoa helper for the dock icon preview.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -144,8 +144,8 @@ void UICocoaDockIconPreview::setOriginalSize(int width, int height)
         /* The screen content view */
         mScreenContent = [[NSImageView alloc] initWithFrame:NSRectFromCGRect(p->flipRect(p->m_updateRect))];
 //        [mScreenContent setImageAlignment: NSImageAlignCenter];
-        [mScreenContent setImageAlignment: NSImageAlignTopLeft];
-        [mScreenContent setImageScaling: NSImageScaleAxesIndependently];
+        [mScreenContent setImageAlignment: NSImageAlignTop| NSImageAlignLeft];
+        [mScreenContent setImageScaling: NSScaleToFit];
         [self addSubview: mScreenContent];
         /* The state view */
         mMonitorGlossy = [[NSImageView alloc] initWithFrame:NSRectFromCGRect(p->flipRect(p->m_monitorRect))];
@@ -159,11 +159,7 @@ void UICocoaDockIconPreview::setOriginalSize(int width, int height)
 - (void)drawRect:(NSRect)aRect
 {
     NSImage *dockMonitor = ::darwinToNSImageRef(p->m_dockMonitor);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101200
-    [dockMonitor drawInRect:NSRectFromCGRect(p->flipRect(p->m_monitorRect)) fromRect:aRect operation:NSCompositingOperationSourceOver fraction:1.0];
-#else
     [dockMonitor drawInRect:NSRectFromCGRect(p->flipRect(p->m_monitorRect)) fromRect:aRect operation:NSCompositeSourceOver fraction:1.0];
-#endif
     [dockMonitor release];
 }
 

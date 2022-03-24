@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -108,7 +108,7 @@ AssertCompileMemberAlignment(GIMMMIO2REGION, GCPhysPage, 8);
  *
  * @param   pVM             The cross context VM structure.
  */
-typedef DECLCALLBACKTYPE(void, FNGIMDEBUGBUFAVAIL,(PVM pVM));
+typedef DECLCALLBACK(void) FNGIMDEBUGBUFAVAIL(PVM pVM);
 /** Pointer to GIM debug buffer available callback. */
 typedef FNGIMDEBUGBUFAVAIL *PFNGIMDEBUGBUFAVAIL;
 

@@ -1,10 +1,10 @@
-/* $Id: VBoxNetDhcpd.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetDhcpd.cpp $ */
 /** @file
  * VBoxNetDhcpd - DHCP server for host-only and NAT networks.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,7 +69,7 @@ extern "C"
 #include "netif/etharp.h"
 }
 
-#include <iprt/sanitized/string>
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -146,6 +146,8 @@ private:
     void ifPump();
     int ifInput(void *pvSegFrame, uint32_t cbSegFrame);
 
+    int ifOutput(PCINTNETSEG paSegs, size_t cSegs, size_t cbFrame);
+
 
     /*
      * lwIP callbacks
@@ -153,14 +155,14 @@ private:
     static DECLCALLBACK(void) lwipInitCB(void *pvArg);
     void lwipInit();
 
-    static err_t netifInitCB(netif *pNetif) RT_NOTHROW_PROTO;
+    static err_t netifInitCB(netif *pNetif);
     err_t netifInit(netif *pNetif);
 
-    static err_t netifLinkOutputCB(netif *pNetif, pbuf *pPBuf) RT_NOTHROW_PROTO;
+    static err_t netifLinkOutputCB(netif *pNetif, pbuf *pPBuf);
     err_t netifLinkOutput(pbuf *pPBuf);
 
     static void dhcp4RecvCB(void *arg, struct udp_pcb *pcb, struct pbuf *p,
-                            ip_addr_t *addr, u16_t port) RT_NOTHROW_PROTO;
+                            ip_addr_t *addr, u16_t port);
     void dhcp4Recv(struct udp_pcb *pcb, struct pbuf *p, ip_addr_t *addr, u16_t port);
 };
 
@@ -575,7 +577,7 @@ int VBoxNetDhcpd::ifClose()
 }
 
 
-/* static */ err_t VBoxNetDhcpd::netifInitCB(netif *pNetif) RT_NOTHROW_DEF
+/* static */ err_t VBoxNetDhcpd::netifInitCB(netif *pNetif)
 {
     AssertPtrReturn(pNetif, ERR_ARG);
 
@@ -584,7 +586,7 @@ int VBoxNetDhcpd::ifClose()
 }
 
 
-/* static */ err_t VBoxNetDhcpd::netifLinkOutputCB(netif *pNetif, pbuf *pPBuf) RT_NOTHROW_DEF
+/* static */ err_t VBoxNetDhcpd::netifLinkOutputCB(netif *pNetif, pbuf *pPBuf)
 {
     AssertPtrReturn(pNetif, ERR_ARG);
     AssertPtrReturn(pPBuf, ERR_ARG);
@@ -598,7 +600,7 @@ int VBoxNetDhcpd::ifClose()
 
 /* static */ void VBoxNetDhcpd::dhcp4RecvCB(void *arg, struct udp_pcb *pcb,
                                             struct pbuf *p,
-                                            ip_addr_t *addr, u16_t port) RT_NOTHROW_DEF
+                                            ip_addr_t *addr, u16_t port)
 {
     AssertPtrReturnVoid(arg);
 
@@ -775,6 +777,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv)
 {
     VBoxNetDhcpd Dhcpd;
     int rc = Dhcpd.main(argc, argv);
+
     return RT_SUCCESS(rc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
 
@@ -784,9 +787,10 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv)
 int main(int argc, char **argv)
 {
     int rc = RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
-    if (RT_SUCCESS(rc))
-        return TrustedMain(argc, argv);
-    return RTMsgInitFailure(rc);
+    if (RT_FAILURE(rc))
+        return RTMsgInitFailure(rc);
+
+    return TrustedMain(argc, argv);
 }
 
 

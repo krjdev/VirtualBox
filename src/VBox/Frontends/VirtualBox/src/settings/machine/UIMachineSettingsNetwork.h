@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsNetwork.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineSettingsNetwork.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsNetwork class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,6 +23,7 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIMachineSettingsNetwork.gen.h"
 #include "UIMachineSettingsPortForwardingDlg.h"
 
 /* Forward declarations: */
@@ -58,11 +59,7 @@ public:
 #ifdef VBOX_WITH_CLOUD_NET
     /** Returns the cloud network list. */
     const QStringList &cloudNetworkList() const { return m_cloudNetworkList; }
-#endif
-#ifdef VBOX_WITH_VMNET
-    /** Returns the host-only network list. */
-    const QStringList &hostOnlyNetworkList() const { return m_hostOnlyNetworkList; }
-#endif
+#endif /* VBOX_WITH_CLOUD_NET */
 
  public slots:
 
@@ -72,30 +69,30 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
 private slots:
 
@@ -122,11 +119,7 @@ private:
 #ifdef VBOX_WITH_CLOUD_NET
     /** Repopulates cloud network list. */
     void refreshCloudNetworkList();
-#endif
-#ifdef VBOX_WITH_VMNET
-    /** Repopulates host-only network list. */
-    void refreshHostOnlyNetworkList();
-#endif
+#endif /* VBOX_WITH_CLOUD_NET */
 
     /** Loads generic properties from passed @a adapter. */
     static QString loadGenericProperties(const CNetworkAdapter &adapter);
@@ -158,11 +151,7 @@ private:
 #ifdef VBOX_WITH_CLOUD_NET
     /** Holds the cloud network list. */
     QStringList  m_cloudNetworkList;
-#endif
-#ifdef VBOX_WITH_VMNET
-    /** Holds the host-only network list. */
-    QStringList  m_hostOnlyNetworkList;
-#endif
+#endif /* VBOX_WITH_CLOUD_NET */
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineNetwork *m_pCache;

@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: postinst 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: postinst $
 ## @file
 # VirtualBox postinst
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -68,10 +68,8 @@ if [ "$1" = "configure" ]; then
   if ! dpkg-statoverride --list /usr/lib/virtualbox/VBoxHeadless > /dev/null 2>&1; then
     chmod 4511 /usr/lib/virtualbox/VBoxHeadless
   fi
-  if [ -x /usr/lib/virtualbox/VBoxSDL ]; then
-    if ! dpkg-statoverride --list /usr/lib/virtualbox/VBoxSDL > /dev/null 2>&1; then
-      chmod 4511 /usr/lib/virtualbox/VBoxSDL
-    fi
+  if ! dpkg-statoverride --list /usr/lib/virtualbox/VBoxSDL > /dev/null 2>&1; then
+    chmod 4511 /usr/lib/virtualbox/VBoxSDL
   fi
   if ! dpkg-statoverride --list /usr/lib/virtualbox/VBoxNetDHCP > /dev/null 2>&1; then
     chmod 4511 /usr/lib/virtualbox/VBoxNetDHCP

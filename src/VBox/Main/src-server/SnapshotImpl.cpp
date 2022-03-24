@@ -1,10 +1,10 @@
-/* $Id: SnapshotImpl.cpp 93410 2022-01-24 14:45:10Z vboxsync $ */
+/* $Id: SnapshotImpl.cpp $ */
 /** @file
  * COM class implementation for Snapshot and SnapshotMachine in VBoxSVC.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,9 +25,8 @@
 #include "MachineImpl.h"
 #include "MediumImpl.h"
 #include "MediumFormatImpl.h"
-#include "ProgressImpl.h"
 #include "Global.h"
-#include "StringifyEnums.h"
+#include "ProgressImpl.h"
 
 /// @todo these three includes are required for about one or two lines, try
 // to remove them and put that code in shared code in MachineImplcpp
@@ -749,7 +748,7 @@ void Snapshot::i_updateNVRAMPathsImpl(const Utf8Str &strOldPath,
 {
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-    const Utf8Str path = m->pMachine->mNvramStore->i_getNonVolatileStorageFile();
+    const Utf8Str path = m->pMachine->mBIOSSettings->i_getNonVolatileStorageFile();
     LogFlowThisFunc(("Snap[%s].nvramPath={%s}\n", m->strName.c_str(), path.c_str()));
 
     /* NVRAM filename may be empty */
@@ -757,10 +756,10 @@ void Snapshot::i_updateNVRAMPathsImpl(const Utf8Str &strOldPath,
          && RTPathStartsWith(path.c_str(), strOldPath.c_str())
        )
     {
-        m->pMachine->mNvramStore->i_updateNonVolatileStorageFile(Utf8StrFmt("%s%s",
+        m->pMachine->mBIOSSettings->i_updateNonVolatileStorageFile(Utf8StrFmt("%s%s",
                                                                               strNewPath.c_str(),
                                                                               path.c_str() + strOldPath.length()));
-        LogFlowThisFunc(("-> updated: {%s}\n", m->pMachine->mNvramStore->i_getNonVolatileStorageFile().c_str()));
+        LogFlowThisFunc(("-> updated: {%s}\n", m->pMachine->mBIOSSettings->i_getNonVolatileStorageFile().c_str()));
     }
 
     for (SnapshotsList::const_iterator it = m->llChildren.begin();
@@ -921,7 +920,7 @@ HRESULT Snapshot::i_uninitOne(AutoWriteLock &writeLock,
             llFilenames.push_back(m->pMachine->mSSData->strStateFilePath);
     }
 
-    Utf8Str strNVRAMFile = m->pMachine->mNvramStore->i_getNonVolatileStorageFile();
+    Utf8Str strNVRAMFile = m->pMachine->mBIOSSettings->i_getNonVolatileStorageFile();
     if (strNVRAMFile.isNotEmpty() && RTFileExists(strNVRAMFile.c_str()))
         llFilenames.push_back(strNVRAMFile);
 
@@ -1149,14 +1148,6 @@ HRESULT SnapshotMachine::init(SessionMachine *aSessionMachine,
     rc = mBIOSSettings->initCopy(this, pMachine->mBIOSSettings);
     if (FAILED(rc)) return rc;
 
-    unconst(mTrustedPlatformModule).createObject();
-    rc = mTrustedPlatformModule->initCopy(this, pMachine->mTrustedPlatformModule);
-    if (FAILED(rc)) return rc;
-
-    unconst(mNvramStore).createObject();
-    rc = mNvramStore->initCopy(this, pMachine->mNvramStore);
-    if (FAILED(rc)) return rc;
-
     unconst(mRecordingSettings).createObject();
     rc = mRecordingSettings->initCopy(this, pMachine->mRecordingSettings);
     if (FAILED(rc)) return rc;
@@ -1287,12 +1278,6 @@ HRESULT SnapshotMachine::initFromSettings(Machine *aMachine,
     unconst(mBIOSSettings).createObject();
     mBIOSSettings->init(this);
 
-    unconst(mTrustedPlatformModule).createObject();
-    mTrustedPlatformModule->init(this);
-
-    unconst(mNvramStore).createObject();
-    mNvramStore->init(this);
-
     unconst(mRecordingSettings).createObject();
     mRecordingSettings->init(this);
 
@@ -1419,7 +1404,7 @@ HRESULT SnapshotMachine::i_onSnapshotChange(Snapshot *aSnapshot)
     }
 
     /* inform callbacks */
-    mParent->i_onSnapshotChanged(uuidMachine, uuidSnapshot);
+    mParent->i_onSnapshotChange(uuidMachine, uuidSnapshot);
 
     return rc;
 }
@@ -1464,17 +1449,14 @@ public:
                      bool fPause,
                      uint32_t uMemSize,
                      bool fTakingSnapshotOnline)
-        : SnapshotTask(m, p, t, s)
-        , m_strName(strName)
-        , m_strDescription(strDescription)
-        , m_uuidSnapshot(uuidSnapshot)
-        , m_fPause(fPause)
-#if 0 /*unused*/
-        , m_uMemSize(uMemSize)
-#endif
-        , m_fTakingSnapshotOnline(fTakingSnapshotOnline)
+        : SnapshotTask(m, p, t, s),
+          m_strName(strName),
+          m_strDescription(strDescription),
+          m_uuidSnapshot(uuidSnapshot),
+          m_fPause(fPause),
+          m_uMemSize(uMemSize),
+          m_fTakingSnapshotOnline(fTakingSnapshotOnline)
     {
-        RT_NOREF(uMemSize);
         if (fTakingSnapshotOnline)
             m_pDirectControl = m->mData->mSession.mDirectControl;
         // If the VM is already paused then there's no point trying to pause
@@ -1502,9 +1484,7 @@ private:
     Utf8Str m_strStateFilePath;
     ComPtr<IInternalSessionControl> m_pDirectControl;
     bool m_fPause;
-#if 0 /*unused*/
     uint32_t m_uMemSize;
-#endif
     bool m_fTakingSnapshotOnline;
 
     friend HRESULT SessionMachine::i_finishTakingSnapshot(TakeSnapshotTask &task, AutoWriteLock &alock, bool aSuccess);
@@ -1773,7 +1753,7 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
                 // creating a new online snapshot: we need a fresh saved state file
                 i_composeSavedStateFilename(task.m_strStateFilePath);
         }
-        else if (task.m_machineStateBackup == MachineState_Saved || task.m_machineStateBackup == MachineState_AbortedSaved)
+        else if (task.m_machineStateBackup == MachineState_Saved)
             // taking an offline snapshot from machine in "saved" state: use existing state file
             task.m_strStateFilePath = mSSData->strStateFilePath;
 
@@ -1877,7 +1857,7 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
         }
 
         // Handle NVRAM file snapshotting
-        Utf8Str strNVRAM = mNvramStore->i_getNonVolatileStorageFile();
+        Utf8Str strNVRAM = mBIOSSettings->i_getNonVolatileStorageFile();
         Utf8Str strNVRAMSnap = pSnapshotMachine->i_getSnapshotNVRAMFilename();
         if (strNVRAM.isNotEmpty() && strNVRAMSnap.isNotEmpty() && RTFileExists(strNVRAM.c_str()))
         {
@@ -1891,7 +1871,7 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
                 throw setErrorBoth(VBOX_E_IPRT_ERROR, vrc,
                                    tr("Could not copy NVRAM file '%s' to '%s' (%Rrc)"),
                                    strNVRAM.c_str(), strNVRAMSnapAbs.c_str(), vrc);
-            pSnapshotMachine->mNvramStore->i_updateNonVolatileStorageFile(strNVRAMSnap);
+            pSnapshotMachine->mBIOSSettings->i_updateNonVolatileStorageFile(strNVRAMSnap);
         }
 
         // store parent of newly created diffs before commit for notify
@@ -1935,12 +1915,12 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
          */
         rc = i_finishTakingSnapshot(task, alock, true /*aSuccess*/);
         // do not throw rc here because we can't call i_finishTakingSnapshot() twice
-        LogFlowThisFunc(("i_finishTakingSnapshot -> %Rhrc [mMachineState=%s]\n", rc, ::stringifyMachineState(mData->mMachineState)));
+        LogFlowThisFunc(("i_finishTakingSnapshot -> %Rhrc [mMachineState=%s]\n", rc, Global::stringifyMachineState(mData->mMachineState)));
     }
     catch (HRESULT rcThrown)
     {
         rc = rcThrown;
-        LogThisFunc(("Caught %Rhrc [mMachineState=%s]\n", rc, ::stringifyMachineState(mData->mMachineState)));
+        LogThisFunc(("Caught %Rhrc [mMachineState=%s]\n", rc, Global::stringifyMachineState(mData->mMachineState)));
 
         /// @todo r=klaus check that the implicit diffs created above are cleaned up im the relevant error cases
 
@@ -1984,7 +1964,7 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
                 HRESULT rc2 = task.m_pDirectControl->COMGETTER(NominalState)(&enmMachineState);
                 if (FAILED(rc2) || enmMachineState == MachineState_Null)
                 {
-                    AssertMsgFailed(("state=%s\n", ::stringifyMachineState(enmMachineState)));
+                    AssertMsgFailed(("state=%s\n", Global::stringifyMachineState(enmMachineState)));
                     // pure nonsense, try to continue somehow
                     enmMachineState = MachineState_Aborted;
                 }
@@ -2019,7 +1999,8 @@ void SessionMachine::i_takeSnapshotHandler(TakeSnapshotTask &task)
                 pConsole->COMGETTER(State)(&enmMachineState);
         }
         LogFlowThisFunc(("local mMachineState=%s remote mMachineState=%s\n",
-                         ::stringifyMachineState(mData->mMachineState), ::stringifyMachineState(enmMachineState)));
+                         Global::stringifyMachineState(mData->mMachineState),
+                         Global::stringifyMachineState(enmMachineState)));
 
         if (fNeedClientMachineStateUpdate)
             i_updateMachineStateOnClient();
@@ -2307,7 +2288,7 @@ void SessionMachine::i_restoreSnapshotHandler(RestoreSnapshotTask &task)
 
         /* Delete the saved state file if the machine was Saved prior to this
          * operation */
-        if (task.m_machineStateBackup == MachineState_Saved || task.m_machineStateBackup == MachineState_AbortedSaved)
+        if (task.m_machineStateBackup == MachineState_Saved)
         {
             Assert(!mSSData->strStateFilePath.isEmpty());
 
@@ -2385,8 +2366,8 @@ void SessionMachine::i_restoreSnapshotHandler(RestoreSnapshotTask &task)
                 // online snapshot: then share the state file
                 mSSData->strStateFilePath = strSnapshotStateFile;
 
-            const Utf8Str srcNVRAM(pSnapshotMachine->mNvramStore->i_getNonVolatileStorageFile());
-            const Utf8Str dstNVRAM(mNvramStore->i_getNonVolatileStorageFile());
+            const Utf8Str srcNVRAM(pSnapshotMachine->mBIOSSettings->i_getNonVolatileStorageFile());
+            const Utf8Str dstNVRAM(mBIOSSettings->i_getNonVolatileStorageFile());
             if (dstNVRAM.isNotEmpty() && RTFileExists(dstNVRAM.c_str()))
                 RTFileDelete(dstNVRAM.c_str());
             if (srcNVRAM.isNotEmpty() && dstNVRAM.isNotEmpty() && RTFileExists(srcNVRAM.c_str()))
@@ -2681,7 +2662,6 @@ HRESULT SessionMachine::i_deleteSnapshot(const com::Guid &aStartId,
         && mData->mMachineState != MachineState_Saved
         && mData->mMachineState != MachineState_Teleported
         && mData->mMachineState != MachineState_Aborted
-        && mData->mMachineState != MachineState_AbortedSaved
         && mData->mMachineState != MachineState_Running
         && mData->mMachineState != MachineState_Paused)
         return setError(VBOX_E_INVALID_VM_STATE,
@@ -2703,8 +2683,7 @@ HRESULT SessionMachine::i_deleteSnapshot(const com::Guid &aStartId,
     size_t childrenCount = pSnapshot->i_getChildrenCount();
     if (childrenCount > 1)
         return setError(VBOX_E_INVALID_OBJECT_STATE,
-                        tr("Snapshot '%s' of the machine '%s' cannot be deleted, because it has %d child snapshots, which is more than the one snapshot allowed for deletion",
-                           "", childrenCount),
+                        tr("Snapshot '%s' of the machine '%s' cannot be deleted, because it has %d child snapshots, which is more than the one snapshot allowed for deletion"),
                         pSnapshot->i_getName().c_str(),
                         mUserData->s.strName.c_str(),
                         childrenCount);
@@ -3066,8 +3045,7 @@ void SessionMachine::i_deleteSnapshotHandler(DeleteSnapshotTask &task)
             if (fNeedsOnlineMerge && pSource->i_getLogicalSize() > pTarget->i_getLogicalSize())
             {
                 rc = setError(E_FAIL,
-                              tr("Unable to merge storage '%s', because it is smaller than the source image. If you resize it to have a capacity of at least %lld bytes you can retry",
-                                 "", pSource->i_getLogicalSize()),
+                              tr("Unable to merge storage '%s', because it is smaller than the source image. If you resize it to have a capacity of at least %lld bytes you can retry"),
                               pTarget->i_getLocationFull().c_str(), pSource->i_getLogicalSize());
                 throw rc;
             }
@@ -3514,7 +3492,7 @@ void SessionMachine::i_deleteSnapshotHandler(DeleteSnapshotTask &task)
 
         /* 3a: delete NVRAM file if present. */
         {
-            Utf8Str NVRAMPath = pSnapMachine->mNvramStore->i_getNonVolatileStorageFile();
+            Utf8Str NVRAMPath = pSnapMachine->mBIOSSettings->i_getNonVolatileStorageFile();
             if (NVRAMPath.isNotEmpty() && RTFileExists(NVRAMPath.c_str()))
                 RTFileDelete(NVRAMPath.c_str());
         }
@@ -3649,7 +3627,7 @@ HRESULT SessionMachine::i_prepareDeleteSnapshotMedium(const ComObjPtr<Medium> &a
                                                       ComPtr<IToken> &aHDLockToken)
 {
     Assert(!mParent->i_getMediaTreeLockHandle().isWriteLockOnCurrentThread());
-    Assert(!fOnlineMergePossible || RT_VALID_PTR(aVMMALockList));
+    Assert(!fOnlineMergePossible || VALID_PTR(aVMMALockList));
 
     AutoWriteLock alock(aHD COMMA_LOCKVAL_SRC_POS);
 

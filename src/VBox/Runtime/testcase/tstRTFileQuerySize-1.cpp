@@ -1,10 +1,10 @@
-/* $Id: tstRTFileQuerySize-1.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTFileQuerySize-1.cpp $ */
 /** @file
  * IPRT Testcase - RTFileQuerySize.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 #ifdef RT_OS_WINDOWS
     test1("//./PhysicalDrive0", "//./PhysicalDrive0");
     test1("//./HarddiskVolume1", "//./HarddiskVolume1");
-    test1("//./nul", "//./nul");
+    test1("//./null", "//./nul");
 #else
     test1("/dev/null", "/dev/null");
 # ifdef RT_OS_LINUX

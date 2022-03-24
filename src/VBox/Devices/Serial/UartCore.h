@@ -1,4 +1,4 @@
-/* $Id: UartCore.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UartCore.h $ */
 /** @file
  * UartCore - UART  (16550A up to 16950) emulation.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,7 +67,7 @@ typedef struct UARTCORE *PUARTCORE;
  * @param   iLUN                The LUN associated with the UART core.
  * @param   iLvl                The interrupt level.
  */
-typedef DECLCALLBACKTYPE(void, FNUARTCOREIRQREQ,(PPDMDEVINS pDevIns, PUARTCORE pThis, unsigned iLUN, int iLvl));
+typedef DECLCALLBACK(void) FNUARTCOREIRQREQ(PPDMDEVINS pDevIns, PUARTCORE pThis, unsigned iLUN, int iLvl);
 /** Pointer to a UART core IRQ request callback. */
 typedef FNUARTCOREIRQREQ *PFNUARTCOREIRQREQ;
 

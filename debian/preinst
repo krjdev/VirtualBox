@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: preinst 82441 2019-12-05 23:16:02Z vboxsync $
+# $Id: preinst $
 ## @file
 # VirtualBox pre-install.
 #

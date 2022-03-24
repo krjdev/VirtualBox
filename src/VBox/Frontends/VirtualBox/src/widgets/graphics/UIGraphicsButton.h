@@ -1,10 +1,10 @@
-/* $Id: UIGraphicsButton.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGraphicsButton.h $ */
 /** @file
  * VBox Qt GUI - UIGraphicsButton class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -75,18 +75,18 @@ protected:
     virtual QVariant data(int iKey) const;
 
     /** Returns size-hint of certain @a enmType, restricted by passed @a constraint. */
-    virtual QSizeF sizeHint(Qt::SizeHint enmType, const QSizeF &constraint = QSizeF()) const RT_OVERRIDE;
+    virtual QSizeF sizeHint(Qt::SizeHint enmType, const QSizeF &constraint = QSizeF()) const /* override */;
 
     /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-    virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOption, QWidget *pWidget = 0) RT_OVERRIDE;
+    virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOption, QWidget *pWidget = 0) /* override */;
 
     /** Handles mouse-press @a pEvent. */
-    virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
     /** Handles mouse-release @a pEvent. */
-    virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
 
     /** Handles timer @a pEvent. */
-    virtual void timerEvent(QTimerEvent *pEvent) RT_OVERRIDE;
+    virtual void timerEvent(QTimerEvent *pEvent) /* override */;
 
     /** Updates button.
       * @todo rename to prepare() */

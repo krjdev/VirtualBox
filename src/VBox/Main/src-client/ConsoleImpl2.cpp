@@ -1,4 +1,4 @@
-/* $Id: ConsoleImpl2.cpp 94070 2022-03-03 11:54:06Z vboxsync $ */
+/* $Id: ConsoleImpl2.cpp $ */
 /** @file
  * VBox Console COM Class implementation - VM Configuration Bits.
  *
@@ -9,7 +9,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,6 @@
 
 #include "ConsoleImpl.h"
 #include "DisplayImpl.h"
-#include "NvramStoreImpl.h"
 #ifdef VBOX_WITH_DRAG_AND_DROP
 # include "GuestImpl.h"
 # include "GuestDnDPrivate.h"
@@ -66,7 +65,6 @@
 #endif
 #include <iprt/stream.h>
 
-#include <VBox/vmm/vmmr3vtable.h>
 #include <VBox/vmm/vmapi.h>
 #include <VBox/err.h>
 #include <VBox/param.h>
@@ -275,7 +273,7 @@ public:
     ConfigError(const char *pcszFunction,
                 int vrc,
                 const char *pcszName)
-        : RTCError(Utf8StrFmt(Console::tr("%s failed: rc=%Rrc, pcszName=%s"), pcszFunction, vrc, pcszName)),
+        : RTCError(Utf8StrFmt("%s failed: rc=%Rrc, pcszName=%s", pcszFunction, vrc, pcszName)),
           m_vrc(vrc)
     {
         AssertMsgFailed(("%s\n", what())); // in strict mode, hit a breakpoint here
@@ -292,9 +290,13 @@ public:
  * @param   pcszName        See CFGMR3InsertStringN.
  * @param   pcszValue       The string value.
  */
-void Console::InsertConfigString(PCFGMNODE pNode, const char *pcszName, const char *pcszValue)
+static void InsertConfigString(PCFGMNODE pNode,
+                               const char *pcszName,
+                               const char *pcszValue)
 {
-    int vrc = mpVMM->pfnCFGMR3InsertString(pNode, pcszName, pcszValue);
+    int vrc = CFGMR3InsertString(pNode,
+                                 pcszName,
+                                 pcszValue);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertString", vrc, pcszName);
 }
@@ -306,9 +308,14 @@ void Console::InsertConfigString(PCFGMNODE pNode, const char *pcszName, const ch
  * @param   pcszName        See CFGMR3InsertStringN.
  * @param   rStrValue       The string value.
  */
-void Console::InsertConfigString(PCFGMNODE pNode, const char *pcszName, const Utf8Str &rStrValue)
+static void InsertConfigString(PCFGMNODE pNode,
+                               const char *pcszName,
+                               const Utf8Str &rStrValue)
 {
-    int vrc = mpVMM->pfnCFGMR3InsertStringN(pNode, pcszName, rStrValue.c_str(), rStrValue.length());
+    int vrc = CFGMR3InsertStringN(pNode,
+                                  pcszName,
+                                  rStrValue.c_str(),
+                                  rStrValue.length());
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertStringLengthKnown", vrc, pcszName);
 }
@@ -321,23 +328,11 @@ void Console::InsertConfigString(PCFGMNODE pNode, const char *pcszName, const Ut
  * @param   pcszName        See CFGMR3InsertStringN.
  * @param   rBstrValue      The string value.
  */
-void Console::InsertConfigString(PCFGMNODE pNode, const char *pcszName, const Bstr &rBstrValue)
+static void InsertConfigString(PCFGMNODE pNode,
+                               const char *pcszName,
+                               const Bstr &rBstrValue)
 {
     InsertConfigString(pNode, pcszName, Utf8Str(rBstrValue));
-}
-
-/**
- * Helper that calls CFGMR3InsertPassword and throws an RTCError if that
- * fails (Utf8Str variant).
- * @param   pNode           See CFGMR3InsertPasswordN.
- * @param   pcszName        See CFGMR3InsertPasswordN.
- * @param   rStrValue       The string value.
- */
-void Console::InsertConfigPassword(PCFGMNODE pNode, const char *pcszName, const Utf8Str &rStrValue)
-{
-    int vrc = mpVMM->pfnCFGMR3InsertPasswordN(pNode, pcszName, rStrValue.c_str(), rStrValue.length());
-    if (RT_FAILURE(vrc))
-        throw ConfigError("CFGMR3InsertPasswordLengthKnown", vrc, pcszName);
 }
 
 /**
@@ -348,9 +343,15 @@ void Console::InsertConfigPassword(PCFGMNODE pNode, const char *pcszName, const 
  * @param   pvBytes         See CFGMR3InsertBytes.
  * @param   cbBytes         See CFGMR3InsertBytes.
  */
-void Console::InsertConfigBytes(PCFGMNODE pNode, const char *pcszName, const void *pvBytes, size_t cbBytes)
+static void InsertConfigBytes(PCFGMNODE pNode,
+                              const char *pcszName,
+                              const void *pvBytes,
+                              size_t cbBytes)
 {
-    int vrc = mpVMM->pfnCFGMR3InsertBytes(pNode, pcszName, pvBytes, cbBytes);
+    int vrc = CFGMR3InsertBytes(pNode,
+                                pcszName,
+                                pvBytes,
+                                cbBytes);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertBytes", vrc, pcszName);
 }
@@ -363,9 +364,13 @@ void Console::InsertConfigBytes(PCFGMNODE pNode, const char *pcszName, const voi
  * @param   pcszName        See CFGMR3InsertInteger.
  * @param   u64Integer      See CFGMR3InsertInteger.
  */
-void Console::InsertConfigInteger(PCFGMNODE pNode, const char *pcszName, uint64_t u64Integer)
+static void InsertConfigInteger(PCFGMNODE pNode,
+                                const char *pcszName,
+                                uint64_t u64Integer)
 {
-    int vrc = mpVMM->pfnCFGMR3InsertInteger(pNode, pcszName, u64Integer);
+    int vrc = CFGMR3InsertInteger(pNode,
+                                  pcszName,
+                                  u64Integer);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertInteger", vrc, pcszName);
 }
@@ -377,9 +382,11 @@ void Console::InsertConfigInteger(PCFGMNODE pNode, const char *pcszName, uint64_
  * @param   pcszName        See CFGMR3InsertNode.
  * @param   ppChild         See CFGMR3InsertNode.
  */
-void Console::InsertConfigNode(PCFGMNODE pNode, const char *pcszName, PCFGMNODE *ppChild)
+static void InsertConfigNode(PCFGMNODE pNode,
+                             const char *pcszName,
+                             PCFGMNODE *ppChild)
 {
-    int vrc = mpVMM->pfnCFGMR3InsertNode(pNode, pcszName, ppChild);
+    int vrc = CFGMR3InsertNode(pNode, pcszName, ppChild);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertNode", vrc, pcszName);
 }
@@ -392,11 +399,14 @@ void Console::InsertConfigNode(PCFGMNODE pNode, const char *pcszName, PCFGMNODE 
  * @param   pszNameFormat   Name format string, see CFGMR3InsertNodeF.
  * @param   ...             Format arguments.
  */
-void Console::InsertConfigNodeF(PCFGMNODE pNode, PCFGMNODE *ppChild, const char *pszNameFormat, ...)
+static void InsertConfigNodeF(PCFGMNODE pNode,
+                              PCFGMNODE *ppChild,
+                              const char *pszNameFormat,
+                              ...)
 {
     va_list va;
     va_start(va, pszNameFormat);
-    int vrc = mpVMM->pfnCFGMR3InsertNodeF(pNode, ppChild, "%N", pszNameFormat, &va);
+    int vrc = CFGMR3InsertNodeF(pNode, ppChild, "%N", pszNameFormat, &va);
     va_end(va);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3InsertNodeF", vrc, pszNameFormat);
@@ -408,9 +418,10 @@ void Console::InsertConfigNodeF(PCFGMNODE pNode, PCFGMNODE *ppChild, const char 
  * @param   pNode           See CFGMR3RemoveValue.
  * @param   pcszName        See CFGMR3RemoveValue.
  */
-void Console::RemoveConfigValue(PCFGMNODE pNode, const char *pcszName)
+static void RemoveConfigValue(PCFGMNODE pNode,
+                              const char *pcszName)
 {
-    int vrc = mpVMM->pfnCFGMR3RemoveValue(pNode, pcszName);
+    int vrc = CFGMR3RemoveValue(pNode, pcszName);
     if (RT_FAILURE(vrc))
         throw ConfigError("CFGMR3RemoveValue", vrc, pcszName);
 }
@@ -464,8 +475,8 @@ static LONG GetNextUsedPort(LONG aPortUsed[30], LONG lBaseVal, uint32_t u32Size)
 
 #define MAX_BIOS_LUN_COUNT   4
 
-int Console::SetBiosDiskInfo(ComPtr<IMachine> pMachine, PCFGMNODE pCfg, PCFGMNODE pBiosCfg,
-                             Bstr controllerName, const char * const s_apszBiosConfig[4])
+static int SetBiosDiskInfo(ComPtr<IMachine> pMachine, PCFGMNODE pCfg, PCFGMNODE pBiosCfg,
+                           Bstr controllerName, const char * const s_apszBiosConfig[4])
 {
     RT_NOREF(pCfg);
     HRESULT             hrc;
@@ -498,7 +509,7 @@ int Console::SetBiosDiskInfo(ComPtr<IMachine> pMachine, PCFGMNODE pCfg, PCFGMNOD
         if (SUCCEEDED(hrc))
         {
             DeviceType_T lType;
-            hrc = pMediumAtt->COMGETTER(Type)(&lType);                  H();
+            hrc = pMediumAtt->COMGETTER(Type)(&lType);                    H();
             if (SUCCEEDED(hrc) && lType == DeviceType_HardDisk)
             {
                 /* find min port number used for HD */
@@ -518,7 +529,9 @@ int Console::SetBiosDiskInfo(ComPtr<IMachine> pMachine, PCFGMNODE pCfg, PCFGMNOD
     if (u32HDCount < MAX_BIOS_LUN_COUNT)
         u32MaxPortCount = u32HDCount;
     for (size_t j = 1; j < u32MaxPortCount; j++)
-        lPortLUN[j] = GetNextUsedPort(lPortUsed, lPortLUN[j-1], u32HDCount);
+        lPortLUN[j] = GetNextUsedPort(lPortUsed,
+                                      lPortLUN[j-1],
+                                       u32HDCount);
     if (pBiosCfg)
     {
         for (size_t j = 0; j < u32MaxPortCount; j++)
@@ -559,11 +572,11 @@ HRESULT Console::i_attachRawPCIDevices(PUVM pUVM, BusAssignmentManager *pBusMgr,
     static const char *s_pszPCIRawExtPackName = "Oracle VM VirtualBox Extension Pack";
     if (!mptrExtPackManager->i_isExtPackUsable(s_pszPCIRawExtPackName))
         /* Always fatal! */
-        return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
-                                     N_("Implementation of the PCI passthrough framework not found!\n"
-                                        "The VM cannot be started. To fix this problem, either "
-                                        "install the '%s' or disable PCI passthrough via VBoxManage"),
-                                     s_pszPCIRawExtPackName);
+        return VMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
+                N_("Implementation of the PCI passthrough framework not found!\n"
+                   "The VM cannot be started. To fix this problem, either "
+                   "install the '%s' or disable PCI passthrough via VBoxManage"),
+                s_pszPCIRawExtPackName);
 # endif
 
     /* Now actually add devices */
@@ -639,68 +652,22 @@ HRESULT Console::i_attachRawPCIDevices(PUVM pUVM, BusAssignmentManager *pBusMgr,
 #endif
 
 
-/**
- * Allocate a set of LEDs.
- *
- * This grabs a maLedSets entry and populates it with @a cLeds.
- *
- * @returns Index into maLedSets.
- * @param   cLeds        The number of LEDs in the set.
- * @param   enmType      The device type.
- * @param   ppaSubTypes  When not NULL, subtypes for each LED and return the
- *                       array pointer here.
- */
-uint32_t Console::i_allocateDriverLeds(uint32_t cLeds, DeviceType_T enmType, DeviceType_T **ppaSubTypes)
-{
-    Assert(cLeds > 0);
-    Assert(cLeds < 1024);  /* Adjust if any driver supports >=1024 units! */
-
-    /* Grab a LED set entry before we start allocating anything so the destructor can do the cleanups. */
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS); /* Caller should have this already. Need protect mcLedSets check and update. */
-    AssertStmt(mcLedSets < RT_ELEMENTS(maLedSets),
-               throw ConfigError("AllocateDriverPapLeds", VERR_OUT_OF_RANGE, "Too many LED sets"));
-    uint32_t const idxLedSet = mcLedSets++;
-    PLEDSET pLS = &maLedSets[idxLedSet];
-    pLS->papLeds = (PPDMLED *)RTMemAllocZ(sizeof(PPDMLED) * cLeds);
-    AssertStmt(pLS->papLeds, throw E_OUTOFMEMORY);
-    pLS->cLeds = cLeds;
-    pLS->enmType = enmType;
-    pLS->paSubTypes = NULL;
-
-    if (ppaSubTypes)
-    {
-        *ppaSubTypes = pLS->paSubTypes = (DeviceType_T *)RTMemAlloc(sizeof(DeviceType_T) * cLeds);
-        AssertStmt(pLS->paSubTypes, throw E_OUTOFMEMORY);
-        for (size_t idxSub = 0; idxSub < cLeds; ++idxSub)
-            pLS->paSubTypes[idxSub] = DeviceType_Null;
-    }
-
-    LogRel2(("mcLedSets = %d, RT_ELEMENTS(maLedSets) = %d\n", mcLedSets, RT_ELEMENTS(maLedSets)));
-    return idxLedSet;
-}
-
-
-/** @todo r=bird: Drop uFirst as it's always zero? Then s/uLast/cLeds/g. */
-void Console::i_attachStatusDriver(PCFGMNODE pCtlInst, DeviceType_T enmType,
-                                   uint32_t uFirst, uint32_t uLast,
-                                   DeviceType_T **ppaSubTypes,
+void Console::i_attachStatusDriver(PCFGMNODE pCtlInst, PPDMLED *papLeds,
+                                   uint64_t uFirst, uint64_t uLast,
                                    Console::MediumAttachmentMap *pmapMediumAttachments,
                                    const char *pcszDevice, unsigned uInstance)
 {
-    Assert(uFirst <= uLast);
-    PCFGMNODE pLunL0;
+    PCFGMNODE pLunL0, pCfg;
     InsertConfigNode(pCtlInst,  "LUN#999", &pLunL0);
     InsertConfigString(pLunL0,  "Driver",               "MainStatus");
-    PCFGMNODE pCfg;
     InsertConfigNode(pLunL0,    "Config", &pCfg);
-    uint32_t const iLedSet = i_allocateDriverLeds(uLast - uFirst + 1, enmType, ppaSubTypes);
-    InsertConfigInteger(pCfg,   "iLedSet", iLedSet);
-
-    InsertConfigInteger(pCfg,   "HasMediumAttachments", pmapMediumAttachments != NULL);
+    InsertConfigInteger(pCfg,   "papLeds", (uintptr_t)papLeds);
     if (pmapMediumAttachments)
     {
+        InsertConfigInteger(pCfg,   "pmapMediumAttachments", (uintptr_t)pmapMediumAttachments);
+        InsertConfigInteger(pCfg,   "pConsole", (uintptr_t)this);
         AssertPtr(pcszDevice);
-        Utf8StrFmt deviceInstance("%s/%u", pcszDevice, uInstance);
+        Utf8Str deviceInstance = Utf8StrFmt("%s/%u", pcszDevice, uInstance);
         InsertConfigString(pCfg,    "DeviceInstance", deviceInstance.c_str());
     }
     InsertConfigInteger(pCfg,   "First",    uFirst);
@@ -709,22 +676,20 @@ void Console::i_attachStatusDriver(PCFGMNODE pCtlInst, DeviceType_T enmType,
 
 
 /**
- * Construct the VM configuration tree (CFGM).
+ *  Construct the VM configuration tree (CFGM).
  *
- * This is a callback for VMR3Create() call. It is called from CFGMR3Init() in
- * the emulation thread (EMT). Any per thread COM/XPCOM initialization is done
- * here.
+ *  This is a callback for VMR3Create() call. It is called from CFGMR3Init()
+ *  in the emulation thread (EMT). Any per thread COM/XPCOM initialization
+ *  is done here.
  *
- * @returns VBox status code.
- * @param   pUVM        The user mode VM handle.
- * @param   pVM         The cross context VM handle.
- * @param   pVMM        The VMM ring-3 vtable.
- * @param   pvConsole   Pointer to the VMPowerUpTask object.
+ *  @param   pUVM                The user mode VM handle.
+ *  @param   pVM                 The cross context VM handle.
+ *  @param   pvConsole           Pointer to the VMPowerUpTask object.
+ *  @return  VBox status code.
  *
- * @note Locks the Console object for writing.
+ *  @note Locks the Console object for writing.
  */
-/*static*/ DECLCALLBACK(int)
-Console::i_configConstructor(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvConsole)
+DECLCALLBACK(int) Console::i_configConstructor(PUVM pUVM, PVM pVM, void *pvConsole)
 {
     LogFlowFuncEnter();
 
@@ -742,11 +707,11 @@ Console::i_configConstructor(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvCon
      * can easily reset the VM handle on failure.
      */
     pConsole->mpUVM = pUVM;
-    pVMM->pfnVMR3RetainUVM(pUVM);
+    VMR3RetainUVM(pUVM);
     int vrc;
     try
     {
-        vrc = pConsole->i_configConstructorInner(pUVM, pVM, pVMM, &alock);
+        vrc = pConsole->i_configConstructorInner(pUVM, pVM, &alock);
     }
     catch (...)
     {
@@ -755,7 +720,7 @@ Console::i_configConstructor(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvCon
     if (RT_FAILURE(vrc))
     {
         pConsole->mpUVM = NULL;
-        pVMM->pfnVMR3ReleaseUVM(pUVM);
+        VMR3ReleaseUVM(pUVM);
     }
 
     return vrc;
@@ -768,12 +733,11 @@ Console::i_configConstructor(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvCon
  * @return  VBox status code.
  * @param   pUVM        The user mode VM handle.
  * @param   pVM         The cross context VM handle.
- * @param   pVMM        The VMM vtable.
  * @param   pAlock      The automatic lock instance.  This is for when we have
  *                      to leave it in order to avoid deadlocks (ext packs and
  *                      more).
  */
-int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, AutoWriteLock *pAlock)
+int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, AutoWriteLock *pAlock)
 {
     RT_NOREF(pVM /* when everything is disabled */);
     VMMDev         *pVMMDev   = m_pVMMDev; Assert(pVMMDev);
@@ -801,9 +765,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     ComPtr<IBIOSSettings> biosSettings;
     hrc = pMachine->COMGETTER(BIOSSettings)(biosSettings.asOutParam());                     H();
 
-    ComPtr<INvramStore> nvramStore;
-    hrc = pMachine->COMGETTER(NonVolatileStore)(nvramStore.asOutParam());                   H();
-
     hrc = pMachine->COMGETTER(HardwareUUID)(bstr.asOutParam());                             H();
     RTUUID HardwareUuid;
     rc = RTUuidFromUtf16(&HardwareUuid, bstr.raw());
@@ -820,15 +781,11 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     uint64_t uMcfgBase     = 0;
     uint32_t cbMcfgLength  = 0;
 
-    ParavirtProvider_T enmParavirtProvider;
-    hrc = pMachine->GetEffectiveParavirtProvider(&enmParavirtProvider);                     H();
+    ParavirtProvider_T paravirtProvider;
+    hrc = pMachine->GetEffectiveParavirtProvider(&paravirtProvider);                        H();
 
     Bstr strParavirtDebug;
     hrc = pMachine->COMGETTER(ParavirtDebug)(strParavirtDebug.asOutParam());                H();
-
-    BOOL fIOAPIC;
-    uint32_t uIoApicPciAddress = NIL_PCIBDF;
-    hrc = biosSettings->COMGETTER(IOAPICEnabled)(&fIOAPIC);                                 H();
 
     ChipsetType_T chipsetType;
     hrc = pMachine->COMGETTER(ChipsetType)(&chipsetType);                                   H();
@@ -843,95 +800,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         uMcfgBase = _4G - cbRamHole;
     }
 
-    /* Get the CPU profile name. */
-    Bstr bstrCpuProfile;
-    hrc = pMachine->COMGETTER(CPUProfile)(bstrCpuProfile.asOutParam());                     H();
-
-    /*
-     * Figure out the IOMMU config.
-     */
-#if defined(VBOX_WITH_IOMMU_AMD) || defined(VBOX_WITH_IOMMU_INTEL)
-    IommuType_T enmIommuType;
-    hrc = pMachine->COMGETTER(IommuType)(&enmIommuType);                                    H();
-
-    /* Resolve 'automatic' type to an Intel or AMD IOMMU based on the host CPU. */
-    if (enmIommuType == IommuType_Automatic)
-    {
-        if (   bstrCpuProfile.startsWith("AMD")
-            || bstrCpuProfile.startsWith("Quad-Core AMD")
-            || bstrCpuProfile.startsWith("Hygon"))
-            enmIommuType = IommuType_AMD;
-        else if (bstrCpuProfile.startsWith("Intel"))
-        {
-            if (   bstrCpuProfile.equals("Intel 8086")
-                || bstrCpuProfile.equals("Intel 80186")
-                || bstrCpuProfile.equals("Intel 80286")
-                || bstrCpuProfile.equals("Intel 80386")
-                || bstrCpuProfile.equals("Intel 80486"))
-                enmIommuType = IommuType_None;
-            else
-                enmIommuType = IommuType_Intel;
-        }
-# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-        else if (ASMIsAmdCpu())
-            enmIommuType = IommuType_AMD;
-        else if (ASMIsIntelCpu())
-            enmIommuType = IommuType_Intel;
-# endif
-        else
-        {
-            /** @todo Should we handle other CPUs like Shanghai, VIA etc. here? */
-            LogRel(("WARNING! Unrecognized CPU type, IOMMU disabled.\n"));
-            enmIommuType = IommuType_None;
-        }
-    }
-
-    if (enmIommuType == IommuType_AMD)
-    {
-# ifdef VBOX_WITH_IOMMU_AMD
-        /*
-         * Reserve the specific PCI address of the "SB I/O APIC" when using
-         * an AMD IOMMU. Required by Linux guests, see @bugref{9654#c23}.
-         */
-        uIoApicPciAddress = VBOX_PCI_BDF_SB_IOAPIC;
-# else
-        LogRel(("WARNING! AMD IOMMU not supported, IOMMU disabled.\n"));
-        enmIommuType = IommuType_None;
-# endif
-    }
-
-    if (enmIommuType == IommuType_Intel)
-    {
-# ifdef VBOX_WITH_IOMMU_INTEL
-        /*
-         * Reserve a unique PCI address for the I/O APIC when using
-         * an Intel IOMMU. For convenience we use the same address as
-         * we do on AMD, see @bugref{9967#c13}.
-         */
-        uIoApicPciAddress = VBOX_PCI_BDF_SB_IOAPIC;
-# else
-        LogRel(("WARNING! Intel IOMMU not supported, IOMMU disabled.\n"));
-        enmIommuType = IommuType_None;
-# endif
-    }
-
-    if (   enmIommuType == IommuType_AMD
-        || enmIommuType == IommuType_Intel)
-    {
-        if (chipsetType != ChipsetType_ICH9)
-            return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                         N_("IOMMU uses MSIs which requires the ICH9 chipset implementation."));
-        if (!fIOAPIC)
-            return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                         N_("IOMMU requires an I/O APIC for remapping interrupts."));
-    }
-#else
-    IommuType_T const enmIommuType = IommuType_None;
-#endif
-
-    /* Instantiate the bus assignment manager. */
-    Assert(enmIommuType != IommuType_Automatic);
-    BusAssignmentManager *pBusMgr = mBusMgr = BusAssignmentManager::createInstance(pVMM, chipsetType, enmIommuType);
+    BusAssignmentManager *pBusMgr = mBusMgr = BusAssignmentManager::createInstance(chipsetType);
 
     ULONG cCpus = 1;
     hrc = pMachine->COMGETTER(CPUCount)(&cCpus);                                            H();
@@ -942,6 +811,9 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     Bstr osTypeId;
     hrc = pMachine->COMGETTER(OSTypeId)(osTypeId.asOutParam());                             H();
     LogRel(("Guest OS type: '%s'\n", Utf8Str(osTypeId).c_str()));
+
+    BOOL fIOAPIC;
+    hrc = biosSettings->COMGETTER(IOAPICEnabled)(&fIOAPIC);                                 H();
 
     APICMode_T apicMode;
     hrc = biosSettings->COMGETTER(APICMode)(&apicMode);                                     H();
@@ -983,7 +855,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
      * Get root node first.
      * This is the only node in the tree.
      */
-    PCFGMNODE pRoot = pVMM->pfnCFGMR3GetRootU(pUVM);
+    PCFGMNODE pRoot = CFGMR3GetRootU(pUVM);
     Assert(pRoot);
 
     // InsertConfigString throws
@@ -1107,7 +979,8 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             Assert(fEnableAPIC);
 
         /* CPUM profile name. */
-        InsertConfigString(pCPUM, "GuestCpuName", bstrCpuProfile);
+        hrc = pMachine->COMGETTER(CPUProfile)(bstr.asOutParam());                           H();
+        InsertConfigString(pCPUM, "GuestCpuName", bstr);
 
         /*
          * Temporary(?) hack to make sure we emulate the ancient 16-bit CPUs
@@ -1115,14 +988,14 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
          * raw-mode or qemu for the 186 and 286, while we'll get undefined opcodes
          * dead wrong on 8086 (see http://www.os2museum.com/wp/undocumented-8086-opcodes/).
          */
-        if (   bstrCpuProfile.equals("Intel 80386") /* just for now */
-            || bstrCpuProfile.equals("Intel 80286")
-            || bstrCpuProfile.equals("Intel 80186")
-            || bstrCpuProfile.equals("Nec V20")
-            || bstrCpuProfile.equals("Intel 8086") )
+        if (   bstr.equals("Intel 80386") /* just for now */
+            || bstr.equals("Intel 80286")
+            || bstr.equals("Intel 80186")
+            || bstr.equals("Nec V20")
+            || bstr.equals("Intel 8086") )
         {
             InsertConfigInteger(pEM, "IemExecutesAll", true);
-            if (!bstrCpuProfile.equals("Intel 80386"))
+            if (!bstr.equals("Intel 80386"))
             {
                 fEnableAPIC = false;
                 fIOAPIC     = false;
@@ -1183,14 +1056,14 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         if (!fEnableAPIC)
         {
             if (fIsGuest64Bit)
-                return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                             N_("Cannot disable the APIC for a 64-bit guest."));
+                return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS, N_("Cannot disable the APIC for a 64-bit guest."));
             if (cCpus > 1)
-                return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                             N_("Cannot disable the APIC for an SMP guest."));
+                return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS, N_("Cannot disable the APIC for an SMP guest."));
             if (fIOAPIC)
-                return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                             N_("Cannot disable the APIC when the I/O APIC is present."));
+            {
+                return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                    N_("Cannot disable the APIC when the I/O APIC is present."));
+            }
         }
 
         BOOL fHMEnabled;
@@ -1266,11 +1139,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         hrc = pMachine->GetHWVirtExProperty(HWVirtExPropertyType_UnrestrictedExecution, &fEnableUX); H();
         InsertConfigInteger(pHM, "EnableUX", fEnableUX);
 
-        /* Virtualized VMSAVE/VMLOAD (AMD-V) */
-        BOOL fVirtVmsaveVmload = true;
-        hrc = host->GetProcessorFeature(ProcessorFeature_VirtVmsaveVmload, &fVirtVmsaveVmload);     H();
-        InsertConfigInteger(pHM, "SvmVirtVmsaveVmload", fVirtVmsaveVmload);
-
         /* Indirect branch prediction boundraries. */
         BOOL fIBPBOnVMExit = false;
         hrc = pMachine->GetCPUProperty(CPUPropertyType_IBPBOnVMExit, &fIBPBOnVMExit); H();
@@ -1312,7 +1180,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         InsertConfigInteger(pHM, "UseNEMInstead", fUseNativeApi);
 
         /* Enable workaround for missing TLB flush for OS/2 guests, see ticketref:20625. */
-        if (osTypeId.startsWith("OS2"))
+        if (RTUtf16NCmpAscii(osTypeId.raw(), RT_STR_TUPLE("OS2")) == 0)
             InsertConfigInteger(pHM, "MissingOS2TlbFlushWorkaround", 1);
 
         /*
@@ -1329,7 +1197,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         InsertConfigNode(pRoot, "GIM", &pParavirtNode);
         const char *pcszParavirtProvider;
         bool fGimDeviceNeeded = true;
-        switch (enmParavirtProvider)
+        switch (paravirtProvider)
         {
             case ParavirtProvider_None:
                 pcszParavirtProvider = "None";
@@ -1349,9 +1217,9 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                 break;
 
             default:
-                AssertMsgFailed(("Invalid enmParavirtProvider=%d\n", enmParavirtProvider));
-                return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS, N_("Invalid paravirt. provider '%d'"),
-                                             enmParavirtProvider);
+                AssertMsgFailed(("Invalid paravirtProvider=%d\n", paravirtProvider));
+                return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS, N_("Invalid paravirt. provider '%d'"),
+                                    paravirtProvider);
         }
         InsertConfigString(pParavirtNode, "Provider", pcszParavirtProvider);
 
@@ -1364,7 +1232,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         if (strParavirtDebug.isNotEmpty())
         {
             /* Hyper-V debug options. */
-            if (enmParavirtProvider == ParavirtProvider_HyperV)
+            if (paravirtProvider == ParavirtProvider_HyperV)
             {
                 bool         fGimHvDebug = false;
                 com::Utf8Str strGimHvVendor;
@@ -1404,9 +1272,9 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     else
                     {
                         AssertMsgFailed(("Unrecognized Hyper-V debug option '%s'\n", strKey.c_str()));
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                     N_("Unrecognized Hyper-V debug option '%s' in '%s'"), strKey.c_str(),
-                                                     strDebugOptions.c_str());
+                        return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                            N_("Unrecognized Hyper-V debug option '%s' in '%s'"), strKey.c_str(),
+                                            strDebugOptions.c_str());
                     }
                 }
 
@@ -1466,37 +1334,40 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         /*
          * Bandwidth groups.
          */
+        PCFGMNODE pAc;
+        PCFGMNODE pAcFile;
+        PCFGMNODE pAcFileBwGroups;
         ComPtr<IBandwidthControl> bwCtrl;
+        com::SafeIfaceArray<IBandwidthGroup> bwGroups;
 
         hrc = pMachine->COMGETTER(BandwidthControl)(bwCtrl.asOutParam());                   H();
 
-        com::SafeIfaceArray<IBandwidthGroup> bwGroups;
         hrc = bwCtrl->GetAllBandwidthGroups(ComSafeArrayAsOutParam(bwGroups));              H();
 
-        PCFGMNODE pAc;
         InsertConfigNode(pPDM, "AsyncCompletion", &pAc);
-        PCFGMNODE pAcFile;
         InsertConfigNode(pAc,  "File", &pAcFile);
-        PCFGMNODE pAcFileBwGroups;
         InsertConfigNode(pAcFile,  "BwGroups", &pAcFileBwGroups);
 #ifdef VBOX_WITH_NETSHAPER
         PCFGMNODE pNetworkShaper;
-        InsertConfigNode(pPDM, "NetworkShaper",  &pNetworkShaper);
         PCFGMNODE pNetworkBwGroups;
+
+        InsertConfigNode(pPDM, "NetworkShaper",  &pNetworkShaper);
         InsertConfigNode(pNetworkShaper, "BwGroups", &pNetworkBwGroups);
 #endif /* VBOX_WITH_NETSHAPER */
 
         for (size_t i = 0; i < bwGroups.size(); i++)
         {
             Bstr strName;
-            hrc = bwGroups[i]->COMGETTER(Name)(strName.asOutParam());                       H();
-            if (strName.isEmpty())
-                return pVMM->pfnVMR3SetError(pUVM, VERR_CFGM_NO_NODE, RT_SRC_POS, N_("No bandwidth group name specified"));
+            LONG64 cMaxBytesPerSec;
+            BandwidthGroupType_T enmType;
 
-            BandwidthGroupType_T enmType = BandwidthGroupType_Null;
+            hrc = bwGroups[i]->COMGETTER(Name)(strName.asOutParam());                       H();
             hrc = bwGroups[i]->COMGETTER(Type)(&enmType);                                   H();
-            LONG64 cMaxBytesPerSec = 0;
             hrc = bwGroups[i]->COMGETTER(MaxBytesPerSec)(&cMaxBytesPerSec);                 H();
+
+            if (strName.isEmpty())
+                return VMR3SetError(pUVM, VERR_CFGM_NO_NODE, RT_SRC_POS,
+                                    N_("No bandwidth group name specified"));
 
             if (enmType == BandwidthGroupType_Disk)
             {
@@ -1615,44 +1486,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             /* Add PCI passthrough devices */
             hrc = i_attachRawPCIDevices(pUVM, pBusMgr, pDevices);                           H();
 #endif
-
-            if (enmIommuType == IommuType_AMD)
-            {
-                /* AMD IOMMU. */
-                InsertConfigNode(pDevices, "iommu-amd", &pDev);
-                InsertConfigNode(pDev,     "0", &pInst);
-                InsertConfigInteger(pInst, "Trusted",   1); /* boolean */
-                InsertConfigNode(pInst,    "Config", &pCfg);
-                hrc = pBusMgr->assignPCIDevice("iommu-amd", pInst);                         H();
-
-                /* The AMD IOMMU device needs to know which PCI slot it's in, see @bugref{9654#c104}. */
-                {
-                    PCIBusAddress Address;
-                    if (pBusMgr->findPCIAddress("iommu-amd", 0, Address))
-                    {
-                        uint32_t const u32IommuAddress = (Address.miDevice << 16) | Address.miFn;
-                        InsertConfigInteger(pCfg, "PCIAddress", u32IommuAddress);
-                    }
-                    else
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                     N_("Failed to find PCI address of the assigned IOMMU device!"));
-                }
-
-                PCIBusAddress PCIAddr = PCIBusAddress((int32_t)uIoApicPciAddress);
-                hrc = pBusMgr->assignPCIDevice("sb-ioapic", NULL /* pCfg */, PCIAddr, true /*fGuestAddressRequired*/);  H();
-            }
-            else if (enmIommuType == IommuType_Intel)
-            {
-                /* Intel IOMMU. */
-                InsertConfigNode(pDevices, "iommu-intel", &pDev);
-                InsertConfigNode(pDev,     "0", &pInst);
-                InsertConfigInteger(pInst, "Trusted",   1); /* boolean */
-                InsertConfigNode(pInst,    "Config", &pCfg);
-                hrc = pBusMgr->assignPCIDevice("iommu-intel", pInst);                       H();
-
-                PCIBusAddress PCIAddr = PCIBusAddress((int32_t)uIoApicPciAddress);
-                hrc = pBusMgr->assignPCIDevice("sb-ioapic", NULL /* pCfg */, PCIAddr, true /*fGuestAddressRequired*/);  H();
-            }
         }
 
         /*
@@ -1725,31 +1558,29 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         InsertConfigInteger(pInst, "Trusted",              1); /* boolean */
         InsertConfigNode(pInst,    "Config", &pCfg);
 
-        KeyboardHIDType_T aKbdHID;
-        hrc = pMachine->COMGETTER(KeyboardHIDType)(&aKbdHID);                               H();
-        if (aKbdHID != KeyboardHIDType_None)
-        {
-            InsertConfigNode(pInst,    "LUN#0", &pLunL0);
-            InsertConfigString(pLunL0, "Driver",               "KeyboardQueue");
-            InsertConfigNode(pLunL0,   "Config", &pCfg);
-            InsertConfigInteger(pCfg,  "QueueSize",            64);
+        InsertConfigNode(pInst,    "LUN#0", &pLunL0);
+        InsertConfigString(pLunL0, "Driver",               "KeyboardQueue");
+        InsertConfigNode(pLunL0,   "Config", &pCfg);
+        InsertConfigInteger(pCfg,  "QueueSize",            64);
 
-            InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
-            InsertConfigString(pLunL1, "Driver",               "MainKeyboard");
-        }
+        InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
+        InsertConfigString(pLunL1, "Driver",               "MainKeyboard");
+        InsertConfigNode(pLunL1,   "Config", &pCfg);
+        Keyboard *pKeyboard = mKeyboard;
+        InsertConfigInteger(pCfg,  "Object",     (uintptr_t)pKeyboard);
 
+        Mouse *pMouse = mMouse;
         PointingHIDType_T aPointingHID;
         hrc = pMachine->COMGETTER(PointingHIDType)(&aPointingHID);                          H();
-        if (aPointingHID != PointingHIDType_None)
-        {
-            InsertConfigNode(pInst,    "LUN#1", &pLunL0);
-            InsertConfigString(pLunL0, "Driver",               "MouseQueue");
-            InsertConfigNode(pLunL0,   "Config", &pCfg);
-            InsertConfigInteger(pCfg, "QueueSize",            128);
+        InsertConfigNode(pInst,    "LUN#1", &pLunL0);
+        InsertConfigString(pLunL0, "Driver",               "MouseQueue");
+        InsertConfigNode(pLunL0,   "Config", &pCfg);
+        InsertConfigInteger(pCfg, "QueueSize",            128);
 
-            InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
-            InsertConfigString(pLunL1, "Driver",               "MainMouse");
-        }
+        InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
+        InsertConfigString(pLunL1, "Driver",               "MainMouse");
+        InsertConfigNode(pLunL1,   "Config", &pCfg);
+        InsertConfigInteger(pCfg,  "Object",     (uintptr_t)pMouse);
 
         /*
          * i8254 Programmable Interval Timer And Dummy Speaker
@@ -1799,13 +1630,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                 InsertConfigInteger(pInst, "Trusted",      1); /* boolean */
                 InsertConfigNode(pInst,    "Config", &pCfg);
                 InsertConfigInteger(pCfg,  "NumCPUs", cCpus);
-                if (enmIommuType == IommuType_AMD)
-                    InsertConfigInteger(pCfg, "PCIAddress", uIoApicPciAddress);
-                else if (enmIommuType == IommuType_Intel)
-                {
-                    InsertConfigString(pCfg, "ChipType", "DMAR");
-                    InsertConfigInteger(pCfg, "PCIAddress", uIoApicPciAddress);
-                }
             }
         }
 
@@ -1845,8 +1669,8 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                 break;
             default:
                 AssertMsgFailed(("Invalid graphicsController=%d\n", enmGraphicsController));
-                return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                             N_("Invalid graphics controller type '%d'"), enmGraphicsController);
+                return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                    N_("Invalid graphics controller type '%d'"), enmGraphicsController);
         }
 
         /*
@@ -1885,19 +1709,19 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             InsertConfigInteger(pBiosCfg,  "McfgBase",   uMcfgBase);
             InsertConfigInteger(pBiosCfg,  "McfgLength", cbMcfgLength);
 
+            DeviceType_T bootDevice;
             AssertMsgReturn(SchemaDefs::MaxBootPosition <= 9, ("Too many boot devices %d\n", SchemaDefs::MaxBootPosition),
                             VERR_INVALID_PARAMETER);
 
             for (ULONG pos = 1; pos <= SchemaDefs::MaxBootPosition; ++pos)
             {
-                DeviceType_T enmBootDevice;
-                hrc = pMachine->GetBootOrder(pos, &enmBootDevice);                          H();
+                hrc = pMachine->GetBootOrder(pos, &bootDevice);                             H();
 
                 char szParamName[] = "BootDeviceX";
                 szParamName[sizeof(szParamName) - 2] = (char)(pos - 1 + '0');
 
                 const char *pszBootDevice;
-                switch (enmBootDevice)
+                switch (bootDevice)
                 {
                     case DeviceType_Null:
                         pszBootDevice = "NONE";
@@ -1915,9 +1739,9 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                         pszBootDevice = "LAN";
                         break;
                     default:
-                        AssertMsgFailed(("Invalid enmBootDevice=%d\n", enmBootDevice));
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                     N_("Invalid boot device '%d'"), enmBootDevice);
+                        AssertMsgFailed(("Invalid bootDevice=%d\n", bootDevice));
+                        return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                            N_("Invalid boot device '%d'"), bootDevice);
                 }
                 InsertConfigString(pBiosCfg, szParamName, pszBootDevice);
             }
@@ -1955,7 +1779,8 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/EfiDeviceProps", &deviceProps);
 
             /* Get NVRAM file name */
-            Utf8Str strNvram = mptrNvramStore->i_getNonVolatileStorageFile();
+            Bstr bstrNVRAM;
+            hrc = biosSettings->COMGETTER(NonVolatileStorageFile)(bstrNVRAM.asOutParam());  H();
 
             BOOL fUuidLe;
             hrc = biosSettings->COMGETTER(SMBIOSUuidLittleEndian)(&fUuidLe);                H();
@@ -2024,7 +1849,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             InsertConfigBytes(pCfg,    "UUID", &HardwareUuid,sizeof(HardwareUuid));
             InsertConfigInteger(pCfg,  "UuidLe",      fUuidLe);
             InsertConfigInteger(pCfg,  "64BitEntry",  f64BitEntry); /* boolean */
-            InsertConfigString(pCfg,   "NvramFile",   strNvram);
+            InsertConfigString(pCfg,   "NvramFile",   bstrNVRAM);
             if (u32GraphicsMode != UINT32_MAX)
                 InsertConfigInteger(pCfg,  "GraphicsMode",  u32GraphicsMode);
             if (!strResolution.isEmpty())
@@ -2036,10 +1861,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                 InsertConfigInteger(pCfg, "DmiUseHostInfo", 1);
                 InsertConfigInteger(pCfg, "DmiExposeMemoryTable", 1);
             }
-
-            /* Attach the NVRAM storage driver. */
-            InsertConfigNode(pInst,    "LUN#0",     &pLunL0);
-            InsertConfigString(pLunL0, "Driver",    "NvramStore");
         }
 
         /*
@@ -2101,7 +1922,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     /*
                      * Attach the status driver.
                      */
-                    i_attachStatusDriver(pInst, DeviceType_USB, 0, 0, NULL, NULL, NULL, 0);
+                    i_attachStatusDriver(pInst, &mapUSBLed[0], 0, 0, NULL, NULL, 0);
                 }
 #ifdef VBOX_WITH_EHCI
                 else if (enmCtrlType == USBControllerType_EHCI)
@@ -2132,14 +1953,14 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                         /*
                          * Attach the status driver.
                          */
-                        i_attachStatusDriver(pInst, DeviceType_USB, 0, 0, NULL, NULL, NULL, 0);
+                        i_attachStatusDriver(pInst, &mapUSBLed[1], 0, 0, NULL, NULL, 0);
                     }
 # ifdef VBOX_WITH_EXTPACK
                     else
                     {
                         /* Always fatal! Up to VBox 4.0.4 we allowed to start the VM anyway
                          * but this induced problems when the user saved + restored the VM! */
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
+                        return VMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
                                 N_("Implementation of the USB 2.0 controller not found!\n"
                                    "Because the USB 2.0 controller state is part of the saved "
                                    "VM state, the VM cannot be started. To fix "
@@ -2184,13 +2005,13 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                         /*
                          * Attach the status driver.
                          */
-                        i_attachStatusDriver(pInst, DeviceType_USB, 0, 1, NULL, NULL, NULL, 0);
+                        i_attachStatusDriver(pInst, &mapUSBLed[0], 0, 1, NULL, NULL, 0);
                     }
 # ifdef VBOX_WITH_EXTPACK
                     else
                     {
                         /* Always fatal. */
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
+                        return VMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
                                 N_("Implementation of the USB 3.0 controller not found!\n"
                                    "Because the USB 3.0 controller state is part of the saved "
                                    "VM state, the VM cannot be started. To fix "
@@ -2266,6 +2087,8 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
 
                 InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
                 InsertConfigString(pLunL1, "Driver",        "MainMouse");
+                InsertConfigNode(pLunL1,   "Config", &pCfg);
+                InsertConfigInteger(pCfg,  "Object",     (uintptr_t)pMouse);
             }
             if (aPointingHID == PointingHIDType_USBMultiTouch)
             {
@@ -2280,9 +2103,13 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
 
                 InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
                 InsertConfigString(pLunL1, "Driver",        "MainMouse");
+                InsertConfigNode(pLunL1,   "Config", &pCfg);
+                InsertConfigInteger(pCfg,  "Object",     (uintptr_t)pMouse);
             }
 
             /* Virtual USB Keyboard */
+            KeyboardHIDType_T aKbdHID;
+            hrc = pMachine->COMGETTER(KeyboardHIDType)(&aKbdHID);                       H();
             if (aKbdHID == KeyboardHIDType_USBKeyboard)
             {
                 InsertConfigNode(pUsbDevices, "HidKeyboard", &pDev);
@@ -2296,6 +2123,9 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
 
                 InsertConfigNode(pLunL0,   "AttachedDriver", &pLunL1);
                 InsertConfigString(pLunL1, "Driver",               "MainKeyboard");
+                InsertConfigNode(pLunL1,   "Config", &pCfg);
+                pKeyboard = mKeyboard;
+                InsertConfigInteger(pCfg,  "Object",     (uintptr_t)pKeyboard);
             }
         }
 
@@ -2376,8 +2206,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     }
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, 15, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    Assert(cLedScsi >= 16);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedScsi], 0, 15,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedScsi];
                     break;
                 }
 
@@ -2398,8 +2230,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     }
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, 15, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    Assert(cLedScsi >= 16);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedScsi], 0, 15,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedScsi];
                     break;
                 }
 
@@ -2446,8 +2280,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     }
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, cPorts - 1, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    AssertRelease(cPorts <= cLedSata);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedSata], 0, cPorts - 1,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedSata];
                     break;
                 }
 
@@ -2461,8 +2297,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     hrc = pBusMgr->assignPCIDevice("piix3ide", pCtlInst);                   H();
                     InsertConfigString(pCfg,   "Type", controllerString(enmCtrlType));
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, 3, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    Assert(cLedIde >= 4);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedIde], 0, 3,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedIde];
 
                     /* IDE flavors */
                     aCtrlNodes[StorageControllerType_PIIX3] = pDev;
@@ -2483,8 +2321,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     InsertConfigInteger(pCfg, "IOBase",    0x3f0);
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_Floppy, 0, 1, NULL,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    Assert(cLedFloppy >= 2);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedFloppy], 0, 1,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedFloppy];
                     break;
                 }
 
@@ -2510,8 +2350,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     InsertConfigInteger(pCfg, "NumPorts", cPorts);
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, 7, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    Assert(cLedSas >= 8);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedSas], 0, 7,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedSas];
                     break;
                 }
 
@@ -2527,7 +2369,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                         pCtlInst = pDev;
                     }
                     else
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
+                        return VMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
                                 N_("There is no USB controller enabled but there\n"
                                    "is at least one USB storage device configured for this VM.\n"
                                    "To fix this problem either enable the USB controller or remove\n"
@@ -2544,8 +2386,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     InsertConfigInteger(pCfg, "NamespacesMax", cPorts);
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, cPorts - 1, NULL,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    AssertRelease(cPorts <= cLedSata);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedNvme], 0, cPorts - 1,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedNvme];
                     break;
                 }
 
@@ -2559,8 +2403,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     InsertConfigInteger(pCfg, "Bootable",   fBootable);
 
                     /* Attach the status driver */
-                    i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, cPorts - 1, &paLedDevType,
-                                         &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    AssertRelease(cPorts <= cLedVirtio);
+                    i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedVirtio], 0, cPorts - 1,
+                                       &mapMediumAttachments, pszCtrlDev, ulInstance);
+                    paLedDevType = &maStorageDevType[iLedVirtio];
                     break;
                 }
 
@@ -2604,7 +2450,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                                               false /* fForceUnmount */,
                                               false /* fHotplug */,
                                               pUVM,
-                                              pVMM,
                                               paLedDevType,
                                               NULL /* ppLunL0 */);
                 if (RT_FAILURE(rc))
@@ -2630,11 +2475,10 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         PCFGMNODE pDevVirtioNet = NULL;          /* Virtio network devices */
         InsertConfigNode(pDevices, "virtio-net", &pDevVirtioNet);
 #endif /* VBOX_WITH_VIRTIO */
-        PCFGMNODE pDevDP8390 = NULL;         /* DP8390-type devices */
-        InsertConfigNode(pDevices, "dp8390", &pDevDP8390);
-        PCFGMNODE pDev3C501 = NULL;          /* EtherLink-type devices */
-        InsertConfigNode(pDevices, "3c501",  &pDev3C501);
-
+#ifdef VBOX_WITH_VIRTIO_NET_1_0
+        PCFGMNODE pDevVirtioNet1_0 = NULL;          /* Virtio network devices */
+        InsertConfigNode(pDevices, "virtio-net-1-dot-0", &pDevVirtioNet1_0);
+#endif /* VBOX_WITH_VIRTIO_NET_1_0 */
         std::list<BootNic> llBootNics;
         for (ULONG uInstance = 0; uInstance < maxNetworkAdapters; ++uInstance)
         {
@@ -2672,20 +2516,16 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     pszAdapterName = "virtio-net";
                     break;
 #endif /* VBOX_WITH_VIRTIO */
-                case NetworkAdapterType_NE1000:
-                case NetworkAdapterType_NE2000:
-                case NetworkAdapterType_WD8003:
-                case NetworkAdapterType_WD8013:
-                case NetworkAdapterType_ELNK2:
-                    pDev = pDevDP8390;
+#ifdef VBOX_WITH_VIRTIO_NET_1_0
+                case NetworkAdapterType_Virtio_1_0:
+                    pDev = pDevVirtioNet1_0;
+                    pszAdapterName = "virtio-net-1-dot-0";
                     break;
-                case NetworkAdapterType_ELNK1:
-                    pDev = pDev3C501;
-                    break;
+#endif /* VBOX_WITH_VIRTIO_NET_1_0 */
                 default:
                     AssertMsgFailed(("Invalid network adapter type '%d' for slot '%d'", adapterType, uInstance));
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                 N_("Invalid network adapter type '%d' for slot '%d'"), adapterType, uInstance);
+                    return VMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                        N_("Invalid network adapter type '%d' for slot '%d'"), adapterType, uInstance);
             }
 
             InsertConfigNode(pDev, Utf8StrFmt("%u", uInstance).c_str(), &pInst);
@@ -2744,7 +2584,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             llBootNics.push_back(nic);
 
             /*
-             * The virtual hardware type. PCNet supports three types, E1000 three,
+             * The virtual hardware type. PCNet supports two types, E1000 three,
              * but VirtIO only one.
              */
             switch (adapterType)
@@ -2769,22 +2609,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     break;
                 case NetworkAdapterType_Virtio:
                     break;
-                case NetworkAdapterType_NE1000:
-                    InsertConfigString(pCfg, "DeviceType", "NE1000");
-                    break;
-                case NetworkAdapterType_NE2000:
-                    InsertConfigString(pCfg, "DeviceType", "NE2000");
-                    break;
-                case NetworkAdapterType_WD8003:
-                    InsertConfigString(pCfg, "DeviceType", "WD8003");
-                    break;
-                case NetworkAdapterType_WD8013:
-                    InsertConfigString(pCfg, "DeviceType", "WD8013");
-                    break;
-                case NetworkAdapterType_ELNK2:
-                    InsertConfigString(pCfg, "DeviceType", "3C503");
-                    break;
-                case NetworkAdapterType_ELNK1:
+                case NetworkAdapterType_Virtio_1_0:
                     break;
                 case NetworkAdapterType_Null:      AssertFailedBreak(); /* (compiler warnings) */
 #ifdef VBOX_WITH_XPCOM_CPP_ENUM_HACK
@@ -2804,7 +2629,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             hrc = networkAdapter->COMGETTER(AttachmentType)(&eAttachmentType);                 H();
             if (eAttachmentType == NetworkAttachmentType_Cloud)
             {
-                mGateway.setLocalMacAddress(macAddrUtf8);
+                mGateways.setLocalMacAddress(macAddrUtf8);
                 /* We'll insert cloud MAC later, when it becomes known. */
             }
             else
@@ -2846,7 +2671,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             /*
              * Attach the status driver.
              */
-            i_attachStatusDriver(pInst, DeviceType_Network, 0, 0, NULL, NULL, NULL, 0);
+            i_attachStatusDriver(pInst, &mapNetworkLeds[uInstance], 0, 0, NULL, NULL, 0);
 
             /*
              * Configure the network card now
@@ -2860,9 +2685,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                                  pLunL0,
                                  pInst,
                                  false /*fAttachDetach*/,
-                                 fIgnoreConnectFailure,
-                                 pUVM,
-                                 pVMM);
+                                 fIgnoreConnectFailure);
             if (RT_FAILURE(rc))
                 return rc;
         }
@@ -3018,11 +2841,12 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         InsertConfigNode(pInst,    "LUN#0", &pLunL0);
         InsertConfigString(pLunL0, "Driver",               "HGCM");
         InsertConfigNode(pLunL0,   "Config", &pCfg);
+        InsertConfigInteger(pCfg,  "Object", (uintptr_t)pVMMDev);
 
         /*
          * Attach the status driver.
          */
-        i_attachStatusDriver(pInst, DeviceType_SharedFolder, 0, 0, NULL, NULL, NULL, 0);
+        i_attachStatusDriver(pInst, &mapSharedFolderLed, 0, 0, NULL, NULL, 0);
 
         /*
          * Audio configuration.
@@ -3058,19 +2882,12 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/Debug/Enabled", &strTmp);
             const bool fDebugEnabled = strTmp.equalsIgnoreCase("true") || strTmp.equalsIgnoreCase("1");
 
-            GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/Debug/Level", &strTmp);
-            const uint32_t uDebugLevel = strTmp.toUInt32();
-
             Utf8Str strDebugPathOut;
             GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/Debug/PathOut", &strDebugPathOut);
 
 #ifdef VBOX_WITH_AUDIO_VALIDATIONKIT
-            GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/VaKit/Enabled", &strTmp); /* Deprecated; do not use! */
-            if (strTmp.isEmpty())
-                GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/ValKit/Enabled", &strTmp);
-            /* Whether the Validation Kit audio backend runs as the primary backend.
-             * Can also be used with VBox release builds. */
-            const bool fValKitEnabled = strTmp.equalsIgnoreCase("true") || strTmp.equalsIgnoreCase("1");
+            GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/VaKit/Enabled", &strTmp);
+            const bool fVaKitEnabled = strTmp.equalsIgnoreCase("true") || strTmp.equalsIgnoreCase("1");
 #endif
             /** @todo Implement an audio device class, similar to the audio backend class, to construct the common stuff
              *        without duplicating (more) code. */
@@ -3176,80 +2993,69 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             /*
              * The audio driver.
              */
-            const char *pszAudioDriver = NULL;
-#ifdef VBOX_WITH_AUDIO_VALIDATIONKIT
-            if (fValKitEnabled)
+            AudioDriverType_T enmAudioDriver;
+            hrc = audioAdapter->COMGETTER(AudioDriver)(&enmAudioDriver);                    H();
+            const char *pszAudioDriver;
+            switch (enmAudioDriver)
             {
-                pszAudioDriver = "ValidationKitAudio";
-                LogRel(("Audio: ValidationKit driver active\n"));
-            }
-#endif
-            /* If nothing else was selected before, ask the API. */
-            if (pszAudioDriver == NULL)
-            {
-                AudioDriverType_T enmAudioDriver;
-                hrc = audioAdapter->COMGETTER(AudioDriver)(&enmAudioDriver);                    H();
-                switch (enmAudioDriver)
-                {
-                    case AudioDriverType_Null:
-                        pszAudioDriver = "NullAudio";
-                        break;
+                case AudioDriverType_Null:
+                    pszAudioDriver = "NullAudio";
+                    break;
 #ifdef RT_OS_WINDOWS
 # ifdef VBOX_WITH_WINMM
-                    case AudioDriverType_WinMM:
+                case AudioDriverType_WinMM:
 #  error "Port WinMM audio backend!" /** @todo Still needed? */
-                        break;
+                    break;
 # endif
-                    case AudioDriverType_DirectSound:
-                        /* Use the windows audio session (WAS) API rather than Direct Sound on windows
-                           versions we've tested it on (currently W7+).  Since Vista, Direct Sound has
-                           been emulated on top of WAS according to the docs, so better use WAS directly.
+                case AudioDriverType_DirectSound:
+                    /* Use the windows audio session (WAS) API rather than Direct Sound on windows
+                       versions we've tested it on (currently W7+).  Since Vista, Direct Sound has
+                       been emulated on top of WAS according to the docs, so better use WAS directly.
 
-                           Set extradata value "VBoxInternal2/Audio/WindowsDrv" "dsound" to no use WasAPI. */
-                        pszAudioDriver = "DSoundAudio";
-                        GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/WindowsDrv", &strTmp); H();
-                        if (   RTSystemGetNtVersion() >= RTSYSTEM_MAKE_NT_VERSION(6,1,0)
-                            && (   strTmp.isEmpty()
-                                || strTmp.equalsIgnoreCase("was")
-                                || strTmp.equalsIgnoreCase("wasapi")) )
-                            pszAudioDriver = "HostAudioWas";
-                        break;
+                       Set extradata value "VBoxInternal2/Audio/WindowsDrv" "dsound" to no use WasAPI. */
+                    pszAudioDriver = "DSoundAudio";
+                    GetExtraDataBoth(virtualBox, pMachine, "VBoxInternal2/Audio/WindowsDrv", &strTmp); H();
+                    if (   RTSystemGetNtVersion() >= RTSYSTEM_MAKE_NT_VERSION(6,1,0)
+                        && (   strTmp.isEmpty()
+                            || strTmp.equalsIgnoreCase("was")
+                            || strTmp.equalsIgnoreCase("wasapi")) )
+                        pszAudioDriver = "HostAudioWas";
+                    break;
 #endif /* RT_OS_WINDOWS */
 #ifdef RT_OS_SOLARIS
-                    case AudioDriverType_SolAudio:
-                        /* Should not happen, as the Solaris Audio backend is not around anymore.
-                         * Remove this sometime later. */
-                        LogRel(("Audio: WARNING: Solaris Audio is deprecated, please switch to OSS!\n"));
-                        LogRel(("Audio: Automatically setting host audio backend to OSS\n"));
+                case AudioDriverType_SolAudio:
+                    /* Should not happen, as the Solaris Audio backend is not around anymore.
+                     * Remove this sometime later. */
+                    LogRel(("Audio: WARNING: Solaris Audio is deprecated, please switch to OSS!\n"));
+                    LogRel(("Audio: Automatically setting host audio backend to OSS\n"));
 
-                        /* Manually set backend to OSS for now. */
-                        pszAudioDriver = "OSSAudio";
-                        break;
+                    /* Manually set backend to OSS for now. */
+                    pszAudioDriver = "OSSAudio";
+                    break;
 #endif
 #ifdef VBOX_WITH_AUDIO_OSS
-                    case AudioDriverType_OSS:
-                        pszAudioDriver = "OSSAudio";
-                        break;
+                case AudioDriverType_OSS:
+                    pszAudioDriver = "OSSAudio";
+                    break;
 #endif
 #ifdef VBOX_WITH_AUDIO_ALSA
-                    case AudioDriverType_ALSA:
-                        pszAudioDriver = "ALSAAudio";
-                        break;
+                case AudioDriverType_ALSA:
+                    pszAudioDriver = "ALSAAudio";
+                    break;
 #endif
 #ifdef VBOX_WITH_AUDIO_PULSE
-                    case AudioDriverType_Pulse:
-                        pszAudioDriver = "PulseAudio";
-                        break;
+                case AudioDriverType_Pulse:
+                    pszAudioDriver = "PulseAudio";
+                    break;
 #endif
 #ifdef RT_OS_DARWIN
-                    case AudioDriverType_CoreAudio:
-                        pszAudioDriver = "CoreAudio";
-                        break;
+                case AudioDriverType_CoreAudio:
+                    pszAudioDriver = "CoreAudio";
+                    break;
 #endif
-                    default:
-                        pszAudioDriver = "oops";
-                        AssertFailedBreak();
-                }
+                default:
+                    pszAudioDriver = "oops";
+                    AssertFailedBreak();
             }
 
             BOOL fAudioEnabledIn = FALSE;
@@ -3280,7 +3086,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             InsertConfigString(pLunL0, "Driver", "AUDIO");
             AudioDriverCfg DrvCfgVideoRec(pszAudioDevice, 0 /* Instance */, idxAudioLun, "AudioVideoRec",
                                           false /*a_fEnabledIn*/, true /*a_fEnabledOut*/);
-            rc = mRecording.mAudioRec->InitializeConfig(&DrvCfgVideoRec);
+            rc = Recording.mAudioRec->InitializeConfig(&DrvCfgVideoRec);
             AssertRCStmt(rc, throw ConfigError(__FUNCTION__, rc, "Recording.mAudioRec->InitializeConfig failed"));
             idxAudioLun++;
 #endif
@@ -3288,77 +3094,39 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
             if (fDebugEnabled)
             {
 #ifdef VBOX_WITH_AUDIO_DEBUG
-# ifdef VBOX_WITH_AUDIO_VALIDATIONKIT
-                /*
-                 * When both, ValidationKit and Debug mode (for audio) are enabled,
-                 * skip configuring the Debug audio driver, as both modes can
-                 * mess with the audio data and would lead to side effects.
-                 *
-                 * The ValidationKit audio driver has precedence over the Debug audio driver.
-                 *
-                 * This also can (and will) be used in VBox release builds.
-                 */
-                if (fValKitEnabled)
-                {
-                    LogRel(("Audio: Warning: ValidationKit running and Debug mode enabled -- disabling Debug driver\n"));
-                }
-                else /* Debug mode active -- run both (nice for catching errors / doing development). */
-                {
-                    /*
-                     * The ValidationKit backend.
-                     */
-                    InsertConfigNodeF(pInst, &pLunL0, "LUN#%u", idxAudioLun);
-                    i_configAudioDriver(virtualBox, pMachine, pLunL0, "ValidationKitAudio",
-                                        !!fAudioEnabledIn, !!fAudioEnabledOut);
-                    idxAudioLun++;
-# endif /* VBOX_WITH_AUDIO_VALIDATIONKIT */
-                    /*
-                     * The Debug audio backend.
-                     */
-                    InsertConfigNodeF(pInst, &pLunL0, "LUN#%u", idxAudioLun);
-                    i_configAudioDriver(virtualBox, pMachine, pLunL0, "DebugAudio",
-                                        !!fAudioEnabledIn, !!fAudioEnabledOut);
-                    idxAudioLun++;
-# ifdef VBOX_WITH_AUDIO_VALIDATIONKIT
-                }
-# endif /* VBOX_WITH_AUDIO_VALIDATIONKIT */
+                InsertConfigNodeF(pInst, &pLunL0, "LUN#%u", idxAudioLun);
+                i_configAudioDriver(virtualBox, pMachine, pLunL0, "DebugAudio", !!fAudioEnabledIn, !!fAudioEnabledOut);
+                idxAudioLun++;
 #endif /* VBOX_WITH_AUDIO_DEBUG */
 
                 /*
                  * Tweak the logging groups.
                  */
-                Utf8Str strGroups("drv_audio.e.l.l2.l3.f"
-                                  " audio_mixer.e.l.l2.l3.f"
-                                  " dev_hda_codec.e.l.l2.l3.f"
-                                  " dev_hda.e.l.l2.l3.f"
-                                  " dev_ac97.e.l.l2.l3.f"
-                                  " dev_sb16.e.l.l2.l3.f");
-
-                LogRel(("Audio: Debug level set to %RU32\n", uDebugLevel));
-
-                switch (uDebugLevel)
-                {
-                    case 0:
-                        strGroups += " drv_host_audio.e.l.l2.l3.f";
-                        break;
-                    case 1:
-                        RT_FALL_THROUGH();
-                    case 2:
-                        RT_FALL_THROUGH();
-                    case 3:
-                        strGroups += " drv_host_audio.e.l.l2.l3.f+audio_test.e.l.l2.l3.f";
-                        break;
-                    case 4:
-                        RT_FALL_THROUGH();
-                    default:
-                        strGroups += " drv_host_audio.e.l.l2.l3.l4.f+audio_test.e.l.l2.l3.l4.f";
-                        break;
-                }
-
-                rc = RTLogGroupSettings(RTLogRelGetDefaultInstance(), strGroups.c_str());
+                rc = RTLogGroupSettings(RTLogRelGetDefaultInstance(),
+                                        "drv_host_audio.e.l.l2.l3.f"
+                                        " drv_audio.e.l.l2.l3.f"
+                                        " audio_mixer.e.l.l2.l3.f"
+                                        " dev_hda_codec.e.l.l2.l3.f"
+                                        " dev_hda.e.l.l2.l3.f"
+                                        " dev_ac97.e.l.l2.l3.f"
+                                        " dev_sb16.e.l.l2.l3.f");
                 if (RT_FAILURE(rc))
                     LogRel(("Audio: Setting debug logging failed, rc=%Rrc\n", rc));
             }
+
+#ifdef VBOX_WITH_AUDIO_VALIDATIONKIT
+            if (fVaKitEnabled)
+            {
+                /*
+                 * The ValidationKit backend.
+                 */
+                InsertConfigNodeF(pInst, &pLunL0, "LUN#%u", idxAudioLun);
+                i_configAudioDriver(virtualBox, pMachine, pLunL0, "ValidationKitAudio", !!fAudioEnabledIn, !!fAudioEnabledOut);
+                idxAudioLun++;
+
+                LogRel(("Audio: ValidationKit driver active\n"));
+            }
+#endif /* VBOX_WITH_AUDIO_VALIDATIONKIT */
         }
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD
@@ -3458,59 +3226,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
         }
 #endif /* VBOX_WITH_DRAG_AND_DROP */
 
-#if defined(VBOX_WITH_TPM)
-        /*
-         * Configure the Trusted Platform Module.
-         */
-        ComObjPtr<ITrustedPlatformModule> ptrTpm;
-        TpmType_T enmTpmType = TpmType_None;
-
-        hrc = pMachine->COMGETTER(TrustedPlatformModule)(ptrTpm.asOutParam());              H();
-        hrc = ptrTpm->COMGETTER(Type)(&enmTpmType);                                         H();
-        if (enmTpmType != TpmType_None)
-        {
-            InsertConfigNode(pDevices, "tpm", &pDev);
-            InsertConfigNode(pDev,     "0", &pInst);
-            InsertConfigInteger(pInst, "Trusted", 1); /* boolean */
-            InsertConfigNode(pInst,    "Config", &pCfg);
-            InsertConfigNode(pInst,    "LUN#0", &pLunL0);
-
-            switch (enmTpmType)
-            {
-                case TpmType_v1_2:
-                case TpmType_v2_0:
-                {
-                    InsertConfigString(pLunL0, "Driver",               "TpmEmuTpms");
-                    InsertConfigNode(pLunL0,   "Config", &pCfg);
-                    InsertConfigInteger(pCfg, "TpmVersion", enmTpmType == TpmType_v1_2 ? 1 : 2);
-                    InsertConfigNode(pLunL0, "AttachedDriver", &pLunL1);
-                    InsertConfigString(pLunL1, "Driver", "NvramStore");
-                    break;
-                }
-                case TpmType_Host:
-                {
-#if defined(RT_OS_LINUX) || defined(RT_OS_WINDOWS)
-                    InsertConfigString(pLunL0, "Driver",               "TpmHost");
-                    InsertConfigNode(pLunL0,   "Config", &pCfg);
-#endif
-                    break;
-                }
-                case TpmType_Swtpm:
-                {
-                    Bstr location;
-                    hrc = ptrTpm->COMGETTER(Location)(location.asOutParam());               H();
-
-                    InsertConfigString(pLunL0, "Driver",               "TpmEmu");
-                    InsertConfigNode(pLunL0,   "Config", &pCfg);
-                    InsertConfigString(pCfg,   "Location", location);
-                    break;
-                }
-                default:
-                    AssertFailedBreak();
-            }
-        }
-#endif
-
         /*
          * ACPI
          */
@@ -3566,43 +3281,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
                     InsertConfigInteger(pCfg, "NvmePciAddress",    u32NvmePCIAddr);
                 }
             }
-            if (enmIommuType == IommuType_AMD)
-            {
-                PCIBusAddress Address;
-                if (pBusMgr->findPCIAddress("iommu-amd", 0, Address))
-                {
-                    uint32_t u32IommuAddress = (Address.miDevice << 16) | Address.miFn;
-                    InsertConfigInteger(pCfg, "IommuAmdEnabled", true);
-                    InsertConfigInteger(pCfg, "IommuPciAddress", u32IommuAddress);
-                    if (pBusMgr->findPCIAddress("sb-ioapic", 0, Address))
-                    {
-                        uint32_t const u32SbIoapicAddress = (Address.miDevice << 16) | Address.miFn;
-                        InsertConfigInteger(pCfg, "SbIoApicPciAddress", u32SbIoapicAddress);
-                    }
-                    else
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                     N_("AMD IOMMU is enabled, but the I/O APIC is not assigned a PCI address!"));
-                }
-            }
-            else if (enmIommuType == IommuType_Intel)
-            {
-                PCIBusAddress Address;
-                if (pBusMgr->findPCIAddress("iommu-intel", 0, Address))
-                {
-                    uint32_t u32IommuAddress = (Address.miDevice << 16) | Address.miFn;
-                    InsertConfigInteger(pCfg, "IommuIntelEnabled", true);
-                    InsertConfigInteger(pCfg, "IommuPciAddress", u32IommuAddress);
-                    if (pBusMgr->findPCIAddress("sb-ioapic", 0, Address))
-                    {
-                        uint32_t const u32SbIoapicAddress = (Address.miDevice << 16) | Address.miFn;
-                        InsertConfigInteger(pCfg, "SbIoApicPciAddress", u32SbIoapicAddress);
-                    }
-                    else
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_INVALID_PARAMETER, RT_SRC_POS,
-                                                     N_("Intel IOMMU is enabled, but the I/O APIC is not assigned a PCI address!"));
-                }
-            }
-
             InsertConfigInteger(pCfg,  "IocPciAddress", uIocPCIAddress);
             if (chipsetType == ChipsetType_ICH9)
             {
@@ -3644,21 +3322,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
 
             InsertConfigInteger(pCfg,  "Parallel1IoPortBase", auParallelIoPortBase[1]);
             InsertConfigInteger(pCfg,  "Parallel1Irq", auParallelIrq[1]);
-
-#if defined(VBOX_WITH_TPM)
-            switch (enmTpmType)
-            {
-                case TpmType_v1_2:
-                    InsertConfigString(pCfg, "TpmMode", "tis1.2");
-                    break;
-                case TpmType_v2_0:
-                    InsertConfigString(pCfg, "TpmMode", "fifo2.0");
-                    break;
-                /** @todo Host and swtpm. */
-                default:
-                    break;
-            }
-#endif
 
             InsertConfigNode(pInst,    "LUN#0", &pLunL0);
             InsertConfigString(pLunL0, "Driver",               "ACPIHost");
@@ -3758,7 +3421,6 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     catch (ConfigError &x)
     {
         // InsertConfig threw something:
-        pVMM->pfnVMR3SetError(pUVM, x.m_vrc, RT_SRC_POS, "Caught ConfigError: %Rrc - %s", x.m_vrc, x.what());
         return x.m_vrc;
     }
     catch (HRESULT hrcXcpt)
@@ -3773,7 +3435,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     if (RT_SUCCESS(rc))
     {
         pAlock->release();
-        rc = mptrExtPackManager->i_callAllVmConfigureVmmHooks(this, pVM, pVMM);
+        rc = mptrExtPackManager->i_callAllVmConfigureVmmHooks(this, pVM);
         pAlock->acquire();
     }
 #endif
@@ -3797,7 +3459,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     /*
      * Register VM state change handler.
      */
-    int rc2 = pVMM->pfnVMR3AtStateRegister(pUVM, Console::i_vmstateChangeCallback, this);
+    int rc2 = VMR3AtStateRegister(pUVM, Console::i_vmstateChangeCallback, this);
     AssertRC(rc2);
     if (RT_SUCCESS(rc))
         rc = rc2;
@@ -3805,7 +3467,7 @@ int Console::i_configConstructorInner(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Au
     /*
      * Register VM runtime error handler.
      */
-    rc2 = pVMM->pfnVMR3AtRuntimeErrorRegister(pUVM, Console::i_atVMRuntimeErrorCallback, this);
+    rc2 = VMR3AtRuntimeErrorRegister(pUVM, Console::i_atVMRuntimeErrorCallback, this);
     AssertRC(rc2);
     if (RT_SUCCESS(rc))
         rc = rc2;
@@ -4009,9 +3671,11 @@ int Console::i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMac
             Bstr bstrExtraDataValue;
             if (i2 < cGlobalValues)
                 // this is still one of the global values:
-                hrc = pVirtualBox->GetExtraData(Bstr(strKey).raw(), bstrExtraDataValue.asOutParam());
+                hrc = pVirtualBox->GetExtraData(Bstr(strKey).raw(),
+                                                bstrExtraDataValue.asOutParam());
             else
-                hrc = pMachine->GetExtraData(Bstr(strKey).raw(), bstrExtraDataValue.asOutParam());
+                hrc = pMachine->GetExtraData(Bstr(strKey).raw(),
+                                             bstrExtraDataValue.asOutParam());
             if (FAILED(hrc))
                 LogRel(("Warning: Cannot get extra data key %s, rc = %Rhrc\n", strKey.c_str(), hrc));
 
@@ -4037,13 +3701,13 @@ int Console::i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMac
                 ++pszCFGMValueName;
 
                 /* does the node already exist? */
-                pNode = mpVMM->pfnCFGMR3GetChild(pRoot, pszExtraDataKey);
+                pNode = CFGMR3GetChild(pRoot, pszExtraDataKey);
                 if (pNode)
-                    mpVMM->pfnCFGMR3RemoveValue(pNode, pszCFGMValueName);
+                    CFGMR3RemoveValue(pNode, pszCFGMValueName);
                 else
                 {
                     /* create the node */
-                    rc = mpVMM->pfnCFGMR3InsertNode(pRoot, pszExtraDataKey, &pNode);
+                    rc = CFGMR3InsertNode(pRoot, pszExtraDataKey, &pNode);
                     if (RT_FAILURE(rc))
                     {
                         AssertLogRelMsgRC(rc, ("failed to insert node '%s'\n", pszExtraDataKey));
@@ -4058,7 +3722,7 @@ int Console::i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMac
                 pNode = pRoot;
                 pszCFGMValueName = pszExtraDataKey;
                 pszExtraDataKey--;
-                mpVMM->pfnCFGMR3RemoveValue(pNode, pszCFGMValueName);
+                CFGMR3RemoveValue(pNode, pszCFGMValueName);
             }
 
             /*
@@ -4067,18 +3731,18 @@ int Console::i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMac
              * already done above.
              */
             Utf8Str strCFGMValueUtf8(bstrExtraDataValue);
-            if (strCFGMValueUtf8.isNotEmpty())
+            if (!strCFGMValueUtf8.isEmpty())
             {
                 uint64_t u64Value;
 
                 /* check for type prefix first. */
                 if (!strncmp(strCFGMValueUtf8.c_str(), RT_STR_TUPLE("string:")))
-                    rc = mpVMM->pfnCFGMR3InsertString(pNode, pszCFGMValueName, strCFGMValueUtf8.c_str() + sizeof("string:") - 1);
+                    InsertConfigString(pNode, pszCFGMValueName, strCFGMValueUtf8.c_str() + sizeof("string:") - 1);
                 else if (!strncmp(strCFGMValueUtf8.c_str(), RT_STR_TUPLE("integer:")))
                 {
                     rc = RTStrToUInt64Full(strCFGMValueUtf8.c_str() + sizeof("integer:") - 1, 0, &u64Value);
                     if (RT_SUCCESS(rc))
-                        rc = mpVMM->pfnCFGMR3InsertInteger(pNode, pszCFGMValueName, u64Value);
+                        rc = CFGMR3InsertInteger(pNode, pszCFGMValueName, u64Value);
                 }
                 else if (!strncmp(strCFGMValueUtf8.c_str(), RT_STR_TUPLE("bytes:")))
                 {
@@ -4091,22 +3755,22 @@ int Console::i_configCfgmOverlay(PCFGMNODE pRoot, IVirtualBox *pVirtualBox, IMac
                         {
                             rc = RTBase64Decode(pszBase64, pvBytes, cbValue, NULL, NULL);
                             if (RT_SUCCESS(rc))
-                                rc = mpVMM->pfnCFGMR3InsertBytes(pNode, pszCFGMValueName, pvBytes, cbValue);
+                                rc = CFGMR3InsertBytes(pNode, pszCFGMValueName, pvBytes, cbValue);
                             RTMemTmpFree(pvBytes);
                         }
                         else
                             rc = VERR_NO_TMP_MEMORY;
                     }
                     else if (cbValue == 0)
-                        rc = mpVMM->pfnCFGMR3InsertBytes(pNode, pszCFGMValueName, NULL, 0);
+                        rc = CFGMR3InsertBytes(pNode, pszCFGMValueName, NULL, 0);
                     else
                         rc = VERR_INVALID_BASE64_ENCODING;
                 }
                 /* auto detect type. */
                 else if (RT_SUCCESS(RTStrToUInt64Full(strCFGMValueUtf8.c_str(), 0, &u64Value)))
-                    rc = mpVMM->pfnCFGMR3InsertInteger(pNode, pszCFGMValueName, u64Value);
+                    rc = CFGMR3InsertInteger(pNode, pszCFGMValueName, u64Value);
                 else
-                    rc = mpVMM->pfnCFGMR3InsertString(pNode, pszCFGMValueName, strCFGMValueUtf8.c_str());
+                    InsertConfigString(pNode, pszCFGMValueName, strCFGMValueUtf8);
                 AssertLogRelMsgRCBreak(rc, ("failed to insert CFGM value '%s' to key '%s'\n",
                                             strCFGMValueUtf8.c_str(), pszExtraDataKey));
             }
@@ -4218,7 +3882,7 @@ int Console::i_configGraphicsController(PCFGMNODE pDevices,
         hrc = ptrGraphicsAdapter->COMGETTER(Accelerate3DEnabled)(&f3DEnabled);              H();
         InsertConfigInteger(pCfg,  "3DEnabled",            f3DEnabled);
 
-        i_attachStatusDriver(pInst, DeviceType_Graphics3D, 0, 0, NULL, NULL, NULL, 0);
+        i_attachStatusDriver(pInst, &mapCrOglLed, 0, 0, NULL, NULL, 0);
 
 #ifdef VBOX_WITH_VMSVGA
         if (   enmGraphicsController == GraphicsControllerType_VMSVGA
@@ -4305,6 +3969,8 @@ int Console::i_configGraphicsController(PCFGMNODE pDevices,
         InsertConfigNode(pInst,    "LUN#0", &pLunL0);
         InsertConfigString(pLunL0, "Driver",               "MainDisplay");
         InsertConfigNode(pLunL0,   "Config", &pCfg);
+        Display *pDisplay = mDisplay;
+        InsertConfigInteger(pCfg,  "Object", (uintptr_t)pDisplay);
     }
     catch (ConfigError &x)
     {
@@ -4375,30 +4041,28 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
 
     if (uCaps & MediumFormatCapabilities_File)
     {
-        Bstr bstrFile;
-        hrc = pMedium->COMGETTER(Location)(bstrFile.asOutParam());                  H();
-        Utf8Str const strFile(bstrFile);
-
-        Bstr bstrSnap;
+        Bstr strFile;
+        hrc = pMedium->COMGETTER(Location)(strFile.asOutParam());                   H();
+        Utf8Str utfFile = Utf8Str(strFile);
+        Bstr strSnap;
         ComPtr<IMachine> pMachine = i_machine();
-        hrc = pMachine->COMGETTER(SnapshotFolder)(bstrSnap.asOutParam());           H();
-        Utf8Str const strSnap(bstrSnap);
-
+        hrc = pMachine->COMGETTER(SnapshotFolder)(strSnap.asOutParam());            H();
+        Utf8Str utfSnap = Utf8Str(strSnap);
         RTFSTYPE enmFsTypeFile = RTFSTYPE_UNKNOWN;
-        int rc2 = RTFsQueryType(strFile.c_str(), &enmFsTypeFile);
-        AssertMsgRCReturn(rc2, ("Querying the file type of '%s' failed!\n", strFile.c_str()), rc2);
-
+        RTFSTYPE enmFsTypeSnap = RTFSTYPE_UNKNOWN;
+        int rc2 = RTFsQueryType(utfFile.c_str(), &enmFsTypeFile);
+        AssertMsgRCReturn(rc2, ("Querying the file type of '%s' failed!\n", utfFile.c_str()), rc2);
         /* Ignore the error code. On error, the file system type is still 'unknown' so
          * none of the following paths are taken. This can happen for new VMs which
          * still don't have a snapshot folder. */
-        RTFSTYPE enmFsTypeSnap = RTFSTYPE_UNKNOWN;
-        (void)RTFsQueryType(strSnap.c_str(), &enmFsTypeSnap);
+        (void)RTFsQueryType(utfSnap.c_str(), &enmFsTypeSnap);
         if (!mfSnapshotFolderDiskTypeShown)
         {
-            LogRel(("File system of '%s' (snapshots) is %s\n", strSnap.c_str(), RTFsTypeName(enmFsTypeSnap)));
+            LogRel(("File system of '%s' (snapshots) is %s\n",
+                    utfSnap.c_str(), RTFsTypeName(enmFsTypeSnap)));
             mfSnapshotFolderDiskTypeShown = true;
         }
-        LogRel(("File system of '%s' is %s\n", strFile.c_str(), RTFsTypeName(enmFsTypeFile)));
+        LogRel(("File system of '%s' is %s\n", utfFile.c_str(), RTFsTypeName(enmFsTypeFile)));
         LONG64 i64Size;
         hrc = pMedium->COMGETTER(LogicalSize)(&i64Size);                            H();
 #ifdef RT_OS_WINDOWS
@@ -4408,12 +4072,12 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
             const char *pszUnit;
             uint64_t u64Print = formatDiskSize((uint64_t)i64Size, &pszUnit);
             i_atVMRuntimeErrorCallbackF(0, "FatPartitionDetected",
-                                        N_("The medium '%s' has a logical size of %RU64%s "
-                                           "but the file system the medium is located on seems "
-                                           "to be FAT(32) which cannot handle files bigger than 4GB.\n"
-                                           "We strongly recommend to put all your virtual disk images and "
-                                           "the snapshot folder onto an NTFS partition"),
-                                        strFile.c_str(), u64Print, pszUnit);
+                    N_("The medium '%ls' has a logical size of %RU64%s "
+                    "but the file system the medium is located on seems "
+                    "to be FAT(32) which cannot handle files bigger than 4GB.\n"
+                    "We strongly recommend to put all your virtual disk images and "
+                    "the snapshot folder onto an NTFS partition"),
+                    strFile.raw(), u64Print, pszUnit);
         }
 #else /* !RT_OS_WINDOWS */
         if (   enmFsTypeFile == RTFSTYPE_FAT
@@ -4423,7 +4087,7 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
             || enmFsTypeFile == RTFSTYPE_EXT4)
         {
             RTFILE file;
-            int rc = RTFileOpen(&file, strFile.c_str(), RTFILE_O_READ | RTFILE_O_OPEN | RTFILE_O_DENY_NONE);
+            int rc = RTFileOpen(&file, utfFile.c_str(), RTFILE_O_READ | RTFILE_O_OPEN | RTFILE_O_DENY_NONE);
             if (RT_SUCCESS(rc))
             {
                 RTFOFF maxSize;
@@ -4439,13 +4103,13 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
                     uint64_t u64PrintSiz = formatDiskSize((LONG64)i64Size, &pszUnitSiz);
                     uint64_t u64PrintMax = formatDiskSize(maxSize, &pszUnitMax);
                     i_atVMRuntimeErrorCallbackF(0, "FatPartitionDetected", /* <= not exact but ... */
-                                                N_("The medium '%s' has a logical size of %RU64%s "
-                                                   "but the file system the medium is located on can "
-                                                   "only handle files up to %RU64%s in theory.\n"
-                                                   "We strongly recommend to put all your virtual disk "
-                                                   "images and the snapshot folder onto a proper "
-                                                   "file system (e.g. ext3) with a sufficient size"),
-                                                strFile.c_str(), u64PrintSiz, pszUnitSiz, u64PrintMax, pszUnitMax);
+                            N_("The medium '%ls' has a logical size of %RU64%s "
+                            "but the file system the medium is located on can "
+                            "only handle files up to %RU64%s in theory.\n"
+                            "We strongly recommend to put all your virtual disk "
+                            "images and the snapshot folder onto a proper "
+                            "file system (e.g. ext3) with a sufficient size"),
+                            strFile.raw(), u64PrintSiz, pszUnitSiz, u64PrintMax, pszUnitMax);
                 }
             }
         }
@@ -4463,21 +4127,21 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
             uint64_t u64Print = formatDiskSize(i64Size, &pszUnit);
             i_atVMRuntimeErrorCallbackF(0, "FatPartitionDetected",
 #ifdef RT_OS_WINDOWS
-                                        N_("The snapshot folder of this VM '%s' seems to be located on "
-                                           "a FAT(32) file system. The logical size of the medium '%s' "
-                                           "(%RU64%s) is bigger than the maximum file size this file "
-                                           "system can handle (4GB).\n"
-                                           "We strongly recommend to put all your virtual disk images and "
-                                           "the snapshot folder onto an NTFS partition"),
+                    N_("The snapshot folder of this VM '%ls' seems to be located on "
+                    "a FAT(32) file system. The logical size of the medium '%ls' "
+                    "(%RU64%s) is bigger than the maximum file size this file "
+                    "system can handle (4GB).\n"
+                    "We strongly recommend to put all your virtual disk images and "
+                    "the snapshot folder onto an NTFS partition"),
 #else
-                                        N_("The snapshot folder of this VM '%s' seems to be located on "
-                                            "a FAT(32) file system. The logical size of the medium '%s' "
-                                            "(%RU64%s) is bigger than the maximum file size this file "
-                                            "system can handle (4GB).\n"
-                                            "We strongly recommend to put all your virtual disk images and "
-                                            "the snapshot folder onto a proper file system (e.g. ext3)"),
+                    N_("The snapshot folder of this VM '%ls' seems to be located on "
+                        "a FAT(32) file system. The logical size of the medium '%ls' "
+                        "(%RU64%s) is bigger than the maximum file size this file "
+                        "system can handle (4GB).\n"
+                        "We strongly recommend to put all your virtual disk images and "
+                        "the snapshot folder onto a proper file system (e.g. ext3)"),
 #endif
-                                        strSnap.c_str(), strFile.c_str(), u64Print, pszUnit);
+                    strSnap.raw(), strFile.raw(), u64Print, pszUnit);
             /* Show this particular warning only once */
             mfSnapshotFolderSizeWarningShown = true;
         }
@@ -4503,16 +4167,16 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
                 || enmFsTypeFile == RTFSTYPE_XFS)
             {
                 i_atVMRuntimeErrorCallbackF(0, "Ext4PartitionDetected",
-                                            N_("The host I/O cache for at least one controller is disabled "
-                                               "and the medium '%s' for this VM "
-                                               "is located on an %s partition. There is a known Linux "
-                                               "kernel bug which can lead to the corruption of the virtual "
-                                               "disk image under these conditions.\n"
-                                               "Either enable the host I/O cache permanently in the VM "
-                                               "settings or put the disk image and the snapshot folder "
-                                               "onto a different file system.\n"
-                                               "The host I/O cache will now be enabled for this medium"),
-                                            strFile.c_str(), enmFsTypeFile == RTFSTYPE_EXT4 ? "ext4" : "xfs");
+                        N_("The host I/O cache for at least one controller is disabled "
+                           "and the medium '%ls' for this VM "
+                           "is located on an %s partition. There is a known Linux "
+                           "kernel bug which can lead to the corruption of the virtual "
+                           "disk image under these conditions.\n"
+                           "Either enable the host I/O cache permanently in the VM "
+                           "settings or put the disk image and the snapshot folder "
+                           "onto a different file system.\n"
+                           "The host I/O cache will now be enabled for this medium"),
+                        strFile.raw(), enmFsTypeFile == RTFSTYPE_EXT4 ? "ext4" : "xfs");
                 *pfUseHostIOCache = true;
             }
             else if (  (   enmFsTypeSnap == RTFSTYPE_EXT4
@@ -4520,16 +4184,16 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
                      && !mfSnapshotFolderExt4WarningShown)
             {
                 i_atVMRuntimeErrorCallbackF(0, "Ext4PartitionDetected",
-                                            N_("The host I/O cache for at least one controller is disabled "
-                                               "and the snapshot folder for this VM "
-                                               "is located on an %s partition. There is a known Linux "
-                                               "kernel bug which can lead to the corruption of the virtual "
-                                               "disk image under these conditions.\n"
-                                               "Either enable the host I/O cache permanently in the VM "
-                                               "settings or put the disk image and the snapshot folder "
-                                               "onto a different file system.\n"
-                                               "The host I/O cache will now be enabled for this medium"),
-                                            enmFsTypeSnap == RTFSTYPE_EXT4 ? "ext4" : "xfs");
+                        N_("The host I/O cache for at least one controller is disabled "
+                           "and the snapshot folder for this VM "
+                           "is located on an %s partition. There is a known Linux "
+                           "kernel bug which can lead to the corruption of the virtual "
+                           "disk image under these conditions.\n"
+                           "Either enable the host I/O cache permanently in the VM "
+                           "settings or put the disk image and the snapshot folder "
+                           "onto a different file system.\n"
+                           "The host I/O cache will now be enabled for this medium"),
+                        enmFsTypeSnap == RTFSTYPE_EXT4 ? "ext4" : "xfs");
                 *pfUseHostIOCache = true;
                 mfSnapshotFolderExt4WarningShown = true;
             }
@@ -4549,13 +4213,13 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
             && fKernelAsyncUnreliable)
         {
             i_atVMRuntimeErrorCallbackF(0, "Linux2618TooOld",
-                                        N_("The host I/O cache for at least one controller is disabled. "
-                                           "There is a known Linux kernel bug which can lead to kernel "
-                                           "oopses under heavy load. To our knowledge this bug affects "
-                                           "all 2.6.18 kernels.\n"
-                                           "Either enable the host I/O cache permanently in the VM "
-                                           "settings or switch to a newer host kernel.\n"
-                                           "The host I/O cache will now be enabled for this medium"));
+                    N_("The host I/O cache for at least one controller is disabled. "
+                       "There is a known Linux kernel bug which can lead to kernel "
+                       "oopses under heavy load. To our knowledge this bug affects "
+                       "all 2.6.18 kernels.\n"
+                       "Either enable the host I/O cache permanently in the VM "
+                       "settings or switch to a newer host kernel.\n"
+                       "The host I/O cache will now be enabled for this medium"));
             *pfUseHostIOCache = true;
         }
 #endif
@@ -4569,29 +4233,28 @@ int Console::i_checkMediumLocation(IMedium *pMedium, bool *pfUseHostIOCache)
  * Unmounts the specified medium from the specified device.
  *
  * @returns VBox status code.
- * @param   pUVM            The usermode VM handle.
- * @param   pVMM            The VMM vtable.
- * @param   enmBus          The storage bus.
- * @param   enmDevType      The device type.
- * @param   pcszDevice      The device emulation.
- * @param   uInstance       Instance of the device.
- * @param   uLUN            The LUN on the device.
- * @param   fForceUnmount   Whether to force unmounting.
+ * @param   pUVM       The usermode VM handle.
+ * @param   enmBus     The storage bus.
+ * @param   enmDevType The device type.
+ * @param   pcszDevice The device emulation.
+ * @param   uInstance  Instance of the device.
+ * @param   uLUN       The LUN on the device.
+ * @param   fForceUnmount  Whether to force unmounting.
  */
-int Console::i_unmountMediumFromGuest(PUVM pUVM, PCVMMR3VTABLE pVMM, StorageBus_T enmBus, DeviceType_T enmDevType,
+int Console::i_unmountMediumFromGuest(PUVM pUVM, StorageBus_T enmBus, DeviceType_T enmDevType,
                                       const char *pcszDevice, unsigned uInstance, unsigned uLUN,
-                                      bool fForceUnmount) RT_NOEXCEPT
+                                      bool fForceUnmount)
 {
     /* Unmount existing media only for floppy and DVD drives. */
     int rc = VINF_SUCCESS;
     PPDMIBASE pBase;
     if (enmBus == StorageBus_USB)
-        rc = pVMM->pfnPDMR3UsbQueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "SCSI", &pBase);
+        rc = PDMR3UsbQueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "SCSI", &pBase);
     else if (   (enmBus == StorageBus_SAS || enmBus == StorageBus_SCSI || enmBus == StorageBus_VirtioSCSI)
              || (enmBus == StorageBus_SATA && enmDevType == DeviceType_DVD))
-        rc = pVMM->pfnPDMR3QueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "SCSI", &pBase);
+        rc = PDMR3QueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "SCSI", &pBase);
     else /* IDE or Floppy */
-        rc = pVMM->pfnPDMR3QueryLun(pUVM, pcszDevice, uInstance, uLUN, &pBase);
+        rc = PDMR3QueryLun(pUVM, pcszDevice, uInstance, uLUN, &pBase);
 
     if (RT_FAILURE(rc))
     {
@@ -4621,18 +4284,17 @@ int Console::i_unmountMediumFromGuest(PUVM pUVM, PCVMMR3VTABLE pVMM, StorageBus_
  * taking care of the controlelr specific configs wrt. to the attached driver chain.
  *
  * @returns VBox status code.
- * @param   pCtlInst        The controler instance node in the CFGM tree.
- * @param   pcszDevice      The device name.
- * @param   uInstance       The device instance.
- * @param   uLUN            The device LUN.
- * @param   enmBus          The storage bus.
- * @param   fAttachDetach   Flag whether this is a change while the VM is running
- * @param   fHotplug        Flag whether the guest should be notified about the device change.
- * @param   fForceUnmount   Flag whether to force unmounting the medium even if it is locked.
- * @param   pUVM            The usermode VM handle.
- * @param   pVMM            The VMM vtable.
- * @param   enmDevType      The device type.
- * @param   ppLunL0         Where to store the node to attach the new config to on success.
+ * @param   pCtlInst      The controler instance node in the CFGM tree.
+ * @param   pcszDevice    The device name.
+ * @param   uInstance     The device instance.
+ * @param   uLUN          The device LUN.
+ * @param   enmBus        The storage bus.
+ * @param   fAttachDetach Flag whether this is a change while the VM is running
+ * @param   fHotplug      Flag whether the guest should be notified about the device change.
+ * @param   fForceUnmount Flag whether to force unmounting the medium even if it is locked.
+ * @param   pUVM          The usermode VM handle.
+ * @param   enmDevType    The device type.
+ * @param   ppLunL0       Where to store the node to attach the new config to on success.
  */
 int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
                                         const char *pcszDevice,
@@ -4643,7 +4305,6 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
                                         bool fHotplug,
                                         bool fForceUnmount,
                                         PUVM pUVM,
-                                        PCVMMR3VTABLE pVMM,
                                         DeviceType_T enmDevType,
                                         PCFGMNODE *ppLunL0)
 {
@@ -4651,8 +4312,8 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
     bool fAddLun = false;
 
     /* First check if the LUN already exists. */
-    PCFGMNODE pLunL0 = pVMM->pfnCFGMR3GetChildF(pCtlInst, "LUN#%u", uLUN);
-    AssertReturn(!RT_VALID_PTR(pLunL0) || fAttachDetach, VERR_INTERNAL_ERROR);
+    PCFGMNODE pLunL0 = CFGMR3GetChildF(pCtlInst, "LUN#%u", uLUN);
+    AssertReturn(!VALID_PTR(pLunL0) || fAttachDetach, VERR_INTERNAL_ERROR);
 
     if (pLunL0)
     {
@@ -4663,7 +4324,8 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
         if (   (enmDevType != DeviceType_HardDisk)
             && !fHotplug)
         {
-            rc = i_unmountMediumFromGuest(pUVM, pVMM, enmBus, enmDevType, pcszDevice, uInstance, uLUN, fForceUnmount);
+            rc = i_unmountMediumFromGuest(pUVM, enmBus, enmDevType, pcszDevice,
+                                          uInstance, uLUN, fForceUnmount);
             if (RT_FAILURE(rc))
                 return rc;
         }
@@ -4681,12 +4343,12 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
                 || enmBus == StorageBus_USB))
         {
             /* Get the current attached driver we have to detach. */
-            PCFGMNODE pDrvLun = pVMM->pfnCFGMR3GetChildF(pCtlInst, "LUN#%u/AttachedDriver/", uLUN);
+            PCFGMNODE pDrvLun = CFGMR3GetChildF(pCtlInst, "LUN#%u/AttachedDriver/", uLUN);
             if (pDrvLun)
             {
                 char szDriver[128];
                 RT_ZERO(szDriver);
-                rc  = pVMM->pfnCFGMR3QueryString(pDrvLun, "Driver", &szDriver[0], sizeof(szDriver));
+                rc  = CFGMR3QueryString(pDrvLun, "Driver", &szDriver[0], sizeof(szDriver));
                 if (RT_SUCCESS(rc))
                     pszDriverDetach = RTStrDup(&szDriver[0]);
 
@@ -4695,18 +4357,20 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
         }
 
         if (enmBus == StorageBus_USB)
-            rc = pVMM->pfnPDMR3UsbDriverDetach(pUVM, pcszDevice, uInstance, uLUN, pszDriverDetach,
-                                               0 /* iOccurence */, fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG);
+            rc = PDMR3UsbDriverDetach(pUVM, pcszDevice, uInstance, uLUN,
+                                      pszDriverDetach, 0 /* iOccurence */,
+                                      fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG);
         else
-            rc = pVMM->pfnPDMR3DriverDetach(pUVM, pcszDevice, uInstance, uLUN, pszDriverDetach,
-                                            0 /* iOccurence */, fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG);
+            rc = PDMR3DriverDetach(pUVM, pcszDevice, uInstance, uLUN,
+                                   pszDriverDetach, 0 /* iOccurence */,
+                                   fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG);
 
         if (pszDriverDetach)
         {
             RTStrFree(pszDriverDetach);
             /* Remove the complete node and create new for the new config. */
-            pVMM->pfnCFGMR3RemoveNode(pLunL0);
-            pLunL0 = pVMM->pfnCFGMR3GetChildF(pCtlInst, "LUN#%u", uLUN);
+            CFGMR3RemoveNode(pLunL0);
+            pLunL0 = CFGMR3GetChildF(pCtlInst, "LUN#%u", uLUN);
             if (pLunL0)
             {
                 try
@@ -4735,7 +4399,7 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
             || (enmBus == StorageBus_SATA && enmDevType != DeviceType_DVD))
         {
             fAddLun = true;
-            pVMM->pfnCFGMR3RemoveNode(pLunL0);
+            CFGMR3RemoveNode(pLunL0);
         }
     }
     else
@@ -4744,7 +4408,7 @@ int Console::i_removeMediumDriverFromVm(PCFGMNODE pCtlInst,
     try
     {
         if (fAddLun)
-            InsertConfigNodeF(pCtlInst, &pLunL0, "LUN#%u", uLUN);
+            InsertConfigNode(pCtlInst, Utf8StrFmt("LUN#%u", uLUN).c_str(), &pLunL0);
     }
     catch (ConfigError &x)
     {
@@ -4774,7 +4438,6 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
                                       bool fForceUnmount,
                                       bool fHotplug,
                                       PUVM pUVM,
-                                      PCVMMR3VTABLE pVMM,
                                       DeviceType_T *paLedDevType,
                                       PCFGMNODE *ppLunL0)
 {
@@ -4809,14 +4472,14 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
 
         /* Determine the base path for the device instance. */
         if (enmBus != StorageBus_USB)
-            pCtlInst = pVMM->pfnCFGMR3GetChildF(pVMM->pfnCFGMR3GetRootU(pUVM), "Devices/%s/%u/", pcszDevice, uInstance);
+            pCtlInst = CFGMR3GetChildF(CFGMR3GetRootU(pUVM), "Devices/%s/%u/", pcszDevice, uInstance);
         else
         {
             /* If we hotplug a USB device create a new CFGM tree. */
             if (!fHotplug)
-                pCtlInst = pVMM->pfnCFGMR3GetChildF(pVMM->pfnCFGMR3GetRootU(pUVM), "USB/%s/", pcszDevice);
+                pCtlInst = CFGMR3GetChildF(CFGMR3GetRootU(pUVM), "USB/%s/", pcszDevice);
             else
-                pCtlInst = pVMM->pfnCFGMR3CreateTree(pUVM);
+                pCtlInst = CFGMR3CreateTree(pUVM);
         }
         AssertReturn(pCtlInst, VERR_INTERNAL_ERROR);
 
@@ -4828,9 +4491,9 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
             if (!fHotplug)
             {
                 if (!fAttachDetach)
-                    InsertConfigNodeF(pCtlInst, &pCtlInst, "%d", lPort);
+                    InsertConfigNode(pCtlInst, Utf8StrFmt("%d", lPort).c_str(), &pCtlInst);
                 else
-                    pCtlInst = pVMM->pfnCFGMR3GetChildF(pCtlInst, "%d/", lPort);
+                    pCtlInst = CFGMR3GetChildF(pCtlInst, "%d/", lPort);
             }
 
             if (!fAttachDetach)
@@ -4856,23 +4519,25 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
 
                 /** @todo No LED after hotplugging. */
                 /* Attach the status driver */
-                i_attachStatusDriver(pCtlInst, DeviceType_HardDisk, 0, 7, &paLedDevType,
-                                     &mapMediumAttachments, pcszDevice, 0);
+                Assert(cLedUsb >= 8);
+                i_attachStatusDriver(pCtlInst, &mapStorageLeds[iLedUsb], 0, 7,
+                                   &mapMediumAttachments, pcszDevice, 0);
+                paLedDevType = &maStorageDevType[iLedUsb];
             }
         }
 
         rc = i_removeMediumDriverFromVm(pCtlInst, pcszDevice, uInstance, uLUN, enmBus, fAttachDetach,
-                                        fHotplug, fForceUnmount, pUVM, pVMM, lType, &pLunL0);
+                                        fHotplug, fForceUnmount, pUVM, lType, &pLunL0);
         if (RT_FAILURE(rc))
             return rc;
         if (ppLunL0)
             *ppLunL0 = pLunL0;
 
-        Utf8StrFmt devicePath("%s/%u/LUN#%u", pcszDevice, uInstance, uLUN);
+        Utf8Str devicePath = Utf8StrFmt("%s/%u/LUN#%u", pcszDevice, uInstance, uLUN);
         mapMediumAttachments[devicePath] = pMediumAtt;
 
-        ComPtr<IMedium> ptrMedium;
-        hrc = pMediumAtt->COMGETTER(Medium)(ptrMedium.asOutParam());                        H();
+        ComPtr<IMedium> pMedium;
+        hrc = pMediumAtt->COMGETTER(Medium)(pMedium.asOutParam());                          H();
 
         /*
          * 1. Only check this for hard disk images.
@@ -4883,16 +4548,16 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
             && (   aMachineState == MachineState_Starting
                 || aMachineState == MachineState_Restoring))
         {
-            rc = i_checkMediumLocation(ptrMedium, &fUseHostIOCache);
+            rc = i_checkMediumLocation(pMedium, &fUseHostIOCache);
             if (RT_FAILURE(rc))
                 return rc;
         }
 
         BOOL fPassthrough = FALSE;
-        if (ptrMedium.isNotNull())
+        if (pMedium)
         {
             BOOL fHostDrive;
-            hrc = ptrMedium->COMGETTER(HostDrive)(&fHostDrive);                             H();
+            hrc = pMedium->COMGETTER(HostDrive)(&fHostDrive);                               H();
             if (  (   lType == DeviceType_DVD
                    || lType == DeviceType_Floppy)
                 && !fHostDrive)
@@ -4900,13 +4565,14 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
                 /*
                  * Informative logging.
                  */
-                Bstr bstrFile;
-                hrc = ptrMedium->COMGETTER(Location)(bstrFile.asOutParam());                H();
-                Utf8Str strFile(bstrFile);
+                Bstr strFile;
+                hrc = pMedium->COMGETTER(Location)(strFile.asOutParam());                   H();
+                Utf8Str utfFile = Utf8Str(strFile);
                 RTFSTYPE enmFsTypeFile = RTFSTYPE_UNKNOWN;
-                (void)RTFsQueryType(strFile.c_str(), &enmFsTypeFile);
+                (void)RTFsQueryType(utfFile.c_str(), &enmFsTypeFile);
                 LogRel(("File system of '%s' (%s) is %s\n",
-                       strFile.c_str(), lType == DeviceType_DVD ? "DVD" : "Floppy", RTFsTypeName(enmFsTypeFile)));
+                       utfFile.c_str(), lType == DeviceType_DVD ? "DVD" : "Floppy",
+                       RTFsTypeName(enmFsTypeFile)));
             }
 
             if (fHostDrive)
@@ -4916,12 +4582,12 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
         }
 
         ComObjPtr<IBandwidthGroup> pBwGroup;
-        Bstr bstrBwGroup;
+        Bstr strBwGroup;
         hrc = pMediumAtt->COMGETTER(BandwidthGroup)(pBwGroup.asOutParam());                 H();
 
         if (!pBwGroup.isNull())
         {
-            hrc = pBwGroup->COMGETTER(Name)(bstrBwGroup.asOutParam());                      H();
+            hrc = pBwGroup->COMGETTER(Name)(strBwGroup.asOutParam());                       H();
         }
 
         /*
@@ -4945,10 +4611,10 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
                             fSetupMerge,
                             uMergeSource,
                             uMergeTarget,
-                            bstrBwGroup.isEmpty() ? NULL : Utf8Str(bstrBwGroup).c_str(),
+                            strBwGroup.isEmpty() ? NULL : Utf8Str(strBwGroup).c_str(),
                             !!fDiscard,
                             !!fNonRotational,
-                            ptrMedium,
+                            pMedium,
                             aMachineState,
                             phrc);
         if (RT_FAILURE(rc))
@@ -4964,22 +4630,22 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
                     USBStorageDevice UsbMsd = USBStorageDevice();
                     RTUuidCreate(&UsbMsd.mUuid);
                     UsbMsd.iPort = uInstance;
-                    rc = pVMM->pfnPDMR3UsbCreateEmulatedDevice(pUVM, pcszDevice, pCtlInst, &UsbMsd.mUuid, NULL);
+                    rc = PDMR3UsbCreateEmulatedDevice(pUVM, pcszDevice, pCtlInst, &UsbMsd.mUuid, NULL);
                     if (RT_SUCCESS(rc))
                         mUSBStorageDevices.push_back(UsbMsd);
                 }
                 else
-                    rc = pVMM->pfnPDMR3UsbDriverAttach(pUVM, pcszDevice, uInstance, uLUN,
-                                                       fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
+                    rc = PDMR3UsbDriverAttach(pUVM, pcszDevice, uInstance, uLUN,
+                                              fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
             }
             else if (   !fHotplug
                      && (   (enmBus == StorageBus_SAS || enmBus == StorageBus_SCSI || enmBus == StorageBus_VirtioSCSI)
                          || (enmBus == StorageBus_SATA && lType == DeviceType_DVD)))
-                rc = pVMM->pfnPDMR3DriverAttach(pUVM, pcszDevice, uInstance, uLUN,
-                                                fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
+                rc = PDMR3DriverAttach(pUVM, pcszDevice, uInstance, uLUN,
+                                       fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
             else
-                rc = pVMM->pfnPDMR3DeviceAttach(pUVM, pcszDevice, uInstance, uLUN,
-                                                fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
+                rc = PDMR3DeviceAttach(pUVM, pcszDevice, uInstance, uLUN,
+                                       fHotplug ? 0 : PDM_TACH_FLAGS_NOT_HOT_PLUG, NULL /*ppBase*/);
             AssertRCReturn(rc, rc);
 
             /*
@@ -4987,7 +4653,7 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
              * so we can get notified about missing keys.
              */
             PPDMIBASE pIBase = NULL;
-            rc = pVMM->pfnPDMR3QueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "VD", &pIBase);
+            rc = PDMR3QueryDriverOnLun(pUVM, pcszDevice, uInstance, uLUN, "VD", &pIBase);
             if (RT_SUCCESS(rc) && pIBase)
             {
                 PPDMIMEDIA pIMedium = (PPDMIMEDIA)pIBase->pfnQueryInterface(pIBase, PDMIMEDIA_IID);
@@ -5009,7 +4675,7 @@ int Console::i_configMediumAttachment(const char *pcszDevice,
         /* Dump the changed LUN if possible, dump the complete device otherwise */
         if (   aMachineState != MachineState_Starting
             && aMachineState != MachineState_Restoring)
-            pVMM->pfnCFGMR3Dump(pLunL0 ? pLunL0 : pCtlInst);
+            CFGMR3Dump(pLunL0 ? pLunL0 : pCtlInst);
     }
     catch (ConfigError &x)
     {
@@ -5034,7 +4700,7 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                             const char *pcszBwGroup,
                             bool fDiscard,
                             bool fNonRotational,
-                            ComPtr<IMedium> ptrMedium,
+                            IMedium *pMedium,
                             MachineState_T aMachineState,
                             HRESULT *phrc)
 {
@@ -5050,22 +4716,22 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
 
 
         BOOL fHostDrive = FALSE;
-        MediumType_T mediumType = MediumType_Normal;
-        if (ptrMedium.isNotNull())
+        MediumType_T mediumType  = MediumType_Normal;
+        if (pMedium)
         {
-            hrc = ptrMedium->COMGETTER(HostDrive)(&fHostDrive);                             H();
-            hrc = ptrMedium->COMGETTER(Type)(&mediumType);                                  H();
+            hrc = pMedium->COMGETTER(HostDrive)(&fHostDrive);                               H();
+            hrc = pMedium->COMGETTER(Type)(&mediumType);                                    H();
         }
 
         if (fHostDrive)
         {
-            Assert(ptrMedium.isNotNull());
+            Assert(pMedium);
             if (enmType == DeviceType_DVD)
             {
                 InsertConfigString(pLunL0, "Driver", "HostDVD");
                 InsertConfigNode(pLunL0, "Config", &pCfg);
 
-                hrc = ptrMedium->COMGETTER(Location)(bstr.asOutParam());                    H();
+                hrc = pMedium->COMGETTER(Location)(bstr.asOutParam());                      H();
                 InsertConfigString(pCfg, "Path", bstr);
 
                 InsertConfigInteger(pCfg, "Passthrough", fPassthrough);
@@ -5075,7 +4741,7 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                 InsertConfigString(pLunL0, "Driver", "HostFloppy");
                 InsertConfigNode(pLunL0, "Config", &pCfg);
 
-                hrc = ptrMedium->COMGETTER(Location)(bstr.asOutParam());                    H();
+                hrc = pMedium->COMGETTER(Location)(bstr.asOutParam());                      H();
                 InsertConfigString(pCfg, "Path", bstr);
             }
         }
@@ -5110,7 +4776,7 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                     InsertConfigInteger(pCfg, "Mountable", 0);
             }
 
-            if (    ptrMedium.isNotNull()
+            if (    pMedium
                 && (   enmType == DeviceType_DVD
                     || enmType == DeviceType_Floppy)
                )
@@ -5122,31 +4788,29 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                 // we failed on startup, but that's not good because the only way out then
                 // would be to discard the VM state...
                 MediumState_T mediumState;
-                hrc = ptrMedium->RefreshState(&mediumState);                                H();
+                hrc = pMedium->RefreshState(&mediumState);                                  H();
                 if (mediumState == MediumState_Inaccessible)
                 {
                     Bstr loc;
-                    hrc = ptrMedium->COMGETTER(Location)(loc.asOutParam());                 H();
+                    hrc = pMedium->COMGETTER(Location)(loc.asOutParam());                   H();
                     i_atVMRuntimeErrorCallbackF(0, "DvdOrFloppyImageInaccessible",
-                                                N_("The image file '%ls' is inaccessible and is being ignored. "
-                                                   "Please select a different image file for the virtual %s drive."),
+                                                "The image file '%ls' is inaccessible and is being ignored. "
+                                                "Please select a different image file for the virtual %s drive.",
                                                 loc.raw(),
                                                 enmType == DeviceType_DVD ? "DVD" : "floppy");
-                    ptrMedium.setNull();
+                    pMedium = NULL;
                 }
             }
 
-            if (ptrMedium.isNotNull())
+            if (pMedium)
             {
                 /* Start with length of parent chain, as the list is reversed */
                 unsigned uImage = 0;
-                ComPtr<IMedium> ptrTmp = ptrMedium;
-                while (ptrTmp.isNotNull())
+                IMedium *pTmp = pMedium;
+                while (pTmp)
                 {
                     uImage++;
-                    ComPtr<IMedium> ptrParent;
-                    hrc = ptrTmp->COMGETTER(Parent)(ptrParent.asOutParam());               H();
-                    ptrTmp = ptrParent;
+                    hrc = pTmp->COMGETTER(Parent)(&pTmp);                                   H();
                 }
                 /* Index of last image */
                 uImage--;
@@ -5170,10 +4834,10 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                 }
 # endif
 
-                hrc = ptrMedium->COMGETTER(Location)(bstr.asOutParam());                    H();
+                hrc = pMedium->COMGETTER(Location)(bstr.asOutParam());                      H();
                 InsertConfigString(pCfg, "Path", bstr);
 
-                hrc = ptrMedium->COMGETTER(Format)(bstr.asOutParam());                      H();
+                hrc = pMedium->COMGETTER(Format)(bstr.asOutParam());                        H();
                 InsertConfigString(pCfg, "Format", bstr);
 
                 if (mediumType == MediumType_Readonly)
@@ -5234,24 +4898,23 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                 /* Pass all custom parameters. */
                 bool fHostIP = true;
                 bool fEncrypted = false;
-                hrc = i_configMediumProperties(pCfg, ptrMedium, &fHostIP, &fEncrypted); H();
+                hrc = i_configMediumProperties(pCfg, pMedium, &fHostIP, &fEncrypted); H();
 
                 /* Create an inverted list of parents. */
                 uImage--;
-                ComPtr<IMedium> ptrParentMedium = ptrMedium;
+                IMedium *pParentMedium = pMedium;
                 for (PCFGMNODE pParent = pCfg;; uImage--)
                 {
-                    ComPtr<IMedium> ptrCurMedium;
-                    hrc = ptrParentMedium->COMGETTER(Parent)(ptrCurMedium.asOutParam());    H();
-                    if (ptrCurMedium.isNull())
+                    hrc = pParentMedium->COMGETTER(Parent)(&pMedium);                       H();
+                    if (!pMedium)
                         break;
 
                     PCFGMNODE pCur;
                     InsertConfigNode(pParent, "Parent", &pCur);
-                    hrc = ptrCurMedium->COMGETTER(Location)(bstr.asOutParam()); H();
+                    hrc = pMedium->COMGETTER(Location)(bstr.asOutParam());                  H();
                     InsertConfigString(pCur, "Path", bstr);
 
-                    hrc = ptrCurMedium->COMGETTER(Format)(bstr.asOutParam());  H();
+                    hrc = pMedium->COMGETTER(Format)(bstr.asOutParam());                    H();
                     InsertConfigString(pCur, "Format", bstr);
 
                     if (fSetupMerge)
@@ -5263,11 +4926,11 @@ int Console::i_configMedium(PCFGMNODE pLunL0,
                     }
 
                     /* Configure medium properties. */
-                    hrc = i_configMediumProperties(pCur, ptrCurMedium, &fHostIP, &fEncrypted); H();
+                    hrc = i_configMediumProperties(pCur, pMedium, &fHostIP, &fEncrypted); H();
 
                     /* next */
                     pParent = pCur;
-                    ptrParentMedium = ptrCurMedium;
+                    pParentMedium = pMedium;
                 }
 
                 /* Custom code: put marker to not use host IP stack to driver
@@ -5340,7 +5003,7 @@ int Console::i_configMediumProperties(PCFGMNODE pCur, IMedium *pMedium, bool *pf
                     if (FAILED(hrc))
                         break;
 
-                    PCFGMNODE pCfgFilterConfig = mpVMM->pfnCFGMR3GetChild(pVDC, strFilter.c_str());
+                    PCFGMNODE pCfgFilterConfig = CFGMR3GetChild(pVDC, strFilter.c_str());
                     if (!pCfgFilterConfig)
                         InsertConfigNode(pVDC, strFilter.c_str(), &pCfgFilterConfig);
 
@@ -5366,28 +5029,26 @@ int Console::i_configMediumProperties(PCFGMNODE pCur, IMedium *pMedium, bool *pf
 
 
 /**
- * Construct the Network configuration tree
+ *  Construct the Network configuration tree
  *
- * @returns VBox status code.
+ *  @returns VBox status code.
  *
- * @param   pszDevice           The PDM device name.
- * @param   uInstance           The PDM device instance.
- * @param   uLun                The PDM LUN number of the drive.
- * @param   aNetworkAdapter     The network adapter whose attachment needs to be changed
- * @param   pCfg                Configuration node for the device
- * @param   pLunL0              To store the pointer to the LUN#0.
- * @param   pInst               The instance CFGM node
- * @param   fAttachDetach       To determine if the network attachment should
- *                              be attached/detached after/before
- *                              configuration.
- * @param   fIgnoreConnectFailure
- *                              True if connection failures should be ignored
- *                              (makes only sense for bridged/host-only networks).
- * @param   pUVM                The usermode VM handle.
- * @param   pVMM                The VMM vtable.
+ *  @param   pszDevice           The PDM device name.
+ *  @param   uInstance           The PDM device instance.
+ *  @param   uLun                The PDM LUN number of the drive.
+ *  @param   aNetworkAdapter     The network adapter whose attachment needs to be changed
+ *  @param   pCfg                Configuration node for the device
+ *  @param   pLunL0              To store the pointer to the LUN#0.
+ *  @param   pInst               The instance CFGM node
+ *  @param   fAttachDetach       To determine if the network attachment should
+ *                               be attached/detached after/before
+ *                               configuration.
+ *  @param   fIgnoreConnectFailure
+ *                               True if connection failures should be ignored
+ *                               (makes only sense for bridged/host-only networks).
  *
- * @note   Locks this object for writing.
- * @thread EMT
+ *  @note   Locks this object for writing.
+ *  @thread EMT
  */
 int Console::i_configNetwork(const char *pszDevice,
                              unsigned uInstance,
@@ -5397,9 +5058,7 @@ int Console::i_configNetwork(const char *pszDevice,
                              PCFGMNODE pLunL0,
                              PCFGMNODE pInst,
                              bool fAttachDetach,
-                             bool fIgnoreConnectFailure,
-                             PUVM pUVM,
-                             PCVMMR3VTABLE pVMM)
+                             bool fIgnoreConnectFailure)
 {
     RT_NOREF(fIgnoreConnectFailure);
     AutoCaller autoCaller(this);
@@ -5450,13 +5109,13 @@ int Console::i_configNetwork(const char *pszDevice,
 
         if (fAttachDetach)
         {
-            rc = pVMM->pfnPDMR3DeviceDetach(pUVM, pszDevice, uInstance, uLun, 0 /*fFlags*/);
+            rc = PDMR3DeviceDetach(mpUVM, pszDevice, uInstance, uLun, 0 /*fFlags*/);
             if (rc == VINF_PDM_NO_DRIVER_ATTACHED_TO_LUN)
                 rc = VINF_SUCCESS;
             AssertLogRelRCReturn(rc, rc);
 
             /* Nuke anything which might have been left behind. */
-            pVMM->pfnCFGMR3RemoveNode(pVMM->pfnCFGMR3GetChildF(pInst, "LUN#%u", uLun));
+            CFGMR3RemoveNode(CFGMR3GetChildF(pInst, "LUN#%u", uLun));
         }
 
         Bstr networkName, trunkName, trunkType;
@@ -5465,12 +5124,12 @@ int Console::i_configNetwork(const char *pszDevice,
 
 #ifdef VBOX_WITH_NETSHAPER
         ComObjPtr<IBandwidthGroup> pBwGroup;
-        Bstr bstrBwGroup;
+        Bstr strBwGroup;
         hrc = aNetworkAdapter->COMGETTER(BandwidthGroup)(pBwGroup.asOutParam());            H();
 
         if (!pBwGroup.isNull())
         {
-            hrc = pBwGroup->COMGETTER(Name)(bstrBwGroup.asOutParam());                      H();
+            hrc = pBwGroup->COMGETTER(Name)(strBwGroup.asOutParam());                       H();
         }
 #endif /* VBOX_WITH_NETSHAPER */
 
@@ -5482,11 +5141,11 @@ int Console::i_configNetwork(const char *pszDevice,
          * This way we can easily detect if we are attached to anything at the device level.
          */
 #ifdef VBOX_WITH_NETSHAPER
-        if (bstrBwGroup.isNotEmpty() && eAttachmentType != NetworkAttachmentType_Null)
+        if (!strBwGroup.isEmpty()  && eAttachmentType != NetworkAttachmentType_Null)
         {
             InsertConfigString(pLunL0, "Driver", "NetShaper");
             InsertConfigNode(pLunL0, "Config", &pCfg);
-            InsertConfigString(pCfg, "BwGroup", bstrBwGroup);
+            InsertConfigString(pCfg, "BwGroup", strBwGroup);
             InsertConfigNode(pLunL0, "AttachedDriver", &pLunL0);
         }
 #endif /* VBOX_WITH_NETSHAPER */
@@ -5574,10 +5233,6 @@ int Console::i_configNetwork(const char *pszDevice,
                 ULONG aliasMode;
                 hrc = natEngine->COMGETTER(AliasMode)(&aliasMode);                          H();
                 InsertConfigInteger(pCfg, "AliasMode", aliasMode);
-
-                BOOL fLocalhostReachable;
-                hrc = natEngine->COMGETTER(LocalhostReachable)(&fLocalhostReachable);       H();
-                InsertConfigInteger(pCfg, "LocalhostReachable", fLocalhostReachable);
 
                 /* port-forwarding */
                 SafeArray<BSTR> pfs;
@@ -5671,16 +5326,16 @@ int Console::i_configNetwork(const char *pszDevice,
                     switch (hrc)
                     {
                         case E_ACCESSDENIED:
-                            return pVMM->pfnVMR3SetError(pUVM, VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,  N_(
-                                                         "Failed to open '/dev/net/tun' for read/write access. Please check the "
-                                                         "permissions of that node. Either run 'chmod 0666 /dev/net/tun' or "
-                                                         "change the group of that node and make yourself a member of that group. "
-                                                         "Make sure that these changes are permanent, especially if you are "
-                                                         "using udev"));
+                            return VMSetError(VMR3GetVM(mpUVM), VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,  N_(
+                                            "Failed to open '/dev/net/tun' for read/write access. Please check the "
+                                            "permissions of that node. Either run 'chmod 0666 /dev/net/tun' or "
+                                            "change the group of that node and make yourself a member of that group. Make "
+                                            "sure that these changes are permanent, especially if you are "
+                                            "using udev"));
                         default:
                             AssertMsgFailed(("Could not attach to host interface! Bad!\n"));
-                            return pVMM->pfnVMR3SetError(pUVM, VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,
-                                                         N_("Failed to initialize Host Interface Networking"));
+                            return VMSetError(VMR3GetVM(mpUVM), VERR_HOSTIF_INIT_FAILED, RT_SRC_POS, N_(
+                                            "Failed to initialize Host Interface Networking"));
                     }
                 }
 
@@ -5712,10 +5367,10 @@ int Console::i_configNetwork(const char *pszDevice,
                                                            hostInterface.asOutParam());
                 if (!SUCCEEDED(hrc))
                 {
-                    AssertLogRelMsgFailed(("NetworkAttachmentType_Bridged: FindByName failed, rc=%Rhrc (0x%x)\n", hrc, hrc));
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                 N_("Nonexistent host networking interface, name '%ls'"),
-                                                 BridgedIfName.raw());
+                    AssertLogRelMsgFailed(("NetworkAttachmentType_Bridged: FindByName failed, rc=%Rhrc (0x%x)", hrc, hrc));
+                    return VMSetError(VMR3GetVM(mpUVM), VERR_INTERNAL_ERROR, RT_SRC_POS,
+                                      N_("Nonexistent host networking interface, name '%ls'"),
+                                      BridgedIfName.raw());
                 }
 
 # if defined(RT_OS_DARWIN)
@@ -5772,9 +5427,11 @@ int Console::i_configNetwork(const char *pszDevice,
                 }
 
                 if (eIfType != HostNetworkInterfaceType_Bridged)
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                 N_("Interface ('%ls') is not a Bridged Adapter interface"),
-                                                 BridgedIfName.raw());
+                {
+                    return VMSetError(VMR3GetVM(mpUVM), VERR_INTERNAL_ERROR, RT_SRC_POS,
+                                      N_("Interface ('%ls') is not a Bridged Adapter interface"),
+                                      BridgedIfName.raw());
+                }
 
                 hrc = hostInterface->COMGETTER(Id)(bstr.asOutParam());
                 if (FAILED(hrc))
@@ -5871,17 +5528,17 @@ int Console::i_configNetwork(const char *pszDevice,
                         switch (hrc)
                         {
                             case E_ACCESSDENIED:
-                                return pVMM->pfnVMR3SetError(pUVM, VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,  N_(
-                                                             "Failed to open '/dev/%s' for read/write access.  Please check the "
-                                                             "permissions of that node, and that the net.link.tap.user_open "
-                                                             "sysctl is set.  Either run 'chmod 0666 /dev/%s' or change the "
-                                                             "group of that node to vboxusers and make yourself a member of "
-                                                             "that group.  Make sure that these changes are permanent."),
-                                                             pszBridgedIfName, pszBridgedIfName);
+                                return VMSetError(VMR3GetVM(mpUVM), VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,  N_(
+                                                "Failed to open '/dev/%s' for read/write access.  Please check the "
+                                                "permissions of that node, and that the net.link.tap.user_open "
+                                                "sysctl is set.  Either run 'chmod 0666 /dev/%s' or "
+                                                "change the group of that node to vboxusers and make yourself "
+                                                "a member of that group.  Make sure that these changes are permanent."),
+                                                pszBridgedIfName, pszBridgedIfName);
                             default:
                                 AssertMsgFailed(("Could not attach to tap interface! Bad!\n"));
-                                return pVMM->pfnVMR3SetError(pUVM, VERR_HOSTIF_INIT_FAILED, RT_SRC_POS,
-                                                             N_("Failed to initialize Host Interface Networking"));
+                                return VMSetError(VMR3GetVM(mpUVM), VERR_HOSTIF_INIT_FAILED, RT_SRC_POS, N_(
+                                                "Failed to initialize Host Interface Networking"));
                         }
                     }
 
@@ -5920,12 +5577,6 @@ int Console::i_configNetwork(const char *pszDevice,
 #  error "PORTME (VBOX_WITH_NETFLT)"
 # endif
 
-# if defined(RT_OS_DARWIN) && defined(VBOX_WITH_VMNET)
-                InsertConfigString(pLunL0, "Driver", "VMNet");
-                InsertConfigNode(pLunL0, "Config", &pCfg);
-                InsertConfigString(pCfg, "Trunk", pszTrunk);
-                InsertConfigInteger(pCfg, "TrunkType", kIntNetTrunkType_NetFlt);
-# else
                 InsertConfigString(pLunL0, "Driver", "IntNet");
                 InsertConfigNode(pLunL0, "Config", &pCfg);
                 InsertConfigString(pCfg, "Trunk", pszTrunk);
@@ -5934,16 +5585,16 @@ int Console::i_configNetwork(const char *pszDevice,
                 InsertConfigString(pCfg, "IfPolicyPromisc", pszPromiscuousGuestPolicy);
                 char szNetwork[INTNET_MAX_NETWORK_NAME];
 
-#  if defined(RT_OS_SOLARIS) || defined(RT_OS_DARWIN)
+# if defined(RT_OS_SOLARIS) || defined(RT_OS_DARWIN)
                 /*
                  * 'pszTrunk' contains just the interface name required in ring-0, while 'pszBridgedIfName' contains
                  * interface name + optional description. We must not pass any description to the VM as it can differ
                  * for the same interface name, eg: "nge0 - ethernet" (GUI) vs "nge0" (VBoxManage).
                  */
                 RTStrPrintf(szNetwork, sizeof(szNetwork), "HostInterfaceNetworking-%s", pszTrunk);
-#  else
+# else
                 RTStrPrintf(szNetwork, sizeof(szNetwork), "HostInterfaceNetworking-%s", pszBridgedIfName);
-#  endif
+# endif
                 InsertConfigString(pCfg, "Network", szNetwork);
                 networkName = Bstr(szNetwork);
                 trunkName = Bstr(pszTrunk);
@@ -5962,15 +5613,14 @@ int Console::i_configNetwork(const char *pszDevice,
                     Log(("Set SharedMacOnWire\n"));
                 }
 
-#  if defined(RT_OS_SOLARIS)
-#   if 0 /* bird: this is a bit questionable and might cause more trouble than its worth.  */
+# if defined(RT_OS_SOLARIS)
+#  if 0 /* bird: this is a bit questionable and might cause more trouble than its worth.  */
                 /* Zone access restriction, don't allow snooping the global zone. */
                 zoneid_t ZoneId = getzoneid();
                 if (ZoneId != GLOBAL_ZONEID)
                 {
                     InsertConfigInteger(pCfg, "IgnoreAllPromisc", true);
                 }
-#   endif
 #  endif
 # endif
 
@@ -6017,158 +5667,15 @@ int Console::i_configNetwork(const char *pszDevice,
 
                 Utf8Str HostOnlyNameUtf8(HostOnlyName);
                 const char *pszHostOnlyName = HostOnlyNameUtf8.c_str();
-#ifdef VBOX_WITH_VMNET
-                /* Check if the matching host-only network has already been created. */
-                Bstr bstrLowerIP, bstrUpperIP, bstrNetworkMask;
-                BstrFmt bstrNetworkName("Legacy %s Network", pszHostOnlyName);
-                ComPtr<IHostOnlyNetwork> hostOnlyNetwork;
-                hrc = virtualBox->FindHostOnlyNetworkByName(bstrNetworkName.raw(), hostOnlyNetwork.asOutParam());
-                if (FAILED(hrc))
-                {
-                    /*
-                    * With VMNET there is no VBoxNetAdp to create vboxnetX adapters,
-                    * which means that the Host object won't be able to re-create
-                    * them from extra data. Go through existing DHCP/adapter config
-                    * to derive the parameters for the new network.
-                    */
-                    BstrFmt bstrOldNetworkName("HostInterfaceNetworking-%s", pszHostOnlyName);
-                    ComPtr<IDHCPServer> dhcpServer;
-                    hrc = virtualBox->FindDHCPServerByNetworkName(bstrOldNetworkName.raw(),
-                                                                dhcpServer.asOutParam());
-                    if (SUCCEEDED(hrc))
-                    {
-                        /* There is a DHCP server available for this network. */
-                        hrc = dhcpServer->COMGETTER(LowerIP)(bstrLowerIP.asOutParam());
-                        if (FAILED(hrc))
-                        {
-                            LogRel(("Console::i_configNetwork: COMGETTER(LowerIP) failed, hrc (%Rhrc)\n", hrc));
-                            H();
-                        }
-                        hrc = dhcpServer->COMGETTER(UpperIP)(bstrUpperIP.asOutParam());
-                        if (FAILED(hrc))
-                        {
-                            LogRel(("Console::i_configNetwork: COMGETTER(UpperIP) failed, hrc (%Rhrc)\n", hrc));
-                            H();
-                        }
-                        hrc = dhcpServer->COMGETTER(NetworkMask)(bstrNetworkMask.asOutParam());
-                        if (FAILED(hrc))
-                        {
-                            LogRel(("Console::i_configNetwork: COMGETTER(NetworkMask) failed, hrc (%Rhrc)\n", hrc));
-                            H();
-                        }
-                    }
-                    else
-                    {
-                        /* No DHCP server for this hostonly interface, let's look at extra data */
-                        hrc = virtualBox->GetExtraData(BstrFmt("HostOnly/%s/IPAddress",
-                                                            pszHostOnlyName).raw(),
-                                                            bstrLowerIP.asOutParam());
-                        if (SUCCEEDED(hrc) && !bstrLowerIP.isEmpty())
-                            hrc = virtualBox->GetExtraData(BstrFmt("HostOnly/%s/IPNetMask",
-                                                                pszHostOnlyName).raw(),
-                                                                bstrNetworkMask.asOutParam());
-
-                    }
-                    RTNETADDRIPV4 ipAddr, ipMask;
-                    rc = bstrLowerIP.isEmpty() ? VERR_MISSING : RTNetStrToIPv4Addr(Utf8Str(bstrLowerIP).c_str(), &ipAddr);
-                    if (RT_FAILURE(rc))
-                    {
-                        /* We failed to locate any valid config of this vboxnetX interface, assume defaults. */
-                        LogRel(("NetworkAttachmentType_HostOnly: Invalid or missing lower IP '%ls', using '%ls' instead.\n",
-                                bstrLowerIP.raw(), getDefaultIPv4Address(Bstr(pszHostOnlyName)).raw()));
-                        bstrLowerIP = getDefaultIPv4Address(Bstr(pszHostOnlyName));
-                        bstrNetworkMask.setNull();
-                        bstrUpperIP.setNull();
-                        rc = RTNetStrToIPv4Addr(Utf8Str(bstrLowerIP).c_str(), &ipAddr);
-                        AssertLogRelMsgReturn(RT_SUCCESS(rc), ("RTNetStrToIPv4Addr(%ls) failed, rc=%Rrc\n", bstrLowerIP.raw(), rc),
-                                              VERR_MAIN_CONFIG_CONSTRUCTOR_COM_ERROR);
-                    }
-                    rc = bstrNetworkMask.isEmpty() ? VERR_MISSING : RTNetStrToIPv4Addr(Utf8Str(bstrNetworkMask).c_str(), &ipMask);
-                    if (RT_FAILURE(rc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: Invalid or missing network mask '%ls', using '%s' instead.\n",
-                                bstrNetworkMask.raw(), VBOXNET_IPV4MASK_DEFAULT));
-                        bstrNetworkMask = VBOXNET_IPV4MASK_DEFAULT;
-                        rc = RTNetStrToIPv4Addr(Utf8Str(bstrNetworkMask).c_str(), &ipMask);
-                        AssertLogRelMsgReturn(RT_SUCCESS(rc), ("RTNetStrToIPv4Addr(%ls) failed, rc=%Rrc\n", bstrNetworkMask.raw(), rc),
-                                              VERR_MAIN_CONFIG_CONSTRUCTOR_COM_ERROR);
-                    }
-                    rc = bstrUpperIP.isEmpty() ? VERR_MISSING : RTNetStrToIPv4Addr(Utf8Str(bstrUpperIP).c_str(), &ipAddr);
-                    if (RT_FAILURE(rc))
-                    {
-                        ipAddr.au32[0] = RT_H2N_U32((RT_N2H_U32(ipAddr.au32[0]) | ~RT_N2H_U32(ipMask.au32[0])) - 1); /* Do we need to exlude the last IP? */
-                        LogRel(("NetworkAttachmentType_HostOnly: Invalid or missing upper IP '%ls', using '%RTnaipv4' instead.\n",
-                                bstrUpperIP.raw(), ipAddr));
-                        bstrUpperIP = BstrFmt("%RTnaipv4", ipAddr);
-                    }
-
-                    /* All parameters are set, create the new network. */
-                    hrc = virtualBox->CreateHostOnlyNetwork(bstrNetworkName.raw(), hostOnlyNetwork.asOutParam());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: failed to create host-only network, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    hrc = hostOnlyNetwork->COMSETTER(NetworkMask)(bstrNetworkMask.raw());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMSETTER(NetworkMask) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    hrc = hostOnlyNetwork->COMSETTER(LowerIP)(bstrLowerIP.raw());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMSETTER(LowerIP) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    hrc = hostOnlyNetwork->COMSETTER(UpperIP)(bstrUpperIP.raw());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMSETTER(UpperIP) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    LogRel(("Console: created host-only network '%ls' with mask '%ls' and range '%ls'-'%ls'\n",
-                            bstrNetworkName.raw(), bstrNetworkMask.raw(), bstrLowerIP.raw(), bstrUpperIP.raw()));
-                }
-                else
-                {
-                    /* The matching host-only network already exists. Tell the user to switch to it. */
-                    hrc = hostOnlyNetwork->COMGETTER(NetworkMask)(bstrNetworkMask.asOutParam());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMGETTER(NetworkMask) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    hrc = hostOnlyNetwork->COMGETTER(LowerIP)(bstrLowerIP.asOutParam());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMGETTER(LowerIP) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                    hrc = hostOnlyNetwork->COMGETTER(UpperIP)(bstrUpperIP.asOutParam());
-                    if (FAILED(hrc))
-                    {
-                        LogRel(("NetworkAttachmentType_HostOnly: COMGETTER(UpperIP) failed, hrc (0x%x)\n", hrc));
-                        H();
-                    }
-                }
-                return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
-                                             N_("Host-only adapters are no longer supported!\n"
-                                                "For your convenience a host-only network named '%ls' has been "
-                                                "created with network mask '%ls' and IP address range '%ls' - '%ls'.\n"
-                                                "To fix this problem, switch to 'Host-only Network' "
-                                                "attachment type in the VM settings.\n"),
-                                             bstrNetworkName.raw(), bstrNetworkMask.raw(),
-                                             bstrLowerIP.raw(), bstrUpperIP.raw());
-#endif /* VBOX_WITH_VMNET */
                 ComPtr<IHostNetworkInterface> hostInterface;
                 rc = host->FindHostNetworkInterfaceByName(HostOnlyName.raw(),
                                                           hostInterface.asOutParam());
                 if (!SUCCEEDED(rc))
                 {
                     LogRel(("NetworkAttachmentType_HostOnly: FindByName failed, rc (0x%x)\n", rc));
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                N_("Nonexistent host networking interface, name '%ls'"), HostOnlyName.raw());
+                    return VMSetError(VMR3GetVM(mpUVM), VERR_INTERNAL_ERROR, RT_SRC_POS,
+                                      N_("Nonexistent host networking interface, name '%ls'"),
+                                      HostOnlyName.raw());
                 }
 
                 char szNetwork[INTNET_MAX_NETWORK_NAME];
@@ -6191,9 +5698,9 @@ int Console::i_configNetwork(const char *pszDevice,
                 }
 
                 if (eIfType != HostNetworkInterfaceType_HostOnly)
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                 N_("Interface ('%ls') is not a Host-Only Adapter interface"),
-                                                 HostOnlyName.raw());
+                    return VMSetError(VMR3GetVM(mpUVM), VERR_INTERNAL_ERROR, RT_SRC_POS,
+                                      N_("Interface ('%ls') is not a Host-Only Adapter interface"),
+                                      HostOnlyName.raw());
 
                 hrc = hostInterface->COMGETTER(Id)(bstr.asOutParam());
                 if (FAILED(hrc))
@@ -6420,88 +5927,33 @@ int Console::i_configNetwork(const char *pszDevice,
                 if (!mptrExtPackManager->i_isExtPackUsable(s_pszCloudExtPackName))
 # endif
                 {
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
-                                                 N_("Implementation of the cloud network attachment not found!\n"
-                                                    "To fix this problem, either install the '%s' or switch to "
-                                                    "another network attachment type in the VM settings."),
-                                                 s_pszCloudExtPackName);
+                    return VMSetError(VMR3GetVM(mpUVM), VERR_NOT_FOUND, RT_SRC_POS,
+                            N_("Implementation of the cloud network attachment not found!\n"
+                                "To fix this problem, either install the '%s' or switch to "
+                                "another network attachment type in the VM settings.\n"
+                                ),
+                            s_pszCloudExtPackName);
                 }
 
                 ComPtr<ICloudNetwork> network;
                 hrc = aNetworkAdapter->COMGETTER(CloudNetwork)(bstr.asOutParam());            H();
-                hrc = pMachine->COMGETTER(Name)(mGateway.mTargetVM.asOutParam());            H();
+                hrc = pMachine->COMGETTER(Name)(mGateways.mTargetVM.asOutParam());            H();
                 hrc = virtualBox->FindCloudNetworkByName(bstr.raw(), network.asOutParam());   H();
-                hrc = generateKeys(mGateway);
-                if (FAILED(hrc))
-                {
-                    if (hrc == E_NOTIMPL)
-                        return pVMM->pfnVMR3SetError(pUVM, VERR_NOT_FOUND, RT_SRC_POS,
-                                                     N_("Failed to generate a key pair due to missing libssh\n"
-                                                        "To fix this problem, either build VirtualBox with libssh "
-                                                        "support or switch to another network attachment type in "
-                                                        "the VM settings."));
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                 N_("Failed to generate a key pair due to libssh error!"));
-                }
-                hrc = startCloudGateway(virtualBox, network, mGateway);
-                if (FAILED(hrc))
-                {
-                    return pVMM->pfnVMR3SetError(pUVM, hrc, RT_SRC_POS,
-                                                 N_("Failed to start cloud gateway instance.\nMake sure you set up "
-                                                    "cloud networking properly with 'VBoxManage network setup'. "
-                                                    "Check VBoxSVC.log for details."));
-                }
-                InsertConfigBytes(pDevCfg, "MAC", &mGateway.mCloudMacAddress, sizeof(mGateway.mCloudMacAddress));
+                hrc = startGateways(virtualBox, network, mGateways);                          H();
+                InsertConfigBytes(pDevCfg, "MAC", &mGateways.mCloudMacAddress, sizeof(mGateways.mCloudMacAddress));
                 if (!bstr.isEmpty())
                 {
-                    InsertConfigString(pLunL0, "Driver", "CloudTunnel");
+                    InsertConfigString(pLunL0, "Driver", "IntNet");
                     InsertConfigNode(pLunL0, "Config", &pCfg);
-                    InsertConfigPassword(pCfg, "SshKey", mGateway.mPrivateSshKey);
-                    InsertConfigString(pCfg, "PrimaryIP", mGateway.mCloudPublicIp);
-                    InsertConfigString(pCfg, "SecondaryIP", mGateway.mCloudSecondaryPublicIp);
-                    InsertConfigBytes(pCfg, "TargetMAC", &mGateway.mLocalMacAddress, sizeof(mGateway.mLocalMacAddress));
+                    InsertConfigString(pCfg, "Network", BstrFmt("cloud-%ls", bstr.raw()));
+                    InsertConfigInteger(pCfg, "TrunkType", kIntNetTrunkType_WhateverNone);
+                    InsertConfigString(pCfg, "IfPolicyPromisc", pszPromiscuousGuestPolicy);
                     networkName = bstr;
                     trunkType = Bstr(TRUNKTYPE_WHATEVER);
                 }
                 break;
             }
 #endif /* VBOX_WITH_CLOUD_NET */
-
-#ifdef VBOX_WITH_VMNET
-            case NetworkAttachmentType_HostOnlyNetwork:
-            {
-                Bstr bstrId, bstrNetMask, bstrLowerIP, bstrUpperIP;
-                ComPtr<IHostOnlyNetwork> network;
-                hrc = aNetworkAdapter->COMGETTER(HostOnlyNetwork)(bstr.asOutParam());            H();
-                hrc = virtualBox->FindHostOnlyNetworkByName(bstr.raw(), network.asOutParam());
-                if (FAILED(hrc))
-                {
-                    LogRel(("NetworkAttachmentType_HostOnlyNetwork: FindByName failed, hrc (0x%x)\n", hrc));
-                    return pVMM->pfnVMR3SetError(pUVM, VERR_INTERNAL_ERROR, RT_SRC_POS,
-                                                 N_("Nonexistent host-only network '%ls'"), bstr.raw());
-                }
-                hrc = network->COMGETTER(Id)(bstrId.asOutParam());                               H();
-                hrc = network->COMGETTER(NetworkMask)(bstrNetMask.asOutParam());                 H();
-                hrc = network->COMGETTER(LowerIP)(bstrLowerIP.asOutParam());                     H();
-                hrc = network->COMGETTER(UpperIP)(bstrUpperIP.asOutParam());                     H();
-                if (!bstr.isEmpty())
-                {
-                    InsertConfigString(pLunL0, "Driver", "VMNet");
-                    InsertConfigNode(pLunL0, "Config", &pCfg);
-                    // InsertConfigString(pCfg, "Trunk", Utf8Str(bstr).c_str());
-                    // InsertConfigString(pCfg, "Network", BstrFmt("HostOnlyNetworking-%ls", bstr.raw()));
-                    InsertConfigInteger(pCfg, "TrunkType", kIntNetTrunkType_NetAdp);
-                    InsertConfigString(pCfg, "Id", Utf8Str(bstrId).c_str());
-                    InsertConfigString(pCfg, "NetworkMask", Utf8Str(bstrNetMask).c_str());
-                    InsertConfigString(pCfg, "LowerIP", Utf8Str(bstrLowerIP).c_str());
-                    InsertConfigString(pCfg, "UpperIP", Utf8Str(bstrUpperIP).c_str());
-                    // InsertConfigString(pCfg, "IfPolicyPromisc", pszPromiscuousGuestPolicy);
-                    networkName.setNull(); // We do not want DHCP server on our network!
-                    // trunkType = Bstr(TRUNKTYPE_WHATEVER);
-                }
-                break;
-            }
-#endif /* VBOX_WITH_VMNET */
 
             default:
                 AssertMsgFailed(("should not get here!\n"));
@@ -6519,9 +5971,6 @@ int Console::i_configNetwork(const char *pszDevice,
             case NetworkAttachmentType_Bridged:
             case NetworkAttachmentType_Internal:
             case NetworkAttachmentType_HostOnly:
-#ifdef VBOX_WITH_VMNET
-            case NetworkAttachmentType_HostOnlyNetwork:
-#endif /* VBOX_WITH_VMNET */
             case NetworkAttachmentType_NAT:
             case NetworkAttachmentType_Generic:
             case NetworkAttachmentType_NATNetwork:
@@ -6533,7 +5982,7 @@ int Console::i_configNetwork(const char *pszDevice,
                 {
                     if (fAttachDetach)
                     {
-                        rc = pVMM->pfnPDMR3DriverAttach(mpUVM, pszDevice, uInstance, uLun, 0 /*fFlags*/, NULL /* ppBase */);
+                        rc = PDMR3DriverAttach(mpUVM, pszDevice, uInstance, uLun, 0 /*fFlags*/, NULL /* ppBase */);
                         //AssertRC(rc);
                     }
 
@@ -6557,7 +6006,8 @@ int Console::i_configNetwork(const char *pszDevice,
                          * by DHCPServerRunner destructor.
                          */
                         ComPtr<IDHCPServer> dhcpServer;
-                        hrc = virtualBox->FindDHCPServerByNetworkName(networkName.raw(), dhcpServer.asOutParam());
+                        hrc = virtualBox->FindDHCPServerByNetworkName(networkName.raw(),
+                                                                      dhcpServer.asOutParam());
                         if (SUCCEEDED(hrc))
                         {
                             /* there is a DHCP server available for this network */
@@ -6570,7 +6020,8 @@ int Console::i_configNetwork(const char *pszDevice,
                             }
 
                             if (fEnabledDhcp)
-                                hrc = dhcpServer->Start(trunkName.raw(), trunkType.raw());
+                                hrc = dhcpServer->Start(trunkName.raw(),
+                                                        trunkType.raw());
                         }
                         else
                             hrc = S_OK;

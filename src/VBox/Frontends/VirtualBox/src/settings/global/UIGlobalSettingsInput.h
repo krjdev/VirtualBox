@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsInput.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGlobalSettingsInput.h $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsInput class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,71 +23,90 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIGlobalSettingsInput.gen.h"
 
-/* Forward declarations: */
-class UIAutoCaptureKeyboardEditor;
-class UIShortcutConfigurationEditor;
-struct UIDataSettingsGlobalInput;
+/* Forward declartions: */
+class QLineEdit;
+class QTabWidget;
+class UIDataSettingsGlobalInput;
+class UIHotKeyTable;
+class UIHotKeyTableModel;
 typedef UISettingsCache<UIDataSettingsGlobalInput> UISettingsCacheGlobalInput;
 
 /** Global settings: Input page. */
-class SHARED_LIBRARY_STUFF UIGlobalSettingsInput : public UISettingsPageGlobal
+class SHARED_LIBRARY_STUFF UIGlobalSettingsInput : public UISettingsPageGlobal,
+                                                   public Ui::UIGlobalSettingsInput
 {
     Q_OBJECT;
 
+    /** Hot-key table indexes. */
+    enum { UIHotKeyTableIndex_Selector, UIHotKeyTableIndex_Machine };
+
 public:
 
-    /** Constructs settings page. */
+    /** Constructs Input settings page. */
     UIGlobalSettingsInput();
-    /** Destructs settings page. */
-    virtual ~UIGlobalSettingsInput() RT_OVERRIDE;
+    /** Destructs Input settings page. */
+    ~UIGlobalSettingsInput();
 
 protected:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
+
+    /** Defines TAB order for passed @a pWidget. */
+    virtual void setOrderAfter(QWidget *pWidget) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
+    /** Prepares 'Selector UI' tab. */
+    void prepareTabSelector();
+    /** Prepares 'Runtime UI' tab. */
+    void prepareTabMachine();
     /** Prepares connections. */
     void prepareConnections();
     /** Cleanups all. */
     void cleanup();
 
-    /** Saves existing data from cache. */
-    bool saveData();
+    /** Saves existing input data from the cache. */
+    bool saveInputData();
+
+    /** Holds the tab-widget instance. */
+    QTabWidget         *m_pTabWidget;
+    /** Holds the Selector UI shortcuts filter instance. */
+    QLineEdit          *m_pSelectorFilterEditor;
+    /** Holds the Selector UI shortcuts model instance. */
+    UIHotKeyTableModel *m_pSelectorModel;
+    /** Holds the Selector UI shortcuts table instance. */
+    UIHotKeyTable      *m_pSelectorTable;
+    /** Holds the Runtime UI shortcuts filter instance. */
+    QLineEdit          *m_pMachineFilterEditor;
+    /** Holds the Runtime UI shortcuts model instance. */
+    UIHotKeyTableModel *m_pMachineModel;
+    /** Holds the Runtime UI shortcuts table instance. */
+    UIHotKeyTable      *m_pMachineTable;
 
     /** Holds the page data cache instance. */
     UISettingsCacheGlobalInput *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the 'shortcut configuration' editor instance. */
-        UIShortcutConfigurationEditor *m_pEditorShortcutConfiguration;
-        /** Holds the 'auto capture keyboard' editor instance. */
-        UIAutoCaptureKeyboardEditor   *m_pEditorAutoCaptureKeyboard;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_global_UIGlobalSettingsInput_h */

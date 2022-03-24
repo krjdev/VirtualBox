@@ -1,10 +1,10 @@
-/* $Id: CUE.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: CUE.cpp $ */
 /** @file
  * CUE - CUE/BIN Disk image, Core Code.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -95,7 +95,6 @@ typedef enum CUEKEYWORD
     CUEKEYWORD_TRACK,
     CUEKEYWORD_MODE1_2048,
     CUEKEYWORD_MODE1_2352,
-    CUEKEYWORD_MODE2_2352,
     CUEKEYWORD_AUDIO,
     CUEKEYWORD_REM
 } CUEKEYWORD;
@@ -254,7 +253,6 @@ static const CUEKEYWORDDESC g_aCueKeywords[] =
     {RT_STR_TUPLE("TRACK"),      CUEKEYWORD_TRACK},
     {RT_STR_TUPLE("MODE1/2048"), CUEKEYWORD_MODE1_2048},
     {RT_STR_TUPLE("MODE1/2352"), CUEKEYWORD_MODE1_2352},
-    {RT_STR_TUPLE("MODE2/2352"), CUEKEYWORD_MODE2_2352},
     {RT_STR_TUPLE("AUDIO"),      CUEKEYWORD_AUDIO},
     {RT_STR_TUPLE("REM"),        CUEKEYWORD_REM}
 };
@@ -962,8 +960,7 @@ static int cueParseTrack(PCUEIMAGE pThis, PCUETOKENIZER pTokenizer)
                 CUEKEYWORD enmDataMode = pTokenizer->pTokenCurr->Type.Keyword.enmKeyword;
                 if (   cueTokenizerSkipIfIsKeywordEqual(pTokenizer, CUEKEYWORD_AUDIO)
                     || cueTokenizerSkipIfIsKeywordEqual(pTokenizer, CUEKEYWORD_MODE1_2048)
-                    || cueTokenizerSkipIfIsKeywordEqual(pTokenizer, CUEKEYWORD_MODE1_2352)
-                    || cueTokenizerSkipIfIsKeywordEqual(pTokenizer, CUEKEYWORD_MODE2_2352))
+                    || cueTokenizerSkipIfIsKeywordEqual(pTokenizer, CUEKEYWORD_MODE1_2352))
                 {
                     /*
                      * Parse everything coming below the track (index points, etc.), we only need to find
@@ -984,11 +981,6 @@ static int cueParseTrack(PCUEIMAGE pThis, PCUETOKENIZER pTokenizer)
                             {
                                 pRegion->cbBlock     = 2352;
                                 pRegion->enmDataForm = VDREGIONDATAFORM_MODE1_2352;
-                            }
-                            else if (enmDataMode == CUEKEYWORD_MODE2_2352)
-                            {
-                                pRegion->cbBlock     = 2352;
-                                pRegion->enmDataForm = VDREGIONDATAFORM_MODE2_2352;
                             }
                             else if (enmDataMode == CUEKEYWORD_AUDIO)
                             {
@@ -1450,9 +1442,7 @@ static DECLCALLBACK(int) cueProbe(const char *pszFilename, PVDINTERFACE pVDIfsDi
     LogFlowFunc(("pszFilename=\"%s\" pVDIfsDisk=%#p pVDIfsImage=%#p\n", pszFilename, pVDIfsDisk, pVDIfsImage));
     int rc = VINF_SUCCESS;
 
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-
+    AssertReturn((VALID_PTR(pszFilename) && *pszFilename), VERR_INVALID_PARAMETER);
 
     PCUEIMAGE pThis = (PCUEIMAGE)RTMemAllocZ(sizeof(CUEIMAGE));
     if (RT_LIKELY(pThis))
@@ -1490,9 +1480,7 @@ static DECLCALLBACK(int) cueOpen(const char *pszFilename, unsigned uOpenFlags,
 
     /* Check open flags. All valid flags are supported. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-
+    AssertReturn((VALID_PTR(pszFilename) && *pszFilename), VERR_INVALID_PARAMETER);
     AssertReturn(enmType == VDTYPE_OPTICAL_DISC, VERR_NOT_SUPPORTED);
 
     pThis = (PCUEIMAGE)RTMemAllocZ(sizeof(CUEIMAGE));

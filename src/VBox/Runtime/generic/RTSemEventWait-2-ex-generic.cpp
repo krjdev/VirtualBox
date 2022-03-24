@@ -1,10 +1,10 @@
-/* $Id: RTSemEventWait-2-ex-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTSemEventWait-2-ex-generic.cpp $ */
 /** @file
  * IPRT - RTSemEventWait, implementation based on RTSemEventWaitEx.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

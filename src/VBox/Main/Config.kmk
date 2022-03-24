@@ -1,10 +1,10 @@
-# $Id: Config.kmk 93410 2022-01-24 14:45:10Z vboxsync $
+# $Id: Config.kmk $
 ## @file
 # kBuild Configuration file for the Main API.
 #
 
 #
-# Copyright (C) 2013-2022 Oracle Corporation
+# Copyright (C) 2013-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -38,8 +38,4 @@ VBOX_XML_SCHEMADEFS_XSL = $(VBOX_PATH_MAIN_SRC)/xml/SchemaDefs.xsl
 # These files are also required by a testcase.
 VBOX_AUTOGEN_EVENT_H    = $(PATH_TARGET)/Main/VBoxEvents.h
 VBOX_AUTOGEN_EVENT_CPP  = $(PATH_TARGET)/Main/VBoxEvents.cpp
-
-# Enum stringify functions.
-VBOX_AUTOGEN_STRINGIFY_ENUMS_H    = $(PATH_TARGET)/Main/StringifyEnums.h
-VBOX_AUTOGEN_STRINGIFY_ENUMS_CPP  = $(PATH_TARGET)/Main/StringifyEnums.cpp
 

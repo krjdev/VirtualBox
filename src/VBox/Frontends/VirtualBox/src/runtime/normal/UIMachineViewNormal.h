@@ -1,10 +1,10 @@
-/* $Id: UIMachineViewNormal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineViewNormal.h $ */
 /** @file
  * VBox Qt GUI - UIMachineViewNormal class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,12 @@ class UIMachineViewNormal : public UIMachineView
 protected:
 
     /* Normal machine-view constructor: */
-    UIMachineViewNormal(UIMachineWindow *pMachineWindow, ulong uScreenId);
+    UIMachineViewNormal(  UIMachineWindow *pMachineWindow
+                        , ulong uScreenId
+#ifdef VBOX_WITH_VIDEOHWACCEL
+                        , bool bAccelerate2DVideo
+#endif
+    );
     /* Normal machine-view destructor: */
     virtual ~UIMachineViewNormal() {}
 
@@ -56,9 +61,9 @@ private:
     //void cleanupCommon() {}
 
     /** Returns whether the guest-screen auto-resize is enabled. */
-    virtual bool isGuestAutoresizeEnabled() const RT_OVERRIDE { return m_bIsGuestAutoresizeEnabled; }
+    virtual bool isGuestAutoresizeEnabled() const /* override */ { return m_bIsGuestAutoresizeEnabled; }
     /** Defines whether the guest-screen auto-resize is @a fEnabled. */
-    virtual void setGuestAutoresizeEnabled(bool bEnabled) RT_OVERRIDE;
+    virtual void setGuestAutoresizeEnabled(bool bEnabled) /* override */;
 
     /** Resends guest size-hint. */
     void resendSizeHint();

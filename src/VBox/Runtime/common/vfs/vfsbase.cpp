@@ -1,10 +1,10 @@
-/* $Id: vfsbase.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vfsbase.cpp $ */
 /** @file
  * IPRT - Virtual File System, Base.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -369,32 +369,6 @@ static int rtVfsTraverseToParent(RTVFSINTERNAL *pThis, PRTVFSPARSEDPATH pPath, u
 static int rtVfsDirFollowSymlinkObjToParent(RTVFSDIRINTERNAL **ppVfsParentDir, RTVFSOBJ hVfsObj,
                                             PRTVFSPARSEDPATH pPath, uint32_t fFlags);
 
-
-
-/**
- * Translates a RTVFSOBJTYPE value into a string.
- *
- * @returns Pointer to readonly name.
- * @param   enmType             The object type to name.
- */
-RTDECL(const char *) RTVfsTypeName(RTVFSOBJTYPE enmType)
-{
-    switch (enmType)
-    {
-        case RTVFSOBJTYPE_INVALID:      return "invalid";
-        case RTVFSOBJTYPE_BASE:         return "base";
-        case RTVFSOBJTYPE_VFS:          return "VFS";
-        case RTVFSOBJTYPE_FS_STREAM:    return "FS stream";
-        case RTVFSOBJTYPE_IO_STREAM:    return "I/O stream";
-        case RTVFSOBJTYPE_DIR:          return "directory";
-        case RTVFSOBJTYPE_FILE:         return "file";
-        case RTVFSOBJTYPE_SYMLINK:      return "symlink";
-        case RTVFSOBJTYPE_END:          return "end";
-        case RTVFSOBJTYPE_32BIT_HACK:
-            break;
-    }
-    return "unknown";
-}
 
 
 /*
@@ -838,17 +812,6 @@ RTDECL(int) RTVfsNewBaseObj(PCRTVFSOBJOPS pObjOps, size_t cbInstance, RTVFS hVfs
     *phVfsObj    = pThis;
     *ppvInstance = pThis->pvThis;
     return VINF_SUCCESS;
-}
-
-
-RTDECL(void *) RTVfsObjToPrivate(RTVFSOBJ hVfsObj, PCRTVFSOBJOPS pObjOps)
-{
-    RTVFSOBJINTERNAL *pThis = hVfsObj;
-    AssertPtrReturn(pThis, NULL);
-    AssertReturn(pThis->uMagic == RTVFSOBJ_MAGIC, NULL);
-    if (pThis->pOps != pObjOps)
-        return NULL;
-    return pThis->pvThis;
 }
 
 
@@ -2318,7 +2281,7 @@ RTDECL(int) RTVfsQueryRangeState(RTVFS hVfs, uint64_t off, size_t cb, bool *pfUs
  */
 
 
-RTDECL(int) RTVfsNewFsStream(PCRTVFSFSSTREAMOPS pFsStreamOps, size_t cbInstance, RTVFS hVfs, RTVFSLOCK hLock, uint32_t fAccess,
+RTDECL(int) RTVfsNewFsStream(PCRTVFSFSSTREAMOPS pFsStreamOps, size_t cbInstance, RTVFS hVfs, RTVFSLOCK hLock, bool fReadOnly,
                              PRTVFSFSSTREAM phVfsFss, void **ppvInstance)
 {
     /*
@@ -2329,11 +2292,9 @@ RTDECL(int) RTVfsNewFsStream(PCRTVFSFSSTREAMOPS pFsStreamOps, size_t cbInstance,
     AssertReturn(pFsStreamOps->uEndMarker == RTVFSFSSTREAMOPS_VERSION, VERR_VERSION_MISMATCH);
     Assert(!pFsStreamOps->fReserved);
     RTVFSOBJ_ASSERT_OPS(&pFsStreamOps->Obj, RTVFSOBJTYPE_FS_STREAM);
-    Assert((fAccess & (RTFILE_O_READ | RTFILE_O_WRITE)) == fAccess);
-    Assert(fAccess);
-    if (fAccess & RTFILE_O_READ)
+    if (fReadOnly)
         AssertPtr(pFsStreamOps->pfnNext);
-    if (fAccess & RTFILE_O_WRITE)
+    else
     {
         AssertPtr(pFsStreamOps->pfnAdd);
         AssertPtr(pFsStreamOps->pfnEnd);
@@ -2362,14 +2323,10 @@ RTDECL(int) RTVfsNewFsStream(PCRTVFSFSSTREAMOPS pFsStreamOps, size_t cbInstance,
     }
 
     pThis->uMagic = RTVFSFSSTREAM_MAGIC;
+    pThis->fFlags = fReadOnly
+                  ? RTFILE_O_READ  | RTFILE_O_OPEN   | RTFILE_O_DENY_NONE
+                  : RTFILE_O_WRITE | RTFILE_O_CREATE | RTFILE_O_DENY_ALL;
     pThis->pOps   = pFsStreamOps;
-    pThis->fFlags = fAccess;
-    if (fAccess == RTFILE_O_READ)
-        pThis->fFlags |= RTFILE_O_OPEN   | RTFILE_O_DENY_NONE;
-    else if (fAccess == RTFILE_O_WRITE)
-        pThis->fFlags |= RTFILE_O_CREATE | RTFILE_O_DENY_ALL;
-    else
-        pThis->fFlags |= RTFILE_O_OPEN   | RTFILE_O_DENY_ALL;
 
     *phVfsFss     = pThis;
     *ppvInstance  = pThis->Base.pvThis;
@@ -3316,17 +3273,6 @@ RTDECL(int) RTVfsNewSymlink(PCRTVFSSYMLINKOPS pSymlinkOps, size_t cbInstance, RT
     *phVfsSym     = pThis;
     *ppvInstance  = pThis->Base.pvThis;
     return VINF_SUCCESS;
-}
-
-
-RTDECL(void *) RTVfsSymlinkToPrivate(RTVFSSYMLINK hVfsSym, PCRTVFSSYMLINKOPS pSymlinkOps)
-{
-    RTVFSSYMLINKINTERNAL *pThis = hVfsSym;
-    AssertPtrReturn(pThis, NULL);
-    AssertReturn(pThis->uMagic == RTVFSSYMLINK_MAGIC, NULL);
-    if (pThis->pOps != pSymlinkOps)
-        return NULL;
-    return pThis->Base.pvThis;
 }
 
 

@@ -1,10 +1,10 @@
-/* $Id: VBoxDrvCfg-win.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDrvCfg-win.h $ */
 /** @file
  * Windows Driver Manipulation API.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,12 +54,12 @@ typedef enum
     VBOXDRVCFG_LOG_SEVERITY_REL
 } VBOXDRVCFG_LOG_SEVERITY;
 
-typedef DECLCALLBACKTYPE(void, FNVBOXDRVCFG_LOG,(VBOXDRVCFG_LOG_SEVERITY enmSeverity, char *pszMsg, void *pvContext));
+typedef DECLCALLBACK(void) FNVBOXDRVCFG_LOG(VBOXDRVCFG_LOG_SEVERITY enmSeverity, char *pszMsg, void *pvContext);
 typedef FNVBOXDRVCFG_LOG *PFNVBOXDRVCFG_LOG;
 
 VBOXDRVCFG_DECL(void) VBoxDrvCfgLoggerSet(PFNVBOXDRVCFG_LOG pfnLog, void *pvLog);
 
-typedef DECLCALLBACKTYPE(void, FNVBOXDRVCFG_PANIC,(void *pvPanic));
+typedef DECLCALLBACK(void) FNVBOXDRVCFG_PANIC(void * pvPanic);
 typedef FNVBOXDRVCFG_PANIC *PFNVBOXDRVCFG_PANIC;
 VBOXDRVCFG_DECL(void) VBoxDrvCfgPanicSet(PFNVBOXDRVCFG_PANIC pfnPanic, void *pvPanic);
 

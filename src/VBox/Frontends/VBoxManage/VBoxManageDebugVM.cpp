@@ -1,10 +1,10 @@
-/* $Id: VBoxManageDebugVM.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxManageDebugVM.cpp $ */
 /** @file
  * VBoxManage - Implementation of the debugvm command.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,8 +38,6 @@
 #include <VBox/log.h>
 
 #include "VBoxManage.h"
-
-DECLARE_TRANSLATION_CONTEXT(DebugVM);
 
 
 /**
@@ -112,7 +110,7 @@ static RTEXITCODE handleDebugVM_GetRegisters(HandlerArg *pArgs, IMachineDebugger
     }
 
     if (!cRegisters)
-        return errorSyntax(DebugVM::tr("The getregisters sub-command takes at least one register name"));
+        return errorSyntax("The getregisters sub-command takes at least one register name");
     return RTEXITCODE_SUCCESS;
 }
 
@@ -153,7 +151,7 @@ static RTEXITCODE handleDebugVM_Info(HandlerArg *pArgs, IMachineDebugger *pDebug
     }
 
     if (!pszInfo)
-        return errorSyntax(DebugVM::tr("Must specify info item to display"));
+        return errorSyntax("Must specify info item to display");
 
     /*
      * Do the work.
@@ -300,12 +298,12 @@ static RTEXITCODE handleDebugVM_DumpVMCore(HandlerArg *pArgs, IMachineDebugger *
         {
             case 'c':
                 if (pszCompression)
-                    return errorSyntax(DebugVM::tr("The --compression option has already been given"));
+                    return errorSyntax("The --compression option has already been given");
                 pszCompression = ValueUnion.psz;
                 break;
             case 'f':
                 if (pszFilename)
-                    return errorSyntax(DebugVM::tr("The --filename option has already been given"));
+                    return errorSyntax("The --filename option has already been given");
                 pszFilename = ValueUnion.psz;
                 break;
             default:
@@ -314,7 +312,7 @@ static RTEXITCODE handleDebugVM_DumpVMCore(HandlerArg *pArgs, IMachineDebugger *
     }
 
     if (!pszFilename)
-        return errorSyntax(DebugVM::tr("The --filename option is required"));
+        return errorSyntax("The --filename option is required");
 
     /*
      * Make the filename absolute before handing it on to the API.
@@ -322,7 +320,7 @@ static RTEXITCODE handleDebugVM_DumpVMCore(HandlerArg *pArgs, IMachineDebugger *
     char szAbsFilename[RTPATH_MAX];
     rc = RTPathAbs(pszFilename, szAbsFilename, sizeof(szAbsFilename));
     if (RT_FAILURE(rc))
-        return RTMsgErrorExit(RTEXITCODE_FAILURE, DebugVM::tr("RTPathAbs failed on '%s': %Rrc"), pszFilename, rc);
+        return RTMsgErrorExit(RTEXITCODE_FAILURE, "RTPathAbs failed on '%s': %Rrc", pszFilename, rc);
 
     com::Bstr bstrFilename(szAbsFilename);
     com::Bstr bstrCompression(pszCompression);
@@ -348,7 +346,7 @@ static RTEXITCODE handleDebugVM_OSDetect(HandlerArg *a, IMachineDebugger *pDebug
 
     com::Bstr bstrName;
     CHECK_ERROR2I_RET(pDebugger, DetectOS(bstrName.asOutParam()), RTEXITCODE_FAILURE);
-    RTPrintf(DebugVM::tr("Detected: %ls\n"), bstrName.raw());
+    RTPrintf("Detected: %ls\n", bstrName.raw());
     return RTEXITCODE_SUCCESS;
 }
 
@@ -368,8 +366,8 @@ static RTEXITCODE handleDebugVM_OSInfo(HandlerArg *a, IMachineDebugger *pDebugge
     CHECK_ERROR2I_RET(pDebugger, COMGETTER(OSName)(bstrName.asOutParam()), RTEXITCODE_FAILURE);
     com::Bstr bstrVersion;
     CHECK_ERROR2I_RET(pDebugger, COMGETTER(OSVersion)(bstrVersion.asOutParam()), RTEXITCODE_FAILURE);
-    RTPrintf(DebugVM::tr("Name:    %ls\n"), bstrName.raw());
-    RTPrintf(DebugVM::tr("Version: %ls\n"), bstrVersion.raw());
+    RTPrintf("Name:    %ls\n", bstrName.raw());
+    RTPrintf("Version: %ls\n", bstrVersion.raw());
     return RTEXITCODE_SUCCESS;
 }
 
@@ -447,8 +445,7 @@ static RTEXITCODE handleDebugVM_SetRegisters(HandlerArg *pArgs, IMachineDebugger
             {
                 const char *pszEqual = strchr(ValueUnion.psz, '=');
                 if (!pszEqual)
-                    return errorSyntax(DebugVM::tr("setregisters expects input on the form 'register=value' got '%s'"),
-                                       ValueUnion.psz);
+                    return errorSyntax("setregisters expects input on the form 'register=value' got '%s'", ValueUnion.psz);
                 try
                 {
                     com::Bstr bstrName(ValueUnion.psz, pszEqual - ValueUnion.psz);
@@ -459,7 +456,7 @@ static RTEXITCODE handleDebugVM_SetRegisters(HandlerArg *pArgs, IMachineDebugger
                 }
                 catch (std::bad_alloc &)
                 {
-                    RTMsgError(DebugVM::tr("Out of memory\n"));
+                    RTMsgError("Out of memory\n");
                     return RTEXITCODE_FAILURE;
                 }
                 break;
@@ -471,7 +468,7 @@ static RTEXITCODE handleDebugVM_SetRegisters(HandlerArg *pArgs, IMachineDebugger
     }
 
     if (!aBstrNames.size())
-        return errorSyntax(DebugVM::tr("The setregisters sub-command takes at least one register name"));
+        return errorSyntax("The setregisters sub-command takes at least one register name");
 
     /*
      * If it is only one register, use the single register method just so
@@ -480,13 +477,13 @@ static RTEXITCODE handleDebugVM_SetRegisters(HandlerArg *pArgs, IMachineDebugger
     if (aBstrNames.size() == 1)
     {
         CHECK_ERROR2I_RET(pDebugger, SetRegister(idCpu, aBstrNames[0], aBstrValues[0]), RTEXITCODE_FAILURE);
-        RTPrintf(DebugVM::tr("Successfully set %ls\n"), aBstrNames[0]);
+        RTPrintf("Successfully set %ls\n", aBstrNames[0]);
     }
     else
     {
         CHECK_ERROR2I_RET(pDebugger, SetRegisters(idCpu, ComSafeArrayAsInParam(aBstrNames), ComSafeArrayAsInParam(aBstrValues)),
                           RTEXITCODE_FAILURE);
-        RTPrintf(DebugVM::tr("Successfully set %u registers\n", "", aBstrNames.size()), aBstrNames.size());
+        RTPrintf("Successfully set %u registers\n", aBstrNames.size());
     }
 
     return RTEXITCODE_SUCCESS;
@@ -513,9 +510,9 @@ static void handleDebugVM_Show_PrintVar(const char *pszVar, com::Bstr const *pbs
     switch (fFlags & DEBUGVM_SHOW_FLAGS_FMT_MASK)
     {
         case DEBUGVM_SHOW_FLAGS_HUMAN_READABLE: RTPrintf(" %27s=%ls\n", pszVar, pbstrValue->raw()); break;
-        case DEBUGVM_SHOW_FLAGS_SH_EXPORT:      RTPrintf(DebugVM::tr("export %s='%ls'\n"), pszVar, pbstrValue->raw()); break;
+        case DEBUGVM_SHOW_FLAGS_SH_EXPORT:      RTPrintf("export %s='%ls'\n", pszVar, pbstrValue->raw()); break;
         case DEBUGVM_SHOW_FLAGS_SH_EVAL:        RTPrintf("%s='%ls'\n", pszVar, pbstrValue->raw()); break;
-        case DEBUGVM_SHOW_FLAGS_CMD_SET:        RTPrintf(DebugVM::tr("set %s=%ls\n"), pszVar, pbstrValue->raw()); break;
+        case DEBUGVM_SHOW_FLAGS_CMD_SET:        RTPrintf("set %s=%ls\n", pszVar, pbstrValue->raw()); break;
         default: AssertFailed();
     }
 }
@@ -530,7 +527,7 @@ static void handleDebugVM_Show_PrintVar(const char *pszVar, com::Bstr const *pbs
 static RTEXITCODE handleDebugVM_Show_LogDbgSettings(IMachineDebugger *pDebugger, uint32_t fFlags)
 {
     if ((fFlags & DEBUGVM_SHOW_FLAGS_FMT_MASK) == DEBUGVM_SHOW_FLAGS_HUMAN_READABLE)
-        RTPrintf(DebugVM::tr("Debug logger settings:\n"));
+        RTPrintf("Debug logger settings:\n");
 
     com::Bstr bstr;
     CHECK_ERROR2I_RET(pDebugger, COMGETTER(LogDbgGroups)(bstr.asOutParam()), RTEXITCODE_FAILURE);
@@ -554,7 +551,7 @@ static RTEXITCODE handleDebugVM_Show_LogDbgSettings(IMachineDebugger *pDebugger,
 static RTEXITCODE handleDebugVM_Show_LogRelSettings(IMachineDebugger *pDebugger, uint32_t fFlags)
 {
     if ((fFlags & DEBUGVM_SHOW_FLAGS_FMT_MASK) == DEBUGVM_SHOW_FLAGS_HUMAN_READABLE)
-        RTPrintf(DebugVM::tr("Release logger settings:\n"));
+        RTPrintf("Release logger settings:\n");
 
     com::Bstr bstr;
     CHECK_ERROR2I_RET(pDebugger, COMGETTER(LogRelGroups)(bstr.asOutParam()), RTEXITCODE_FAILURE);
@@ -628,7 +625,7 @@ static RTEXITCODE handleDebugVM_Show(HandlerArg *pArgs, IMachineDebugger *pDebug
                 else if (!strcmp(ValueUnion.psz, "logrel-settings"))
                     rcExit = handleDebugVM_Show_LogRelSettings(pDebugger, fFlags);
                 else
-                    rcExit = errorSyntax(DebugVM::tr("The show sub-command has no idea what '%s' might be"), ValueUnion.psz);
+                    rcExit = errorSyntax("The show sub-command has no idea what '%s' might be", ValueUnion.psz);
                 if (rcExit != RTEXITCODE_SUCCESS)
                     return rcExit;
                 break;
@@ -702,7 +699,7 @@ static RTEXITCODE handleDebugVM_Stack(HandlerArg *pArgs, IMachineDebugger *pDebu
             {
                 if (idCpu > 0)
                     RTPrintf("\n");
-                RTPrintf(DebugVM::tr("====================== CPU #%u ======================\n"), idCpu);
+                RTPrintf("====================== CPU #%u ======================\n", idCpu);
             }
             RTPrintf("%ls\n", bstrGuestStack.raw());
         }
@@ -749,7 +746,7 @@ static RTEXITCODE handleDebugVM_Statistics(HandlerArg *pArgs, IMachineDebugger *
 
             case 'p':
                 if (pszPattern)
-                    return errorSyntax(DebugVM::tr("Multiple --pattern options are not permitted"));
+                    return errorSyntax("Multiple --pattern options are not permitted");
                 pszPattern = ValueUnion.psz;
                 break;
 
@@ -763,7 +760,7 @@ static RTEXITCODE handleDebugVM_Statistics(HandlerArg *pArgs, IMachineDebugger *
     }
 
     if (fReset && fWithDescriptions)
-        return errorSyntax(DebugVM::tr("The --reset and --descriptions options does not mix"));
+        return errorSyntax("The --reset and --descriptions options does not mix");
 
     /*
      * Execute the order.
@@ -782,66 +779,6 @@ static RTEXITCODE handleDebugVM_Statistics(HandlerArg *pArgs, IMachineDebugger *
          */
         RTPrintf("%ls\n", bstrStats.raw());
     }
-
-    return RTEXITCODE_SUCCESS;
-}
-
-/**
- * Handles the guestsample sub-command.
- *
- * @returns Suitable exit code.
- * @param   pArgs               The handler arguments.
- * @param   pDebugger           Pointer to the debugger interface.
- */
-static RTEXITCODE handleDebugVM_GuestSample(HandlerArg *pArgs, IMachineDebugger *pDebugger)
-{
-    /*
-     * Parse arguments.
-     */
-    const char                 *pszFilename         = NULL;
-    uint32_t                   cSampleIntervalUs    = 1000;
-    uint64_t                   cSampleTimeUs        = 1000*1000;
-
-    RTGETOPTSTATE               GetState;
-    RTGETOPTUNION               ValueUnion;
-    static const RTGETOPTDEF    s_aOptions[] =
-    {
-        { "--filename",           'f', RTGETOPT_REQ_STRING },
-        { "--sample-interval-us", 'i', RTGETOPT_REQ_UINT32 },
-        { "--sample-time-us",     't', RTGETOPT_REQ_UINT64 },
-    };
-    int rc = RTGetOptInit(&GetState, pArgs->argc, pArgs->argv, s_aOptions, RT_ELEMENTS(s_aOptions), 2, 0 /*fFlags*/);
-    AssertRCReturn(rc, RTEXITCODE_FAILURE);
-
-    while ((rc = RTGetOpt(&GetState, &ValueUnion)) != 0)
-    {
-        switch (rc)
-        {
-            case 'f':
-                pszFilename = ValueUnion.psz;
-                break;
-            case 'i':
-                cSampleIntervalUs = ValueUnion.u32;
-                break;
-            case 't':
-                cSampleTimeUs = ValueUnion.u64;
-                break;
-
-            default:
-                return errorGetOpt(rc, &ValueUnion);
-        }
-    }
-
-    if (!pszFilename)
-        return errorSyntax(DebugVM::tr("The --filename is missing"));
-
-    /*
-     * Execute the order.
-     */
-    ComPtr<IProgress> ptrProgress;
-    com::Bstr bstrFilename(pszFilename);
-    CHECK_ERROR2I_RET(pDebugger, TakeGuestSample(bstrFilename.raw(), cSampleIntervalUs, cSampleTimeUs, ptrProgress.asOutParam()), RTEXITCODE_FAILURE);
-    showProgress(ptrProgress);
 
     return RTEXITCODE_SUCCESS;
 }
@@ -947,20 +884,16 @@ RTEXITCODE handleDebugVM(HandlerArg *pArgs)
                     setCurrentSubcommand(HELP_SCOPE_DEBUGVM_STATISTICS);
                     rcExit = handleDebugVM_Statistics(pArgs, ptrDebugger);
                 }
-                else if (!strcmp(pszSubCmd, "guestsample"))
-                {
-                    setCurrentSubcommand(HELP_SCOPE_DEBUGVM_GUESTSAMPLE);
-                    rcExit = handleDebugVM_GuestSample(pArgs, ptrDebugger);
-                }
                 else
                     errorUnknownSubcommand(pszSubCmd);
             }
         }
         else
-            RTMsgError(DebugVM::tr("Machine '%s' is not currently running.\n"), pArgs->argv[0]);
+            RTMsgError("Machine '%s' is not currently running.\n", pArgs->argv[0]);
     }
 
     pArgs->session->UnlockMachine();
 
     return rcExit;
 }
+

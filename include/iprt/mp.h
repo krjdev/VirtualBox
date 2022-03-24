@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -294,7 +294,7 @@ RTDECL(bool) RTMpIsCpuWorkPending(void);
  * @param   pvUser1     The 1st user argument.
  * @param   pvUser2     The 2nd user argument.
  */
-typedef DECLCALLBACKTYPE(void, FNRTMPWORKER,(RTCPUID idCpu, void *pvUser1, void *pvUser2));
+typedef DECLCALLBACK(void) FNRTMPWORKER(RTCPUID idCpu, void *pvUser1, void *pvUser2);
 /** Pointer to a FNRTMPWORKER. */
 typedef FNRTMPWORKER *PFNRTMPWORKER;
 
@@ -461,7 +461,7 @@ typedef enum RTMPEVENT
  * @param   enmEvent    The event.
  * @param   pvUser      The user argument.
  */
-typedef DECLCALLBACKTYPE(void, FNRTMPNOTIFICATION,(RTMPEVENT enmEvent, RTCPUID idCpu, void *pvUser));
+typedef DECLCALLBACK(void) FNRTMPNOTIFICATION(RTMPEVENT enmEvent, RTCPUID idCpu, void *pvUser);
 /** Pointer to a FNRTMPNOTIFICATION(). */
 typedef FNRTMPNOTIFICATION *PFNRTMPNOTIFICATION;
 

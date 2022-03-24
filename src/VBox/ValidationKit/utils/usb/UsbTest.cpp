@@ -1,11 +1,11 @@
-/* $Id: UsbTest.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UsbTest.cpp $ */
 /** @file
  * UsbTest - User frontend for the Linux usbtest USB test and benchmarking module.
  *           Integrates with our test framework for nice outputs.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -121,7 +121,7 @@ typedef struct USBDEVDESC
  * @param   pszTest         Test name.
  * @param   pParams         The USB test parameters to set up.
  */
-typedef DECLCALLBACKTYPE(int, FNUSBTESTPARAMSSETUP,(unsigned idxTest, const char *pszTest, PUSBTESTPARAMS pParams));
+typedef DECLCALLBACK(int) FNUSBTESTPARAMSSETUP(unsigned idxTest, const char *pszTest, PUSBTESTPARAMS pParams);
 /** Pointer to a USB test parameters setup callback. */
 typedef FNUSBTESTPARAMSSETUP *PFNUSBTESTPARAMSSETUP;
 

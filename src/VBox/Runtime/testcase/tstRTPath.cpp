@@ -1,10 +1,10 @@
-/* $Id: tstRTPath.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTPath.cpp $ */
 /** @file
  * IPRT Testcase - Test various path functions.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -352,101 +352,6 @@ static void testEnsureTrailingSeparator(RTTEST hTest)
         if (strcmp(szPath, s_aTests[i].pszOut) != 0)
             RTTestFailed(hTest, "sub-test #%u: got '%s', expected '%s' (style %#x)",
                          i, szPath, s_aTests[i].pszOut, s_aTests[i].fFlags);
-    }
-}
-
-
-static void testFindCommon(RTTEST hTest)
-{
-    RTTestSub(hTest, "RTPathFindCommon");
-
-    static struct
-    {
-        char const *apszPaths[4];
-        uint32_t    fFlags;
-        char const *pszCommon;
-    } const aTests[] =
-    {
-        /* Simple stuff first. */
-        { { "",                     "",                 "",                     NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "",                     "",                 "",                     NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "none",                 "none",             "",                     NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "none",                 "none",             "",                     NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "same",                 "same",             "same",                 "same", },          RTPATH_STR_F_STYLE_UNIX,
-            "same" },
-        { { "same",                 "same",             "same",                 "same", },          RTPATH_STR_F_STYLE_DOS,
-            "same" },
-        /* More complicated. */
-        { { "/path/to/stuff1",      "path/to/stuff2",   NULL,                   NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "/path/to/stuff1",      "/path/to/stuff2",  "/path/to/stuff3",      NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "/path/to/" },
-        { { "/path/to/stuff1",      "/path/to/",        "/path/",               NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "/path/" },
-        { { "/path/to/stuff1",      "/",                "/path/",               NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "/" },
-        { { "/path/to/../stuff1",   "./../",            "/path/to/stuff2/..",   NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "a/single/path",        NULL,               NULL,                   NULL, },            RTPATH_STR_F_STYLE_UNIX,
-            "a/single/path" },
-        { { "a/single\\path",       NULL,               NULL,                   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "a/single\\path" },
-        { { "C:\\Windows",          NULL,               NULL,                   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "C:\\Windows" },
-        { { "c:/windows",           "c:\\program files", "C:\\AppData",         NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "c:/" },
-        { { "c:/windows",           "c:windows",        "C:system32",           NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "c:" },
-        { { "c:/windows",           "d:windows",        "e:windows",            NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "//usr/bin/env",        "/usr//bin/env",   "/usr/bin///env",        "/usr/bin/env", },  RTPATH_STR_F_STYLE_UNIX,
-            "//usr/bin/env" },
-        { { "//usr/bin/env",        "/usr//./././bin/env", "/usr/bin///env",    "/usr/bin/env", },  RTPATH_STR_F_STYLE_UNIX,
-            "//usr/bin/env" },
-        { { "//./what/ever",        "\\\\.\\what\\is\\up", "\\\\.\\\\what\\is\\up", NULL, },        RTPATH_STR_F_STYLE_DOS,
-            "//./what/" },
-        { { "//./unc/is/weird",     "///./unc/is/weird", NULL,                  NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "//system360/share",    "//system370/share", "//system390/share",   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "//system370/share1",   "//sysTEM370/share2", "//SYsTeM370/share3", NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "//system370/" },
-        { { "//system370/share1",   "Z:/",              NULL,                   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "//system370/share1",   "/",                NULL,                   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "//system370/share1",   "somedir",          NULL,                   NULL, },            RTPATH_STR_F_STYLE_DOS,
-            "" },
-        { { "/path/to/stuff1",      "path/to/stuff2",   NULL,                   NULL, },            RTPATH_STR_F_STYLE_UNIX | RTPATH_STR_F_NO_START,
-            "/path/to/" },
-        { { "path/to/stuff1",       "//path\\/to\\stuff2", NULL,                NULL, },            RTPATH_STR_F_STYLE_DOS | RTPATH_STR_F_NO_START,
-            "path/to/" },
-        /* '..' elements are not supported for now and leads to zero return, unless RTPATHFINDCOMMON_F_IGNORE_DOTDOT is given. */
-        { { "/usr/bin/env",         "/usr/../usr/bin/env", "/usr/bin/../bin/env", NULL, },          RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "/lib/",                "/lib/amd64/../lib.so", "/lib/i386/../libdl.so", NULL, },       RTPATH_STR_F_STYLE_UNIX,
-            "" },
-        { { "/lib/",                "/lib/amd64/../lib.so", "/lib/i386/../libdl.so", NULL, },       RTPATH_STR_F_STYLE_UNIX | RTPATHFINDCOMMON_F_IGNORE_DOTDOT,
-            "/lib/" },
-    };
-
-    for (size_t i = 0; i < RT_ELEMENTS(aTests); i++)
-    {
-        size_t cPaths = RT_ELEMENTS(aTests[i].apszPaths);
-        while (cPaths > 0 && aTests[i].apszPaths[cPaths - 1] == NULL)
-            cPaths--;
-
-        size_t const cchCommon = RTPathFindCommonEx(cPaths, aTests[i].apszPaths, aTests[i].fFlags);
-        size_t const cchExpect = strlen(aTests[i].pszCommon);
-        if (cchCommon != cchExpect)
-            RTTestFailed(hTest,
-                         "Test %zu failed: got %zu, expected %zu (cPaths=%zu: '%s' '%s' '%s' '%s', fFlags=%#x)", i, cchCommon,
-                         cchExpect, cPaths, aTests[i].apszPaths[0], aTests[i].apszPaths[1], aTests[i].apszPaths[2],
-                         aTests[i].apszPaths[3], aTests[i].fFlags);
     }
 }
 
@@ -1181,7 +1086,6 @@ int main()
     testParentLength(hTest);
     testPurgeFilename(hTest);
     testEnsureTrailingSeparator(hTest);
-    testFindCommon(hTest);
 
     /*
      * Summary.

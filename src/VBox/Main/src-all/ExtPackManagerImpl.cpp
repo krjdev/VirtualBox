@@ -1,10 +1,10 @@
-/* $Id: ExtPackManagerImpl.cpp 93449 2022-01-26 19:57:06Z vboxsync $ */
+/* $Id: ExtPackManagerImpl.cpp $ */
 /** @file
  * VirtualBox Main - interface for Extension Packs, VBoxSVC & VBoxC.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,6 @@
 #include <iprt/env.h>
 #include <iprt/file.h>
 #include <iprt/ldr.h>
-#include <iprt/locale.h>
 #include <iprt/manifest.h>
 #include <iprt/param.h>
 #include <iprt/path.h>
@@ -148,9 +147,6 @@ public:
     /** Pointer to the VirtualBox object so we can create a progress object. */
     VirtualBox         *pVirtualBox;
 #endif
-#ifdef VBOX_WITH_MAIN_NLS
-    PTRCOMPONENT        pTrComponent;
-#endif
 
     RTMEMEF_NEW_AND_DELETE_OPERATORS();
 };
@@ -197,8 +193,6 @@ public:
     explicit ExtPackInstallTask() : ThreadTask("ExtPackInst") { }
     ~ExtPackInstallTask() { }
 
-    DECLARE_TRANSLATE_METHODS(ExtPackInstallTask)
-
     void handler()
     {
         HRESULT hrc = ptrExtPackMgr->i_doInstall(ptrExtPackFile, fReplace, &strDisplayInfo);
@@ -216,7 +210,7 @@ public:
         HRESULT hrc = ptrProgress.createObject();
         if (SUCCEEDED(hrc))
         {
-            Bstr bstrDescription(tr("Installing extension pack"));
+            Bstr bstrDescription("Installing extension pack");
             hrc = ptrProgress->init(ptrExtPackFile->m->pVirtualBox,
                                     static_cast<IExtPackFile *>(ptrExtPackFile),
                                     bstrDescription.raw(),
@@ -247,7 +241,6 @@ class ExtPackUninstallTask : public ThreadTask
 public:
     explicit ExtPackUninstallTask() : ThreadTask("ExtPackUninst") { }
     ~ExtPackUninstallTask() { }
-    DECLARE_TRANSLATE_METHODS(ExtPackUninstallTask)
 
     void handler()
     {
@@ -266,7 +259,7 @@ public:
         HRESULT hrc = ptrProgress.createObject();
         if (SUCCEEDED(hrc))
         {
-            Bstr bstrDescription(tr("Uninstalling extension pack"));
+            Bstr bstrDescription("Uninstalling extension pack");
             hrc = ptrProgress->init(ptrExtPackMgr->m->pVirtualBox,
                                     static_cast<IExtPackManager *>(ptrExtPackMgr),
                                     bstrDescription.raw(),
@@ -371,7 +364,7 @@ HRESULT ExtPackFile::initWithFile(const char *a_pszFile, const char *a_pszDigest
     vrc = VBoxExtPackValidateTarball(m->hExtPackFile, NULL /*pszExtPackName*/, a_pszFile, a_pszDigest,
                                      szError, sizeof(szError), &m->hOurManifest, &hXmlFile, &m->strDigest);
     if (RT_FAILURE(vrc))
-        return initFailed("%s", szError);
+        return initFailed(tr("%s"), szError);
 
     /*
      * Parse the XML.
@@ -532,7 +525,7 @@ HRESULT ExtPackFile::queryLicense(const com::Utf8Str &aPreferredLocale, const co
         return setError(E_FAIL, tr("The preferred locale is a two character string or empty."));
 
     if (aPreferredLanguage.length() != 2 && aPreferredLanguage.length() != 0)
-        return setError(E_FAIL, tr("The preferred language is a two character string or empty."));
+        return setError(E_FAIL, tr("The preferred lanuage is a two character string or empty."));
 
     if (   !aFormat.equals("html")
         && !aFormat.equals("rtf")
@@ -566,7 +559,7 @@ HRESULT ExtPackFile::queryLicense(const com::Utf8Str &aPreferredLocale, const co
      * be marked so because of bad license files).
      */
     if (!m->fUsable)
-        hrc = setError(E_FAIL, "%s", m->strWhyUnusable.c_str());
+        hrc = setError(E_FAIL, tr("%s"), m->strWhyUnusable.c_str());
     else
     {
         /*
@@ -634,8 +627,7 @@ HRESULT ExtPackFile::queryLicense(const com::Utf8Str &aPreferredLocale, const co
                                 RTMemFree(pvFile);
                             }
                             else
-                                hrc = setError(E_OUTOFMEMORY, tr("Failed to allocate %zu bytes for '%s'", "", cbFile),
-                                               cbFile, szName);
+                                hrc = setError(E_OUTOFMEMORY, tr("Failed to allocate %zu bytes for '%s'"), cbFile, szName);
                         }
                         else
                             hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("RTVfsIoStrmQueryInfo on '%s': %Rrc"), szName, vrc);
@@ -650,7 +642,7 @@ HRESULT ExtPackFile::queryLicense(const com::Utf8Str &aPreferredLocale, const co
                 RTVfsFsStrmRelease(hTarFss);
             }
             else
-                hrc = setError(VBOX_E_OBJECT_NOT_FOUND, "%s", szError);
+                hrc = setError(VBOX_E_OBJECT_NOT_FOUND, tr("%s"), szError);
         }
         else
             hrc = setError(VBOX_E_OBJECT_NOT_FOUND, tr("The license file '%s' was not found in '%s'"),
@@ -763,9 +755,6 @@ HRESULT ExtPack::initWithDir(VirtualBox *a_pVirtualBox, VBOXEXTPACKCTX a_enmCont
         /* pfnNextOperationProgress = */ ExtPack::i_hlpNextOperationProgress,
         /* pfnWaitOtherProgress = */ ExtPack::i_hlpWaitOtherProgress,
         /* pfnCompleteProgress  = */ ExtPack::i_hlpCompleteProgress,
-        /* pfnCreateEvent       = */ ExtPack::i_hlpCreateEvent,
-        /* pfnCreateVetoEvent   = */ ExtPack::i_hlpCreateVetoEvent,
-        /* pfnTranslate         = */ ExtPack::i_hlpTranslate,
         /* pfnReserved1         = */ ExtPack::i_hlpReservedN,
         /* pfnReserved2         = */ ExtPack::i_hlpReservedN,
         /* pfnReserved3         = */ ExtPack::i_hlpReservedN,
@@ -802,9 +791,7 @@ HRESULT ExtPack::initWithDir(VirtualBox *a_pVirtualBox, VBOXEXTPACKCTX a_enmCont
 #else
     RT_NOREF(a_pVirtualBox);
 #endif
-#ifdef VBOX_WITH_MAIN_NLS
-    m->pTrComponent                 = NULL;
-#endif
+
     /*
      * Make sure the SUPR3Hardened API works (ignoring errors for now).
      */
@@ -816,25 +803,6 @@ HRESULT ExtPack::initWithDir(VirtualBox *a_pVirtualBox, VBOXEXTPACKCTX a_enmCont
      * Probe the extension pack (this code is shared with refresh()).
      */
     i_probeAndLoad();
-
-#ifdef VBOX_WITH_MAIN_NLS
-    /* register language files if exist */
-    if (m->pReg != NULL && m->pReg->pszNlsBaseName != NULL)
-    {
-        char szPath[RTPATH_MAX];
-        rc = RTPathJoin(szPath, sizeof(szPath), a_pszDir, "nls");
-        if (RT_SUCCESS(rc))
-        {
-            rc = RTPathAppend(szPath, sizeof(szPath), m->pReg->pszNlsBaseName);
-            if (RT_SUCCESS(rc))
-            {
-                rc = VirtualBoxTranslator::registerTranslation(szPath, false, &m->pTrComponent);
-                if (RT_FAILURE(rc))
-                    m->pTrComponent = NULL;
-            }
-        }
-    }
-#endif
 
     autoInitSpan.setSucceeded();
     return S_OK;
@@ -871,10 +839,6 @@ void ExtPack::uninit()
 
         VBoxExtPackFreeDesc(&m->Desc);
 
-#ifdef VBOX_WITH_MAIN_NLS
-        if (m->pTrComponent != NULL)
-            VirtualBoxTranslator::unregisterTranslation(m->pTrComponent);
-#endif
         delete m;
         m = NULL;
     }
@@ -1032,20 +996,18 @@ bool ExtPack::i_callVmCreatedHook(IVirtualBox *a_pVirtualBox, IMachine *a_pMachi
 #endif /* !VBOX_COM_INPROC */
 
 #ifdef VBOX_COM_INPROC
-
 /**
  * Calls the pfnVMConfigureVMM hook.
  *
  * @returns true if we left the lock, false if we didn't.
- * @param   a_pConsole  The console interface.
- * @param   a_pVM       The VM handle.
- * @param   a_pVMM      The VMM function table.
- * @param   a_pLock     The write lock held by the caller.
- * @param   a_pvrc      Where to return the status code of the callback.  This
- *                      is always set.  LogRel is called on if a failure status
- *                      is returned.
+ * @param   a_pConsole          The console interface.
+ * @param   a_pVM               The VM handle.
+ * @param   a_pLock             The write lock held by the caller.
+ * @param   a_pvrc              Where to return the status code of the
+ *                              callback.  This is always set.  LogRel is
+ *                              called on if a failure status is returned.
  */
-bool ExtPack::i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM, AutoWriteLock *a_pLock, int *a_pvrc)
+bool ExtPack::i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock, int *a_pvrc)
 {
     *a_pvrc = VINF_SUCCESS;
     if (   m != NULL
@@ -1056,7 +1018,7 @@ bool ExtPack::i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3V
         {
             ComPtr<ExtPack> ptrSelfRef = this;
             a_pLock->release();
-            int vrc = m->pReg->pfnVMConfigureVMM(m->pReg, a_pConsole, a_pVM, a_pVMM);
+            int vrc = m->pReg->pfnVMConfigureVMM(m->pReg, a_pConsole, a_pVM);
             *a_pvrc = vrc;
             a_pLock->acquire();
             if (RT_FAILURE(vrc))
@@ -1071,15 +1033,14 @@ bool ExtPack::i_callVmConfigureVmmHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3V
  * Calls the pfnVMPowerOn hook.
  *
  * @returns true if we left the lock, false if we didn't.
- * @param   a_pConsole  The console interface.
- * @param   a_pVM       The VM handle.
- * @param   a_pVMM      The VMM function table.
- * @param   a_pLock     The write lock held by the caller.
- * @param   a_pvrc      Where to return the status code of the callback.  This
- *                      is always set.  LogRel is called on if a failure status
- *                      is returned.
+ * @param   a_pConsole          The console interface.
+ * @param   a_pVM               The VM handle.
+ * @param   a_pLock             The write lock held by the caller.
+ * @param   a_pvrc              Where to return the status code of the
+ *                              callback.  This is always set.  LogRel is
+ *                              called on if a failure status is returned.
  */
-bool ExtPack::i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM, AutoWriteLock *a_pLock, int *a_pvrc)
+bool ExtPack::i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock, int *a_pvrc)
 {
     *a_pvrc = VINF_SUCCESS;
     if (   m != NULL
@@ -1090,7 +1051,7 @@ bool ExtPack::i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE
         {
             ComPtr<ExtPack> ptrSelfRef = this;
             a_pLock->release();
-            int vrc = m->pReg->pfnVMPowerOn(m->pReg, a_pConsole, a_pVM, a_pVMM);
+            int vrc = m->pReg->pfnVMPowerOn(m->pReg, a_pConsole, a_pVM);
             *a_pvrc = vrc;
             a_pLock->acquire();
             if (RT_FAILURE(vrc))
@@ -1105,12 +1066,11 @@ bool ExtPack::i_callVmPowerOnHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE
  * Calls the pfnVMPowerOff hook.
  *
  * @returns true if we left the lock, false if we didn't.
- * @param   a_pConsole  The console interface.
- * @param   a_pVM       The VM handle.
- * @param   a_pVMM      The VMM function table.
- * @param   a_pLock     The write lock held by the caller.
+ * @param   a_pConsole          The console interface.
+ * @param   a_pVM               The VM handle.
+ * @param   a_pLock             The write lock held by the caller.
  */
-bool ExtPack::i_callVmPowerOffHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM, AutoWriteLock *a_pLock)
+bool ExtPack::i_callVmPowerOffHook(IConsole *a_pConsole, PVM a_pVM, AutoWriteLock *a_pLock)
 {
     if (   m != NULL
         && m->hMainMod != NIL_RTLDRMOD
@@ -1120,14 +1080,13 @@ bool ExtPack::i_callVmPowerOffHook(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABL
         {
             ComPtr<ExtPack> ptrSelfRef = this;
             a_pLock->release();
-            m->pReg->pfnVMPowerOff(m->pReg, a_pConsole, a_pVM, a_pVMM);
+            m->pReg->pfnVMPowerOff(m->pReg, a_pConsole, a_pVM);
             a_pLock->acquire();
             return true;
         }
     }
     return false;
 }
-
 #endif /* VBOX_COM_INPROC */
 
 /**
@@ -1150,7 +1109,7 @@ HRESULT ExtPack::i_checkVrde(void)
             hrc = setError(E_FAIL, tr("The extension pack '%s' does not include a VRDE module"), m->Desc.strName.c_str());
     }
     else
-        hrc = setError(E_FAIL, "%s", m->strWhyUnusable.c_str());
+        hrc = setError(E_FAIL, tr("%s"), m->strWhyUnusable.c_str());
     return hrc;
 }
 
@@ -1375,7 +1334,7 @@ void ExtPack::i_probeAndLoad(void)
     vrc = SUPR3HardenedVerifyDir(m->strExtPackPath.c_str(), true /*fRecursive*/, true /*fCheckFiles*/, &ErrInfo.Core);
     if (RT_FAILURE(vrc))
     {
-        m->strWhyUnusable.printf("%s (rc=%Rrc)", ErrInfo.Core.pszMsg, vrc);
+        m->strWhyUnusable.printf(tr("%s (rc=%Rrc)"), ErrInfo.Core.pszMsg, vrc);
         return;
     }
 
@@ -1432,7 +1391,7 @@ void ExtPack::i_probeAndLoad(void)
     vrc = SUPR3HardenedVerifyPlugIn(m->strMainModPath.c_str(), &ErrInfo.Core);
     if (RT_FAILURE(vrc))
     {
-        m->strWhyUnusable.printf("%s", ErrInfo.Core.pszMsg);
+        m->strWhyUnusable.printf(tr("%s"), ErrInfo.Core.pszMsg);
         return;
     }
 
@@ -1472,7 +1431,7 @@ void ExtPack::i_probeAndLoad(void)
         vrc = pfnRegistration(&m->Hlp, &m->pReg, &ErrInfo.Core);
         if (   RT_SUCCESS(vrc)
             && !RTErrInfoIsSet(&ErrInfo.Core)
-            && RT_VALID_PTR(m->pReg))
+            && VALID_PTR(m->pReg))
         {
             if (   VBOXEXTPACK_IS_MAJOR_VER_EQUAL(m->pReg->u32Version, uVersion)
                 && m->pReg->u32EndMarker == m->pReg->u32Version)
@@ -1959,90 +1918,8 @@ ExtPack::i_hlpCompleteProgress(PCVBOXEXTPACKHLP pHlp, VBOXEXTPACK_IF_CS(IProgres
         ErrorInfoKeeper eik;
         eik.getVirtualBoxErrorInfo(errorInfo);
     }
-    return pProgressControl->NotifyComplete((LONG)uResultCode, errorInfo);
+    return pProgressControl->NotifyComplete(uResultCode, errorInfo);
 }
-
-
-/*static*/ DECLCALLBACK(uint32_t)
-ExtPack::i_hlpCreateEvent(PCVBOXEXTPACKHLP pHlp,
-                          VBOXEXTPACK_IF_CS(IEventSource) *aSource,
-                          /* VBoxEventType_T */ uint32_t aType, bool aWaitable,
-                          VBOXEXTPACK_IF_CS(IEvent) **ppEventOut)
-{
-    HRESULT hrc;
-
-    AssertPtrReturn(pHlp, (uint32_t)E_INVALIDARG);
-    AssertReturn(pHlp->u32Version == VBOXEXTPACKHLP_VERSION, (uint32_t)E_INVALIDARG);
-    AssertPtrReturn(ppEventOut, (uint32_t)E_INVALIDARG);
-
-    ComObjPtr<VBoxEvent> pEvent;
-
-    hrc = pEvent.createObject();
-    if (FAILED(hrc))
-        return hrc;
-
-    /* default aSource to pVirtualBox? */
-    hrc = pEvent->init(aSource, static_cast<VBoxEventType_T>(aType), aWaitable);
-    if (FAILED(hrc))
-        return hrc;
-
-    return pEvent.queryInterfaceTo(ppEventOut);
-}
-
-
-/*static*/ DECLCALLBACK(uint32_t)
-ExtPack::i_hlpCreateVetoEvent(PCVBOXEXTPACKHLP pHlp,
-                              VBOXEXTPACK_IF_CS(IEventSource) *aSource,
-                              /* VBoxEventType_T */ uint32_t aType,
-                              VBOXEXTPACK_IF_CS(IVetoEvent) **ppEventOut)
-{
-    HRESULT hrc;
-
-    AssertPtrReturn(pHlp, (uint32_t)E_INVALIDARG);
-    AssertReturn(pHlp->u32Version == VBOXEXTPACKHLP_VERSION, (uint32_t)E_INVALIDARG);
-    AssertPtrReturn(ppEventOut, (uint32_t)E_INVALIDARG);
-
-    ComObjPtr<VBoxVetoEvent> pEvent;
-
-    hrc = pEvent.createObject();
-    if (FAILED(hrc))
-        return hrc;
-
-    /* default aSource to pVirtualBox? */
-    hrc = pEvent->init(aSource, static_cast<VBoxEventType_T>(aType));
-    if (FAILED(hrc))
-        return hrc;
-
-    return pEvent.queryInterfaceTo(ppEventOut);
-}
-
-
-/*static*/ DECLCALLBACK(const char *)
-ExtPack::i_hlpTranslate(PCVBOXEXTPACKHLP pHlp,
-                        const char  *pszComponent,
-                        const char  *pszSourceText,
-                        const char  *pszComment /* = NULL */,
-                        const size_t aNum /* = -1 */)
-{
-    /*
-     * Validate the input and get our bearings.
-     */
-    AssertPtrReturn(pHlp, pszSourceText);
-    AssertReturn(pHlp->u32Version == VBOXEXTPACKHLP_VERSION, pszSourceText);
-    ExtPack::Data *m = RT_FROM_CPP_MEMBER(pHlp, Data, Hlp);
-    AssertPtrReturn(m, pszSourceText);
-
-#ifdef VBOX_WITH_MAIN_NLS
-    return VirtualBoxTranslator::translate(m->pTrComponent, pszComponent,
-                                           pszSourceText,  pszComment, aNum);
-#else
-    NOREF(pszComponent);
-    NOREF(pszComment);
-    NOREF(aNum);
-    return pszSourceText;
-#endif
-}
-
 
 /*static*/ DECLCALLBACK(int)
 ExtPack::i_hlpReservedN(PCVBOXEXTPACKHLP pHlp)
@@ -2143,7 +2020,7 @@ HRESULT ExtPack::queryLicense(const com::Utf8Str &aPreferredLocale, const com::U
         return setError(E_FAIL, tr("The preferred locale is a two character string or empty."));
 
     if (aPreferredLanguage.length() != 2 && aPreferredLanguage.length() != 0)
-        return setError(E_FAIL, tr("The preferred language is a two character string or empty."));
+        return setError(E_FAIL, tr("The preferred lanuage is a two character string or empty."));
 
     if (   !aFormat.equals("html")
         && !aFormat.equals("rtf")
@@ -2173,7 +2050,7 @@ HRESULT ExtPack::queryLicense(const com::Utf8Str &aPreferredLocale, const com::U
     AutoReadLock autoLock(this COMMA_LOCKVAL_SRC_POS); /* paranoia */
 
     if (!m->fUsable)
-        hrc = setError(E_FAIL, "%s", m->strWhyUnusable.c_str());
+        hrc = setError(E_FAIL, tr("%s"), m->strWhyUnusable.c_str());
     else
     {
         char szPath[RTPATH_MAX];
@@ -2340,7 +2217,7 @@ HRESULT ExtPackManager::initExtPackManager(VirtualBox *a_pVirtualBox, VBOXEXTPAC
 
                             m->cUpdate++;
                         }
-                        else if (SUCCEEDED(hrc))
+                        else if (SUCCEEDED(rc))
                             hrc = hrc2;
                     }
                     else
@@ -2721,7 +2598,7 @@ HRESULT ExtPackManager::i_runSetUidToRootHelper(Utf8Str const *a_pstrDisplayInfo
         if (pszSuccessInd)
         {
             *pszSuccessInd = '\0';
-            offStdErrBuf  = (size_t)(pszSuccessInd - pszStdErrBuf);
+            offStdErrBuf  = pszSuccessInd - pszStdErrBuf;
         }
         else if (   ProcStatus.enmReason == RTPROCEXITREASON_NORMAL
                  && ProcStatus.iStatus   == 0)
@@ -3368,17 +3245,15 @@ void ExtPackManager::i_callAllVmCreatedHooks(IMachine *a_pMachine)
 #endif
 
 #ifdef VBOX_COM_INPROC
-
 /**
  * Calls the pfnVMConfigureVMM hook for all working extension packs.
  *
  * @returns VBox status code.  Stops on the first failure, expecting the caller
  *          to signal this to the caller of the CFGM constructor.
- * @param   a_pConsole  The console interface for the VM.
- * @param   a_pVM       The VM handle.
- * @param   a_pVMM      The VMM function table.
+ * @param   a_pConsole          The console interface for the VM.
+ * @param   a_pVM               The VM handle.
  */
-int ExtPackManager::i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM)
+int ExtPackManager::i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM)
 {
     AutoCaller autoCaller(this);
     HRESULT hrc = autoCaller.rc();
@@ -3391,7 +3266,7 @@ int ExtPackManager::i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM
     for (ExtPackList::iterator it = llExtPacks.begin(); it != llExtPacks.end(); ++it)
     {
         int vrc;
-        (*it)->i_callVmConfigureVmmHook(a_pConsole, a_pVM, a_pVMM, &autoLock, &vrc);
+        (*it)->i_callVmConfigureVmmHook(a_pConsole, a_pVM, &autoLock, &vrc);
         if (RT_FAILURE(vrc))
             return vrc;
     }
@@ -3404,11 +3279,10 @@ int ExtPackManager::i_callAllVmConfigureVmmHooks(IConsole *a_pConsole, PVM a_pVM
  *
  * @returns VBox status code.  Stops on the first failure, expecting the caller
  *          to not power on the VM.
- * @param   a_pConsole  The console interface for the VM.
- * @param   a_pVM       The VM handle.
- * @param   a_pVMM      The VMM function table.
+ * @param   a_pConsole          The console interface for the VM.
+ * @param   a_pVM               The VM handle.
  */
-int ExtPackManager::i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM)
+int ExtPackManager::i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM)
 {
     AutoCaller autoCaller(this);
     HRESULT hrc = autoCaller.rc();
@@ -3421,7 +3295,7 @@ int ExtPackManager::i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM, PCV
     for (ExtPackList::iterator it = llExtPacks.begin(); it != llExtPacks.end(); ++it)
     {
         int vrc;
-        (*it)->i_callVmPowerOnHook(a_pConsole, a_pVM, a_pVMM, &autoLock, &vrc);
+        (*it)->i_callVmPowerOnHook(a_pConsole, a_pVM, &autoLock, &vrc);
         if (RT_FAILURE(vrc))
             return vrc;
     }
@@ -3432,11 +3306,10 @@ int ExtPackManager::i_callAllVmPowerOnHooks(IConsole *a_pConsole, PVM a_pVM, PCV
 /**
  * Calls the pfnVMPowerOff hook for all working extension packs.
  *
- * @param   a_pConsole  The console interface for the VM.
- * @param   a_pVM       The VM handle. Can be NULL.
- * @param   a_pVMM      The VMM function table.
+ * @param   a_pConsole          The console interface for the VM.
+ * @param   a_pVM               The VM handle. Can be NULL.
  */
-void ExtPackManager::i_callAllVmPowerOffHooks(IConsole *a_pConsole, PVM a_pVM, PCVMMR3VTABLE a_pVMM)
+void ExtPackManager::i_callAllVmPowerOffHooks(IConsole *a_pConsole, PVM a_pVM)
 {
     AutoCaller autoCaller(this);
     HRESULT hrc = autoCaller.rc();
@@ -3447,10 +3320,10 @@ void ExtPackManager::i_callAllVmPowerOffHooks(IConsole *a_pConsole, PVM a_pVM, P
     ExtPackList             llExtPacks = m->llInstalledExtPacks;
 
     for (ExtPackList::iterator it = llExtPacks.begin(); it != llExtPacks.end(); ++it)
-        (*it)->i_callVmPowerOffHook(a_pConsole, a_pVM, a_pVMM, &autoLock);
+        (*it)->i_callVmPowerOffHook(a_pConsole, a_pVM, &autoLock);
 }
+#endif
 
-#endif /* VBOX_COM_INPROC */
 
 /**
  * Checks that the specified extension pack contains a VRDE module and that it
@@ -3483,8 +3356,8 @@ HRESULT ExtPackManager::i_checkVrdeExtPack(Utf8Str const *a_pstrExtPack)
  * This will do extacly the same as checkVrdeExtPack and then resolve the
  * library path.
  *
- * @returns VINF_SUCCESS if a path is returned, VBox error status and message
- *          return if not.
+ * @returns S_OK if a path is returned, COM error status and message return if
+ *          not.
  * @param   a_pstrExtPack       The extension pack.
  * @param   a_pstrVrdeLibrary   Where to return the path.
  */
@@ -3504,7 +3377,7 @@ int ExtPackManager::i_getVrdeLibraryPathForExtPack(Utf8Str const *a_pstrExtPack,
                            a_pstrExtPack->c_str());
     }
 
-    return Global::vboxStatusCodeFromCOM(hrc);
+    return hrc;
 }
 
 /**

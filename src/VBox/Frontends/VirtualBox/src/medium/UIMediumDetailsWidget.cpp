@@ -1,10 +1,10 @@
-/* $Id: UIMediumDetailsWidget.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMediumDetailsWidget.cpp $ */
 /** @file
  * VBox Qt GUI - UIMediumDetailsWidget class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,13 +32,12 @@
 #include "QILineEdit.h"
 #include "QITabWidget.h"
 #include "QIToolButton.h"
-#include "UICommon.h"
 #include "UIConverter.h"
 #include "UIIconPool.h"
 #include "UIMediumDetailsWidget.h"
 #include "UIMediumManager.h"
 #include "UIMediumSizeEditor.h"
-#include "UITranslator.h"
+#include "UICommon.h"
 
 /* COM includes: */
 #include "CSystemProperties.h"
@@ -465,7 +464,7 @@ void UIMediumDetailsWidget::prepareTabOptions()
 #endif
 
                 /* Create size editor: */
-                m_pEditorSize = new UIMediumSizeEditor(0 /* parent */);
+                m_pEditorSize = new UIMediumSizeEditor;
                 AssertPtrReturnVoid(m_pEditorSize);
                 {
                     /* Configure editor: */
@@ -771,14 +770,14 @@ void UIMediumDetailsWidget::retranslateValidation(QWidget *pWidget /* = 0 */)
 //        m_pErrorPaneType->setToolTip(tr("Cannot change from type <b>%1</b> to <b>%2</b>.")
 //                                     .arg(m_oldData.m_options.m_enmType).arg(m_newData.m_options.m_enmType));
     if (!pWidget || pWidget == m_pErrorPaneLocation)
-        m_pErrorPaneLocation->setToolTip(tr("Location cannot be empty."));
+        m_pErrorPaneLocation->setToolTip(tr("Location can not be empty."));
 //    if (!pWidget || pWidget == m_pErrorPaneDescription)
 //        m_pErrorPaneDescription->setToolTip(tr("Cannot change medium description from <b>%1</b> to <b>%2</b>.")
 //                                               .arg(m_oldData.m_options.m_strDescription).arg(m_newData.m_options.m_strDescription));
     if (!pWidget || pWidget == m_pErrorPaneSize)
         m_pErrorPaneSize->setToolTip(tr("Cannot change medium size from <b>%1</b> to <b>%2</b> as storage shrinking is currently not implemented.")
-                                        .arg(UITranslator::formatSize(m_oldData.m_options.m_uLogicalSize))
-                                        .arg(UITranslator::formatSize(m_newData.m_options.m_uLogicalSize)));
+                                        .arg(uiCommon().formatSize(m_oldData.m_options.m_uLogicalSize))
+                                        .arg(uiCommon().formatSize(m_newData.m_options.m_uLogicalSize)));
 }
 
 void UIMediumDetailsWidget::updateButtonStates()

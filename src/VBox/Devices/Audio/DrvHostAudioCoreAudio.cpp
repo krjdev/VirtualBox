@@ -1,4 +1,4 @@
-/* $Id: DrvHostAudioCoreAudio.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostAudioCoreAudio.cpp $ */
 /** @file
  * Host audio driver - Mac OS X CoreAudio.
  *
@@ -18,7 +18,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2722,8 +2722,7 @@ static DECLCALLBACK(int) drvHstAudCaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
 {
     RT_NOREF(pCfg, fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHOSTCOREAUDIO   pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTCOREAUDIO);
-    PCPDMDRVHLPR3       pHlp  = pDrvIns->pHlpR3;
+    PDRVHOSTCOREAUDIO pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTCOREAUDIO);
     LogRel(("Audio: Initializing Core Audio driver\n"));
 
     /*
@@ -2770,20 +2769,20 @@ static DECLCALLBACK(int) drvHstAudCaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "InputDeviceID|OutputDeviceID", "");
 
     char *pszTmp = NULL;
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "InputDeviceID", &pszTmp);
+    rc = CFGMR3QueryStringAlloc(pCfg, "InputDeviceID", &pszTmp);
     if (RT_SUCCESS(rc))
     {
         rc = drvHstAudCaSetDevice(pThis, &pThis->InputDevice, true /*fInput*/, false /*fNotify*/, pszTmp);
-        PDMDrvHlpMMHeapFree(pDrvIns, pszTmp);
+        MMR3HeapFree(pszTmp);
     }
     else if (rc != VERR_CFGM_VALUE_NOT_FOUND && rc != VERR_CFGM_NO_PARENT)
         return PDMDRV_SET_ERROR(pDrvIns, rc, "Failed to query 'InputDeviceID'");
 
-    rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "OutputDeviceID", &pszTmp);
+    rc = CFGMR3QueryStringAlloc(pCfg, "OutputDeviceID", &pszTmp);
     if (RT_SUCCESS(rc))
     {
         rc = drvHstAudCaSetDevice(pThis, &pThis->OutputDevice, false /*fInput*/, false /*fNotify*/, pszTmp);
-        PDMDrvHlpMMHeapFree(pDrvIns, pszTmp);
+        MMR3HeapFree(pszTmp);
     }
     else if (rc != VERR_CFGM_VALUE_NOT_FOUND && rc != VERR_CFGM_NO_PARENT)
         return PDMDRV_SET_ERROR(pDrvIns, rc, "Failed to query 'OutputDeviceID'");
@@ -2858,6 +2857,14 @@ static DECLCALLBACK(int) drvHstAudCaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
         && orc != kAudioHardwareIllegalOperationError)
         LogRel(("CoreAudio: Failed to add the output default device changed listener: %d (%#x)\n", orc, orc));
 
+    /*
+     * Cleanup debug dumps from previous run.
+     */
+#ifdef VBOX_AUDIO_DEBUG_DUMP_PCM_DATA_PATH
+    RTFileDelete(VBOX_AUDIO_DEBUG_DUMP_PCM_DATA_PATH "caConverterCbInput.pcm");
+    RTFileDelete(VBOX_AUDIO_DEBUG_DUMP_PCM_DATA_PATH "caPlayback.pcm");
+#endif
+
     LogFlowFuncLeaveRC(rc);
     return rc;
 }
@@ -2913,3 +2920,4 @@ const PDMDRVREG g_DrvHostCoreAudio =
     /* u32EndVersion */
     PDM_DRVREG_VERSION
 };
+

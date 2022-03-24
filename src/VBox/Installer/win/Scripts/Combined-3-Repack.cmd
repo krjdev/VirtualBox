@@ -1,11 +1,11 @@
 @echo off
-rem $Id: Combined-3-Repack.cmd 94161 2022-03-10 19:39:27Z vboxsync $
+rem $Id: Combined-3-Repack.cmd $
 rem rem @file
 rem Windows NT batch script for repacking signed amd64 and x86 drivers.
 rem
 
 rem
-rem Copyright (C) 2018-2022 Oracle Corporation
+rem Copyright (C) 2018-2020 Oracle Corporation
 rem
 rem This file is part of VirtualBox Open Source Edition (OSE), as
 rem available from http://www.virtualbox.org. This file is free software;
@@ -202,14 +202,14 @@ echo **************************************************************************
 echo * AMD64: Unpacking signed drivers...
 echo **************************************************************************
 cd /d "%_MY_REPACK_DIR_AMD64%" || goto end_failed
-call "%_MY_REPACK_DIR_AMD64%\UnpackBlessedDrivers.cmd" -n -b "%_MY_BINDIR_AMD64%" -i "%_MY_OPT_SIGNED_AMD64%" || goto end_failed
+call "%_MY_REPACK_DIR_AMD64%\UnpackBlessedDrivers.cmd" -b "%_MY_BINDIR_AMD64%" -i "%_MY_OPT_SIGNED_AMD64%" || goto end_failed
 echo .
 
 echo **************************************************************************
 echo * X86: Unpacking signed drivers...
 echo **************************************************************************
 cd /d "%_MY_REPACK_DIR_X86%" || goto end_failed
-call "%_MY_REPACK_DIR_X86%\UnpackBlessedDrivers.cmd" -n -b "%_MY_BINDIR_X86%" -i "%_MY_OPT_SIGNED_X86%" || goto end_failed
+call "%_MY_REPACK_DIR_X86%\UnpackBlessedDrivers.cmd" -b "%_MY_BINDIR_X86%" -i "%_MY_OPT_SIGNED_X86%" || goto end_failed
 echo .
 
 

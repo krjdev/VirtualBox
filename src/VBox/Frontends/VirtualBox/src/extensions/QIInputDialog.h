@@ -1,10 +1,10 @@
-/* $Id: QIInputDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIInputDialog.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIInputDialog class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,7 +43,7 @@ class SHARED_LIBRARY_STUFF QIInputDialog : public QDialog
 public:
 
     /** Constructs the dialog passing @a pParent and @a enmFlags to the base-class. */
-    QIInputDialog(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    QIInputDialog(QWidget *pParent = 0, Qt::WindowFlags enmFlags = 0);
 
     /** Returns label text. */
     QString labelText() const;
@@ -60,7 +60,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi();
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

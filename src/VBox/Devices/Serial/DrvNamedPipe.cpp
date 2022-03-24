@@ -1,10 +1,10 @@
-  /* $Id: DrvNamedPipe.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+  /* $Id: DrvNamedPipe.cpp $ */
 /** @file
  * Named pipe / local socket stream driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -848,7 +848,7 @@ static DECLCALLBACK(void) drvNamedPipeDestruct(PPDMDRVINS pDrvIns)
         RTFileDelete(pThis->pszLocation);
 #endif /* !RT_OS_WINDOWS */
 
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszLocation);
+    MMR3HeapFree(pThis->pszLocation);
     pThis->pszLocation = NULL;
 
     /*
@@ -886,7 +886,6 @@ static DECLCALLBACK(int) drvNamedPipeConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
     PDRVNAMEDPIPE pThis = PDMINS_2_DATA(pDrvIns, PDRVNAMEDPIPE);
-    PCPDMDRVHLPR3 pHlp  = pDrvIns->pHlpR3;
 
     /*
      * Init the static parts.
@@ -924,11 +923,11 @@ static DECLCALLBACK(int) drvNamedPipeConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCf
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "Location|IsServer", "");
 
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"Location\" resulted in %Rrc"), rc);
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "IsServer", &pThis->fIsServer);
+    rc = CFGMR3QueryBool(pCfg, "IsServer", &pThis->fIsServer);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"IsServer\" resulted in %Rrc"), rc);

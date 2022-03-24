@@ -1,10 +1,10 @@
-/* $Id: VBoxDispKmt.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDispKmt.h $ */
 /** @file
  * VBoxVideo Display D3D User mode dll
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,14 +21,9 @@
 # pragma once
 #endif
 
-#include <iprt/win/d3dkmthk.h>
+#include <D3dkmthk.h>
 
 #include "../../../common/wddm/VBoxMPIf.h"
-
-#ifndef DXGKDDI_INTERFACE_VERSION_WIN8
-# define DXGKDDI_INTERFACE_VERSION_WIN8 0x300e
-#endif
-#if DXGKDDI_INTERFACE_VERSION < DXGKDDI_INTERFACE_VERSION_WIN8
 
 /* win8 release preview-specific stuff */
 typedef struct _D3DKMT_ADAPTERINFO
@@ -39,7 +34,7 @@ typedef struct _D3DKMT_ADAPTERINFO
   BOOL          bPresentMoveRegionsPreferred;
 } D3DKMT_ADAPTERINFO;
 
-# define MAX_ENUM_ADAPTERS 16
+#define MAX_ENUM_ADAPTERS 16
 
 typedef struct _D3DKMT_ENUMADAPTERS
 {
@@ -47,7 +42,7 @@ typedef struct _D3DKMT_ENUMADAPTERS
   D3DKMT_ADAPTERINFO Adapters[MAX_ENUM_ADAPTERS];
 } D3DKMT_ENUMADAPTERS;
 
-typedef DECLCALLBACKPTR_EX(NTSTATUS, APIENTRY, PFND3DKMT_ENUMADAPTERS,(IN OUT D3DKMT_ENUMADAPTERS *));
+typedef NTSTATUS (APIENTRY *PFND3DKMT_ENUMADAPTERS)(IN OUT D3DKMT_ENUMADAPTERS*);
 
 typedef struct _D3DKMT_OPENADAPTERFROMLUID
 {
@@ -55,9 +50,8 @@ typedef struct _D3DKMT_OPENADAPTERFROMLUID
   D3DKMT_HANDLE hAdapter;
 } D3DKMT_OPENADAPTERFROMLUID;
 
-typedef DECLCALLBACKPTR_EX(NTSTATUS, APIENTRY, PFND3DKMT_OPENADAPTERFROMLUID,(IN OUT D3DKMT_OPENADAPTERFROMLUID *));
-
-#endif /* DXGKDDI_INTERFACE_VERSION < DXGKDDI_INTERFACE_VERSION_WIN8  */
+typedef NTSTATUS (APIENTRY *PFND3DKMT_OPENADAPTERFROMLUID)(IN OUT D3DKMT_OPENADAPTERFROMLUID*);
+/* END OF win8 release preview-specific stuff */
 
 typedef enum
 {

@@ -1,10 +1,10 @@
-/* $Id: Virtio.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Virtio.h $ */
 /** @file
  * Virtio.h - Virtio Declarations
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -147,7 +147,7 @@ typedef VQUEUE *PVQUEUE;
  * @param   pDevIns         The device instance.
  * @param   pQueue          Pointer to the queue structure.
  */
-typedef DECLCALLBACKTYPE(void, FNVPCIQUEUECALLBACK,(PPDMDEVINS pDevIns, PVQUEUE pQueue));
+typedef DECLCALLBACK(void) FNVPCIQUEUECALLBACK(PPDMDEVINS pDevIns, PVQUEUE pQueue);
 /** Pointer to a VQUEUE callback function. */
 typedef FNVPCIQUEUECALLBACK *PFNVPCIQUEUECALLBACK;
 
@@ -217,6 +217,9 @@ typedef struct VPCISTATE
     STAMPROFILEADV          StatIOWriteR3;
     STAMPROFILEADV          StatIOWriteR0;
     STAMPROFILEADV          StatIOWriteRC;
+    STAMPROFILE             StatCsR3;
+    STAMPROFILE             StatCsR0;
+    STAMPROFILE             StatCsRC;
 #endif
 } VPCISTATE;
 
@@ -263,13 +266,13 @@ typedef struct VPCISTATERC
  * @{ */
 typedef struct VPCIIOCALLBACKS
 {
-     DECLCALLBACKMEMBER(uint32_t, pfnGetHostFeatures,(PVPCISTATE pVPciState));
-     DECLCALLBACKMEMBER(uint32_t, pfnGetHostMinimalFeatures,(PVPCISTATE pVPciState));
-     DECLCALLBACKMEMBER(void, pfnSetHostFeatures,(PVPCISTATE pVPciState, uint32_t fFeatures));
-     DECLCALLBACKMEMBER(int, pfnGetConfig,(PVPCISTATE pVPciState, uint32_t offCfg, uint32_t cb, void *pvData));
-     DECLCALLBACKMEMBER(int, pfnSetConfig,(PVPCISTATE pVPciState, uint32_t offCfg, uint32_t cb, void *pvData));
-     DECLCALLBACKMEMBER(int, pfnReset,(PPDMDEVINS pDevIns));
-     DECLCALLBACKMEMBER(void, pfnReady,(PPDMDEVINS pDevIns));
+     DECLCALLBACKMEMBER(uint32_t, pfnGetHostFeatures)(PVPCISTATE pVPciState);
+     DECLCALLBACKMEMBER(uint32_t, pfnGetHostMinimalFeatures)(PVPCISTATE pVPciState);
+     DECLCALLBACKMEMBER(void,     pfnSetHostFeatures)(PVPCISTATE pVPciState, uint32_t fFeatures);
+     DECLCALLBACKMEMBER(int,      pfnGetConfig)(PVPCISTATE pVPciState, uint32_t offCfg, uint32_t cb, void *pvData);
+     DECLCALLBACKMEMBER(int,      pfnSetConfig)(PVPCISTATE pVPciState, uint32_t offCfg, uint32_t cb, void *pvData);
+     DECLCALLBACKMEMBER(int,      pfnReset)(PPDMDEVINS pDevIns);
+     DECLCALLBACKMEMBER(void,     pfnReady)(PPDMDEVINS pDevIns);
 } VPCIIOCALLBACKS;
 /** Pointer to a const VirtIO port I/O callback structure. */
 typedef const VPCIIOCALLBACKS *PCVPCIIOCALLBACKS;
@@ -282,8 +285,8 @@ PVQUEUE vpciR3AddQueue(PVPCISTATE pThis, PVPCISTATECC pThisCC, unsigned uSize, P
 void *vpciR3QueryInterface(PVPCISTATECC pThisCC, const char *pszIID);
 void  vpciR3SetWriteLed(PVPCISTATE pThis, bool fOn);
 void  vpciR3SetReadLed(PVPCISTATE pThis, bool fOn);
-int   vpciR3SaveExec(PPDMDEVINS pDevIns, PCPDMDEVHLPR3 pHlp, PVPCISTATE pThis, PSSMHANDLE pSSM);
-int   vpciR3LoadExec(PPDMDEVINS pDevIns, PCPDMDEVHLPR3 pHlp, PVPCISTATE pThis, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass, uint32_t cQueues);
+int   vpciR3SaveExec(PCPDMDEVHLPR3 pHlp, PVPCISTATE pThis, PSSMHANDLE pSSM);
+int   vpciR3LoadExec(PCPDMDEVHLPR3 pHlp, PVPCISTATE pThis, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass, uint32_t cQueues);
 void  vpciR3DumpStateWorker(PVPCISTATE pThis, PCDBGFINFOHLP pHlp);
 
 void  vpciReset(PPDMDEVINS pDevIns, PVPCISTATE pThis);
@@ -294,20 +297,13 @@ int   vpciIOPortOut(PPDMDEVINS pDevIns, PVPCISTATE pThis, PVPCISTATECC pThisCC, 
                     uint32_t u32, unsigned cb, PCVPCIIOCALLBACKS pCallbacks);
 
 #define VPCI_CS
-
-#ifdef VPCI_CS
-# define VPCI_R3_CS_ENTER_RETURN_VOID(a_pDevIns, a_pThis) do { \
-        int const rcLock = PDMDevHlpCritSectEnter(pDevIns, &(a_pThis)->cs, VERR_IGNORED); \
-        PDM_CRITSECT_RELEASE_ASSERT_RC_DEV(pDevIns, &(a_pThis)->cs, rcLock); \
-    } while (0)
-#else
-# define VPCI_R3_CS_ENTER_RETURN_VOID(a_pDevIns, a_pThis) do { } while (0)
-#endif
-
 DECLINLINE(int) vpciCsEnter(PPDMDEVINS pDevIns, PVPCISTATE pThis, int rcBusy)
 {
 #ifdef VPCI_CS
-    return PDMDevHlpCritSectEnter(pDevIns, &pThis->cs, rcBusy);
+    STAM_PROFILE_START(&pThis->CTX_SUFF(StatCs), a);
+    int rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->cs, rcBusy);
+    STAM_PROFILE_STOP(&pThis->CTX_SUFF(StatCs), a);
+    return rc;
 #else
     RT_NOREF(pDevIns, pThis, rcBusy);
     return VINF_SUCCESS;

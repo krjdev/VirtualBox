@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -655,24 +655,23 @@
 #undef      ASMBitLastSetU64
 #ifdef IPRT_ASM_WATCOM_X86_32_WITH_PRAGMAS
 #pragma aux ASMBitLastSetU64 = \
-    "xchg eax, edx" \
-    "bsr eax, eax" \
+    "bsf eax, eax" \
+    "jz  not_found_low" \
+    "inc eax" \
+    "jmp done" \
+    \
+    "not_found_low:" \
+    "bsf eax, edx" \
     "jz  not_found_high" \
     "add eax, 33" \
     "jmp done" \
     \
     "not_found_high:" \
-    "bsr eax, edx" \
-    "jz  not_found" \
-    "inc eax" \
-    "jmp done" \
-    \
-    "not_found:" \
     "xor eax, eax" \
     "done:" \
     parm [eax edx] nomemory \
     value [eax] \
-    modify exact [eax edx] nomemory;
+    modify exact [eax] nomemory;
 #endif
 
 #undef      ASMBitLastSetU16

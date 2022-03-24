@@ -1,4 +1,4 @@
-/* $Id: dbgmodcodeview.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgmodcodeview.cpp $ */
 /** @file
  * IPRT - Debug Module Reader For Microsoft CodeView and COFF.
  *
@@ -19,7 +19,7 @@
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -187,8 +187,8 @@ typedef RTDBGMODCV *PCRTDBGMODCV;
  * @param   cbSubSect       The size of the subsection data.
  * @param   pDirEnt         The directory entry.
  */
-typedef DECLCALLBACKTYPE(int, FNDBGMODCVSUBSECTCALLBACK,(PRTDBGMODCV pThis, void const *pvSubSect, size_t cbSubSect,
-                                                         PCRTCVDIRENT32 pDirEnt));
+typedef DECLCALLBACK(int) FNDBGMODCVSUBSECTCALLBACK(PRTDBGMODCV pThis, void const *pvSubSect, size_t cbSubSect,
+                                                    PCRTCVDIRENT32 pDirEnt);
 /** Pointer to a subsection callback. */
 typedef FNDBGMODCVSUBSECTCALLBACK *PFNDBGMODCVSUBSECTCALLBACK;
 

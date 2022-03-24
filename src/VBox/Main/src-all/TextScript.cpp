@@ -1,10 +1,10 @@
-/* $Id: TextScript.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: TextScript.cpp $ */
 /** @file
  * Classes for reading/parsing/saving text scripts (unattended installation, ++).
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -52,7 +52,7 @@ HRESULT BaseTextScript::read(const Utf8Str &rStrFilename)
         RTVfsFileRelease(hVfsFile);
     }
     else
-        hrc = mpSetError->setErrorVrc(vrc, tr("Failed to open '%s' (%Rrc)"), rStrFilename.c_str(), vrc);
+        hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("Failed to open '%s' (%Rrc)"), rStrFilename.c_str(), vrc);
     return hrc;
 }
 
@@ -93,20 +93,21 @@ HRESULT BaseTextScript::readFromHandle(RTVFSFILE hVfsFile, const char *pszFilena
                     return S_OK;
                 }
 
-                hrc = mpSetError->setErrorVrc(vrc, tr("'%s' isn't valid UTF-8: %Rrc"), pszFilename, vrc);
+                hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("'%s' isn't valid UTF-8: %Rrc"), pszFilename, vrc);
             }
             else
-                hrc = mpSetError->setErrorVrc(vrc, tr("Error reading '%s': %Rrc"), pszFilename, vrc);
+                hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("Error reading '%s': %Rrc"), pszFilename, vrc);
             mStrScriptFullContent.setNull();
         }
         else
-            hrc = mpSetError->setErrorVrc(vrc, tr("Failed to allocate memory (%'RU64 bytes) for '%s'", "", cbFile),
+            hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("Failed to allocate memory (%'RU64 bytes) for '%s'"),
                                           cbFile, pszFilename);
     }
     else if (RT_SUCCESS(vrc))
-        hrc = mpSetError->setErrorVrc(VERR_FILE_TOO_BIG, tr("'%s' is too big (max 16MB): %'RU64"), pszFilename, cbFile);
+        hrc = mpSetError->setErrorVrc(VERR_FILE_TOO_BIG,
+                                      mpSetError->tr("'%s' is too big (max 16MB): %'RU64"), pszFilename, cbFile);
     else
-        hrc = mpSetError->setErrorVrc(vrc, tr("RTVfsFileQuerySize failed (%Rrc)"), vrc);
+        hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("RTVfsFileQuerySize failed (%Rrc)"), vrc);
     return hrc;
 }
 
@@ -177,10 +178,10 @@ HRESULT BaseTextScript::save(const Utf8Str &rStrFilename, bool fOverwrite)
             }
             RTFileClose(hFile);
             RTFileDelete(pszFilename);
-            hrc = mpSetError->setErrorVrc(vrc, tr("Error writing to '%s' (%Rrc)"), pszFilename, vrc);
+            hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("Error writing to '%s' (%Rrc)"), pszFilename, vrc);
         }
         else
-            hrc = mpSetError->setErrorVrc(vrc, tr("Error creating/replacing '%s' (%Rrc)"), pszFilename, vrc);
+            hrc = mpSetError->setErrorVrc(vrc, mpSetError->tr("Error creating/replacing '%s' (%Rrc)"), pszFilename, vrc);
     }
     return hrc;
 }
@@ -193,7 +194,7 @@ HRESULT BaseTextScript::save(const Utf8Str &rStrFilename, bool fOverwrite)
 
 HRESULT GeneralTextScript::parse()
 {
-//  AssertReturn(!mfDataParsed, mpSetError->setErrorBoth(E_FAIL, VERR_WRONG_ORDER, tr("parse called more than once")));
+//  AssertReturn(!mfDataParsed, mpSetError->setErrorBoth(E_FAIL, VERR_WRONG_ORDER, "parse called more than once"));
 
     /*
      * Split the raw context into an array of lines.
@@ -214,7 +215,7 @@ HRESULT GeneralTextScript::parse()
 
 HRESULT GeneralTextScript::saveToString(Utf8Str &rStrDst)
 {
-    AssertReturn(mfDataParsed, mpSetError->setErrorBoth(E_FAIL, VERR_WRONG_ORDER, tr("saveToString() called before parse()")));
+    AssertReturn(mfDataParsed, mpSetError->setErrorBoth(E_FAIL, VERR_WRONG_ORDER, "saveToString() called before parse()"));
 
     /*
      * Calc the required size first.
@@ -263,9 +264,7 @@ const RTCString &GeneralTextScript::getContentOfLine(size_t idxLine)
 HRESULT GeneralTextScript::setContentOfLine(size_t idxLine, const Utf8Str &rStrNewLine)
 {
     AssertReturn(idxLine < mScriptContentByLines.size(),
-                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE,
-                                          tr("attempting to set line %zu when there are only %zu lines", "",
-                                             mScriptContentByLines.size()),
+                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE, "attempting to set line %zu when there are only %zu lines",
                                           idxLine, mScriptContentByLines.size()));
     try
     {
@@ -294,8 +293,7 @@ HRESULT GeneralTextScript::findAndReplace(size_t idxLine, const Utf8Str &rStrNee
 {
     AssertReturn(idxLine < mScriptContentByLines.size(),
                  mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE,
-                                          tr("attempting search&replace in line %zu when there are only %zu lines", "",
-                                             mScriptContentByLines.size()),
+                                          "attempting search&replace in line %zu when there are only %zu lines",
                                           idxLine, mScriptContentByLines.size()));
 
     RTCString &rDstString = mScriptContentByLines[idxLine];
@@ -322,9 +320,7 @@ HRESULT GeneralTextScript::findAndReplace(size_t idxLine, const Utf8Str &rStrNee
 HRESULT GeneralTextScript::appendToLine(size_t idxLine, const Utf8Str &rStrToAppend)
 {
     AssertReturn(idxLine < mScriptContentByLines.size(),
-                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE,
-                                          tr("appending to line %zu when there are only %zu lines", "",
-                                             mScriptContentByLines.size()),
+                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE, "appending to line %zu when there are only %zu lines",
                                           idxLine, mScriptContentByLines.size()));
 
     try
@@ -341,9 +337,7 @@ HRESULT GeneralTextScript::appendToLine(size_t idxLine, const Utf8Str &rStrToApp
 HRESULT GeneralTextScript::prependToLine(size_t idxLine, const Utf8Str &rStrToPrepend)
 {
     AssertReturn(idxLine < mScriptContentByLines.size(),
-                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE,
-                                          tr("prepending to line %zu when there are only %zu lines", "",
-                                             mScriptContentByLines.size()),
+                 mpSetError->setErrorBoth(E_FAIL, VERR_OUT_OF_RANGE, "prepending to line %zu when there are only %zu lines",
                                           idxLine, mScriptContentByLines.size()));
 
     RTCString &rDstString = mScriptContentByLines[idxLine];

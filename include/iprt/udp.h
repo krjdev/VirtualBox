@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,7 +58,7 @@ RT_C_DECLS_BEGIN
  * @param   Sock        The socket on which the datagram needs to be received.
  * @param   pvUser      User argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTUDPSERVE,(RTSOCKET Sock, void *pvUser));
+typedef DECLCALLBACK(int) FNRTUDPSERVE(RTSOCKET Sock, void *pvUser);
 /** Pointer to a RTUDPSERVE(). */
 typedef FNRTUDPSERVE *PFNRTUDPSERVE;
 

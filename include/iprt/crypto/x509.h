@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -151,10 +151,6 @@ RTDECL(const char *) RTCrX509AlgorithmIdentifier_CombineEncryptionOidAndDigestOi
 #define RTCRX509ALGORITHMIDENTIFIERID_SHA224            "2.16.840.1.101.3.4.2.4"
 #define RTCRX509ALGORITHMIDENTIFIERID_SHA512T224        "2.16.840.1.101.3.4.2.5"
 #define RTCRX509ALGORITHMIDENTIFIERID_SHA512T256        "2.16.840.1.101.3.4.2.6"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_224          "2.16.840.1.101.3.4.2.7"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_256          "2.16.840.1.101.3.4.2.8"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_384          "2.16.840.1.101.3.4.2.9"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_512          "2.16.840.1.101.3.4.2.10"
 #define RTCRX509ALGORITHMIDENTIFIERID_WHIRLPOOL         "1.0.10118.3.0.55"
 /** @} */
 
@@ -162,21 +158,15 @@ RTDECL(const char *) RTCrX509AlgorithmIdentifier_CombineEncryptionOidAndDigestOi
  * @remarks The PKCS variants are the default ones, alternative OID are marked
  *          as such.
  * @{ */
-#define RTCRX509ALGORITHMIDENTIFIERID_RSA                   "1.2.840.113549.1.1.1"
-#define RTCRX509ALGORITHMIDENTIFIERID_MD2_WITH_RSA          "1.2.840.113549.1.1.2"
-#define RTCRX509ALGORITHMIDENTIFIERID_MD4_WITH_RSA          "1.2.840.113549.1.1.3"
-#define RTCRX509ALGORITHMIDENTIFIERID_MD5_WITH_RSA          "1.2.840.113549.1.1.4"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA1_WITH_RSA         "1.2.840.113549.1.1.5"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA256_WITH_RSA       "1.2.840.113549.1.1.11"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA384_WITH_RSA       "1.2.840.113549.1.1.12"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA512_WITH_RSA       "1.2.840.113549.1.1.13"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA224_WITH_RSA       "1.2.840.113549.1.1.14"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA512T224_WITH_RSA   "1.2.840.113549.1.1.15"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA512T256_WITH_RSA   "1.2.840.113549.1.1.16"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_224_WITH_RSA     "2.16.840.1.101.3.4.3.13"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_256_WITH_RSA     "2.16.840.1.101.3.4.3.14"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_384_WITH_RSA     "2.16.840.1.101.3.4.3.15"
-#define RTCRX509ALGORITHMIDENTIFIERID_SHA3_512_WITH_RSA     "2.16.840.1.101.3.4.3.16"
+#define RTCRX509ALGORITHMIDENTIFIERID_RSA               "1.2.840.113549.1.1.1"
+#define RTCRX509ALGORITHMIDENTIFIERID_MD2_WITH_RSA      "1.2.840.113549.1.1.2"
+#define RTCRX509ALGORITHMIDENTIFIERID_MD4_WITH_RSA      "1.2.840.113549.1.1.3"
+#define RTCRX509ALGORITHMIDENTIFIERID_MD5_WITH_RSA      "1.2.840.113549.1.1.4"
+#define RTCRX509ALGORITHMIDENTIFIERID_SHA1_WITH_RSA     "1.2.840.113549.1.1.5"
+#define RTCRX509ALGORITHMIDENTIFIERID_SHA256_WITH_RSA   "1.2.840.113549.1.1.11"
+#define RTCRX509ALGORITHMIDENTIFIERID_SHA384_WITH_RSA   "1.2.840.113549.1.1.12"
+#define RTCRX509ALGORITHMIDENTIFIERID_SHA512_WITH_RSA   "1.2.840.113549.1.1.13"
+#define RTCRX509ALGORITHMIDENTIFIERID_SHA224_WITH_RSA   "1.2.840.113549.1.1.14"
 /** @} */
 
 
@@ -1046,21 +1036,6 @@ extern RTDATADECL(RTCRPEMMARKER const)  g_aRTCrX509CertificateMarkers[];
 extern RTDATADECL(uint32_t const)       g_cRTCrX509CertificateMarkers;
 
 
-/** Wrapper around RTCrPemWriteAsn1ToVfsIoStrm().  */
-DECLINLINE(ssize_t) RTCrX509Certificate_WriteToVfsIoStrm(RTVFSIOSTREAM hVfsIos, PRTCRX509CERTIFICATE pCertificate,
-                                                         PRTERRINFO pErrInfo)
-{
-    return RTCrPemWriteAsn1ToVfsIoStrm(hVfsIos, &pCertificate->SeqCore.Asn1Core, 0 /*fFlags*/,
-                                       g_aRTCrX509CertificateMarkers[0].paWords[0].pszWord, pErrInfo);
-}
-
-/** Wrapper around RTCrPemWriteAsn1ToVfsFile().  */
-DECLINLINE(ssize_t) RTCrX509Certificate_WriteToVfsFile(RTVFSFILE hVfsFile, PRTCRX509CERTIFICATE pCertificate,
-                                                       PRTERRINFO pErrInfo)
-{
-    return RTCrPemWriteAsn1ToVfsFile(hVfsFile, &pCertificate->SeqCore.Asn1Core, 0 /*fFlags*/,
-                                     g_aRTCrX509CertificateMarkers[0].paWords[0].pszWord, pErrInfo);
-}
 
 /** @name X.509 Certificate Extensions
  * @{ */
@@ -1137,7 +1112,6 @@ RTDECL(int) RTCrX509CertPathsSetUntrustedArray(RTCRX509CERTPATHS hCertPaths, PCR
 RTDECL(int) RTCrX509CertPathsSetUntrustedSet(RTCRX509CERTPATHS hCertPaths, struct RTCRPKCS7SETOFCERTS const *pSetOfCerts);
 RTDECL(int) RTCrX509CertPathsSetValidTime(RTCRX509CERTPATHS hCertPaths, PCRTTIME pTime);
 RTDECL(int) RTCrX509CertPathsSetValidTimeSpec(RTCRX509CERTPATHS hCertPaths, PCRTTIMESPEC pTimeSpec);
-RTDECL(int) RTCrX509CertPathsSetTrustAnchorChecks(RTCRX509CERTPATHS hCertPaths, bool fEnable);
 RTDECL(int) RTCrX509CertPathsCreateEx(PRTCRX509CERTPATHS phCertPaths, PCRTCRX509CERTIFICATE pTarget, RTCRSTORE hTrustedStore,
                                       RTCRSTORE hUntrustedStore, PCRTCRX509CERTIFICATE paUntrustedCerts, uint32_t cUntrustedCerts,
                                       PCRTTIMESPEC pValidTime);

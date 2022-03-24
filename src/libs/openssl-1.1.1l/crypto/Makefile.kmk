@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 127528 2018-12-17 11:52:21Z michael $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for OpenSSL crypto.
 #

@@ -1,10 +1,10 @@
-/* $Id: UIFilmContainer.cpp 93995 2022-02-28 21:31:59Z vboxsync $ */
+/* $Id: UIFilmContainer.cpp $ */
 /** @file
  * VBox Qt GUI - UIFilmContainer class implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -47,13 +47,13 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Returns minimum size-hint. */
-    virtual QSize minimumSizeHint() const RT_OVERRIDE;
+    virtual QSize minimumSizeHint() const /* override */;
 
 private:
 
@@ -240,9 +240,9 @@ void UIFilmContainer::setValue(const QVector<BOOL> &value)
         if (pWidgetLayout)
         {
             /* Configure widget-layout: */
-            pWidgetLayout->setContentsMargins(0, 0, 0, 0);
+            pWidgetLayout->setMargin(0);
 #ifdef VBOX_WS_MAC
-            pWidgetLayout->setContentsMargins(5, 5, 5, 5);
+            pWidgetLayout->setSpacing(5);
 #else
             pWidgetLayout->setSpacing(qApp->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing) / 2);
 #endif
@@ -292,7 +292,7 @@ void UIFilmContainer::prepareLayout()
     if (m_pMainLayout)
     {
         /* Configure layout: */
-        m_pMainLayout->setContentsMargins(0, 0, 0, 0);
+        m_pMainLayout->setMargin(0);
         m_pMainLayout->setSpacing(0);
     }
 }

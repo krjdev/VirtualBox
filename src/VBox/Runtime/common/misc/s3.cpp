@@ -1,10 +1,10 @@
-/* $Id: s3.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: s3.cpp $ */
 /** @file
  * IPRT - S3 communication API.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,9 +42,7 @@
 # include <iprt/win/windows.h>
 #endif
 #include <curl/curl.h>
-#include "internal/openssl-pre.h"
 #include <openssl/hmac.h>
-#include "internal/openssl-post.h"
 #include <libxml/parser.h>
 
 #include "internal/magics.h"
@@ -286,13 +284,13 @@ static int rtS3Perform(PRTS3INTERNAL pS3Int)
     return rc;
 }
 
-static size_t rtS3WriteNothingCallback(void *pvBuf, size_t cbItem, size_t cItems, void *pvUser) RT_NOTHROW_DEF
+static size_t rtS3WriteNothingCallback(void *pvBuf, size_t cbItem, size_t cItems, void *pvUser)
 {
     NOREF(pvBuf); NOREF(pvUser);
     return cbItem * cItems;
 }
 
-static size_t rtS3WriteMemoryCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser) RT_NOTHROW_DEF
+static size_t rtS3WriteMemoryCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser)
 {
     PRTS3TMPMEMCHUNK pTmpMem = (PRTS3TMPMEMCHUNK)pvUser;
     size_t cRSize = cSize * cBSize;
@@ -307,14 +305,14 @@ static size_t rtS3WriteMemoryCallback(void *pvBuf, size_t cSize, size_t cBSize, 
     return cRSize;
 }
 
-static size_t rtS3WriteFileCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser) RT_NOTHROW_DEF
+static size_t rtS3WriteFileCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser)
 {
     size_t cWritten;
     RTFileWrite(*(RTFILE*)pvUser, pvBuf, cSize * cBSize, &cWritten);
     return cWritten;
 }
 
-static size_t rtS3ReadFileCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser) RT_NOTHROW_DEF
+static size_t rtS3ReadFileCallback(void *pvBuf, size_t cSize, size_t cBSize, void *pvUser)
 {
   size_t cRead;
   RTFileRead(*(RTFILE*)pvUser, pvBuf, cSize * cBSize, &cRead);
@@ -322,7 +320,7 @@ static size_t rtS3ReadFileCallback(void *pvBuf, size_t cSize, size_t cBSize, voi
   return cRead;
 }
 
-static int rtS3ProgressCallback(void *pvUser, double dDlTotal, double dDlNow, double dUlTotal, double dUlNow) RT_NOTHROW_DEF
+static int rtS3ProgressCallback(void *pvUser, double dDlTotal, double dDlNow, double dUlTotal, double dUlNow)
 {
     if (pvUser)
     {

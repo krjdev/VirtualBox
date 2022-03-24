@@ -1,10 +1,10 @@
-/* $Id: UIGuestControlConsole.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGuestControlConsole.h $ */
 /** @file
  * VBox Qt GUI - UIGuestControlConsole class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -44,10 +44,10 @@ public:
 
 protected:
 
-    void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
-    void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
-    void mouseDoubleClickEvent(QMouseEvent *pEvent) RT_OVERRIDE;
-    void contextMenuEvent(QContextMenuEvent *pEvent) RT_OVERRIDE;
+    void keyPressEvent(QKeyEvent *pEvent) /* override */;
+    void mousePressEvent(QMouseEvent *pEvent) /* override */;
+    void mouseDoubleClickEvent(QMouseEvent *pEvent) /* override */;
+    void contextMenuEvent(QContextMenuEvent *pEvent) /* override */;
 
 private slots:
 

@@ -1,10 +1,10 @@
-/* $Id: UIVisoHostBrowser.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVisoHostBrowser.h $ */
 /** @file
  * VBox Qt GUI - UIVisoHostBrowser class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,10 +43,9 @@ public:
 
     UIVisoHostBrowser(QWidget *pParent = 0);
     ~UIVisoHostBrowser();
-    virtual void showHideHiddenObjects(bool bShow) final override;
+    virtual void showHideHiddenObjects(bool bShow) /* override */;
     QString      currentPath() const;
     void         setCurrentPath(const QString &strPath);
-    virtual bool tableViewHasSelection() const final override;
 
 public slots:
 
@@ -54,11 +53,11 @@ public slots:
 
 protected:
 
-    virtual void retranslateUi() final override;
-    virtual void tableViewItemDoubleClick(const QModelIndex &index) final override;
-    virtual void setTableRootIndex(QModelIndex index = QModelIndex()) final override;
-    virtual void setTreeCurrentIndex(QModelIndex index = QModelIndex()) final override;
-    virtual void treeSelectionChanged(const QModelIndex &selectedTreeIndex) final override;
+    virtual void retranslateUi() /* override */;
+    virtual void tableViewItemDoubleClick(const QModelIndex &index) /* override */;
+    virtual void setTableRootIndex(QModelIndex index = QModelIndex()) /* override */;
+    virtual void setTreeCurrentIndex(QModelIndex index = QModelIndex()) /* override */;
+    virtual void treeSelectionChanged(const QModelIndex &selectedTreeIndex) /* override */;
 
 private slots:
 

@@ -1,10 +1,10 @@
-/* $Id: dir.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dir.h $ */
 /** @file
  * IPRT - Internal Header for RTDir.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,7 +46,7 @@ typedef struct RTDIRINTERNAL *PRTDIRINTERNAL;
  * @param   pDir        The directory handle.
  * @param   pszName     The path to match to the filter.
  */
-typedef DECLCALLBACKTYPE(bool, FNRTDIRFILTER,(PRTDIRINTERNAL pDir, const char *pszName));
+typedef DECLCALLBACK(bool) FNRTDIRFILTER(PRTDIRINTERNAL pDir, const char *pszName);
 /** Pointer to a filter function. */
 typedef FNRTDIRFILTER *PFNRTDIRFILTER;
 
@@ -161,7 +161,7 @@ typedef struct RTDIRINTERNAL
  */
 DECLINLINE(bool) rtDirValidHandle(PRTDIRINTERNAL pDir)
 {
-    AssertPtrReturn(pDir, false);
+    AssertMsgReturn(VALID_PTR(pDir), ("%p\n", pDir), false);
     AssertMsgReturn(pDir->u32Magic == RTDIR_MAGIC, ("%#RX32\n", pDir->u32Magic), false);
     return true;
 }

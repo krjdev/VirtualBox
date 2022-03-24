@@ -1,10 +1,10 @@
-/* $Id: VBoxNetFlt-linux.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetFlt-linux.c $ */
 /** @file
  * VBoxNetFlt - Network Filter Driver (Host), Linux Specific Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -402,11 +402,11 @@ static int vboxNetFltLinuxStartXmitFilter(struct sk_buff *pSkb, struct net_devic
      *       to be production quality code, we would have to be much more
      *       careful here and avoid the race.
      */
-    if (   !RT_VALID_PTR(pOverride)
+    if (   !VALID_PTR(pOverride)
         || pOverride->u32Magic != VBOXNETDEVICEOPSOVERRIDE_MAGIC
 # if RTLNX_VER_MIN(2,6,29)
-        || !RT_VALID_PTR(pOverride->pOrgOps)
-# endif
+        || !VALID_PTR(pOverride->pOrgOps)
+# endif /* RTLNX_VER_MIN(2,6,29) */
         )
     {
         printk("vboxNetFltLinuxStartXmitFilter: bad override %p\n", pOverride);
@@ -426,9 +426,9 @@ static int vboxNetFltLinuxStartXmitFilter(struct sk_buff *pSkb, struct net_devic
     cbHdrs = RT_MIN(cbHdrs, sizeof(abHdrBuf));
     pEtherHdr = (PCRTNETETHERHDR)skb_header_pointer(pSkb, 0, cbHdrs, &abHdrBuf[0]);
     if (   pEtherHdr
-        && RT_VALID_PTR(pOverride->pVBoxNetFlt)
+        && VALID_PTR(pOverride->pVBoxNetFlt)
         && (pSwitchPort = pOverride->pVBoxNetFlt->pSwitchPort) != NULL
-        && RT_VALID_PTR(pSwitchPort)
+        && VALID_PTR(pSwitchPort)
         && cbHdrs >= 6)
     {
         INTNETSWDECISION enmDecision;
@@ -457,7 +457,7 @@ static void vboxNetFltLinuxHookDev(PVBOXNETFLTINS pThis, struct net_device *pDev
     PVBOXNETDEVICEOPSOVERRIDE   pOverride;
 
     /* Cancel override if ethtool_ops is missing (host-only case, @bugref{5712}) */
-    if (!RT_VALID_PTR(pDev->OVR_OPS))
+    if (!VALID_PTR(pDev->OVR_OPS))
         return;
     pOverride = RTMemAlloc(sizeof(*pOverride));
     if (!pOverride)
@@ -496,12 +496,12 @@ static void vboxNetFltLinuxUnhookDev(PVBOXNETFLTINS pThis, struct net_device *pD
     RTSpinlockAcquire(pThis->hSpinlock);
     if (!pDev)
         pDev = ASMAtomicUoReadPtrT(&pThis->u.s.pDev, struct net_device *);
-    if (RT_VALID_PTR(pDev))
+    if (VALID_PTR(pDev))
     {
         pOverride = (PVBOXNETDEVICEOPSOVERRIDE)pDev->OVR_OPS;
-        if (   RT_VALID_PTR(pOverride)
-            && pOverride->u32Magic == VBOXNETDEVICEOPSOVERRIDE_MAGIC
-            && RT_VALID_PTR(pOverride->pOrgOps)
+        if (    VALID_PTR(pOverride)
+            &&  pOverride->u32Magic == VBOXNETDEVICEOPSOVERRIDE_MAGIC
+            &&  VALID_PTR(pOverride->pOrgOps)
            )
         {
 # if RTLNX_VER_MAX(2,6,29)
@@ -733,7 +733,7 @@ static struct sk_buff *vboxNetFltLinuxSkBufFromSG(PVBOXNETFLTINS pThis, PINTNETS
     {
         default:
             AssertMsgFailed(("%u (%s)\n", pSG->GsoCtx.u8Type, PDMNetGsoTypeName((PDMNETWORKGSOTYPE)pSG->GsoCtx.u8Type) ));
-            RT_FALL_THRU();
+            /* fall thru */
         case PDMNETWORKGSOTYPE_INVALID:
             fGsoType = 0;
             break;

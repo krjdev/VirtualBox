@@ -1,10 +1,10 @@
-/* $Id: UIFilePathSelector.h 94028 2022-03-01 11:04:48Z vboxsync $ */
+/* $Id: UIFilePathSelector.h $ */
 /** @file
  * VBox Qt GUI - UIFilePathSelector class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +25,6 @@
 #include "QIComboBox.h"
 #include "QIWithRetranslateUI.h"
 #include "UILibraryDefs.h"
-#include "UIMediumDefs.h"
 
 /* Forward declarations: */
 class QAction;
@@ -111,9 +110,6 @@ public:
     /** Returns the path. */
     QString path() const { return m_strPath; }
 
-    /** Returns true if the selected path points to an existing/readable file. */
-    bool isValid() const;
-
     /** Sets overriden widget's @a strToolTip.
       * @note If nothing set it's generated automatically. */
     void setToolTip(const QString &strToolTip);
@@ -121,16 +117,13 @@ public:
     void setDefaultPath(const QString &strDefaultPath);
     const QString& defaultPath() const;
 
-    void setRecentMediaListType(UIMediumDeviceType enmMediumType);
-    UIMediumDeviceType recentMediaListType() const;
-
 public slots:
 
     /** Defines the @a strPath and @a fRefreshText after that. */
     void setPath(const QString &strPath, bool fRefreshText = true);
 
-    /** Defines the @a strInitialPath. */
-    void setInitialPath(const QString &strInitialPath) { m_strInitialPath = strInitialPath; }
+    /** Defines the @a strHomeDir. */
+    void setHomeDir(const QString &strHomeDir) { m_strHomeDir = strHomeDir; }
 
 protected:
 
@@ -162,8 +155,6 @@ private slots:
     /** Refreshes combo-box text according to chosen path. */
     void refreshText();
 
-    void sltRecentMediaListUpdated(UIMediumDeviceType enmMediumType);
-
 private:
 
     /** Provokes change to @a strPath and @a fRefreshText after that. */
@@ -186,8 +177,8 @@ private:
 
     /** Holds the path. */
     QString  m_strPath;
-    /** Holds the path which we pass to QFileDialog as initial path. */
-    QString  m_strInitialPath;
+    /** Holds the home dir. */
+    QString  m_strHomeDir;
 
     /** Holds the file-dialog title. */
     QString  m_strFileDialogTitle;
@@ -200,9 +191,8 @@ private:
     QString  m_strNoneText;
     /** Holds the cached tool-tip for empty path. */
     QString  m_strNoneToolTip;
-
-    /** Holds whether editor has Reset action. */
-    bool     m_fResetEnabled;
+    /** Holds the cached tool-tip for empty path in focused case. */
+    QString  m_strNoneToolTipFocused;
 
     /** Holds whether the path is editable. */
     bool     m_fEditable;
@@ -222,11 +212,6 @@ private:
 
     /** Path is set to m_strDefaultPath when it is reset. */
     QString m_strDefaultPath;
-
-    /** Holds the recent list separator position. */
-    int                 m_iRecentListSeparatorPosition;
-    /** Holds whether medium type for recent media list. If it is UIMediumDeviceType_Invalid the recent list is not shown. */
-    UIMediumDeviceType  m_enmRecentMediaListType;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_widgets_UIFilePathSelector_h */

@@ -1,10 +1,10 @@
-/* $Id: Global.h 93480 2022-01-28 16:09:52Z vboxsync $ */
+/* $Id: Global.h $ */
 /** @file
  * VirtualBox COM API - Global Declarations and Definitions.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,10 +45,6 @@
 #define VBOXOSHINT_TFRESET              RT_BIT(13)
 #define VBOXOSHINT_USB3                 RT_BIT(14)
 #define VBOXOSHINT_X2APIC               RT_BIT(15)
-#define VBOXOSHINT_EFI_SECUREBOOT       RT_BIT(16)
-#define VBOXOSHINT_TPM                  RT_BIT(17)
-#define VBOXOSHINT_TPM2                 RT_BIT(18)
-#define VBOXOSHINT_WDDM_GRAPHICS        RT_BIT(19)
 
 /** The VBoxVRDP kludge extension pack name.
  *
@@ -86,7 +82,6 @@ public:
         const StorageControllerType_T  hdStorageControllerType;
         const StorageBus_T             hdStorageBusType;
         const ChipsetType_T            chipsetType;
-        const IommuType_T              iommuType;
         const AudioControllerType_T    audioControllerType;
         const AudioCodecType_T         audioCodecType;
     };
@@ -146,10 +141,7 @@ public:
     }
 
     /**
-     * Stringify a machine state - translated.
-     *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
+     * Stringify a machine state.
      *
      * @returns Pointer to a read only string.
      * @param   aState      Valid machine state.
@@ -157,10 +149,7 @@ public:
     static const char *stringifyMachineState(MachineState_T aState);
 
     /**
-     * Stringify a session state - translated.
-     *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
+     * Stringify a session state.
      *
      * @returns Pointer to a read only string.
      * @param   aState      Valid session state.
@@ -170,48 +159,18 @@ public:
     /**
      * Stringify a device type.
      *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
-     *
      * @returns Pointer to a read only string.
      * @param   aType       The device type.
      */
     static const char *stringifyDeviceType(DeviceType_T aType);
 
     /**
-     * Stringify a storage controller type.
-     *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
-     *
-     * @returns Pointer to a read only string.
-     * @param   aType       The storage controller type.
-     */
-    static const char *stringifyStorageControllerType(StorageControllerType_T aType);
-
-#if 0 /* unused */
-    /**
-     * Stringify a storage bus type.
-     *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
-     *
-     * @returns Pointer to a read only string.
-     * @param   aBus        The storage bus type.
-     */
-    static const char *stringifyStorageBus(StorageBus_T aBus);
-
-    /**
      * Stringify a reason.
-     *
-     * Drop the Global:: prefix and include StringifyEnums.h for an untranslated
-     * version of this method.
      *
      * @returns Pointer to a read only string.
      * @param   aReason     The reason code.
      */
     static const char *stringifyReason(Reason_T aReason);
-#endif
 
     /**
      * Try convert a COM status code to a VirtualBox status code (VBox/err.h).

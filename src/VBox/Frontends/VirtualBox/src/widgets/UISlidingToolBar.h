@@ -1,10 +1,10 @@
-/* $Id: UISlidingToolBar.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISlidingToolBar.h $ */
 /** @file
  * VBox Qt GUI - UISlidingToolBar class declaration.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,12 +79,12 @@ protected:
 
 #ifdef VBOX_WS_MAC
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 #endif
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles close @a pEvent. */
-    virtual void closeEvent(QCloseEvent *pEvent) RT_OVERRIDE;
+    virtual void closeEvent(QCloseEvent *pEvent) /* override */;
 
 private slots:
 

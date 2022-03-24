@@ -1,10 +1,10 @@
-/* $Id: boot.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: boot.c $ */
 /** @file
  * PC BIOS - ???
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -150,10 +150,9 @@ void print_boot_failure(uint8_t cdboot, uint8_t lanboot, uint8_t drive,
 
     if (lastdrive==1) {
         if (reason==0)
-            BX_INFO_CON("No bootable medium found!\n");
+            BX_PANIC("No bootable medium found! System halted.\n");
         else
-            BX_INFO_CON("Could not read from the boot medium!\n");
-        BX_INFO_CON("Please insert a bootable medium and reboot.\n");
+            BX_PANIC("Could not read from the boot medium! System halted.\n");
     }
 }
 

@@ -1,10 +1,10 @@
-/* $Id: UIMainEventListener.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMainEventListener.cpp $ */
 /** @file
  * VBox Qt GUI - UIMainEventListener class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,10 +28,6 @@
 #include "COMEnums.h"
 #include "CCanShowWindowEvent.h"
 #include "CClipboardModeChangedEvent.h"
-#include "CCloudProfileChangedEvent.h"
-#include "CCloudProfileRegisteredEvent.h"
-#include "CCloudProviderListChangedEvent.h"
-#include "CCloudProviderUninstallEvent.h"
 #include "CCursorPositionChangedEvent.h"
 #include "CDnDModeChangedEvent.h"
 #include "CEvent.h"
@@ -81,20 +77,15 @@ class UIMainEventListeningThread : public QThread
 
 public:
 
-    /** Constructs Main events listener thread redirecting events from @a comSource to @a comListener.
-      * @param  comSource         Brings event source we are creating this thread for.
-      * @param  comListener       Brings event listener we are creating this thread for.
-      * @param  escapeEventTypes  Brings a set of escape event types which commands this thread to finish. */
-    UIMainEventListeningThread(const CEventSource &comSource,
-                               const CEventListener &comListener,
-                               const QSet<KVBoxEventType> &escapeEventTypes);
+    /** Constructs Main events listener thread redirecting events from @a comSource to @a comListener. */
+    UIMainEventListeningThread(const CEventSource &comSource, const CEventListener &comListener);
     /** Destructs Main events listener thread. */
-    virtual ~UIMainEventListeningThread() RT_OVERRIDE;
+    ~UIMainEventListeningThread();
 
 protected:
 
     /** Contains the thread excution body. */
-    virtual void run() RT_OVERRIDE;
+    virtual void run() /* override */;
 
     /** Returns whether the thread asked to shutdown prematurely. */
     bool isShutdown() const;
@@ -104,11 +95,9 @@ protected:
 private:
 
     /** Holds the Main event source reference. */
-    CEventSource          m_comSource;
+    CEventSource m_comSource;
     /** Holds the Main event listener reference. */
-    CEventListener        m_comListener;
-    /** Holds a set of event types this thread should finish job on. */
-    QSet<KVBoxEventType>  m_escapeEventTypes;
+    CEventListener m_comListener;
 
     /** Holds the mutex instance which protects thread access. */
     mutable QMutex m_mutex;
@@ -121,12 +110,9 @@ private:
 *   Class UIMainEventListeningThread implementation.                                                                             *
 *********************************************************************************************************************************/
 
-UIMainEventListeningThread::UIMainEventListeningThread(const CEventSource &comSource,
-                                                       const CEventListener &comListener,
-                                                       const QSet<KVBoxEventType> &escapeEventTypes)
+UIMainEventListeningThread::UIMainEventListeningThread(const CEventSource &comSource, const CEventListener &comListener)
     : m_comSource(comSource)
     , m_comListener(comListener)
-    , m_escapeEventTypes(escapeEventTypes)
     , m_fShutdown(false)
 {
     setObjectName("UIMainEventListeningThread");
@@ -165,14 +151,7 @@ void UIMainEventListeningThread::run()
             /* Process the event and tell the listener: */
             comListener.HandleEvent(comEvent);
             if (comEvent.GetWaitable())
-            {
                 comSource.EventProcessed(comListener, comEvent);
-                LogRel(("GUI: UIMainEventListener/ThreadRun: EventProcessed set for waitable event\n"));
-            }
-
-            /* Check whether we should finish our job on this event: */
-            if (m_escapeEventTypes.contains(comEvent.GetType()))
-                setShutdown(true);
         }
     }
 
@@ -216,35 +195,20 @@ UIMainEventListener::UIMainEventListener()
     qRegisterMetaType<CGuestSession>("CGuestSession");
 }
 
-void UIMainEventListener::registerSource(const CEventSource &comSource,
-                                         const CEventListener &comListener,
-                                         const QSet<KVBoxEventType> &escapeEventTypes /* = QSet<KVBoxEventType>() */)
+void UIMainEventListener::registerSource(const CEventSource &comSource, const CEventListener &comListener)
 {
     /* Make sure source and listener are valid: */
     AssertReturnVoid(!comSource.isNull());
     AssertReturnVoid(!comListener.isNull());
 
     /* Create thread for passed source: */
-    UIMainEventListeningThread *pThread = new UIMainEventListeningThread(comSource, comListener, escapeEventTypes);
-    if (pThread)
-    {
-        /* Listen for thread finished signal: */
-        connect(pThread, &UIMainEventListeningThread::finished,
-                this, &UIMainEventListener::sltHandleThreadFinished);
-        /* Register & start it: */
-        m_threads << pThread;
-        pThread->start();
-    }
+    m_threads << new UIMainEventListeningThread(comSource, comListener);
+    /* And start it: */
+    m_threads.last()->start();
 }
 
 void UIMainEventListener::unregisterSources()
 {
-    /* Stop listening for thread finished thread signals,
-     * we are about to destroy these threads anyway: */
-    foreach (UIMainEventListeningThread *pThread, m_threads)
-        disconnect(pThread, &UIMainEventListeningThread::finished,
-                   this, &UIMainEventListener::sltHandleThreadFinished);
-
     /* Wipe out the threads: */
     /** @todo r=bird: The use of qDeleteAll here is unsafe because it won't take
      * QThread::wait() timeouts into account, and may delete the QThread object
@@ -264,7 +228,6 @@ STDMETHODIMP UIMainEventListener::HandleEvent(VBoxEventType_T, IEvent *pEvent)
         return S_OK;
 
     CEvent comEvent(pEvent);
-    //printf("Event received: %d\n", comEvent.GetType());
     switch (comEvent.GetType())
     {
         case KVBoxEventType_OnVBoxSVCAvailabilityChanged:
@@ -320,31 +283,6 @@ STDMETHODIMP UIMainEventListener::HandleEvent(VBoxEventType_T, IEvent *pEvent)
         {
             CSnapshotRestoredEvent comEventSpecific(pEvent);
             emit sigSnapshotRestore(comEventSpecific.GetMachineId(), comEventSpecific.GetSnapshotId());
-            break;
-        }
-        case KVBoxEventType_OnCloudProviderListChanged:
-        {
-            emit sigCloudProviderListChanged();
-            break;
-        }
-        case KVBoxEventType_OnCloudProviderUninstall:
-        {
-            LogRel(("GUI: UIMainEventListener/HandleEvent: KVBoxEventType_OnCloudProviderUninstall event came\n"));
-            CCloudProviderUninstallEvent comEventSpecific(pEvent);
-            emit sigCloudProviderUninstall(comEventSpecific.GetId());
-            LogRel(("GUI: UIMainEventListener/HandleEvent: KVBoxEventType_OnCloudProviderUninstall event done\n"));
-            break;
-        }
-        case KVBoxEventType_OnCloudProfileRegistered:
-        {
-            CCloudProfileRegisteredEvent comEventSpecific(pEvent);
-            emit sigCloudProfileRegistered(comEventSpecific.GetProviderId(), comEventSpecific.GetName(), comEventSpecific.GetRegistered());
-            break;
-        }
-        case KVBoxEventType_OnCloudProfileChanged:
-        {
-            CCloudProfileChangedEvent comEventSpecific(pEvent);
-            emit sigCloudProfileChanged(comEventSpecific.GetProviderId(), comEventSpecific.GetName());
             break;
         }
 
@@ -607,23 +545,6 @@ STDMETHODIMP UIMainEventListener::HandleEvent(VBoxEventType_T, IEvent *pEvent)
     uiCommon().comTokenUnlock();
 
     return S_OK;
-}
-
-void UIMainEventListener::sltHandleThreadFinished()
-{
-    /* We have received a signal about thread finished, that means we were
-     * patiently waiting for it, instead of killing UIMainEventListener object. */
-    UIMainEventListeningThread *pSender = qobject_cast<UIMainEventListeningThread*>(sender());
-    AssertPtrReturnVoid(pSender);
-
-    /* We should remove corresponding thread from the list: */
-    const int iIndex = m_threads.indexOf(pSender);
-    delete m_threads.value(iIndex);
-    m_threads.removeAt(iIndex);
-
-    /* And notify listeners we have really finished: */
-    if (m_threads.isEmpty())
-        emit sigListeningFinished();
 }
 
 #include "UIMainEventListener.moc"

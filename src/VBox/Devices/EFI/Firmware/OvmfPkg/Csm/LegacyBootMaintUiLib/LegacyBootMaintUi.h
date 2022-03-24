@@ -1,5 +1,5 @@
 /** @file
-  Legacy boot maintenance Ui definition.
+  Legacy boot maintainence Ui definition.
 
 Copyright (c) 2004 - 2015, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -61,7 +61,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 
 //
-// String Constant
+// String Contant
 //
 #define STR_FLOPPY          L"Floppy Drive #%02x"
 #define STR_HARDDISK        L"HardDisk Drive #%02x"

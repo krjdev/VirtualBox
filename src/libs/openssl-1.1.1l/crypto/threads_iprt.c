@@ -1,4 +1,4 @@
-/* $Id: threads_iprt.cpp 125764 2018-10-12 17:09:46Z michael $ */
+/* $Id: threads_iprt.cpp $ */
 /** @file
  * Crypto thread locking functions which make use of the IPRT.
  */

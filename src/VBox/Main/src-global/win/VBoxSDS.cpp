@@ -1,10 +1,10 @@
-/* $Id: VBoxSDS.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxSDS.cpp $ */
 /** @file
  * VBoxSDS - COM global service main entry (System Directory Service)
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -392,11 +392,11 @@ public:
                     wszFilePath[cwcFilePath + 1] = L'\"';
                     wszFilePath[cwcFilePath + 2] = L'\0';
 
-                    hService = ::CreateServiceW(hSCM, m_wszServiceName, m_wszServiceDisplayName,
-                                                SERVICE_CHANGE_CONFIG,
-                                                SERVICE_WIN32_OWN_PROCESS,
-                                                SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
-                                                wszFilePath, NULL, NULL, L"RPCSS\0", NULL, NULL);
+                    SC_HANDLE hService = ::CreateServiceW(hSCM, m_wszServiceName, m_wszServiceDisplayName,
+                                                          SERVICE_CHANGE_CONFIG,
+                                                          SERVICE_WIN32_OWN_PROCESS,
+                                                          SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
+                                                          wszFilePath, NULL, NULL, L"RPCSS\0", NULL, NULL);
                     if (hService != NULL)
                     {
                         SERVICE_DESCRIPTIONW sd;
@@ -527,9 +527,9 @@ public:
 #ifdef WITH_WATCHER
         , m_fHasClients(false)
 #endif
+        , m_cMsShutdownTimeOut(cMsShutdownTimeout)
         , m_hEventShutdown(INVALID_HANDLE_VALUE)
         , m_dwMainThreadID(~(DWORD)42)
-        , m_cMsShutdownTimeOut(cMsShutdownTimeout)
     {
     }
 
@@ -641,7 +641,7 @@ protected:
                 if (pReleaseLogger)
                 {
                     char szDest[1024];
-                    int rc = ::RTLogQueryDestinations(pReleaseLogger, szDest, sizeof(szDest));
+                    int rc = ::RTLogGetDestinations(pReleaseLogger, szDest, sizeof(szDest));
                     if (RT_SUCCESS(rc))
                     {
                         rc = ::RTStrCat(szDest, sizeof(szDest), " nohistory");

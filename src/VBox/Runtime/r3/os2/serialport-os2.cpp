@@ -1,10 +1,10 @@
-/* $Id: serialport-os2.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: serialport-os2.cpp $ */
 /** @file
  * IPRT - Serial Port API, OS/2 Implementation.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -270,8 +270,7 @@ DECLINLINE(int) rtSerialPortSwitchBlockingMode(PRTSERIALPORTINTERNAL pThis, bool
 RTDECL(int)  RTSerialPortOpen(PRTSERIALPORT phSerialPort, const char *pszPortAddress, uint32_t fFlags)
 {
     AssertPtrReturn(phSerialPort, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszPortAddress, VERR_INVALID_POINTER);
-    AssertReturn(*pszPortAddress != '\0', VERR_INVALID_PARAMETER);
+    AssertReturn(VALID_PTR(pszPortAddress) && *pszPortAddress != '\0', VERR_INVALID_PARAMETER);
     AssertReturn(!(fFlags & ~RTSERIALPORT_OPEN_F_VALID_MASK), VERR_INVALID_PARAMETER);
     AssertReturn((fFlags & RTSERIALPORT_OPEN_F_READ) || (fFlags & RTSERIALPORT_OPEN_F_WRITE),
                  VERR_INVALID_PARAMETER);

@@ -1,6 +1,4 @@
-
-Test VM - tst-win7-32
-=====================
+Work in progress:
 
 Setup:
  - Configure a VM t-win7-32 with default windows 7 32-bit settings and disk size.
@@ -11,4 +9,8 @@ Setup:
  - Create a user 'test' without a password.
  - Create a user 'test2' with 'test2' as password.
  - Enable the guest user.
- - Proceed as shown in readme_first.txt
+ - Insert the validation kit ISO and install the test execution service in
+   'both' mode (see vboxtxs-readme.txt) and using the task scheduler. Make
+   sure to okay the firewall modification and test it.
+ -
+

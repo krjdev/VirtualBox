@@ -1,10 +1,10 @@
-/* $Id: UIMachineWindow.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineWindow.h $ */
 /** @file
  * VBox Qt GUI - UIMachineWindow class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -86,19 +86,14 @@ public:
     /** Returns the machine name. */
     const QString& machineName() const;
 
-    /** Returns whether the machine-window should resize to fit to the guest display.
-      * @note Relevant only to normal (windowed) case. */
-    bool shouldResizeToGuestDisplay() const;
-
     /** Restores cached window geometry.
       * @note Reimplemented in sub-classes. Base implementation does nothing. */
     virtual void restoreCachedGeometry() {}
 
     /** Adjusts machine-window size to correspond current machine-view size.
       * @param fAdjustPosition determines whether is it necessary to adjust position too.
-      * @param fResizeToGuestDisplay determines if is it necessary to resize the window to fit to guest display size.
       * @note  Reimplemented in sub-classes. Base implementation does nothing. */
-    virtual void normalizeGeometry(bool fAdjustPosition, bool fResizeToGuestDisplay) { Q_UNUSED(fAdjustPosition); Q_UNUSED(fResizeToGuestDisplay); }
+    virtual void normalizeGeometry(bool fAdjustPosition) { Q_UNUSED(fAdjustPosition); }
 
     /** Adjusts machine-view size to correspond current machine-window size. */
     virtual void adjustMachineViewSize();
@@ -115,7 +110,7 @@ protected slots:
 
 #ifdef VBOX_WS_X11
     /** X11: Performs machine-window geometry normalization. */
-    void sltNormalizeGeometry() { normalizeGeometry(true /* adjust position */, shouldResizeToGuestDisplay()); }
+    void sltNormalizeGeometry() { normalizeGeometry(true /* adjust position */); }
 #endif /* VBOX_WS_X11 */
 
     /** Performs machine-window activation. */
@@ -136,12 +131,12 @@ protected:
     void retranslateUi();
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles hide @a pEvent. */
-    virtual void hideEvent(QHideEvent *pEvent) RT_OVERRIDE;
+    virtual void hideEvent(QHideEvent *pEvent) /* override */;
 
     /** Close event handler. */
     void closeEvent(QCloseEvent *pCloseEvent);
@@ -163,7 +158,6 @@ protected:
     virtual void prepareMenu() {}
     virtual void prepareStatusBar() {}
     virtual void prepareMachineView();
-    virtual void prepareNotificationCenter();
     virtual void prepareVisualState() {}
     virtual void prepareHandlers();
     virtual void loadSettings() {}
@@ -172,7 +166,6 @@ protected:
     virtual void saveSettings() {}
     virtual void cleanupHandlers();
     virtual void cleanupVisualState() {}
-    virtual void cleanupNotificationCenter();
     virtual void cleanupMachineView();
     virtual void cleanupStatusBar() {}
     virtual void cleanupMenu() {}

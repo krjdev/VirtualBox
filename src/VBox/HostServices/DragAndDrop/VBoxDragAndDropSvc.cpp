@@ -1,10 +1,10 @@
-/* $Id: VBoxDragAndDropSvc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxDragAndDropSvc.cpp $ */
 /** @file
  * Drag and Drop Service.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -146,15 +146,10 @@ private:
  */
 void DragAndDropClient::disconnect(void) RT_NOEXCEPT
 {
-    LogFlowThisFunc(("uClient=%RU32, fDeferred=%RTbool\n", m_idClient, IsDeferred()));
+    LogFlowThisFunc(("uClient=%RU32\n", m_uClientID));
 
-    /*
-     * If the client still is waiting for a message (i.e in deferred mode),
-     * complete the call with a VERR_CANCELED status so that the client (VBoxTray / VBoxClient) knows
-     * it should bail out.
-     */
     if (IsDeferred())
-        CompleteDeferred(VERR_CANCELLED);
+        CompleteDeferred(VERR_INTERRUPTED);
 
     /*
      * Let the host know.
@@ -168,7 +163,7 @@ void DragAndDropClient::disconnect(void) RT_NOEXCEPT
     {
         int rc2 = m_SvcCtx.pfnHostCallback(m_SvcCtx.pvHostData, GUEST_DND_FN_DISCONNECT, &data, sizeof(data));
         if (RT_FAILURE(rc2))
-            LogFlowFunc(("Warning: Unable to notify host about client %RU32 disconnect, rc=%Rrc\n", m_idClient, rc2));
+            LogFlowFunc(("Warning: Unable to notify host about client %RU32 disconnect, rc=%Rrc\n", m_uClientID, rc2));
         /* Not fatal. */
     }
 }
@@ -487,6 +482,10 @@ void DragAndDropService::guestCall(VBOXHGCMCALLHANDLE callHandle, uint32_t idCli
             rc = VINF_SUCCESS;
             break;
     }
+
+#ifdef DEBUG_andy
+    LogFlowFunc(("Mode (%RU32) check rc=%Rrc\n", modeGet(), rc));
+#endif
 
 #define DO_HOST_CALLBACK();                                                                   \
     if (   RT_SUCCESS(rc)                                                                     \
@@ -1040,8 +1039,6 @@ do { \
      */
     if (rc == VINF_HGCM_ASYNC_EXECUTE)
     {
-        LogFlowFunc(("Deferring client %RU32\n", idClient));
-
         try
         {
             AssertPtr(pClient);
@@ -1274,7 +1271,7 @@ DECLCALLBACK(int) DragAndDropService::progressCallback(uint32_t uStatus, uint32_
 }
 
 /**
- * @copydoc FNVBOXHGCMSVCLOAD
+ * @copydoc VBOXHGCMSVCLOAD
  */
 extern "C" DECLCALLBACK(DECLEXPORT(int)) VBoxHGCMSvcLoad(VBOXHGCMSVCFNTABLE *pTable)
 {

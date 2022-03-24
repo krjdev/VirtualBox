@@ -1,10 +1,10 @@
-/* $Id: DevVGA_VDMA.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevVGA_VDMA.cpp $ */
 /** @file
  * Video DMA (VDMA) support.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -68,8 +68,7 @@
 *********************************************************************************************************************************/
 struct VBOXVDMATHREAD;
 
-typedef DECLCALLBACKPTR(void, PFNVBOXVDMATHREAD_CHANGED,(struct VBOXVDMATHREAD *pThread, int rc,
-                                                         void *pvThreadContext, void *pvChangeContext));
+typedef DECLCALLBACKPTR(void, PFNVBOXVDMATHREAD_CHANGED,(struct VBOXVDMATHREAD *pThread, int rc, void *pvThreadContext, void *pvChangeContext));
 
 typedef struct VBOXVDMATHREAD
 {
@@ -131,7 +130,7 @@ typedef enum
 
 struct VBVAEXHOSTCTL;
 
-typedef DECLCALLBACKTYPE(void, FNVBVAEXHOSTCTL_COMPLETE,(VBVAEXHOSTCONTEXT *pVbva, struct VBVAEXHOSTCTL *pCtl, int rc, void *pvComplete));
+typedef DECLCALLBACK(void) FNVBVAEXHOSTCTL_COMPLETE(VBVAEXHOSTCONTEXT *pVbva, struct VBVAEXHOSTCTL *pCtl, int rc, void *pvComplete);
 typedef FNVBVAEXHOSTCTL_COMPLETE *PFNVBVAEXHOSTCTL_COMPLETE;
 
 typedef struct VBVAEXHOSTCTL

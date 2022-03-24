@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -188,7 +188,7 @@ RT_C_DECLS_BEGIN
  * @param   cb          Number of bytes read.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMIOPORTIN,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint32_t *pu32, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMIOPORTIN(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint32_t *pu32, unsigned cb);
 /** Pointer to a FNIOMIOPORTIN(). */
 typedef FNIOMIOPORTIN *PFNIOMIOPORTIN;
 
@@ -207,8 +207,8 @@ typedef FNIOMIOPORTIN *PFNIOMIOPORTIN;
  * @param   cb          Size of the transfer unit (1, 2 or 4 bytes).
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMIOPORTINSTRING,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint8_t *pbDst,
-                                                   uint32_t *pcTransfers, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMIOPORTINSTRING(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint8_t *pbDst,
+                                              uint32_t *pcTransfers, unsigned cb);
 /** Pointer to a FNIOMIOPORTINSTRING(). */
 typedef FNIOMIOPORTINSTRING *PFNIOMIOPORTINSTRING;
 
@@ -224,7 +224,7 @@ typedef FNIOMIOPORTINSTRING *PFNIOMIOPORTINSTRING;
  * @param   cb          The value size in bytes.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMIOPORTOUT,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint32_t u32, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMIOPORTOUT(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, uint32_t u32, unsigned cb);
 /** Pointer to a FNIOMIOPORTOUT(). */
 typedef FNIOMIOPORTOUT *PFNIOMIOPORTOUT;
 
@@ -242,8 +242,8 @@ typedef FNIOMIOPORTOUT *PFNIOMIOPORTOUT;
  * @param   cb          Size of the transfer unit (1, 2 or 4 bytes).
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMIOPORTOUTSTRING,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, const uint8_t *pbSrc,
-                                                    uint32_t *pcTransfers, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMIOPORTOUTSTRING(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT uPort, const uint8_t *pbSrc,
+                                               uint32_t *pcTransfers, unsigned cb);
 /** Pointer to a FNIOMIOPORTOUTSTRING(). */
 typedef FNIOMIOPORTOUTSTRING *PFNIOMIOPORTOUTSTRING;
 
@@ -263,8 +263,7 @@ typedef FNIOMIOPORTOUTSTRING *PFNIOMIOPORTOUTSTRING;
  * @param   cb          Number of bytes read.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMIOPORTNEWIN,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort,
-                                                         uint32_t *pu32, unsigned cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMIOPORTNEWIN(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_t *pu32, unsigned cb);
 /** Pointer to a FNIOMIOPORTNEWIN(). */
 typedef FNIOMIOPORTNEWIN *PFNIOMIOPORTNEWIN;
 
@@ -284,8 +283,8 @@ typedef FNIOMIOPORTNEWIN *PFNIOMIOPORTNEWIN;
  * @param   cb          Size of the transfer unit (1, 2 or 4 bytes).
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMIOPORTNEWINSTRING,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint8_t *pbDst,
-                                                               uint32_t *pcTransfers, unsigned cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMIOPORTNEWINSTRING(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint8_t *pbDst,
+                                                          uint32_t *pcTransfers, unsigned cb);
 /** Pointer to a FNIOMIOPORTNEWINSTRING(). */
 typedef FNIOMIOPORTNEWINSTRING *PFNIOMIOPORTNEWINSTRING;
 
@@ -302,8 +301,7 @@ typedef FNIOMIOPORTNEWINSTRING *PFNIOMIOPORTNEWINSTRING;
  * @param   cb          The value size in bytes.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMIOPORTNEWOUT,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort,
-                                                          uint32_t u32, unsigned cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMIOPORTNEWOUT(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_t u32, unsigned cb);
 /** Pointer to a FNIOMIOPORTNEWOUT(). */
 typedef FNIOMIOPORTNEWOUT *PFNIOMIOPORTNEWOUT;
 
@@ -322,8 +320,8 @@ typedef FNIOMIOPORTNEWOUT *PFNIOMIOPORTNEWOUT;
  * @param   cb          Size of the transfer unit (1, 2 or 4 bytes).
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMIOPORTNEWOUTSTRING,(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort,
-                                                                const uint8_t *pbSrc, uint32_t *pcTransfers, unsigned cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMIOPORTNEWOUTSTRING(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, const uint8_t *pbSrc,
+                                                           uint32_t *pcTransfers, unsigned cb);
 /** Pointer to a FNIOMIOPORTNEWOUTSTRING(). */
 typedef FNIOMIOPORTNEWOUTSTRING *PFNIOMIOPORTNEWOUTSTRING;
 
@@ -359,7 +357,7 @@ typedef IOMIOPORTDESC const *PCIOMIOPORTDESC;
  * @param   cb          Number of bytes read.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMMMIOREAD,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr, void *pv, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMMMIOREAD(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr, void *pv, unsigned cb);
 /** Pointer to a FNIOMMMIOREAD(). */
 typedef FNIOMMMIOREAD *PFNIOMMMIOREAD;
 
@@ -375,7 +373,7 @@ typedef FNIOMMMIOREAD *PFNIOMMMIOREAD;
  * @param   cb          Number of bytes to write.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMMMIOWRITE,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr, void const *pv, unsigned cb));
+typedef DECLCALLBACK(int) FNIOMMMIOWRITE(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr, void const *pv, unsigned cb);
 /** Pointer to a FNIOMMMIOWRITE(). */
 typedef FNIOMMMIOWRITE *PFNIOMMMIOWRITE;
 
@@ -392,8 +390,7 @@ typedef FNIOMMMIOWRITE *PFNIOMMMIOWRITE;
  * @param   cItems      Number of iterations.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(int, FNIOMMMIOFILL,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr,
-                                             uint32_t u32Item, unsigned cbItem, unsigned cItems));
+typedef DECLCALLBACK(int) FNIOMMMIOFILL(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS GCPhysAddr, uint32_t u32Item, unsigned cbItem, unsigned cItems);
 /** Pointer to a FNIOMMMIOFILL(). */
 typedef FNIOMMMIOFILL *PFNIOMMMIOFILL;
 
@@ -411,7 +408,7 @@ typedef FNIOMMMIOFILL *PFNIOMMMIOFILL;
  * @param   cb          Number of bytes read.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMMMIONEWREAD,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off, void *pv, uint32_t cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMMMIONEWREAD(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off, void *pv, uint32_t cb);
 /** Pointer to a FNIOMMMIONEWREAD(). */
 typedef FNIOMMMIONEWREAD *PFNIOMMMIONEWREAD;
 
@@ -428,8 +425,7 @@ typedef FNIOMMMIONEWREAD *PFNIOMMMIONEWREAD;
  * @param   cb          Number of bytes to write.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMMMIONEWWRITE,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off,
-                                                          void const *pv, uint32_t cb));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMMMIONEWWRITE(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off, void const *pv, uint32_t cb);
 /** Pointer to a FNIOMMMIONEWWRITE(). */
 typedef FNIOMMMIONEWWRITE *PFNIOMMMIONEWWRITE;
 
@@ -447,8 +443,8 @@ typedef FNIOMMMIONEWWRITE *PFNIOMMMIONEWWRITE;
  * @param   cItems      Number of iterations.
  * @remarks Caller enters the device critical section.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNIOMMMIONEWFILL,(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off,
-                                                         uint32_t u32Item, uint32_t cbItem, uint32_t cItems));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNIOMMMIONEWFILL(PPDMDEVINS pDevIns, void *pvUser, RTGCPHYS off,
+                                                    uint32_t u32Item, uint32_t cbItem, uint32_t cItems);
 /** Pointer to a FNIOMMMIONEWFILL(). */
 typedef FNIOMMMIONEWFILL *PFNIOMMMIONEWFILL;
 
@@ -458,6 +454,8 @@ VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortReadString(PVMCC pVM, PVMCPU pVCpu, RTIOPORT
                                                uint32_t *pcTransfers, unsigned cb);
 VMM_INT_DECL(VBOXSTRICTRC) IOMIOPortWriteString(PVMCC pVM, PVMCPU pVCpu, RTIOPORT uPort, void const *pvSrc,
                                                 uint32_t *pcTransfers, unsigned cb);
+VMMDECL(VBOXSTRICTRC)   IOMMMIORead(PVM pVM, PVMCPU pVCpu, RTGCPHYS GCPhys, uint32_t *pu32Value, size_t cbValue);
+VMMDECL(VBOXSTRICTRC)   IOMMMIOWrite(PVM pVM, PVMCPU pVCpu, RTGCPHYS GCPhys, uint32_t u32Value, size_t cbValue);
 VMM_INT_DECL(VBOXSTRICTRC) IOMR0MmioPhysHandler(PVMCC pVM, PVMCPUCC pVCpu, uint32_t uErrorCode, RTGCPHYS GCPhysFault);
 VMMDECL(int)            IOMMmioMapMmio2Page(PVMCC pVM, PPDMDEVINS pDevIns, IOMMMIOHANDLE hRegion, RTGCPHYS offRegion,
                                             uint64_t hMmio2, RTGCPHYS offMmio2, uint64_t fPageFlags);
@@ -513,7 +511,6 @@ VMMR3_INT_DECL(void) IOMR3NotifyDebugEventChange(PVM pVM, DBGFEVENT enmEvent, bo
 /** @defgroup grpm_iom_r0   The IOM Host Context Ring-0 API
  * @{ */
 VMMR0_INT_DECL(void) IOMR0InitPerVMData(PGVM pGVM);
-VMMR0_INT_DECL(int)  IOMR0InitVM(PGVM pGVM);
 VMMR0_INT_DECL(void) IOMR0CleanupVM(PGVM pGVM);
 
 VMMR0_INT_DECL(int)  IOMR0IoPortSetUpContext(PGVM pGVM, PPDMDEVINS pDevIns, IOMIOPORTHANDLE hIoPorts,

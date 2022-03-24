@@ -1,10 +1,10 @@
-/* $Id: UIMachineAttributeSetter.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineAttributeSetter.h $ */
 /** @file
  * VBox Qt GUI - UIMachineAttributeSetter namespace declaration.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,6 +31,7 @@ enum MachineAttribute
     MachineAttribute_Invalid,
     MachineAttribute_Name,
     MachineAttribute_OSType,
+    MachineAttribute_Location,
     MachineAttribute_BaseMemory,
     MachineAttribute_BootOrder,
     MachineAttribute_VideoMemory,
@@ -71,10 +72,6 @@ namespace UIMachineAttributeSetter
     SHARED_LIBRARY_STUFF void setMachineAttribute(const CMachine &comMachine,
                                                   const MachineAttribute &enmType,
                                                   const QVariant &guiAttribute);
-
-    /** Assigns @a comMachine @a strLocation. */
-    SHARED_LIBRARY_STUFF void setMachineLocation(const QUuid &uMachineId,
-                                                 const QString &strLocation);
 }
 using namespace UIMachineAttributeSetter /* if header included */;
 

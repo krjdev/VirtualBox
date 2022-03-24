@@ -1,10 +1,10 @@
-/* $Id: RTPathGlob.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTPathGlob.cpp $ */
 /** @file
  * IPRT - RTPathGlob
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -270,7 +270,7 @@ typedef struct RTPATHMATCHVAR
      * @param   pCache      Pointer to the path matching cache.  May speed up
      *                      enumerating PATH items and similar.
      */
-    DECLCALLBACKMEMBER(int, pfnQuery,(uint32_t iItem, char *pszBuf, size_t cbBuf, size_t *pcchValue, PRTPATHMATCHCACHE pCache));
+    DECLCALLBACKMEMBER(int, pfnQuery)(uint32_t iItem, char *pszBuf, size_t cbBuf, size_t *pcchValue, PRTPATHMATCHCACHE pCache);
 
     /**
      * Matching method, optional.
@@ -284,7 +284,7 @@ typedef struct RTPATHMATCHVAR
      * @param   fIgnoreCase Whether to ignore case or not when comparing.
      * @param   pcchMatched Where to return the length of the match (value length).
      */
-    DECLCALLBACKMEMBER(int, pfnMatch,(const char *pchMatch, size_t cchMatch, bool fIgnoreCase, size_t *pcchMatched));
+    DECLCALLBACKMEMBER(int, pfnMatch)(const char *pchMatch, size_t cchMatch, bool fIgnoreCase, size_t *pcchMatched);
 
 } RTPATHMATCHVAR;
 
@@ -1367,7 +1367,7 @@ static int rtPathGlobParse(PRTPATHGLOB pGlob, const char *pszPattern, PRTPATHPAR
             else
                 AssertMsgFailedReturn(("'%.*s' is not supported yet\n", pszComp, pParsed->aComps[0].cch),
                                       VERR_PATH_MATCH_FEATURE_NOT_IMPLEMENTED);
-            pGlob->offFirstPath = (uint16_t)RTPathEnsureTrailingSeparator(pGlob->szPath, sizeof(pGlob->szPath));
+            pGlob->offFirstPath = (uint32_t)RTPathEnsureTrailingSeparator(pGlob->szPath, sizeof(pGlob->szPath));
             pGlob->iFirstComp   = iComp = 1;
         }
     }

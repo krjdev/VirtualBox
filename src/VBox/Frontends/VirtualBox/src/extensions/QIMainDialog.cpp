@@ -1,10 +1,10 @@
-/* $Id: QIMainDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIMainDialog.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIMainDialog class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,6 @@
 /* GUI includes: */
 #include "QIMainDialog.h"
 #include "UICommon.h"
-#include "UIDesktopWidgetWatchdog.h"
 #include "VBoxUtils.h"
 
 /* Other VBox includes: */
@@ -37,13 +36,12 @@
 
 
 QIMainDialog::QIMainDialog(QWidget *pParent /* = 0 */,
-                           Qt::WindowFlags enmFlags /* = Qt::Dialog */,
+                           Qt::WindowFlags fFlags /* = Qt::Dialog */,
                            bool fIsAutoCentering /* = true */)
-    : QMainWindow(pParent, enmFlags)
+    : QMainWindow(pParent, fFlags)
     , m_fIsAutoCentering(fIsAutoCentering)
     , m_fPolished(false)
     , m_iResult(QDialog::Rejected)
-    , m_fRejectByEscape(true)
 {
     /* Install event-filter: */
     qApp->installEventFilter(this);
@@ -219,12 +217,8 @@ bool QIMainDialog::event(QEvent *pEvent)
 
 void QIMainDialog::showEvent(QShowEvent *pEvent)
 {
-    /* Polish dialog if necessary: */
-    if (!m_fPolished)
-    {
-        polishEvent(pEvent);
-        m_fPolished = true;
-    }
+    /* Call to polish-event: */
+    polishEvent(pEvent);
 
     /* Call to base-class: */
     QMainWindow::showEvent(pEvent);
@@ -232,9 +226,16 @@ void QIMainDialog::showEvent(QShowEvent *pEvent)
 
 void QIMainDialog::polishEvent(QShowEvent *)
 {
+    /* Make sure we should polish dialog: */
+    if (m_fPolished)
+        return;
+
     /* Explicit centering according to our parent: */
     if (m_fIsAutoCentering)
-        UIDesktopWidgetWatchdog::centerWidget(this, parentWidget(), false);
+        UICommon::centerWidget(this, parentWidget(), false);
+
+    /* Mark dialog as polished: */
+    m_fPolished = true;
 }
 
 void QIMainDialog::resizeEvent(QResizeEvent *pEvent)
@@ -269,7 +270,7 @@ void QIMainDialog::keyPressEvent(QKeyEvent *pEvent)
         /* Special handling for Escape key: */
         case Qt::Key_Escape:
         {
-            if (pEvent->modifiers() == Qt::NoModifier && m_fRejectByEscape)
+            if (pEvent->modifiers() == Qt::NoModifier)
             {
                 reject();
                 return;
@@ -329,9 +330,4 @@ void QIMainDialog::done(int iResult)
     setResult(iResult);
     /* Hide: */
     hide();
-}
-
-void QIMainDialog::setRejectByEscape(bool fRejectByEscape)
-{
-    m_fRejectByEscape = fRejectByEscape;
 }

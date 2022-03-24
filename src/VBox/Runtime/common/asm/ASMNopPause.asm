@@ -1,10 +1,10 @@
-; $Id: ASMNopPause.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMNopPause.asm $
 ;; @file
 ; IPRT - ASMNopPause().
 ;
 
 ;
-; Copyright (C) 2009-2022 Oracle Corporation
+; Copyright (C) 2009-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,7 @@ BEGINCODE
 ;;
 ; The PAUSE variant of NOP for helping hyperthreaded CPUs detecting spin locks.
 ;
-RT_BEGINPROC ASMNopPause
+BEGINPROC_EXPORTED ASMNopPause
         pause
         ret
 ENDPROC ASMNopPause

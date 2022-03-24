@@ -1,10 +1,10 @@
-# $Id: .scm-settings 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: .scm-settings $
 ## @file
 # Source code massager settings for network devices/drivers.
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -37,10 +37,6 @@
 /slirp/libalias/*:          --external-copyright --no-convert-tabs
 /slirp/bsd/*:               --external-copyright --no-convert-tabs --dont-set-svn-keywords
 /slirp/*:                   --no-fix-header-guards
-
-# Not UTF-8 sources with latin-1/whatever chars in them (mostly names):
-/slirp/bsd/kern/subr_sbuf.c:            --skip-unicode-checks
-/slirp/bsd/sys/sbuf.h:                  --skip-unicode-checks
 
 # well...
 /lwipopts.h: --external-copyright

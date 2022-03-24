@@ -1,10 +1,10 @@
-/* $Id: memobj-r0drv-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: memobj-r0drv-darwin.cpp $ */
 /** @file
  * IPRT - Ring-0 Memory Objects, Darwin.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,7 +97,6 @@ typedef struct RTR0MEMOBJDARWINALLOCARGS
     uint64_t                MaxPhysAddr;
     RTR0MEMOBJTYPE          enmType;
     size_t                  uAlignment;
-    const char             *pszTag;
 } RTR0MEMOBJDARWINALLOCARGS;
 
 /**
@@ -555,13 +554,12 @@ static void rtR0MemObjDarwinSignalThreadWaitinOnTask(RTR0MEMOBJDARWINTHREADARGS 
  *                          UINT64_MAX if it doesn't matter.
  * @param   enmType         The object type.
  * @param   uAlignment      The allocation alignment (in bytes).
- * @param   pszTag          Allocation tag used for statistics and such.
  * @param   fOnKernelThread Set if we're already on the kernel thread.
  */
 static int rtR0MemObjNativeAllocWorker(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
                                        bool fExecutable, bool fContiguous,
                                        mach_vm_address_t PhysMask, uint64_t MaxPhysAddr,
-                                       RTR0MEMOBJTYPE enmType, size_t uAlignment, const char *pszTag, bool fOnKernelThread)
+                                       RTR0MEMOBJTYPE enmType, size_t uAlignment, bool fOnKernelThread)
 {
     int rc;
 
@@ -592,7 +590,6 @@ static int rtR0MemObjNativeAllocWorker(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
         Args.MaxPhysAddr    = MaxPhysAddr;
         Args.enmType        = enmType;
         Args.uAlignment     = uAlignment;
-        Args.pszTag         = pszTag;
         return rtR0MemObjDarwinDoInKernelTaskThread(rtR0MemObjNativeAllockWorkerOnKernelThread, &Args.Core);
     }
 
@@ -740,13 +737,9 @@ static int rtR0MemObjNativeAllocWorker(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
                 /*
                  * Create the IPRT memory object.
                  */
-                PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), enmType, pv, cb, pszTag);
+                PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), enmType, pv, cb);
                 if (pMemDarwin)
                 {
-                    if (fOptions & kIOMemoryKernelUserShared)
-                        pMemDarwin->Core.fFlags |= RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC;
-                    else
-                        pMemDarwin->Core.fFlags |= RTR0MEMOBJ_FLAGS_UNINITIALIZED_AT_ALLOC;
                     if (fContiguous)
                     {
 #ifdef __LP64__
@@ -827,18 +820,17 @@ static void rtR0MemObjNativeAllockWorkerOnKernelThread(void *pvUser0, void *pvUs
     AssertPtr(pvUser0); Assert(pvUser1 == NULL); NOREF(pvUser1);
     RTR0MEMOBJDARWINALLOCARGS volatile *pArgs = (RTR0MEMOBJDARWINALLOCARGS volatile *)pvUser0;
     int rc = rtR0MemObjNativeAllocWorker(pArgs->ppMem, pArgs->cb, pArgs->fExecutable, pArgs->fContiguous, pArgs->PhysMask,
-                                         pArgs->MaxPhysAddr, pArgs->enmType, pArgs->uAlignment, pArgs->pszTag,
-                                         true /*fOnKernelThread*/);
+                                         pArgs->MaxPhysAddr, pArgs->enmType, pArgs->uAlignment, true /*fOnKernelThread*/);
     rtR0MemObjDarwinSignalThreadWaitinOnTask(&pArgs->Core, rc);
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeAllocPage(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeAllocPage(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable)
 {
     IPRT_DARWIN_SAVE_EFL_AC();
 
     int rc = rtR0MemObjNativeAllocWorker(ppMem, cb, fExecutable, false /* fContiguous */, 0 /* PhysMask */, UINT64_MAX,
-                                         RTR0MEMOBJTYPE_PAGE, PAGE_SIZE, pszTag, false /*fOnKernelThread*/);
+                                         RTR0MEMOBJTYPE_PAGE, PAGE_SIZE, false /*fOnKernelThread*/);
 
     IPRT_DARWIN_RESTORE_EFL_AC();
     return rc;
@@ -852,7 +844,7 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocLarge(PPRTR0MEMOBJINTERNAL ppMem, size_t cb
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable)
 {
     IPRT_DARWIN_SAVE_EFL_AC();
 
@@ -864,23 +856,23 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocLow(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, 
      * (See bug comment in the worker and IOBufferMemoryDescriptor::initWithPhysicalMask.)
      */
     int rc = rtR0MemObjNativeAllocWorker(ppMem, cb, fExecutable, false /* fContiguous */, ~(uint32_t)PAGE_OFFSET_MASK,
-                                         _4G - PAGE_SIZE, RTR0MEMOBJTYPE_LOW, PAGE_SIZE, pszTag, false /*fOnKernelThread*/);
+                                         _4G - PAGE_SIZE, RTR0MEMOBJTYPE_LOW, PAGE_SIZE, false /*fOnKernelThread*/);
     if (rc == VERR_ADDRESS_TOO_BIG)
         rc = rtR0MemObjNativeAllocWorker(ppMem, cb, fExecutable, false /* fContiguous */, 0 /* PhysMask */,
-                                         _4G - PAGE_SIZE, RTR0MEMOBJTYPE_LOW, PAGE_SIZE, pszTag, false /*fOnKernelThread*/);
+                                         _4G - PAGE_SIZE, RTR0MEMOBJTYPE_LOW, PAGE_SIZE, false /*fOnKernelThread*/);
 
     IPRT_DARWIN_RESTORE_EFL_AC();
     return rc;
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, bool fExecutable)
 {
     IPRT_DARWIN_SAVE_EFL_AC();
 
     int rc = rtR0MemObjNativeAllocWorker(ppMem, cb, fExecutable, true /* fContiguous */,
                                          ~(uint32_t)PAGE_OFFSET_MASK, _4G - PAGE_SIZE,
-                                         RTR0MEMOBJTYPE_CONT, PAGE_SIZE, pszTag, false /*fOnKernelThread*/);
+                                         RTR0MEMOBJTYPE_CONT, PAGE_SIZE, false /*fOnKernelThread*/);
 
     /*
      * Workaround for bogus IOKernelAllocateContiguous behavior, just in case.
@@ -889,14 +881,13 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
     if (RT_FAILURE(rc) && cb <= PAGE_SIZE)
         rc = rtR0MemObjNativeAllocWorker(ppMem, cb + PAGE_SIZE, fExecutable, true /* fContiguous */,
                                          ~(uint32_t)PAGE_OFFSET_MASK, _4G - PAGE_SIZE,
-                                         RTR0MEMOBJTYPE_CONT, PAGE_SIZE, pszTag, false /*fOnKernelThread*/);
+                                         RTR0MEMOBJTYPE_CONT, PAGE_SIZE, false /*fOnKernelThread*/);
     IPRT_DARWIN_RESTORE_EFL_AC();
     return rc;
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, size_t uAlignment,
-                                          const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, size_t uAlignment)
 {
     if (uAlignment != PAGE_SIZE)
     {
@@ -914,7 +905,7 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
     if (PhysHighest == NIL_RTHCPHYS)
         rc = rtR0MemObjNativeAllocWorker(ppMem, cb, false /* fExecutable */, true /* fContiguous */,
                                          uAlignment <= PAGE_SIZE ? 0 : ~(mach_vm_address_t)(uAlignment - 1) /* PhysMask*/,
-                                         UINT64_MAX, RTR0MEMOBJTYPE_PHYS, uAlignment, pszTag, false /*fOnKernelThread*/);
+                                         UINT64_MAX, RTR0MEMOBJTYPE_PHYS, uAlignment, false /*fOnKernelThread*/);
     else
     {
         mach_vm_address_t PhysMask = 0;
@@ -925,8 +916,7 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
         PhysMask &= ~(mach_vm_address_t)(uAlignment - 1);
 
         rc = rtR0MemObjNativeAllocWorker(ppMem, cb, false /* fExecutable */, true /* fContiguous */,
-                                         PhysMask, PhysHighest,
-                                         RTR0MEMOBJTYPE_PHYS, uAlignment, pszTag, false /*fOnKernelThread*/);
+                                         PhysMask, PhysHighest, RTR0MEMOBJTYPE_PHYS, uAlignment, false /*fOnKernelThread*/);
     }
 
     IPRT_DARWIN_RESTORE_EFL_AC();
@@ -934,20 +924,19 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeAllocPhysNC(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeAllocPhysNC(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest)
 {
     /** @todo rtR0MemObjNativeAllocPhys / darwin.
      * This might be a bit problematic and may very well require having to create our own
      * object which we populate with pages but without mapping it into any address space.
      * Estimate is 2-3 days.
      */
-    RT_NOREF(ppMem, cb, PhysHighest, pszTag);
+    RT_NOREF(ppMem, cb, PhysHighest);
     return VERR_NOT_SUPPORTED;
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS Phys, size_t cb, uint32_t uCachePolicy,
-                                          const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS Phys, size_t cb, uint32_t uCachePolicy)
 {
     AssertReturn(uCachePolicy == RTMEM_CACHE_POLICY_DONT_CARE, VERR_NOT_SUPPORTED);
     IPRT_DARWIN_SAVE_EFL_AC();
@@ -974,8 +963,7 @@ DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS P
             /*
              * Create the IPRT memory object.
              */
-            PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_PHYS,
-                                                                            NULL, cb, pszTag);
+            PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_PHYS, NULL, cb);
             if (pMemDarwin)
             {
                 pMemDarwin->Core.u.Phys.PhysBase = Phys;
@@ -1011,10 +999,8 @@ DECLHIDDEN(int) rtR0MemObjNativeEnterPhys(PPRTR0MEMOBJINTERNAL ppMem, RTHCPHYS P
  * @param   fAccess         The desired access, a combination of RTMEM_PROT_READ
  *                          and RTMEM_PROT_WRITE.
  * @param   Task            The task \a pv and \a cb refers to.
- * @param   pszTag          Allocation tag used for statistics and such.
  */
-static int rtR0MemObjNativeLock(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess, task_t Task,
-                                const char *pszTag)
+static int rtR0MemObjNativeLock(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess, task_t Task)
 {
     IPRT_DARWIN_SAVE_EFL_AC();
     NOREF(fAccess);
@@ -1036,7 +1022,7 @@ static int rtR0MemObjNativeLock(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb,
         /*
          * Create the IPRT memory object.
          */
-        PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_LOCK, pv, cb, pszTag);
+        PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_LOCK, pv, cb);
         if (pMemDarwin)
         {
             pMemDarwin->Core.u.Lock.R0Process = (RTR0PROCESS)Task;
@@ -1066,8 +1052,7 @@ static int rtR0MemObjNativeLock(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb,
             /*
              * Create the IPRT memory object.
              */
-            PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_LOCK,
-                                                                            pv, cb, pszTag);
+            PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_LOCK, pv, cb);
             if (pMemDarwin)
             {
                 pMemDarwin->Core.u.Lock.R0Process = (RTR0PROCESS)Task;
@@ -1091,37 +1076,34 @@ static int rtR0MemObjNativeLock(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb,
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3Ptr, size_t cb, uint32_t fAccess,
-                                         RTR0PROCESS R0Process, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3Ptr, size_t cb, uint32_t fAccess, RTR0PROCESS R0Process)
 {
-    return rtR0MemObjNativeLock(ppMem, (void *)R3Ptr, cb, fAccess, (task_t)R0Process, pszTag);
+    return rtR0MemObjNativeLock(ppMem, (void *)R3Ptr, cb, fAccess, (task_t)R0Process);
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeLockKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeLockKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pv, size_t cb, uint32_t fAccess)
 {
-    return rtR0MemObjNativeLock(ppMem, pv, cb, fAccess, kernel_task, pszTag);
+    return rtR0MemObjNativeLock(ppMem, pv, cb, fAccess, kernel_task);
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeReserveKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pvFixed, size_t cb, size_t uAlignment,
-                                              const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeReserveKernel(PPRTR0MEMOBJINTERNAL ppMem, void *pvFixed, size_t cb, size_t uAlignment)
 {
-    RT_NOREF(ppMem, pvFixed, cb, uAlignment, pszTag);
+    RT_NOREF(ppMem, pvFixed, cb, uAlignment);
     return VERR_NOT_SUPPORTED;
 }
 
 
-DECLHIDDEN(int) rtR0MemObjNativeReserveUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3PtrFixed, size_t cb, size_t uAlignment,
-                                            RTR0PROCESS R0Process, const char *pszTag)
+DECLHIDDEN(int) rtR0MemObjNativeReserveUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3PtrFixed, size_t cb, size_t uAlignment, RTR0PROCESS R0Process)
 {
-    RT_NOREF(ppMem, R3PtrFixed, cb, uAlignment, R0Process, pszTag);
+    RT_NOREF(ppMem, R3PtrFixed, cb, uAlignment, R0Process);
     return VERR_NOT_SUPPORTED;
 }
 
 
 DECLHIDDEN(int) rtR0MemObjNativeMapKernel(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ pMemToMap, void *pvFixed, size_t uAlignment,
-                                          unsigned fProt, size_t offSub, size_t cbSub, const char *pszTag)
+                                          unsigned fProt, size_t offSub, size_t cbSub)
 {
     RT_NOREF(fProt);
     AssertReturn(pvFixed == (void *)-1, VERR_NOT_SUPPORTED);
@@ -1217,7 +1199,7 @@ DECLHIDDEN(int) rtR0MemObjNativeMapKernel(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ
                          * Create the IPRT memory object.
                          */
                         PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_MAPPING,
-                                                                                        pv, cbSub ? cbSub : pMemToMap->cb, pszTag);
+                                                                                        pv, cbSub ? cbSub : pMemToMap->cb);
                         if (pMemDarwin)
                         {
                             pMemDarwin->Core.u.Mapping.R0Process = NIL_RTR0PROCESS;
@@ -1255,7 +1237,7 @@ DECLHIDDEN(int) rtR0MemObjNativeMapKernel(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ
 
 
 DECLHIDDEN(int) rtR0MemObjNativeMapUser(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ pMemToMap, RTR3PTR R3PtrFixed, size_t uAlignment,
-                                        unsigned fProt, RTR0PROCESS R0Process, size_t offSub, size_t cbSub, const char *pszTag)
+                                        unsigned fProt, RTR0PROCESS R0Process, size_t offSub, size_t cbSub)
 {
     RT_NOREF(fProt);
 
@@ -1309,7 +1291,7 @@ DECLHIDDEN(int) rtR0MemObjNativeMapUser(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJ p
                  * Create the IPRT memory object.
                  */
                 PRTR0MEMOBJDARWIN pMemDarwin = (PRTR0MEMOBJDARWIN)rtR0MemObjNew(sizeof(*pMemDarwin), RTR0MEMOBJTYPE_MAPPING,
-                                                                                pv, cbSub ? cbSub : pMemToMap->cb, pszTag);
+                                                                                pv, cbSub ? cbSub : pMemToMap->cb);
                 if (pMemDarwin)
                 {
                     pMemDarwin->Core.u.Mapping.R0Process = R0Process;
@@ -1400,7 +1382,7 @@ static int rtR0MemObjNativeProtectWorker(PRTR0MEMOBJINTERNAL pMem, size_t offSub
         {
             s_cComplaints++;
             printf("rtR0MemObjNativeProtect: vm_protect(%p,%p,%p,false,%#x) -> %d\n",
-                   (void *)pVmMap, (void *)Start, (void *)cbSub, fMachProt, krc);
+                   pVmMap, (void *)Start, (void *)cbSub, fMachProt, krc);
 
             kern_return_t               krc2;
             vm_offset_t                 pvReal = Start;

@@ -1,10 +1,10 @@
-/* $Id: EMR3Nem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: EMR3Nem.cpp $ */
 /** @file
  * EM - Execution Monitor / Manager - NEM interface.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -250,14 +250,14 @@ static int emR3NemExecuteIOInstruction(PVM pVM, PVMCPU pVCpu)
     {
         rcStrict = IEMExecOne(pVCpu);
         LogFlow(("emR3NemExecuteIOInstruction: %Rrc (IEMExecOne)\n", VBOXSTRICTRC_VAL(rcStrict)));
-        STAM_COUNTER_INC(&pVCpu->em.s.StatIoIem);
+        STAM_COUNTER_INC(&pVCpu->em.s.CTX_SUFF(pStats)->StatIoIem);
     }
     else
     {
         RT_UNTRUSTED_VALIDATED_FENCE();
         rcStrict = EMHistoryExec(pVCpu, &pVCpu->em.s.aExitRecords[idxContinueExitRec], 0);
         LogFlow(("emR3NemExecuteIOInstruction: %Rrc (EMHistoryExec)\n", VBOXSTRICTRC_VAL(rcStrict)));
-        STAM_COUNTER_INC(&pVCpu->em.s.StatIoRestarted);
+        STAM_COUNTER_INC(&pVCpu->em.s.CTX_SUFF(pStats)->StatIoRestarted);
     }
 
     STAM_PROFILE_STOP(&pVCpu->em.s.StatIOEmu, a);

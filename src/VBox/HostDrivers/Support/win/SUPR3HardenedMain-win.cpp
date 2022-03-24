@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedMain-win.cpp 93270 2022-01-17 11:47:09Z vboxsync $ */
+/* $Id: SUPR3HardenedMain-win.cpp $ */
 /** @file
  * VirtualBox Support Library - Hardened main(), windows bits.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -337,7 +337,7 @@ static PVERIFIERCACHEIMPORT volatile g_pVerifierCacheTodoImports = NULL;
 /** The windows path to dir \\SystemRoot\\System32 directory (technically
  *  this whatever \\KnownDlls\\KnownDllPath points to). */
 SUPSYSROOTDIRBUF            g_System32WinPath;
-/** @} */
+/** @ */
 
 /** Positive if the DLL notification callback has been registered, counts
  * registration attempts as negative. */
@@ -412,9 +412,9 @@ static uint32_t             g_fSupAdversaries = 0;
 *********************************************************************************************************************************/
 static NTSTATUS supR3HardenedScreenImage(HANDLE hFile, bool fImage, bool fIgnoreArch, PULONG pfAccess, PULONG pfProtect,
                                          bool *pfCallRealApi, const char *pszCaller, bool fAvoidWinVerifyTrust,
-                                         bool *pfQuiet) RT_NOTHROW_PROTO;
+                                         bool *pfQuiet);
 static void     supR3HardenedWinRegisterDllNotificationCallback(void);
-static void     supR3HardenedWinReInstallHooks(bool fFirst) RT_NOTHROW_PROTO;
+static void     supR3HardenedWinReInstallHooks(bool fFirst);
 DECLASM(void)   supR3HardenedEarlyProcessInitThunk(void);
 DECLASM(void)   supR3HardenedMonitor_KiUserApcDispatcher(void);
 #ifndef VBOX_WITHOUT_HARDENDED_XCPT_LOGGING
@@ -484,39 +484,6 @@ static uint64_t supR3HardenedWinGetMilliTS(void)
     return (uint64_t)Time.QuadPart / 10000;
 }
 
-
-/**
- * Called when there is some /GS (or maybe /RTCsu) related stack problem.
- *
- * We don't want the CRT version living in gshandle.obj, as it uses a lot of
- * kernel32 imports, we want to report this error ourselves.
- */
-extern "C" __declspec(noreturn guard(nosspro) guard(nossepi))
-void __cdecl __report_rangecheckfailure(void)
-{
-    supR3HardenedFatal("__report_rangecheckfailure called from %p", ASMReturnAddress());
-}
-
-
-/**
- * Called when there is some /GS problem has been detected.
- *
- * We don't want the CRT version living in gshandle.obj, as it uses a lot of
- * kernel32 imports, we want to report this error ourselves.
- */
-extern "C" __declspec(noreturn guard(nosspro) guard(nossepi))
-#ifdef RT_ARCH_X86
-void __cdecl __report_gsfailure(void)
-#else
-void __report_gsfailure(uintptr_t uCookie)
-#endif
-{
-#ifdef RT_ARCH_X86
-    supR3HardenedFatal("__report_gsfailure called from %p", ASMReturnAddress());
-#else
-    supR3HardenedFatal("__report_gsfailure called from %p, cookie=%p", ASMReturnAddress(), uCookie);
-#endif
-}
 
 
 /**
@@ -588,7 +555,7 @@ DECLHIDDEN(void *) supR3HardenedWinLoadLibrary(const char *pszName, bool fSystem
  * @param   hFile           The file in question.
  * @param   pIndexNumber    where to return the index number.
  */
-static bool supR3HardenedWinVerifyCacheGetIndexNumber(HANDLE hFile, PLARGE_INTEGER pIndexNumber) RT_NOTHROW_DEF
+static bool supR3HardenedWinVerifyCacheGetIndexNumber(HANDLE hFile, PLARGE_INTEGER pIndexNumber)
 {
     IO_STATUS_BLOCK Ios = RTNT_IO_STATUS_BLOCK_INITIALIZER;
     NTSTATUS rcNt = NtQueryInformationFile(hFile, &Ios, pIndexNumber, sizeof(*pIndexNumber), FileInternalInformation);
@@ -608,7 +575,7 @@ static bool supR3HardenedWinVerifyCacheGetIndexNumber(HANDLE hFile, PLARGE_INTEG
  * @returns Hash value.
  * @param   pUniStr             String to hash.
  */
-static uint32_t supR3HardenedWinVerifyCacheHashPath(PCUNICODE_STRING pUniStr) RT_NOTHROW_DEF
+static uint32_t supR3HardenedWinVerifyCacheHashPath(PCUNICODE_STRING pUniStr)
 {
     uint32_t uHash   = 0;
     unsigned cwcLeft = pUniStr->Length / sizeof(WCHAR);
@@ -635,7 +602,7 @@ static uint32_t supR3HardenedWinVerifyCacheHashPath(PCUNICODE_STRING pUniStr) RT
  *                              not available.
  * @param   pszName             The import name (UTF-8).
  */
-static uint32_t supR3HardenedWinVerifyCacheHashDirAndFile(PCRTUTF16 pawcDir, uint32_t cwcDir, const char *pszName) RT_NOTHROW_DEF
+static uint32_t supR3HardenedWinVerifyCacheHashDirAndFile(PCRTUTF16 pawcDir, uint32_t cwcDir, const char *pszName)
 {
     uint32_t uHash = 0;
     while (cwcDir-- > 0)
@@ -667,7 +634,7 @@ static uint32_t supR3HardenedWinVerifyCacheHashDirAndFile(PCRTUTF16 pawcDir, uin
  * @param   pawcRight           The right hand string.
  * @param   cwcToCompare        The number of chars to compare.
  */
-static bool supR3HardenedWinVerifyCacheIsMatch(PCRTUTF16 pawcLeft, PCRTUTF16 pawcRight, uint32_t cwcToCompare) RT_NOTHROW_DEF
+static bool supR3HardenedWinVerifyCacheIsMatch(PCRTUTF16 pawcLeft, PCRTUTF16 pawcRight, uint32_t cwcToCompare)
 {
     /* Try a quick memory compare first. */
     if (memcmp(pawcLeft, pawcRight, cwcToCompare * sizeof(RTUTF16)) == 0)
@@ -703,7 +670,7 @@ static bool supR3HardenedWinVerifyCacheIsMatch(PCRTUTF16 pawcLeft, PCRTUTF16 paw
  * @param   fFlags              The image verification flags.
  */
 static void supR3HardenedWinVerifyCacheInsert(PCUNICODE_STRING pUniStr, HANDLE hFile, int rc,
-                                              bool fWinVerifyTrust, uint32_t fFlags) RT_NOTHROW_DEF
+                                              bool fWinVerifyTrust, uint32_t fFlags)
 {
     /*
      * Allocate and initalize a new entry.
@@ -766,7 +733,7 @@ static void supR3HardenedWinVerifyCacheInsert(PCUNICODE_STRING pUniStr, HANDLE h
  * @param   pUniStr             The full path of the image.
  * @param   hFile               The file handle.
  */
-static PVERIFIERCACHEENTRY supR3HardenedWinVerifyCacheLookup(PCUNICODE_STRING pUniStr, HANDLE hFile) RT_NOTHROW_DEF
+static PVERIFIERCACHEENTRY supR3HardenedWinVerifyCacheLookup(PCUNICODE_STRING pUniStr, HANDLE hFile)
 {
     PRTUTF16 const      pwszPath = pUniStr->Buffer;
     uint16_t const      cbPath   = pUniStr->Length;
@@ -1235,7 +1202,7 @@ static void supR3HardenedWinVerifyCacheProcessWvtTodos(void)
  * @returns NT status.
  * @param   rc                      VBox status code.
  */
-static NTSTATUS supR3HardenedScreenImageCalcStatus(int rc) RT_NOTHROW_DEF
+static NTSTATUS supR3HardenedScreenImageCalcStatus(int rc)
 {
     /* This seems to be what LdrLoadDll returns when loading a 32-bit DLL into
        a 64-bit process.  At least here on windows 10 (2015-11-xx).
@@ -1272,9 +1239,8 @@ static NTSTATUS supR3HardenedScreenImageCalcStatus(int rc) RT_NOTHROW_DEF
  *                                  this image in the log (i.e. we've seen it
  *                                  lots of times already).  Optional.
  */
-static NTSTATUS
-supR3HardenedScreenImage(HANDLE hFile, bool fImage, bool fIgnoreArch, PULONG pfAccess, PULONG pfProtect,
-                         bool *pfCallRealApi, const char *pszCaller, bool fAvoidWinVerifyTrust, bool *pfQuiet) RT_NOTHROW_DEF
+static NTSTATUS supR3HardenedScreenImage(HANDLE hFile, bool fImage, bool fIgnoreArch, PULONG pfAccess, PULONG pfProtect,
+                                         bool *pfCallRealApi, const char *pszCaller, bool fAvoidWinVerifyTrust, bool *pfQuiet)
 {
     *pfCallRealApi = false;
     if (pfQuiet)
@@ -1628,7 +1594,6 @@ DECLHIDDEN(void) supR3HardenedWinVerifyCachePreload(PCRTUTF16 pwszName)
  * @param   fAttribs            The section attributes.
  * @param   hFile               The file to create a section from (optional).
  */
-__declspec(guard(ignore)) /* don't barf when calling g_pfnNtCreateSectionReal */
 static NTSTATUS NTAPI
 supR3HardenedMonitor_NtCreateSection(PHANDLE phSection, ACCESS_MASK fAccess, POBJECT_ATTRIBUTES pObjAttribs,
                                      PLARGE_INTEGER pcbSection, ULONG fProtect, ULONG fAttribs, HANDLE hFile)
@@ -1947,7 +1912,6 @@ static bool supR3HardenedIsFilenameMatchDll(PUNICODE_STRING pPath, const char *p
  * @param   phMod               Where the handle of the loaded DLL is to be
  *                              returned to the caller.
  */
-__declspec(guard(ignore)) /* don't barf when calling g_pfnLdrLoadDllReal */
 static NTSTATUS NTAPI
 supR3HardenedMonitor_LdrLoadDll(PWSTR pwszSearchPath, PULONG pfFlags, PUNICODE_STRING pName, PHANDLE phMod)
 {
@@ -2393,8 +2357,7 @@ supR3HardenedMonitor_LdrLoadDll(PWSTR pwszSearchPath, PULONG pfFlags, PUNICODE_S
  * @remarks Vista and later.
  * @remarks The loader lock is held when we're called, at least on Windows 7.
  */
-static VOID CALLBACK
-supR3HardenedDllNotificationCallback(ULONG ulReason, PCLDR_DLL_NOTIFICATION_DATA pData, PVOID pvUser) RT_NOTHROW_DEF
+static VOID CALLBACK supR3HardenedDllNotificationCallback(ULONG ulReason, PCLDR_DLL_NOTIFICATION_DATA pData, PVOID pvUser)
 {
     NOREF(pvUser);
 
@@ -2618,7 +2581,6 @@ static void supR3HardNtDprintCtx(PCONTEXT pCtx, const char *pszLeadIn)
                  "  eip=%08RX32 esp=%08RX32 ebp=%08RX32 eflags=%08RX32\n"
                  "  cs=%04RX16 ds=%04RX16 es=%04RX16 fs=%04RX16 gs=%04RX16\n"
                  "  dr0=%08RX32 dr1=%08RX32 dr2=%08RX32 dr3=%08RX32 dr6=%08RX32 dr7=%08RX32\n",
-                 pszLeadIn,
                  pCtx->Eax, pCtx->Ebx, pCtx->Ecx, pCtx->Edx, pCtx->Esi, pCtx->Edi,
                  pCtx->Eip, pCtx->Esp, pCtx->Ebp, pCtx->EFlags,
                  pCtx->SegCs, pCtx->SegDs, pCtx->SegEs, pCtx->SegFs, pCtx->SegGs,
@@ -2626,7 +2588,7 @@ static void supR3HardNtDprintCtx(PCONTEXT pCtx, const char *pszLeadIn)
 #else
 # error "Unsupported arch."
 #endif
-    RT_NOREF(pCtx, pszLeadIn);
+
 }
 
 
@@ -2803,7 +2765,7 @@ DECLHIDDEN(void) supR3HardenedWinCreateParentWatcherThread(HMODULE hVBoxRT)
  *
  * @returns true if we're positive we're alone, false if not.
  */
-static bool supR3HardenedWinAmIAlone(void) RT_NOTHROW_DEF
+static bool supR3HardenedWinAmIAlone(void)
 {
     ULONG    fAmIAlone = 0;
     ULONG    cbIgn     = 0;
@@ -2824,7 +2786,7 @@ static bool supR3HardenedWinAmIAlone(void) RT_NOTHROW_DEF
  * @param   cbMem               The amount of memory to change.
  * @param   fNewProt            The new protection.
  */
-static NTSTATUS supR3HardenedWinProtectMemory(PVOID pvMem, SIZE_T cbMem, ULONG fNewProt) RT_NOTHROW_DEF
+static NTSTATUS supR3HardenedWinProtectMemory(PVOID pvMem, SIZE_T cbMem, ULONG fNewProt)
 {
     ULONG fOldProt = 0;
     return NtProtectVirtualMemory(NtCurrentProcess(), &pvMem, &cbMem, fNewProt, &fOldProt);
@@ -2834,7 +2796,7 @@ static NTSTATUS supR3HardenedWinProtectMemory(PVOID pvMem, SIZE_T cbMem, ULONG f
 /**
  * Installs or reinstalls the NTDLL patches.
  */
-static void supR3HardenedWinReInstallHooks(bool fFirstCall) RT_NOTHROW_DEF
+static void supR3HardenedWinReInstallHooks(bool fFirstCall)
 {
     struct
     {
@@ -4383,7 +4345,7 @@ static void supR3HardNtChildSetUpChildInit(PSUPR3HARDNTCHILD pThis)
            export for it.  Unfortunately, it is not yet loaded into the child, so we have to
            assume same location as in the parent (safe): */
         PSUPHNTLDRCACHEENTRY pLdrEntryKernel32;
-        rc = supHardNtLdrCacheOpen("kernel32.dll", &pLdrEntryKernel32, NULL /*pErrInfo*/);
+        int rc = supHardNtLdrCacheOpen("kernel32.dll", &pLdrEntryKernel32, NULL /*pErrInfo*/);
         if (RT_FAILURE(rc))
             supR3HardenedWinKillChild(pThis, "supR3HardenedWinSetupChildInit", rc,
                                       "supHardNtLdrCacheOpen failed on KERNEL32: %Rrc\n", rc);
@@ -4579,12 +4541,12 @@ static void supR3HardNtChildFindNtdll(PSUPR3HARDNTCHILD pThis)
                     UNICODE_STRING UniStr;
                     uint8_t abPadding[4096];
                 } uBuf;
-                rcNt = NtQueryVirtualMemory(pThis->hProcess,
-                                            MemInfo.BaseAddress,
-                                            MemorySectionName,
-                                            &uBuf,
-                                            sizeof(uBuf) - sizeof(WCHAR),
-                                            &cbActual);
+                NTSTATUS rcNt = NtQueryVirtualMemory(pThis->hProcess,
+                                                     MemInfo.BaseAddress,
+                                                     MemorySectionName,
+                                                     &uBuf,
+                                                     sizeof(uBuf) - sizeof(WCHAR),
+                                                     &cbActual);
                 if (NT_SUCCESS(rcNt))
                 {
                     uBuf.UniStr.Buffer[uBuf.UniStr.Length / sizeof(WCHAR)] = '\0';
@@ -6055,7 +6017,7 @@ static void supR3HardenedLogFileInfo(PCRTUTF16 pwszFile, PRTUTF16 pwszFileVersio
         /*
          * Print basic file information available via NtQueryInformationFile.
          */
-        RTNT_IO_STATUS_BLOCK_REINIT(&Ios);
+        IO_STATUS_BLOCK Ios = RTNT_IO_STATUS_BLOCK_INITIALIZER;
         rcNt = NtQueryInformationFile(hFile, &Ios, &u.BasicInfo, sizeof(u.BasicInfo), FileBasicInformation);
         if (NT_SUCCESS(rcNt) && NT_SUCCESS(Ios.Status))
         {
@@ -6068,7 +6030,6 @@ static void supR3HardenedLogFileInfo(PCRTUTF16 pwszFile, PRTUTF16 pwszFileVersio
         else
             SUP_DPRINTF(("    FileBasicInformation -> %#x %#x\n", rcNt, Ios.Status));
 
-        RTNT_IO_STATUS_BLOCK_REINIT(&Ios);
         rcNt = NtQueryInformationFile(hFile, &Ios, &u.StdInfo, sizeof(u.StdInfo), FileStandardInformation);
         if (NT_SUCCESS(rcNt) && NT_SUCCESS(Ios.Status))
             SUP_DPRINTF(("    Size:            %#llx\n", u.StdInfo.EndOfFile.QuadPart));
@@ -6079,7 +6040,6 @@ static void supR3HardenedLogFileInfo(PCRTUTF16 pwszFile, PRTUTF16 pwszFileVersio
          * Read the image header and extract the timestamp and other useful info.
          */
         RT_ZERO(u);
-        RTNT_IO_STATUS_BLOCK_REINIT(&Ios);
         LARGE_INTEGER offRead;
         offRead.QuadPart = 0;
         rcNt = NtReadFile(hFile, NULL /*hEvent*/, NULL /*ApcRoutine*/, NULL /*ApcContext*/, &Ios,
@@ -6141,7 +6101,6 @@ static void supR3HardenedLogFileInfo(PCRTUTF16 pwszFile, PRTUTF16 pwszFileVersio
                         }
                         if (offRead.QuadPart > 0)
                         {
-                            RTNT_IO_STATUS_BLOCK_REINIT(&Ios);
                             RT_ZERO(u);
                             rcNt = NtReadFile(hFile, NULL /*hEvent*/, NULL /*ApcRoutine*/, NULL /*ApcContext*/, &Ios,
                                               &u, (ULONG)sizeof(u), &offRead, NULL);

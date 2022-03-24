@@ -1,10 +1,10 @@
-/* $Id: UIFileManagerDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIFileManagerDialog.cpp $ */
 /** @file
  * VBox Qt GUI - UIFileManagerDialog class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,31 +30,23 @@
 # include "VBoxUtils-darwin.h"
 #endif
 
-/* COM includes: */
-#include "COMEnums.h"
-#include "CMachine.h"
 
 /*********************************************************************************************************************************
 *   Class UIFileManagerDialogFactory implementation.                                                                 *
 *********************************************************************************************************************************/
 
-UIFileManagerDialogFactory::UIFileManagerDialogFactory(UIActionPool *pActionPool, const QUuid &uMachineId, const QString &strMachineName)
+UIFileManagerDialogFactory::UIFileManagerDialogFactory(UIActionPool *pActionPool /* = 0 */,
+                                                         const CGuest &comGuest /* = CGuest() */,
+                                                         const QString &strMachineName /* = QString() */)
     : m_pActionPool(pActionPool)
-    , m_uMachineId(uMachineId)
+    , m_comGuest(comGuest)
     , m_strMachineName(strMachineName)
-{
-}
-
-
-UIFileManagerDialogFactory::UIFileManagerDialogFactory()
-    : m_pActionPool(0)
-    , m_uMachineId(QUuid())
 {
 }
 
 void UIFileManagerDialogFactory::create(QIManagerDialog *&pDialog, QWidget *pCenterWidget)
 {
-    pDialog = new UIFileManagerDialog(pCenterWidget, m_pActionPool, m_uMachineId, m_strMachineName);
+    pDialog = new UIFileManagerDialog(pCenterWidget, m_pActionPool, m_comGuest, m_strMachineName);
 }
 
 
@@ -63,26 +55,20 @@ void UIFileManagerDialogFactory::create(QIManagerDialog *&pDialog, QWidget *pCen
 *********************************************************************************************************************************/
 
 UIFileManagerDialog::UIFileManagerDialog(QWidget *pCenterWidget,
-                                         UIActionPool *pActionPool,
-                                         const QUuid &uMachineId,
-                                         const QString &strMachineName)
+                                           UIActionPool *pActionPool,
+                                           const CGuest &comGuest,
+                                           const QString &strMachineName /* = QString() */)
     : QIWithRetranslateUI<QIManagerDialog>(pCenterWidget)
     , m_pActionPool(pActionPool)
-    , m_uMachineId(uMachineId)
+    , m_comGuest(comGuest)
     , m_strMachineName(strMachineName)
-{
-}
-
-UIFileManagerDialog::~UIFileManagerDialog()
 {
 }
 
 void UIFileManagerDialog::retranslateUi()
 {
-    if (!m_strMachineName.isEmpty())
-        setWindowTitle(UIFileManager::tr("%1 - File Manager").arg(m_strMachineName));
-    else
-        setWindowTitle(UIFileManager::tr("File Manager"));
+    /* Translate window title: */
+    setWindowTitle(UIFileManager::tr("%1 - File Manager").arg(m_strMachineName));
 
     /* Retranslate button box buttons: */
     if (button(ButtonType_Close))
@@ -91,14 +77,6 @@ void UIFileManagerDialog::retranslateUi()
         button(ButtonType_Close)->setStatusTip(UIFileManager::tr("Close dialog without saving"));
         button(ButtonType_Close)->setShortcut(Qt::Key_Escape);
         button(ButtonType_Close)->setToolTip(UIFileManager::tr("Reset Changes (%1)").arg(button(ButtonType_Close)->shortcut().toString()));
-    }
-
-    if (button(ButtonType_Help))
-    {
-        button(ButtonType_Help)->setText(UIFileManager::tr("Help"));
-        button(ButtonType_Help)->setStatusTip(UIFileManager::tr("Show dialog help"));
-        button(ButtonType_Help)->setShortcut(QKeySequence::HelpContents);
-        button(ButtonType_Help)->setToolTip(UIFileManager::tr("Show Help (%1)").arg(button(ButtonType_Help)->shortcut().toString()));
     }
 }
 
@@ -110,13 +88,9 @@ void UIFileManagerDialog::configure()
 
 void UIFileManagerDialog::configureCentralWidget()
 {
-    CMachine comMachine;
-    CVirtualBox vbox = uiCommon().virtualBox();
-    if (!vbox.isNull() && !m_uMachineId.isNull())
-        comMachine = vbox.FindMachine(m_uMachineId.toString());
     /* Create widget: */
     UIFileManager *pWidget = new UIFileManager(EmbedTo_Dialog, m_pActionPool,
-                                               comMachine, this, true);
+                                                                       m_comGuest, this);
 
     if (pWidget)
     {
@@ -150,7 +124,7 @@ void UIFileManagerDialog::loadSettings()
     restoreGeometry(geo);
 }
 
-void UIFileManagerDialog::saveSettings()
+void UIFileManagerDialog::saveSettings() const
 {
     /* Save geometry to extradata: */
     const QRect geo = currentGeometry();
@@ -166,7 +140,7 @@ bool UIFileManagerDialog::shouldBeMaximized() const
 
 void UIFileManagerDialog::sltSetCloseButtonShortCut(QKeySequence shortcut)
 {
-    if (!closeEmitted() &&  button(ButtonType_Close))
+    if (button(ButtonType_Close))
         button(ButtonType_Close)->setShortcut(shortcut);
 }
 

@@ -1,11 +1,11 @@
-/* $Id: AMD_Athlon_64_3200.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: AMD_Athlon_64_3200.h $ */
 /** @file
  * CPU database entry "AMD Athlon 64 3200+".
  * Generated at 2013-07-12T02:09:05Z by VBoxCpuReport v4.3.53r91376 on win.x86.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

@@ -1,10 +1,10 @@
-/* $Id: VMMAll.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VMMAll.cpp $ */
 /** @file
  * VMM All Contexts.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -186,8 +186,40 @@ VMMDECL(VMCPUID) VMMGetCpuId(PVMCC pVM)
     return VMR3GetVMCPUId(pVM);
 
 #elif defined(IN_RING0)
-    PVMCPUCC pVCpu = GVMMR0GetGVCpuByGVMandEMT(pVM, NIL_RTNATIVETHREAD);
-    return pVCpu ? pVCpu->idCpu : NIL_VMCPUID;
+    if (pVM->cCpus == 1)
+        return 0;
+    VMCPUID const cCpus = pVM->cCpus;
+
+    /* Search first by host cpu id (most common case)
+     * and then by native thread id (page fusion case).
+     */
+    if (!RTThreadPreemptIsEnabled(NIL_RTTHREAD))
+    {
+        /** @todo r=ramshankar: This doesn't buy us anything in terms of performance
+         *        leaving it here for hysterical raisins and as a reference if we
+         *        implemented a hashing approach in the future. */
+        RTCPUID idHostCpu = RTMpCpuId();
+
+        /** @todo optimize for large number of VCPUs when that becomes more common. */
+        for (VMCPUID idCpu = 0; idCpu < cCpus; idCpu++)
+        {
+            PVMCPUCC pVCpu = VMCC_GET_CPU(pVM, idCpu);
+            if (pVCpu->idHostCpu == idHostCpu)
+                return pVCpu->idCpu;
+        }
+    }
+
+    /* RTThreadGetNativeSelf had better be cheap. */
+    RTNATIVETHREAD hThread = RTThreadNativeSelf();
+
+    /** @todo optimize for large number of VCPUs when that becomes more common. */
+    for (VMCPUID idCpu = 0; idCpu < cCpus; idCpu++)
+    {
+        PVMCPUCC pVCpu = VMCC_GET_CPU(pVM, idCpu);
+        if (pVCpu->hNativeThreadR0 == hThread)
+            return pVCpu->idCpu;
+    }
+    return NIL_VMCPUID;
 
 #else /* RC: Always EMT(0) */
     NOREF(pVM);
@@ -214,7 +246,42 @@ VMMDECL(PVMCPUCC) VMMGetCpu(PVMCC pVM)
     return VMCC_GET_CPU(pVM, idCpu);
 
 #elif defined(IN_RING0)
-    return GVMMR0GetGVCpuByGVMandEMT(pVM, NIL_RTNATIVETHREAD);
+    VMCPUID const cCpus = pVM->cCpus;
+    if (pVM->cCpus == 1)
+        return VMCC_GET_CPU_0(pVM);
+
+    /*
+     * Search first by host cpu id (most common case)
+     * and then by native thread id (page fusion case).
+     */
+    if (!RTThreadPreemptIsEnabled(NIL_RTTHREAD))
+    {
+        /** @todo r=ramshankar: This doesn't buy us anything in terms of performance
+         *        leaving it here for hysterical raisins and as a reference if we
+         *        implemented a hashing approach in the future. */
+        RTCPUID idHostCpu = RTMpCpuId();
+
+        /** @todo optimize for large number of VCPUs when that becomes more common. */
+        for (VMCPUID idCpu = 0; idCpu < cCpus; idCpu++)
+        {
+            PVMCPUCC pVCpu = VMCC_GET_CPU(pVM, idCpu);
+            if (pVCpu->idHostCpu == idHostCpu)
+                return pVCpu;
+        }
+    }
+
+    /* RTThreadGetNativeSelf had better be cheap. */
+    RTNATIVETHREAD hThread = RTThreadNativeSelf();
+
+    /** @todo optimize for large number of VCPUs when that becomes more common.
+     * Use a map like GIP does that's indexed by the host CPU index.  */
+    for (VMCPUID idCpu = 0; idCpu < cCpus; idCpu++)
+    {
+        PVMCPUCC pVCpu = VMCC_GET_CPU(pVM, idCpu);
+        if (pVCpu->hNativeThreadR0 == hThread)
+            return pVCpu;
+    }
+    return NULL;
 
 #else /* RC: Always EMT(0) */
     RT_NOREF(pVM);
@@ -264,6 +331,23 @@ VMMDECL(PVMCPUCC) VMMGetCpuById(PVMCC pVM, RTCPUID idCpu)
 VMM_INT_DECL(uint32_t) VMMGetSvnRev(void)
 {
     return VBOX_SVN_REV;
+}
+
+
+/**
+ * Checks whether we're in a ring-3 call or not.
+ *
+ * @returns true / false.
+ * @param   pVCpu   The cross context virtual CPU structure of the calling EMT.
+ * @thread  EMT
+ */
+VMM_INT_DECL(bool) VMMIsInRing3Call(PVMCPU pVCpu)
+{
+#ifdef RT_ARCH_X86
+    return pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call;
+#else
+    return pVCpu->vmm.s.CallRing3JmpBufR0.fInRing3Call;
+#endif
 }
 
 

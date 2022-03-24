@@ -1,10 +1,10 @@
-/* $Id: tstRTMemCache.cpp 93301 2022-01-18 11:24:43Z vboxsync $ */
+/* $Id: tstRTMemCache.cpp $ */
 /** @file
  * IPRT Testcase - RTMemCache.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -308,7 +308,7 @@ static void tst3(uint32_t cThreads, uint32_t cbObject, int iMethod, uint32_t cSe
         cIterations += aThreads[i].cIterations;
 
     RTTestIPrintf(RTTESTLVL_ALWAYS, "%'8u iterations per second, %'llu ns on avg\n",
-                  (unsigned)((long double)cIterations * 1000000000.0 / (long double)cElapsedNS),
+                  (unsigned)((long double)cIterations * 1000000000.0 / cElapsedNS),
                   cElapsedNS / cIterations);
 
     /* clean up */

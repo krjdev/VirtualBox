@@ -1,10 +1,10 @@
-/* $Id: x509-core.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: x509-core.cpp $ */
 /** @file
  * IPRT - Crypto - X.509, Core APIs.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,15 +82,6 @@ RTDECL(RTDIGESTTYPE) RTCrX509AlgorithmIdentifier_QueryDigestType(PCRTCRX509ALGOR
         return RTDIGESTTYPE_SHA512T224;
     if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256))
         return RTDIGESTTYPE_SHA512T256;
-
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224))
-        return RTDIGESTTYPE_SHA3_224;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256))
-        return RTDIGESTTYPE_SHA3_256;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384))
-        return RTDIGESTTYPE_SHA3_384;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512))
-        return RTDIGESTTYPE_SHA3_512;
     return RTDIGESTTYPE_INVALID;
 }
 
@@ -122,14 +113,6 @@ RTDECL(uint32_t) RTCrX509AlgorithmIdentifier_QueryDigestSize(PCRTCRX509ALGORITHM
         return 224 / 8;
     if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256))
         return 256 / 8;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224))
-        return 224 / 8;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256))
-        return 256 / 8;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384))
-        return 384 / 8;
-    if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512))
-        return 512 / 8;
     if (!strcmp(pThis->Algorithm.szObjId, RTCRX509ALGORITHMIDENTIFIERID_WHIRLPOOL))
         return 512 / 8;
 
@@ -188,36 +171,6 @@ RTDECL(int) RTCrX509AlgorithmIdentifier_CompareDigestOidAndEncryptedDigestOid(co
         if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA224_WITH_RSA))
             return 0;
     }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T224))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T224_WITH_RSA))
-            return 0;
-    }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256_WITH_RSA))
-            return 0;
-    }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224_WITH_RSA))
-            return 0;
-    }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256_WITH_RSA))
-            return 0;
-    }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384_WITH_RSA))
-            return 0;
-    }
-    else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512))
-    {
-        if (!strcmp(pszEncryptedDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512_WITH_RSA))
-            return 0;
-    }
     else if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_WHIRLPOOL))
     {
         /* ?? */
@@ -265,24 +218,6 @@ RTDECL(const char *) RTCrX509AlgorithmIdentifier_CombineEncryptionOidAndDigestOi
         if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA224)
             || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA224_WITH_RSA))
             return RTCRX509ALGORITHMIDENTIFIERID_SHA224_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T224)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T224_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA512T224_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA512T256_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA512T256_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_224_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA3_224_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_256_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA3_256_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_384_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA3_384_WITH_RSA;
-        if (   !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512)
-            || !strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_SHA3_512_WITH_RSA))
-            return RTCRX509ALGORITHMIDENTIFIERID_SHA3_512_WITH_RSA;
 
         /* if (!strcmp(pszDigestOid, RTCRX509ALGORITHMIDENTIFIERID_WHIRLPOOL))
             return ???; */
@@ -495,7 +430,7 @@ static const char *rtCrX509CanNameStripLeft(const char *psz, size_t *pcch)
         else if (!rtCrX509CanNameIsSpace(uc) && !rtCrX509CanNameIsNothing(uc))
             break;
     }
-    *pcch -= (size_t)(pszPrev - pszStart);
+    *pcch -= pszPrev - pszStart;
     return pszPrev;
 }
 
@@ -531,7 +466,7 @@ static RTUNICP rtCrX509CanNameGetNextCpWithMappingSlowSpace(const char **ppsz, s
     }
 
     *ppsz  = pszPrev;
-    *pcch -= (size_t)(pszPrev - pszStart);
+    *pcch -= pszPrev - pszStart;
     return uc;
 }
 
@@ -541,7 +476,7 @@ DECLINLINE(RTUNICP) rtCrX509CanNameGetNextCpIgnoreNul(const char **ppsz, size_t 
     while (*pcch > 0)
     {
         const char *psz = *ppsz;
-        RTUNICP     uc = (RTUNICP)*psz;
+        RTUNICP uc = *psz;
         if (uc < 0x80)
         {
             *pcch -= 1;
@@ -551,7 +486,7 @@ DECLINLINE(RTUNICP) rtCrX509CanNameGetNextCpIgnoreNul(const char **ppsz, size_t 
         {
             int rc = RTStrGetCpEx(ppsz, &uc);
             AssertRCReturn(rc, uc);
-            size_t cchCp = (size_t)(*ppsz - psz);
+            size_t cchCp = *ppsz - psz;
             AssertReturn(cchCp <= *pcch, 0);
             *pcch -= cchCp;
         }
@@ -765,7 +700,6 @@ static struct
     const char *pszLongNm;
 } const g_aRdnMap[] =
 {
-    {   "0.9.2342.19200300.100.1.1",  RT_STR_TUPLE("uid"),                  "userid" },
     {   "0.9.2342.19200300.100.1.3",  RT_STR_TUPLE("Mail"),                 "Rfc822Mailbox" },
     {   "0.9.2342.19200300.100.1.25", RT_STR_TUPLE("DC"),                   "DomainComponent" },
     {   "1.2.840.113549.1.9.1",       RT_STR_TUPLE("Email") /*nonstandard*/,"EmailAddress" },
@@ -1134,7 +1068,7 @@ static bool rtCrX509GeneralName_ExtractHostName(const char *pszUri,  const char 
         const char *pszEnd = strchr(pszStart, '/');
         if (!pszEnd)
             pszEnd = strchr(pszStart, '\0');
-        if (memchr(pszStart, ':', (size_t)(pszEnd - pszStart)))
+        if (memchr(pszStart, ':', pszEnd - pszStart))
             do
                 pszEnd--;
             while (*pszEnd != ':');
@@ -1143,7 +1077,7 @@ static bool rtCrX509GeneralName_ExtractHostName(const char *pszUri,  const char 
             /*
              * Drop access credentials at the front of the string if present.
              */
-            const char *pszAt = (const char *)memchr(pszStart, '@', (size_t)(pszEnd - pszStart));
+            const char *pszAt = (const char *)memchr(pszStart, '@', pszEnd - pszStart);
             if (pszAt)
                 pszStart = pszAt + 1;
 
@@ -1152,7 +1086,7 @@ static bool rtCrX509GeneralName_ExtractHostName(const char *pszUri,  const char 
              */
             if (pszEnd != pszStart)
             {
-                *pcchHostName = (size_t)(pszEnd - pszStart);
+                *pcchHostName = pszEnd - pszStart;
                 *pchHostName  = pszStart;
                 return true;
             }

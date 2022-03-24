@@ -1,4 +1,4 @@
-/* $Id: lx.h 81369 2019-10-18 21:13:03Z vboxsync $ */
+/* $Id: lx.h $ */
 /** @file
  * LX structures, types and defines.
  */

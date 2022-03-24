@@ -1,10 +1,10 @@
-/* $Id: QIProcess.cpp 94018 2022-03-01 09:47:30Z vboxsync $ */
+/* $Id: QIProcess.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIProcess class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,8 +53,8 @@ QByteArray QIProcess::singleShot(const QString &strProcessName, int iTimeout /* 
     process.setProcessState(QProcess::NotRunning);
 #ifdef VBOX_WS_X11
     int iStatus;
-    if (process.processId() > 0)
-        waitpid(process.processId(), &iStatus, 0);
+    if (process.pid() > 0)
+        waitpid(process.pid(), &iStatus, 0);
 #endif /* VBOX_WS_X11 */
     return result;
 }

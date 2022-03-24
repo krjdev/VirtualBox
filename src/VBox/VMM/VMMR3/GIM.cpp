@@ -1,10 +1,10 @@
-/* $Id: GIM.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: GIM.cpp $ */
 /** @file
  * GIM - Guest Interface Manager.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -598,7 +598,7 @@ VMMR3_INT_DECL(int) GIMR3Mmio2Map(PVM pVM, PGIMMMIO2REGION pRegion, RTGCPHYS GCP
     AssertPtr(pDevIns);
 
     /* The guest-physical address must be page-aligned. */
-    if (GCPhysRegion & GUEST_PAGE_OFFSET_MASK)
+    if (GCPhysRegion & PAGE_OFFSET_MASK)
     {
         LogFunc(("%s: %#RGp not paging aligned\n", pRegion->szDescription, GCPhysRegion));
         return VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS;

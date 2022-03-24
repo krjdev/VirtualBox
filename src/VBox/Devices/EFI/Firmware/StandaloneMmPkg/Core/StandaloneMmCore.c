@@ -2,7 +2,7 @@
   MM Core Main Entry Point
 
   Copyright (c) 2009 - 2014, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) 2016 - 2021, Arm Limited. All rights reserved.<BR>
+  Copyright (c) 2016 - 2018, ARM Limited. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -149,10 +149,9 @@ MmExitBootServiceHandler (
   )
 {
   EFI_HANDLE  MmHandle;
-  EFI_STATUS  Status;
+  EFI_STATUS  Status = EFI_SUCCESS;
   STATIC BOOLEAN mInExitBootServices = FALSE;
 
-  Status = EFI_SUCCESS;
   if (!mInExitBootServices) {
     MmHandle = NULL;
     Status = MmInstallProtocolInterface (
@@ -188,10 +187,9 @@ MmReadyToBootHandler (
   )
 {
   EFI_HANDLE  MmHandle;
-  EFI_STATUS  Status;
+  EFI_STATUS  Status = EFI_SUCCESS;
   STATIC BOOLEAN mInReadyToBoot = FALSE;
 
-  Status = EFI_SUCCESS;
   if (!mInReadyToBoot) {
     MmHandle = NULL;
     Status = MmInstallProtocolInterface (
@@ -356,7 +354,7 @@ MmEntryPoint (
   //PlatformHookBeforeMmDispatch ();
 
   //
-  // If a legacy boot has occurred, then make sure gMmCorePrivate is not accessed
+  // If a legacy boot has occured, then make sure gMmCorePrivate is not accessed
   //
 
   //
@@ -414,15 +412,6 @@ MmEntryPoint (
   DEBUG ((DEBUG_INFO, "MmEntryPoint Done\n"));
 }
 
-/** Register the MM Entry Point provided by the MM Core with the
-    MM Configuration protocol.
-
-  @param [in]  Protocol   Pointer to the protocol.
-  @param [in]  Interface  Pointer to the MM Configuration protocol.
-  @param [in]  Handle     Handle.
-
-  @retval EFI_SUCCESS             Success.
-**/
 EFI_STATUS
 EFIAPI
 MmConfigurationMmNotify (
@@ -457,12 +446,6 @@ MmConfigurationMmNotify (
   return EFI_SUCCESS;
 }
 
-/** Returns the HOB list size.
-
-  @param [in]  HobStart   Pointer to the start of the HOB list.
-
-  @retval Size of the HOB list.
-**/
 UINTN
 GetHobListSize (
   IN VOID *HobStart
@@ -490,10 +473,12 @@ GetHobListSize (
 
   Note: This function is called for both DXE invocation and MMRAM invocation.
 
-  @param  HobStart       Pointer to the start of the HOB list.
+  @param  ImageHandle    The firmware allocated handle for the EFI image.
+  @param  SystemTable    A pointer to the EFI System Table.
 
-  @retval EFI_SUCCESS             Success.
-  @retval EFI_UNSUPPORTED         Unsupported operation.
+  @retval EFI_SUCCESS    The entry point is executed successfully.
+  @retval Other          Some error occurred when executing this entry point.
+
 **/
 EFI_STATUS
 EFIAPI
@@ -511,7 +496,7 @@ StandaloneMmMain (
   EFI_HOB_GUID_TYPE               *MmramRangesHob;
   EFI_MMRAM_HOB_DESCRIPTOR_BLOCK  *MmramRangesHobData;
   EFI_MMRAM_DESCRIPTOR            *MmramRanges;
-  UINTN                           MmramRangeCount;
+  UINT32                          MmramRangeCount;
   EFI_HOB_FIRMWARE_VOLUME         *BfvHob;
 
   ProcessLibraryConstructorList (HobStart, &gMmCoreMmst);
@@ -546,7 +531,7 @@ StandaloneMmMain (
     MmramRangesHobData = GET_GUID_HOB_DATA (MmramRangesHob);
     ASSERT (MmramRangesHobData != NULL);
     MmramRanges = MmramRangesHobData->Descriptor;
-    MmramRangeCount = (UINTN)MmramRangesHobData->NumberOfMmReservedRegions;
+    MmramRangeCount = MmramRangesHobData->NumberOfMmReservedRegions;
     ASSERT (MmramRanges);
     ASSERT (MmramRangeCount);
 
@@ -554,7 +539,7 @@ StandaloneMmMain (
     // Copy the MMRAM ranges into MM_CORE_PRIVATE_DATA table just in case any
     // code relies on them being present there
     //
-    gMmCorePrivate->MmramRangeCount = (UINT64)MmramRangeCount;
+    gMmCorePrivate->MmramRangeCount = MmramRangeCount;
     gMmCorePrivate->MmramRanges =
       (EFI_PHYSICAL_ADDRESS)(UINTN)AllocatePool (MmramRangeCount * sizeof (EFI_MMRAM_DESCRIPTOR));
     ASSERT (gMmCorePrivate->MmramRanges != 0);
@@ -567,7 +552,7 @@ StandaloneMmMain (
     DataInHob       = GET_GUID_HOB_DATA (GuidHob);
     gMmCorePrivate = (MM_CORE_PRIVATE_DATA *)(UINTN)DataInHob->Address;
     MmramRanges     = (EFI_MMRAM_DESCRIPTOR *)(UINTN)gMmCorePrivate->MmramRanges;
-    MmramRangeCount = (UINTN)gMmCorePrivate->MmramRangeCount;
+    MmramRangeCount = gMmCorePrivate->MmramRangeCount;
   }
 
   //
@@ -605,9 +590,9 @@ StandaloneMmMain (
 
   //
   // No need to initialize memory service.
-  // It is done in the constructor of StandaloneMmCoreMemoryAllocationLib(),
-  // so that the library linked with StandaloneMmCore can use AllocatePool() in
-  // the constructor.
+  // It is done in constructor of StandaloneMmCoreMemoryAllocationLib(),
+  // so that the library linked with StandaloneMmCore can use AllocatePool() in constuctor.
+  //
 
   DEBUG ((DEBUG_INFO, "MmInstallConfigurationTable For HobList\n"));
   //

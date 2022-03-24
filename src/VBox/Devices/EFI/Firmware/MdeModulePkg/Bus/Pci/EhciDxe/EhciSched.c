@@ -3,7 +3,6 @@
   EHCI transfer scheduling routines.
 
 Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-Copyright (c) Microsoft Corporation.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -578,7 +577,7 @@ EhcCheckUrbResult (
     goto ON_EXIT;
   }
 
-  BASE_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
+  EFI_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
     Qtd   = EFI_LIST_CONTAINER (Entry, EHC_QTD, QtdList);
     QtdHw = &Qtd->QtdHw;
     State = (UINT8) QtdHw->Status;
@@ -758,7 +757,7 @@ EhciDelAsyncIntTransfer (
   Direction = (((EpNum & 0x80) != 0) ? EfiUsbDataIn : EfiUsbDataOut);
   EpNum    &= 0x0F;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
 
     if ((Urb->Ep.DevAddr == DevAddr) && (Urb->Ep.EpAddr == EpNum) &&
@@ -798,7 +797,7 @@ EhciDelAllAsyncIntTransfers (
   LIST_ENTRY              *Next;
   URB                     *Urb;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
 
     EhcUnlinkQhFromPeriod (Ehc, Urb->Qh);
@@ -966,7 +965,7 @@ EhcUpdateAsyncRequest (
   if (Urb->Result == EFI_USB_NOERROR) {
     FirstQtd = NULL;
 
-    BASE_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
+    EFI_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
       Qtd = EFI_LIST_CONTAINER (Entry, EHC_QTD, QtdList);
 
       if (FirstQtd == NULL) {
@@ -1050,7 +1049,7 @@ EhcMonitorAsyncRequests (
   OldTpl  = gBS->RaiseTPL (EHC_TPL);
   Ehc     = (USB2_HC_DEV *) Context;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Ehc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
 
     //

@@ -1,10 +1,10 @@
-/* $Id: VBoxDbgGui.h 93468 2022-01-27 21:17:12Z vboxsync $ */
+/* $Id: VBoxDbgGui.h $ */
 /** @file
  * VBox Debugger GUI - The Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +25,6 @@
 #ifdef VBOX_WITH_XPCOM
 # include <VirtualBox_XPCOM.h>
 #else
-# include <iprt/win/windows.h> /* Include via cleanup wrapper before VirtualBox.h includes it via rpc.h. */
 # include <VirtualBox.h>
 #endif
 
@@ -63,9 +62,8 @@ public:
      * @returns VBox status code.
      * @param   pUVM        The user mode VM handle. The caller's reference will be
      *                      consumed on success.
-     * @param   pVMM        The VMM function table.
      */
-    int init(PUVM pUVM, PCVMMR3VTABLE pVMM);
+    int init(PUVM pUVM);
 
     /**
      * Destroys the VBoxDbgGui object.
@@ -92,10 +90,8 @@ public:
      * Show the default statistics window, creating it if necessary.
      *
      * @returns VBox status code.
-     * @param   pszFilter   Filter pattern.
-     * @param   pszExpand   Expand pattern.
      */
-    int showStatistics(const char *pszFilter, const char *pszExpand);
+    int showStatistics();
 
     /**
      * Repositions and resizes (optionally) the statistics to its defaults
@@ -145,15 +141,6 @@ public:
     }
 
     /**
-     * Gets the VMM function table.
-     * @returns The VMM function table.
-     */
-    PCVMMR3VTABLE getVMMFunctionTable() const
-    {
-        return m_pVMM;
-    }
-
-    /**
      * @returns The name of the machine.
      */
     QString getMachineName() const;
@@ -184,8 +171,6 @@ protected:
     PVM m_pVM;
     /** The user mode VM handle. */
     PUVM m_pUVM;
-    /** The VMM function table. */
-    PCVMMR3VTABLE m_pVMM;
 
     /** The parent widget. */
     QWidget *m_pParent;

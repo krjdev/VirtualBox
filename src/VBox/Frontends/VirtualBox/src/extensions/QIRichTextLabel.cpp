@@ -1,10 +1,10 @@
-/* $Id: QIRichTextLabel.cpp 93995 2022-02-28 21:31:59Z vboxsync $ */
+/* $Id: QIRichTextLabel.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIRichTextLabel class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ QIRichTextLabel::QIRichTextLabel(QWidget *pParent)
     if (pMainLayout)
     {
         /* Configure layout: */
-        pMainLayout->setContentsMargins(0, 0, 0, 0);
+        pMainLayout->setMargin(0);
 
         /* Create text-browser: */
         m_pTextBrowser = new QTextBrowser;
@@ -58,9 +58,6 @@ QIRichTextLabel::QIRichTextLabel(QWidget *pParent)
             pal.setColor(QPalette::Inactive, QPalette::Text, pal.color(QPalette::Inactive, QPalette::WindowText));
             pal.setColor(QPalette::Disabled, QPalette::Text, pal.color(QPalette::Disabled, QPalette::WindowText));
             m_pTextBrowser->viewport()->setPalette(pal);
-
-            /* Setup connections finally: */
-            connect(m_pTextBrowser, &QTextBrowser::anchorClicked, this, &QIRichTextLabel::sigLinkClicked);
         }
 
         /* Add into layout: */
@@ -78,11 +75,6 @@ void QIRichTextLabel::registerImage(const QImage &image, const QString &strName)
     m_pTextBrowser->document()->addResource(QTextDocument::ImageResource, QUrl(strName), QVariant(image));
 }
 
-void QIRichTextLabel::registerPixmap(const QPixmap &pixmap, const QString &strName)
-{
-    m_pTextBrowser->document()->addResource(QTextDocument::ImageResource, QUrl(strName), QVariant(pixmap));
-}
-
 QTextOption::WrapMode QIRichTextLabel::wordWrapMode() const
 {
     return m_pTextBrowser->wordWrapMode();
@@ -97,21 +89,6 @@ void QIRichTextLabel::installEventFilter(QObject *pFilterObj)
 {
     QWidget::installEventFilter(pFilterObj);
     m_pTextBrowser->installEventFilter(pFilterObj);
-}
-
-QFont QIRichTextLabel::browserFont() const
-{
-    return m_pTextBrowser->font();
-}
-
-void QIRichTextLabel::setBrowserFont(const QFont &newFont)
-{
-    m_pTextBrowser->setFont(newFont);
-}
-
-int QIRichTextLabel::minimumTextWidth() const
-{
-    return m_iMinimumTextWidth;
 }
 
 void QIRichTextLabel::setMinimumTextWidth(int iMinimumTextWidth)

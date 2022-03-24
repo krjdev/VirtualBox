@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuireport.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: wuireport.py $
 
 """
 Test Manager WUI - Reports.
@@ -7,7 +7,7 @@ Test Manager WUI - Reports.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Validation Kit imports.
@@ -35,7 +35,7 @@ from testmanager.webui.wuicontentbase   import WuiContentBase, WuiTmLink, WuiSvn
 from testmanager.webui.wuihlpgraph      import WuiHlpGraphDataTable, WuiHlpBarGraph;
 from testmanager.webui.wuitestresult    import WuiTestSetLink, WuiTestResultsForTestCaseLink, WuiTestResultsForTestBoxLink;
 from testmanager.webui.wuiadmintestcase import WuiTestCaseDetailsLink;
-from testmanager.webui.wuiadmintestbox  import WuiTestBoxDetailsLinkShort;
+from testmanager.webui.wuiadmintestbox  import WuiTestBoxDetailsLink;
 from testmanager.core.report            import ReportModelBase, ReportFilter;
 from testmanager.core.testresults       import TestResultFilter;
 
@@ -720,7 +720,7 @@ class WuiReportTestBoxFailures(WuiReportFailuresWithTotalBase):
 
     def _formatEdgeOccurenceSubject(self, oTransient):
         sHtml = u'%s ' % ( webutils.escapeElem(oTransient.oSubject.sName),);
-        sHtml += WuiTestBoxDetailsLinkShort(oTransient.oSubject).toHtml();
+        sHtml += WuiTestBoxDetailsLink(oTransient.oSubject.idTestBox, fBracketed = False).toHtml();
         return sHtml;
 
     def _formatSeriesNameColumnHeadersForTable(self):
@@ -731,7 +731,7 @@ class WuiReportTestBoxFailures(WuiReportFailuresWithTotalBase):
         sHtml  = u'<td>';
         sHtml += WuiTestResultsForTestBoxLink(idKey, oTestBox.sName, self._dExtraTestResultsParams).toHtml()
         sHtml += u' ';
-        sHtml += WuiTestBoxDetailsLinkShort(oTestBox).toHtml();
+        sHtml += WuiTestBoxDetailsLink(oTestBox.idTestBox).toHtml();
         sHtml += u' ';
         sHtml += WuiReportSummaryLink(ReportModelBase.ksSubTestBox, oTestBox.idTestBox,
                                       dExtraParams = self._dExtraParams).toHtml();

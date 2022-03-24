@@ -1,10 +1,10 @@
-/* $Id: UIToolsModel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolsModel.h $ */
 /** @file
  * VBox Qt GUI - UIToolsModel class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,12 +79,14 @@ public:
     /** Constructs Tools-model passing @a pParent to the base-class. */
     UIToolsModel(UITools *pParent);
     /** Destructs Tools-model. */
-    virtual ~UIToolsModel() RT_OVERRIDE;
+    virtual ~UIToolsModel() /* override */;
 
     /** @name General stuff.
       * @{ */
         /** Inits model. */
         void init();
+        /** Deinits model. */
+        void deinit();
 
         /** Returns the Tools reference. */
         UITools *tools() const;
@@ -114,9 +116,9 @@ public:
         UIToolType lastSelectedToolMachine() const;
 
         /** Defines whether certain @a enmClass of tools is @a fEnabled.*/
-        void setToolClassEnabled(UIToolClass enmClass, bool fEnabled);
+        void setToolsEnabled(UIToolClass enmClass, bool fEnabled);
         /** Returns whether certain class of tools is enabled.*/
-        bool toolClassEnabled(UIToolClass enmClass) const;
+        bool areToolsEnabled(UIToolClass enmClass) const;
 
         /** Defines restructed tool @a types. */
         void setRestrictedToolTypes(const QList<UIToolType> &types);
@@ -147,6 +149,9 @@ public:
         void setFocusItem(UIToolsItem *pItem);
         /** Returns focus item. */
         UIToolsItem *focusItem() const;
+
+        /** Makes sure some item is selected. */
+        void makeSureSomeItemIsSelected();
     /** @} */
 
     /** @name Navigation stuff.
@@ -186,10 +191,10 @@ protected:
     /** @name Event handling stuff.
       * @{ */
         /** Preprocesses Qt @a pEvent for passed @a pObject. */
-        virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+        virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
 private slots:
@@ -222,9 +227,11 @@ private:
         void prepareHandlers();
         /** Prepares connections. */
         void prepareConnections();
-        /** Loads settings. */
-        void loadSettings();
+        /** Loads last selected items. */
+        void loadLastSelectedItems();
 
+        /** Saves last selected items. */
+        void saveLastSelectedItems();
         /** Cleanups connections. */
         void cleanupConnections();
         /** Cleanups connections. */
@@ -260,7 +267,7 @@ private:
         UIToolClass  m_enmCurrentClass;
 
         /** Holds whether tools of particular class are enabled. */
-        QMap<UIToolClass, bool>  m_enabledToolClasses;
+        QMap<UIToolClass, bool>  m_statesToolsEnabled;
 
         /** Holds a list of restricted tool types. */
         QList<UIToolType>  m_restrictedToolTypes;

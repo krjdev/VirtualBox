@@ -1,4 +1,4 @@
-/* $Id: vboxweb.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vboxweb.cpp $ */
 /** @file
  * vboxweb.cpp:
  *      hand-coded parts of the webservice server. This is linked with the
@@ -8,7 +8,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2330,27 +2330,28 @@ int __vbox__IManagedObjectRef_USCORErelease(
     _vbox__IManagedObjectRef_USCOREreleaseResponse *resp)
 {
     RT_NOREF(resp);
-    HRESULT rc;
+    HRESULT rc = S_OK;
     WEBDEBUG(("-- entering %s\n", __FUNCTION__));
 
+    do
     {
         // findRefFromId and the delete call below require the lock
         util::AutoWriteLock lock(g_pWebsessionsLockHandle COMMA_LOCKVAL_SRC_POS);
 
         ManagedObjectRef *pRef;
-        rc = ManagedObjectRef::findRefFromId(req->_USCOREthis, &pRef, false);
-        if (rc == S_OK)
+        if ((rc = ManagedObjectRef::findRefFromId(req->_USCOREthis, &pRef, false)))
         {
-            WEBDEBUG(("   found reference; deleting!\n"));
-            // this removes the object from all stacks; since
-            // there's a ComPtr<> hidden inside the reference,
-            // this should also invoke Release() on the COM
-            // object
-            delete pRef;
-        }
-        else
             RaiseSoapInvalidObjectFault(soap, req->_USCOREthis);
-    }
+            break;
+        }
+
+        WEBDEBUG(("   found reference; deleting!\n"));
+        // this removes the object from all stacks; since
+        // there's a ComPtr<> hidden inside the reference,
+        // this should also invoke Release() on the COM
+        // object
+        delete pRef;
+    } while (0);
 
     WEBDEBUG(("-- leaving %s, rc: %#lx\n", __FUNCTION__, rc));
     if (FAILED(rc))

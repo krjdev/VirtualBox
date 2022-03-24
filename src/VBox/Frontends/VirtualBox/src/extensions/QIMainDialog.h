@@ -1,10 +1,10 @@
-/* $Id: QIMainDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIMainDialog.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIMainDialog class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,10 +41,10 @@ class SHARED_LIBRARY_STUFF QIMainDialog : public QMainWindow
 
 public:
 
-    /** Constructs main-dialog passing @a pParent and @a enmFlags to the base-class.
+    /** Constructs main-dialog passing @a pParent and @a fFlags to the base-class.
       * @param  fIsAutoCentering  Brigs whether this dialog should be centered according it's parent. */
     QIMainDialog(QWidget *pParent = 0,
-                 Qt::WindowFlags enmFlags = Qt::Dialog,
+                 Qt::WindowFlags fFlags = Qt::Dialog,
                  bool fIsAutoCentering = true);
 
     /** Returns the dialog's result code. */
@@ -72,26 +72,23 @@ public slots:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles first show @a pEvent. */
     virtual void polishEvent(QShowEvent *pEvent);
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
     /** Handles key-press @a pEvent. */
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
 
     /** Searches for dialog's default button. */
     QPushButton *searchDefaultButton() const;
-
-    /** Sets reject-by-escape-key flag. */
-    void setRejectByEscape(bool fRejectByEscape);
 
 protected slots:
 
@@ -123,8 +120,6 @@ private:
     QPointer<QPushButton>  m_pDefaultButton;
     /** Holds dialog's size-grip. */
     QPointer<QSizeGrip>    m_pSizeGrip;
-    /** Holds reject by escape flag. When true pressing escape rejects the dialog. Default is true.*/
-    bool m_fRejectByEscape;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_extensions_QIMainDialog_h */

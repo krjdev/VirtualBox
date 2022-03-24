@@ -1,10 +1,10 @@
-/* $Id: VBoxNetFltBow-solaris.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetFltBow-solaris.c $ */
 /** @file
  * VBoxNetFlt - Network Filter Driver (Host), Solaris Specific Code.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -721,8 +721,8 @@ LOCAL void vboxNetFltSolarisLinkNotify(void *pvArg, mac_notify_type_t Type)
     LogRel((DEVICE_NAME ":vboxNetFltSolarisLinkNotify pvArg=%p Type=%d\n", pvArg, Type));
 
     PVBOXNETFLTINS pThis = pvArg;
-    AssertPtrReturnVoid(pThis);
-    AssertPtrReturnVoid(pThis->u.s.hInterface);
+    AssertReturnVoid(VALID_PTR(pThis));
+    AssertReturnVoid(pThis->u.s.hInterface);
 
     switch (Type)
     {
@@ -1433,7 +1433,7 @@ int vboxNetFltPortOsXmit(PVBOXNETFLTINS pThis, void *pvIfData, PINTNETSG pSG, ui
      * Validate parameters.
      */
     PVBOXNETFLTVNIC pVNIC = pvIfData;
-    AssertPtrReturn(pVNIC, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pVNIC), VERR_INVALID_POINTER);
     AssertMsgReturn(pVNIC->u32Magic == VBOXNETFLTVNIC_MAGIC,
                     ("Invalid magic=%#x (expected %#x)\n", pVNIC->u32Magic, VBOXNETFLTVNIC_MAGIC),
                     VERR_INVALID_MAGIC);
@@ -1474,11 +1474,11 @@ void vboxNetFltPortOsNotifyMacAddress(PVBOXNETFLTINS pThis, void *pvIfData, PCRT
      * Validate parameters.
      */
     PVBOXNETFLTVNIC pVNIC = pvIfData;
-    AssertPtrReturnVoid(pVNIC);
-    AssertMsgReturnVoid(pVNIC->u32Magic == VBOXNETFLTVNIC_MAGIC,
-                        ("Invalid pVNIC=%p magic=%#x (expected %#x)\n", pvIfData, pVNIC->u32Magic, VBOXNETFLTVNIC_MAGIC));
+    AssertMsgReturnVoid(VALID_PTR(pVNIC) && pVNIC->u32Magic == VBOXNETFLTVNIC_MAGIC,
+                    ("Invalid pVNIC=%p magic=%#x (expected %#x)\n", pvIfData,
+                     VALID_PTR(pVNIC) ? pVNIC->u32Magic : 0, VBOXNETFLTVNIC_MAGIC));
     AssertMsgReturnVoid(pVNIC->hLinkId != DATALINK_INVALID_LINKID,
-                        ("Invalid hLinkId pVNIC=%p magic=%#x\n", pVNIC, pVNIC->u32Magic));
+                    ("Invalid hLinkId pVNIC=%p magic=%#x\n", pVNIC, pVNIC->u32Magic));
 
     /*
      * Set the MAC address of the VNIC to the one used by the VM interface.

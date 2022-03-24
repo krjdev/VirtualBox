@@ -1,10 +1,10 @@
-/* $Id: UIMachineViewScale.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineViewScale.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachineViewScale class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,8 +39,18 @@
 #include <VBox/VBoxOGL.h>
 
 
-UIMachineViewScale::UIMachineViewScale(UIMachineWindow *pMachineWindow, ulong uScreenId)
-    : UIMachineView(pMachineWindow, uScreenId)
+UIMachineViewScale::UIMachineViewScale(  UIMachineWindow *pMachineWindow
+                                       , ulong uScreenId
+#ifdef VBOX_WITH_VIDEOHWACCEL
+                                       , bool bAccelerate2DVideo
+#endif
+                                       )
+    : UIMachineView(  pMachineWindow
+                    , uScreenId
+#ifdef VBOX_WITH_VIDEOHWACCEL
+                    , bAccelerate2DVideo
+#endif
+                    )
 {
 }
 
@@ -61,7 +71,7 @@ void UIMachineViewScale::sltPerformGuestScale()
     if (scaledSize.isValid())
     {
         /* Propagate scale-factor to 3D service if necessary: */
-        if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled())
+        if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled() && uiCommon().is3DAvailable())
         {
             double xScaleFactor = (double)scaledSize.width()  / frameBuffer()->width();
             double yScaleFactor = (double)scaledSize.height() / frameBuffer()->height();
@@ -120,7 +130,7 @@ void UIMachineViewScale::applyMachineViewScaleFactor()
     if (scaledSize.isValid())
     {
         /* Propagate scale-factor to 3D service if necessary: */
-        if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled())
+        if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled() && uiCommon().is3DAvailable())
         {
             double xScaleFactor = (double)scaledSize.width()  / frameBuffer()->width();
             double yScaleFactor = (double)scaledSize.height() / frameBuffer()->height();
@@ -143,7 +153,7 @@ void UIMachineViewScale::applyMachineViewScaleFactor()
     /* Take unscaled HiDPI output mode into account: */
     frameBuffer()->setUseUnscaledHiDPIOutput(fUseUnscaledHiDPIOutput);
     /* Propagate unscaled-hidpi-output feature to 3D service if necessary: */
-    if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled())
+    if (machine().GetGraphicsAdapter().GetAccelerate3DEnabled() && uiCommon().is3DAvailable())
         display().NotifyHiDPIOutputPolicyChange(fUseUnscaledHiDPIOutput);
 
     /* Perform frame-buffer rescaling: */

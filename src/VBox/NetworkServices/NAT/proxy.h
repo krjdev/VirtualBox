@@ -1,10 +1,10 @@
-/* $Id: proxy.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: proxy.h $ */
 /** @file
  * NAT Network - common definitions and declarations.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,9 +50,6 @@ struct ip4_lomap_desc
 };
 
 struct proxy_options {
-    ip_addr_t ipv4_addr;
-    ip_addr_t ipv4_mask;
-    ip6_addr_t ipv6_addr;
     int ipv6_enabled;
     int ipv6_defroute;
     SOCKET icmpsock4;

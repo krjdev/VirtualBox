@@ -1,10 +1,10 @@
-/* $Id: sched-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: sched-posix.cpp $ */
 /** @file
  * IPRT - Scheduling, POSIX.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -638,6 +638,14 @@ static void *rtSchedNativeValidatorThread(void *pvUser)
 }
 
 
+/**
+ * Validates and sets the process priority.
+ * This will check that all rtThreadNativeSetPriority() will success for all the
+ * thread types when applied to the current thread.
+ *
+ * @returns iprt status code.
+ * @param   enmPriority     The priority to validate and set.
+ */
 DECLHIDDEN(int) rtProcNativeSetPriority(RTPROCPRIORITY enmPriority)
 {
     Assert(enmPriority > RTPROCPRIORITY_INVALID && enmPriority < RTPROCPRIORITY_LAST);
@@ -768,6 +776,17 @@ static DECLCALLBACK(int) rtThreadPosixSetPriorityOnProcAndThrdCallback(PRTTHREAD
 }
 
 
+/**
+ * Sets the priority of the thread according to the thread type
+ * and current process priority.
+ *
+ * The RTTHREADINT::enmType member has not yet been updated and will be updated by
+ * the caller on a successful return.
+ *
+ * @returns iprt status code.
+ * @param   Thread      The thread in question.
+ * @param   enmType     The thread type.
+ */
 DECLHIDDEN(int) rtThreadNativeSetPriority(PRTTHREADINT pThread, RTTHREADTYPE enmType)
 {
     Assert(enmType > RTTHREADTYPE_INVALID && enmType < RTTHREADTYPE_END);

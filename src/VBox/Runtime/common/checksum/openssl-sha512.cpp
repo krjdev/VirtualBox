@@ -1,10 +1,10 @@
-/* $Id: openssl-sha512.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: openssl-sha512.cpp $ */
 /** @file
  * IPRT - SHA-512 hash functions.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,9 +30,7 @@
 *********************************************************************************************************************************/
 #include "internal/iprt.h"
 
-#include "internal/openssl-pre.h"
 #include <openssl/sha.h>
-#include "internal/openssl-post.h"
 
 #define RT_SHA512_PRIVATE_CONTEXT
 #include <iprt/sha.h>

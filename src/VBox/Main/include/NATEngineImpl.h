@@ -1,4 +1,4 @@
-/* $Id: NATEngineImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NATEngineImpl.h $ */
 
 /** @file
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@ class ATL_NO_VTABLE NATEngine :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(NATEngine)
+    DECLARE_EMPTY_CTOR_DTOR(NATEngine)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -62,8 +62,6 @@ private:
     HRESULT getNetwork(com::Utf8Str &aNetwork);
     HRESULT setHostIP(const com::Utf8Str &aHostIP);
     HRESULT getHostIP(com::Utf8Str &aBindIP);
-    HRESULT setLocalhostReachable(BOOL fLocalhostReachable);
-    HRESULT getLocalhostReachable(BOOL *pfLocalhostReachable);
     /* TFTP properties */
     HRESULT setTFTPPrefix(const com::Utf8Str &aTFTPPrefix);
     HRESULT getTFTPPrefix(com::Utf8Str &aTFTPPrefix);

@@ -1,10 +1,10 @@
-/* $Id: tstClipboardServiceHost.cpp 93919 2022-02-24 13:59:11Z vboxsync $ */
+/* $Id: tstClipboardServiceHost.cpp $ */
 /** @file
  * Shared Clipboard host service test case.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -129,7 +129,7 @@ static void testSetTransferMode(void)
 /* Adds a host data read request message to the client's message queue. */
 static void testMsgAddReadData(PSHCLCLIENT pClient, SHCLFORMATS fFormats)
 {
-    int rc = ShClSvcGuestDataRequest(pClient, fFormats, NULL /* pidEvent */);
+    int rc = ShClSvcDataReadRequest(pClient, fFormats, NULL /* pidEvent */);
     RTTESTI_CHECK_RC_OK(rc);
 }
 
@@ -149,9 +149,10 @@ static void testGetHostMsgOld(void)
     rc = table.pfnHostCall(NULL, VBOX_SHCL_HOST_FN_SET_MODE, 1, parms);
     RTTESTI_CHECK_RC_OK(rc);
 
+    rc = shClSvcClientInit(&g_Client, 1 /* clientId */);
+    RTTESTI_CHECK_RC_OK(rc);
 
     RTTestISub("Testing one format, waiting guest call.");
-    RT_ZERO(g_Client);
     HGCMSvcSetU32(&parms[0], 0);
     HGCMSvcSetU32(&parms[1], 0);
     call.rc = VERR_IPE_UNINITIALIZED_STATUS;
@@ -168,7 +169,6 @@ static void testGetHostMsgOld(void)
     table.pfnDisconnect(NULL, 1 /* clientId */, &g_Client);
 
     RTTestISub("Testing one format, no waiting guest calls.");
-    RT_ZERO(g_Client);
     table.pfnConnect(NULL, 1 /* clientId */, &g_Client, 0, 0);
     testMsgAddReadData(&g_Client, VBOX_SHCL_FMT_HTML);
     HGCMSvcSetU32(&parms[0], 0);
@@ -184,7 +184,6 @@ static void testGetHostMsgOld(void)
     table.pfnDisconnect(NULL, 1 /* clientId */, &g_Client);
 
     RTTestISub("Testing two formats, waiting guest call.");
-    RT_ZERO(g_Client);
     table.pfnConnect(NULL, 1 /* clientId */, &g_Client, 0, 0);
     HGCMSvcSetU32(&parms[0], 0);
     HGCMSvcSetU32(&parms[1], 0);
@@ -206,7 +205,6 @@ static void testGetHostMsgOld(void)
     table.pfnDisconnect(NULL, 1 /* clientId */, &g_Client);
 
     RTTestISub("Testing two formats, no waiting guest calls.");
-    RT_ZERO(g_Client);
     table.pfnConnect(NULL, 1 /* clientId */, &g_Client, 0, 0);
     testMsgAddReadData(&g_Client, VBOX_SHCL_FMT_UNICODETEXT | VBOX_SHCL_FMT_HTML);
     HGCMSvcSetU32(&parms[0], 0);
@@ -309,18 +307,18 @@ int main(int argc, char *argv[])
     return RTTestSummaryAndDestroy(hTest);
 }
 
-int ShClBackendInit(PSHCLBACKEND, VBOXHGCMSVCFNTABLE *) { return VINF_SUCCESS; }
-void ShClBackendDestroy(PSHCLBACKEND) { }
-int ShClBackendDisconnect(PSHCLBACKEND, PSHCLCLIENT) { return VINF_SUCCESS; }
-int ShClBackendConnect(PSHCLBACKEND, PSHCLCLIENT, bool) { return VINF_SUCCESS; }
-int ShClBackendReportFormats(PSHCLBACKEND, PSHCLCLIENT, SHCLFORMATS) { AssertFailed(); return VINF_SUCCESS; }
-int ShClBackendReadData(PSHCLBACKEND, PSHCLCLIENT, PSHCLCLIENTCMDCTX, SHCLFORMAT, void *, uint32_t, unsigned int *) { AssertFailed(); return VERR_WRONG_ORDER; }
-int ShClBackendWriteData(PSHCLBACKEND, PSHCLCLIENT, PSHCLCLIENTCMDCTX, SHCLFORMAT, void *, uint32_t) { AssertFailed(); return VINF_SUCCESS; }
-int ShClBackendSync(PSHCLBACKEND, PSHCLCLIENT) { return VINF_SUCCESS; }
+int ShClSvcImplInit(VBOXHGCMSVCFNTABLE *) { return VINF_SUCCESS; }
+void ShClSvcImplDestroy() { }
+int ShClSvcImplDisconnect(PSHCLCLIENT) { return VINF_SUCCESS; }
+int ShClSvcImplConnect(PSHCLCLIENT, bool) { return VINF_SUCCESS; }
+int ShClSvcImplFormatAnnounce(PSHCLCLIENT, SHCLFORMATS) { AssertFailed(); return VINF_SUCCESS; }
+int ShClSvcImplReadData(PSHCLCLIENT, PSHCLCLIENTCMDCTX, SHCLFORMAT, void *, uint32_t, unsigned int *) { AssertFailed(); return VERR_WRONG_ORDER; }
+int ShClSvcImplWriteData(PSHCLCLIENT, PSHCLCLIENTCMDCTX, SHCLFORMAT, void *, uint32_t) { AssertFailed(); return VINF_SUCCESS; }
+int ShClSvcImplSync(PSHCLCLIENT) { return VINF_SUCCESS; }
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
-int ShClBackendTransferCreate(PSHCLBACKEND, PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
-int ShClBackendTransferDestroy(PSHCLBACKEND, PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
-int ShClBackendTransferGetRoots(PSHCLBACKEND, PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
+int ShClSvcImplTransferCreate(PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
+int ShClSvcImplTransferDestroy(PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
+int ShClSvcImplTransferGetRoots(PSHCLCLIENT, PSHCLTRANSFER) { return VINF_SUCCESS; }
 #endif /* VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS */
 

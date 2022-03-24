@@ -1,10 +1,10 @@
-/* $Id: dvm.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dvm.h $ */
 /** @file
  * IPRT - Disk Volume Management Internals.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -94,7 +94,7 @@ typedef struct RTDVMFMTOPS
      * @param   pDisk           Disk descriptor.
      * @param   puScore         Where to store the match score on success.
      */
-    DECLCALLBACKMEMBER(int, pfnProbe,(PCRTDVMDISK pDisk, uint32_t *puScore));
+    DECLCALLBACKMEMBER(int, pfnProbe)(PCRTDVMDISK pDisk, uint32_t *puScore);
 
     /**
      * Opens the format to set up all structures.
@@ -103,7 +103,7 @@ typedef struct RTDVMFMTOPS
      * @param   pDisk           The disk descriptor.
      * @param   phVolMgrFmt     Where to store the volume format data on success.
      */
-    DECLCALLBACKMEMBER(int, pfnOpen,(PCRTDVMDISK pDisk, PRTDVMFMT phVolMgrFmt));
+    DECLCALLBACKMEMBER(int, pfnOpen)(PCRTDVMDISK pDisk, PRTDVMFMT phVolMgrFmt);
 
     /**
      * Initializes a new volume map.
@@ -112,7 +112,7 @@ typedef struct RTDVMFMTOPS
      * @param   pDisk           The disk descriptor.
      * @param   phVolMgrFmt     Where to store the volume format data on success.
      */
-    DECLCALLBACKMEMBER(int, pfnInitialize,(PCRTDVMDISK pDisk, PRTDVMFMT phVolMgrFmt));
+    DECLCALLBACKMEMBER(int, pfnInitialize)(PCRTDVMDISK pDisk, PRTDVMFMT phVolMgrFmt);
 
     /**
      * Closes the volume format.
@@ -120,7 +120,7 @@ typedef struct RTDVMFMTOPS
      * @returns nothing.
      * @param   hVolMgrFmt      The format specific volume manager handle.
      */
-    DECLCALLBACKMEMBER(void, pfnClose,(RTDVMFMT hVolMgrFmt));
+    DECLCALLBACKMEMBER(void, pfnClose)(RTDVMFMT hVolMgrFmt);
 
     /**
      * Returns whether the given range is in use by the volume manager.
@@ -132,19 +132,9 @@ typedef struct RTDVMFMTOPS
      * @param   pfUsed          Where to store whether the range is in use by the
      *                          volume manager.
      */
-    DECLCALLBACKMEMBER(int, pfnQueryRangeUse,(RTDVMFMT hVolMgrFmt,
+    DECLCALLBACKMEMBER(int, pfnQueryRangeUse)(RTDVMFMT hVolMgrFmt,
                                               uint64_t off, uint64_t cbRange,
-                                              bool *pfUsed));
-
-    /**
-     * Optional: Query the uuid of the current disk if applicable.
-     *
-     * @returns IPRT status code.
-     * @retval  VERR_NOT_SUPPORTED if the partition scheme doesn't do UUIDs.
-     * @param   hVolMgrFmt      The format specific volume manager handle.
-     * @param   pUuid           Where to return the UUID.
-     */
-    DECLCALLBACKMEMBER(int, pfnQueryDiskUuid,(RTDVMFMT hVolMgrFmt, PRTUUID pUuid));
+                                              bool *pfUsed);
 
     /**
      * Gets the number of valid volumes in the map.
@@ -152,7 +142,7 @@ typedef struct RTDVMFMTOPS
      * @returns Number of valid volumes in the map or UINT32_MAX on failure.
      * @param   hVolMgrFmt      The format specific volume manager handle.
      */
-    DECLCALLBACKMEMBER(uint32_t, pfnGetValidVolumes,(RTDVMFMT hVolMgrFmt));
+    DECLCALLBACKMEMBER(uint32_t, pfnGetValidVolumes)(RTDVMFMT hVolMgrFmt);
 
     /**
      * Gets the maximum number of volumes the map can have.
@@ -160,7 +150,7 @@ typedef struct RTDVMFMTOPS
      * @returns Maximum number of volumes in the map or 0 on failure.
      * @param   hVolMgrFmt      The format specific volume manager handle.
      */
-    DECLCALLBACKMEMBER(uint32_t, pfnGetMaxVolumes,(RTDVMFMT hVolMgrFmt));
+    DECLCALLBACKMEMBER(uint32_t, pfnGetMaxVolumes)(RTDVMFMT hVolMgrFmt);
 
     /**
      * Get the first valid volume from a map.
@@ -170,7 +160,7 @@ typedef struct RTDVMFMTOPS
      * @param   phVolFmt        Where to store the volume handle to the first volume
      *                          on success.
      */
-    DECLCALLBACKMEMBER(int, pfnQueryFirstVolume,(RTDVMFMT hVolMgrFmt, PRTDVMVOLUMEFMT phVolFmt));
+    DECLCALLBACKMEMBER(int, pfnQueryFirstVolume)(RTDVMFMT hVolMgrFmt, PRTDVMVOLUMEFMT phVolFmt);
 
     /**
      * Get the first valid volume from a map.
@@ -181,30 +171,7 @@ typedef struct RTDVMFMTOPS
      * @param   phVolFmtNext    Where to store the handle to the format specific
      *                          volume data of the next volume on success.
      */
-    DECLCALLBACKMEMBER(int, pfnQueryNextVolume,(RTDVMFMT hVolMgrFmt, RTDVMVOLUMEFMT hVolFmt, PRTDVMVOLUMEFMT phVolFmtNext));
-
-    /**
-     * Query the partition table locations.
-     *
-     * @returns IPRT status code.
-     * @retval  VERR_BUFFER_OVERFLOW if the table is too small, @a *pcActual will be
-     *          set to the required size.
-     * @retval  VERR_BUFFER_UNDERFLOW if the table is too big and @a pcActual is
-     *          NULL.
-     * @param   hVolMgrFmt      The format specific volume manager handle.
-     * @param   fFlags          Flags, see RTDVMMAPQTABLOC_F_XXX.
-     * @param   paLocations     Where to return the info. Ignored if @a cLocations
-     *                          is zero, then only @a pcActual matters.
-     * @param   cLocations      The size of @a paLocations in items.
-     * @param   pcActual        Where to return the actual number of locations, or
-     *                          on VERR_BUFFER_OVERFLOW the necessary table size.
-     *                          Optional, when not specified the cLocations value
-     *                          must match exactly or it fails with
-     *                          VERR_BUFFER_UNDERFLOW.
-     * @sa RTDvmMapQueryTableLocations
-     */
-    DECLCALLBACKMEMBER(int, pfnQueryTableLocations,(RTDVMFMT hVolMgrFmt, uint32_t fFlags, PRTDVMTABLELOCATION paLocations,
-                                                    size_t cLocations, size_t *pcActual));
+    DECLCALLBACKMEMBER(int, pfnQueryNextVolume)(RTDVMFMT hVolMgrFmt, RTDVMVOLUMEFMT hVolFmt, PRTDVMVOLUMEFMT phVolFmtNext);
 
     /**
      * Closes a volume handle.
@@ -212,7 +179,7 @@ typedef struct RTDVMFMTOPS
      * @returns nothing.
      * @param   hVolFmt         The format specific volume handle.
      */
-    DECLCALLBACKMEMBER(void, pfnVolumeClose,(RTDVMVOLUMEFMT hVolFmt));
+    DECLCALLBACKMEMBER(void, pfnVolumeClose)(RTDVMVOLUMEFMT hVolFmt);
 
     /**
      * Gets the size of the given volume.
@@ -220,7 +187,7 @@ typedef struct RTDVMFMTOPS
      * @returns Size of the volume in bytes or 0 on failure.
      * @param   hVolFmt         The format specific volume handle.
      */
-    DECLCALLBACKMEMBER(uint64_t, pfnVolumeGetSize,(RTDVMVOLUMEFMT hVolFmt));
+    DECLCALLBACKMEMBER(uint64_t, pfnVolumeGetSize)(RTDVMVOLUMEFMT hVolFmt);
 
     /**
      * Queries the name of the given volume.
@@ -229,7 +196,7 @@ typedef struct RTDVMFMTOPS
      * @param   hVolFmt         The format specific volume handle.
      * @param   ppszVolname     Where to store the name of the volume on success.
      */
-    DECLCALLBACKMEMBER(int, pfnVolumeQueryName,(RTDVMVOLUMEFMT hVolFmt, char **ppszVolName));
+    DECLCALLBACKMEMBER(int, pfnVolumeQueryName)(RTDVMVOLUMEFMT hVolFmt, char **ppszVolName);
 
     /**
      * Get the type of the given volume.
@@ -237,7 +204,7 @@ typedef struct RTDVMFMTOPS
      * @returns The volume type on success, DVMVOLTYPE_INVALID if hVol is invalid.
      * @param   hVolFmt         The format specific volume handle.
      */
-    DECLCALLBACKMEMBER(RTDVMVOLTYPE, pfnVolumeGetType,(RTDVMVOLUMEFMT hVolFmt));
+    DECLCALLBACKMEMBER(RTDVMVOLTYPE, pfnVolumeGetType)(RTDVMVOLUMEFMT hVolFmt);
 
     /**
      * Get the flags of the given volume.
@@ -245,7 +212,7 @@ typedef struct RTDVMFMTOPS
      * @returns The volume flags or UINT64_MAX on failure.
      * @param   hVolFmt         The format specific volume handle.
      */
-    DECLCALLBACKMEMBER(uint64_t, pfnVolumeGetFlags,(RTDVMVOLUMEFMT hVolFmt));
+    DECLCALLBACKMEMBER(uint64_t, pfnVolumeGetFlags)(RTDVMVOLUMEFMT hVolFmt);
 
     /**
      * Queries the range of the given volume on the underyling medium.
@@ -257,7 +224,7 @@ typedef struct RTDVMFMTOPS
      * @param   poffLast        Where to store the last byte offset on the
      *                          underlying medium (inclusive).
      */
-    DECLCALLBACKMEMBER(int, pfnVolumeQueryRange,(RTDVMVOLUMEFMT hVolFmt, uint64_t *poffStart, uint64_t *poffLast));
+    DECLCALLBACKMEMBER(int, pfnVolumeQueryRange)(RTDVMVOLUMEFMT hVolFmt, uint64_t *poffStart, uint64_t *poffLast);
 
     /**
      * Returns whether the supplied range is at least partially intersecting
@@ -272,69 +239,10 @@ typedef struct RTDVMFMTOPS
      * @param   pcbIntersect    Where to store the number of bytes intersecting
      *                          with the range if true is returned.
      */
-    DECLCALLBACKMEMBER(bool, pfnVolumeIsRangeIntersecting,(RTDVMVOLUMEFMT hVolFmt,
+    DECLCALLBACKMEMBER(bool, pfnVolumeIsRangeIntersecting)(RTDVMVOLUMEFMT hVolFmt,
                                                            uint64_t offStart, size_t cbRange,
                                                            uint64_t *poffVol,
-                                                           uint64_t *pcbIntersect));
-
-    /**
-     * Queries the range of the partition table the volume belongs to on the underlying medium.
-     *
-     * @returns IPRT status code.
-     * @param   hVolFmt         The format specific volume handle.
-     * @param   poffTable       Where to return the byte offset on the underlying
-     *                          media of the (partition/volume/whatever) table.
-     * @param   pcbTable        Where to return the table size in bytes.  This
-     *                          typically includes alignment padding.
-     * @sa RTDvmVolumeQueryTableLocation
-     */
-    DECLCALLBACKMEMBER(int, pfnVolumeQueryTableLocation,(RTDVMVOLUMEFMT hVolFmt, uint64_t *poffStart, uint64_t *poffLast));
-
-    /**
-     * Gets the tiven index for the specified volume.
-     *
-     * @returns The requested index. UINT32_MAX on failure.
-     * @param   hVolFmt         The format specific volume handle.
-     * @param   enmIndex        The index to get. Never RTDVMVOLIDX_HOST.
-     * @sa RTDvmVolumeGetIndex
-     */
-    DECLCALLBACKMEMBER(uint32_t, pfnVolumeGetIndex,(RTDVMVOLUMEFMT hVolFmt, RTDVMVOLIDX enmIndex));
-
-    /**
-     * Query a generic volume property.
-     *
-     * This is an extensible interface for retriving mostly format specific
-     * information, or information that's not commonly used.  (It's modelled after
-     * RTLdrQueryPropEx.)
-     *
-     * @returns IPRT status code.
-     * @retval  VERR_NOT_SUPPORTED if the property query isn't supported (either all
-     *          or that specific property).  The caller  must  handle this result.
-     * @retval  VERR_NOT_FOUND is currently not returned, but intended for cases
-     *          where it wasn't present in the tables.
-     * @retval  VERR_INVALID_FUNCTION if the @a enmProperty value is wrong.
-     * @retval  VERR_INVALID_PARAMETER if the fixed buffer size is wrong. Correct
-     *          size in @a *pcbBuf.
-     * @retval  VERR_BUFFER_OVERFLOW if the property doesn't have a fixed size
-     *          buffer and the buffer isn't big enough. Correct size in @a *pcbBuf.
-     * @retval  VERR_INVALID_HANDLE if the handle is invalid.
-     *
-     * @param   hVolFmt     Handle to the volume.
-     * @param   enmProperty The property to query.
-     * @param   pvBuf       Pointer to the input / output buffer.  In most cases
-     *                      it's only used for returning data.
-     * @param   cbBuf       The size of the buffer.  This is validated by the common
-     *                      code for all fixed typed & sized properties.  The
-     *                      interger properties may have several supported sizes, in
-     *                      which case the user value is passed along as-is but it
-     *                      is okay to return a smaller amount of data.  The common
-     *                      code will make upcast the data.
-     * @param   pcbBuf      Where to return the amount of data returned.  This must
-     *                      be set even for fixed type/sized data.
-     * @sa RTDvmVolumeQueryProp, RTDvmVolumeGetPropU64
-     */
-    DECLCALLBACKMEMBER(int, pfnVolumeQueryProp,(RTDVMVOLUMEFMT hVolFmt, RTDVMVOLPROP enmProperty,
-                                                void *pvBuf, size_t cbBuf, size_t *pcbBuf));
+                                                           uint64_t *pcbIntersect);
 
     /**
      * Read data from the given volume.
@@ -345,7 +253,7 @@ typedef struct RTDVMFMTOPS
      * @param   pvBuf           Where to store the read data.
      * @param   cbRead          How many bytes to read.
      */
-    DECLCALLBACKMEMBER(int, pfnVolumeRead,(RTDVMVOLUMEFMT hVolFmt, uint64_t off, void *pvBuf, size_t cbRead));
+    DECLCALLBACKMEMBER(int, pfnVolumeRead)(RTDVMVOLUMEFMT hVolFmt, uint64_t off, void *pvBuf, size_t cbRead);
 
     /**
      * Write data to the given volume.
@@ -356,7 +264,7 @@ typedef struct RTDVMFMTOPS
      * @param   pvBuf           The data to write.
      * @param   cbWrite         How many bytes to write.
      */
-    DECLCALLBACKMEMBER(int, pfnVolumeWrite,(RTDVMVOLUMEFMT hVolFmt, uint64_t off, const void *pvBuf, size_t cbWrite));
+    DECLCALLBACKMEMBER(int, pfnVolumeWrite)(RTDVMVOLUMEFMT hVolFmt, uint64_t off, const void *pvBuf, size_t cbWrite);
 
 } RTDVMFMTOPS;
 /** Pointer to a DVM ops table. */
@@ -391,7 +299,6 @@ DECLINLINE(uint64_t) rtDvmDiskGetSectors(PCRTDVMDISK pDisk)
  * @param   off      Start offset.
  * @param   pvBuf    Destination buffer.
  * @param   cbRead   How much to read.
- * @sa      rtDvmDiskReadUnaligned
  */
 DECLINLINE(int) rtDvmDiskRead(PCRTDVMDISK pDisk, uint64_t off, void *pvBuf, size_t cbRead)
 {
@@ -400,14 +307,8 @@ DECLINLINE(int) rtDvmDiskRead(PCRTDVMDISK pDisk, uint64_t off, void *pvBuf, size
     AssertReturn(cbRead > 0, VERR_INVALID_PARAMETER);
     AssertReturn(off + cbRead <= pDisk->cbDisk, VERR_INVALID_PARAMETER);
 
-    /* Use RTVfsFileReadAt if these triggers: */
-    Assert(!(cbRead % pDisk->cbSector));
-    Assert(!(off    % pDisk->cbSector));
-
     return RTVfsFileReadAt(pDisk->hVfsFile, off, pvBuf, cbRead, NULL /*pcbRead*/);
 }
-
-DECLHIDDEN(int) rtDvmDiskReadUnaligned(PCRTDVMDISK pDisk, uint64_t off, void *pvBuf, size_t cbRead);
 
 /**
  * Write to the disk at the given offset.
@@ -425,16 +326,8 @@ DECLINLINE(int) rtDvmDiskWrite(PCRTDVMDISK pDisk, uint64_t off, const void *pvBu
     AssertReturn(cbWrite > 0, VERR_INVALID_PARAMETER);
     AssertReturn(off + cbWrite <= pDisk->cbDisk, VERR_INVALID_PARAMETER);
 
-    /* Write RTVfsFileReadAt if these triggers: */
-    Assert(!(cbWrite % pDisk->cbSector));
-    Assert(!(off     % pDisk->cbSector));
-
     return RTVfsFileWriteAt(pDisk->hVfsFile, off, pvBuf, cbWrite, NULL /*pcbWritten*/);
 }
-
-extern DECL_HIDDEN_DATA(const RTDVMFMTOPS) g_rtDvmFmtMbr;
-extern DECL_HIDDEN_DATA(const RTDVMFMTOPS) g_rtDvmFmtGpt;
-extern DECL_HIDDEN_DATA(const RTDVMFMTOPS) g_rtDvmFmtBsdLbl;
 
 RT_C_DECLS_END
 

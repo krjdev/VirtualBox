@@ -1,10 +1,10 @@
-/* $Id: UIChooserItemGroup.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserItemGroup.h $ */
 /** @file
  * VBox Qt GUI - UIChooserItemGroup class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,24 +59,17 @@ signals:
 public:
 
     /** RTTI required for qgraphicsitem_cast. */
-    enum { Type = UIChooserNodeType_Group };
+    enum { Type = UIChooserItemType_Group };
 
     /** Build item for certain @a pNode, adding it directly to the @a pScene. */
     UIChooserItemGroup(QGraphicsScene *pScene, UIChooserNodeGroup *pNode);
     /** Build item for certain @a pNode, passing @a pParent to the base-class. */
     UIChooserItemGroup(UIChooserItem *pParent, UIChooserNodeGroup *pNode);
     /** Destructs group item. */
-    virtual ~UIChooserItemGroup() RT_OVERRIDE;
+    virtual ~UIChooserItemGroup() /* override */;
 
     /** @name Item stuff.
       * @{ */
-        /** Returns group node reference. */
-        UIChooserNodeGroup *nodeToGroupType() const;
-        /** Returns item machine id. */
-        QUuid id() const;
-        /** Returns group node type. */
-        UIChooserNodeGroupType groupType() const;
-
         /** Returns whether group is closed. */
         bool isClosed() const;
         /** Closes group in @a fAnimated way if requested. */
@@ -96,10 +89,6 @@ public:
 
     /** @name Navigation stuff.
       * @{ */
-        /** Returns scrolling location value in pixels. */
-        int scrollingValue() const;
-        /** Defines scrolling location @a iValue in pixels. */
-        void setScrollingValue(int iValue);
         /** Performs scrolling by @a iDelta pixels. */
         void scrollBy(int iDelta);
 
@@ -109,7 +98,7 @@ public:
           * root() getter, and this API can be called for current root item only,
           * because this is root item who performs actual scrolling, while
           * @a pItem itself can be on any level of embedding. */
-        void makeSureItemIsVisible(UIChooserItem *pItem);
+        void makeSureItemIsVisible(UIChooserItem *pItem) /* override */;
 
         /** Class-name used for drag&drop mime-data format. */
         static QString className();
@@ -120,95 +109,95 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
 
         /** Handles show @a pEvent. */
-        virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+        virtual void showEvent(QShowEvent *pEvent) /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
         /** Handles hover enter @a event. */
-        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
         /** Handles hover leave @a event. */
-        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
 
         /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
     /** @} */
 
     /** @name Item stuff.
       * @{ */
         /** Returns RTTI item type. */
-        virtual int type() const RT_OVERRIDE { return Type; }
+        virtual int type() const /* override */ { return Type; }
 
         /** Starts item editing. */
-        virtual void startEditing() RT_OVERRIDE;
+        virtual void startEditing() /* override */;
 
         /** Updates item. */
-        virtual void updateItem() RT_OVERRIDE;
+        virtual void updateItem() /* override */;
         /** Updates item tool-tip. */
-        virtual void updateToolTip() RT_OVERRIDE;
+        virtual void updateToolTip() /* override */;
 
         /** Installs event-filter for @a pSource object. */
-        virtual void installEventFilterHelper(QObject *pSource) RT_OVERRIDE;
+        virtual void installEventFilterHelper(QObject *pSource) /* override */;
     /** @} */
 
     /** @name Children stuff.
       * @{ */
         /** Returns children items of certain @a enmType. */
-        virtual QList<UIChooserItem*> items(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+        virtual QList<UIChooserItem*> items(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
 
         /** Adds possible @a fFavorite child @a pItem to certain @a iPosition. */
-        virtual void addItem(UIChooserItem *pItem, bool fFavorite, int iPosition) RT_OVERRIDE;
+        virtual void addItem(UIChooserItem *pItem, bool fFavorite, int iPosition) /* override */;
         /** Removes child @a pItem. */
-        virtual void removeItem(UIChooserItem *pItem) RT_OVERRIDE;
+        virtual void removeItem(UIChooserItem *pItem) /* override */;
 
-        /** Searches for a first child item answering to specified @a strSearchTag and @a iSearchFlags. */
-        virtual UIChooserItem *searchForItem(const QString &strSearchTag, int iSearchFlags) RT_OVERRIDE;
+        /** Searches for a first child item answering to specified @a strSearchTag and @a iItemSearchFlags. */
+        virtual UIChooserItem *searchForItem(const QString &strSearchTag, int iItemSearchFlags) /* override */;
 
         /** Searches for a first machine child item. */
-        virtual UIChooserItem *firstMachineItem() RT_OVERRIDE;
+        virtual UIChooserItem *firstMachineItem() /* override */;
     /** @} */
 
     /** @name Layout stuff.
       * @{ */
         /** Updates geometry. */
-        virtual void updateGeometry() RT_OVERRIDE;
+        virtual void updateGeometry() /* override */;
 
         /** Updates layout. */
-        virtual void updateLayout() RT_OVERRIDE;
+        virtual void updateLayout() /* override */;
 
         /** Returns minimum width-hint. */
-        virtual int minimumWidthHint() const RT_OVERRIDE;
+        virtual int minimumWidthHint() const /* override */;
         /** Returns minimum height-hint. */
-        virtual int minimumHeightHint() const RT_OVERRIDE;
+        virtual int minimumHeightHint() const /* override */;
 
         /** Returns size-hint.
           * @param  enmWhich    Brings size-hint type.
           * @param  constraint  Brings size constraint. */
-        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const RT_OVERRIDE;
+        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const /* override */;
     /** @} */
 
     /** @name Navigation stuff.
       * @{ */
         /** Returns pixmap item representation. */
-        virtual QPixmap toPixmap() RT_OVERRIDE;
+        virtual QPixmap toPixmap() /* override */;
 
         /** Returns whether item drop is allowed.
           * @param  pEvent    Brings information about drop event.
           * @param  enmPlace  Brings the place of drag token to the drop moment. */
-        virtual bool isDropAllowed(QGraphicsSceneDragDropEvent *pEvent, UIChooserItemDragToken where) const RT_OVERRIDE;
+        virtual bool isDropAllowed(QGraphicsSceneDragDropEvent *pEvent, UIChooserItemDragToken where) const /* override */;
         /** Processes item drop.
           * @param  pEvent    Brings information about drop event.
           * @param  pFromWho  Brings the item according to which we choose drop position.
           * @param  enmPlace  Brings the place of drag token to the drop moment (according to item mentioned above). */
-        virtual void processDrop(QGraphicsSceneDragDropEvent *pEvent, UIChooserItem *pFromWho, UIChooserItemDragToken where) RT_OVERRIDE;
+        virtual void processDrop(QGraphicsSceneDragDropEvent *pEvent, UIChooserItem *pFromWho, UIChooserItemDragToken where) /* override */;
         /** Reset drag token. */
-        virtual void resetDragToken() RT_OVERRIDE;
+        virtual void resetDragToken() /* override */;
 
         /** Returns D&D mime data. */
-        virtual QMimeData *createMimeData() RT_OVERRIDE;
+        virtual QMimeData *createMimeData() /* override */;
     /** @} */
 
 private slots:
@@ -225,6 +214,11 @@ private slots:
         void sltGroupToggleStart();
         /** Handles group toggle finish for group finally @a fToggled. */
         void sltGroupToggleFinish(bool fToggled);
+
+        /** Handles root indentation. */
+        void sltIndentRoot();
+        /** Handles root unindentation. */
+        void sltUnindentRoot();
     /** @} */
 
 private:
@@ -253,6 +247,9 @@ private:
       * @{ */
         /** Returns abstractly stored data value for certain @a iKey. */
         QVariant data(int iKey) const;
+
+        /** Returns item's header darkness. */
+        int headerDarkness() const { return m_iHeaderDarkness; }
 
         /** Returns additional height. */
         int additionalHeight() const;
@@ -320,19 +317,10 @@ private:
         /** Holds the cached machine children info. */
         QString  m_strInfoMachines;
 
-        /** Holds root start background darkness. */
-        int  m_iRootBackgroundDarknessStart;
-        /** Holds root final background darkness. */
-        int  m_iRootBackgroundDarknessFinal;
-        /** Holds item start background darkness. */
-        int  m_iItemBackgroundDarknessStart;
-        /** Holds item final background darkness. */
-        int  m_iItemBackgroundDarknessFinal;
-        /** Holds item header highlight lightness. */
-        int  m_iHighlightLightness;
-
         /** Holds aditional height. */
         int  m_iAdditionalHeight;
+        /** Holds the header darkness. */
+        int  m_iHeaderDarkness;
 
         /** Holds group children pixmap. */
         QPixmap  m_groupsPixmap;

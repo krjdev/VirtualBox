@@ -1,4 +1,4 @@
-/* $Id: VBoxGuest-linux.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuest-linux.c $ */
 /** @file
  * VBoxGuest - Linux specifics.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1210,7 +1210,7 @@ static int vgdrvLinuxParamLogGrpGet(char *pszBuf, CONST_4_15 struct kernel_param
     PRTLOGGER pLogger = pParam->name[0] == 'd' ? RTLogDefaultInstance() : RTLogRelGetDefaultInstance();
     *pszBuf = '\0';
     if (pLogger)
-        RTLogQueryGroupSettings(pLogger, pszBuf, _4K);
+        RTLogGetGroupSettings(pLogger, pszBuf, _4K);
     return strlen(pszBuf);
 }
 
@@ -1235,7 +1235,7 @@ static int vgdrvLinuxParamLogFlagsGet(char *pszBuf, CONST_4_15 struct kernel_par
     PRTLOGGER pLogger = pParam->name[0] == 'd' ? RTLogDefaultInstance() : RTLogRelGetDefaultInstance();
     *pszBuf = '\0';
     if (pLogger)
-        RTLogQueryFlags(pLogger, pszBuf, _4K);
+        RTLogGetFlags(pLogger, pszBuf, _4K);
     return strlen(pszBuf);
 }
 
@@ -1260,7 +1260,7 @@ static int vgdrvLinuxParamLogDstGet(char *pszBuf, CONST_4_15 struct kernel_param
     PRTLOGGER pLogger = pParam->name[0] == 'd' ? RTLogDefaultInstance() : RTLogRelGetDefaultInstance();
     *pszBuf = '\0';
     if (pLogger)
-        RTLogQueryDestinations(pLogger, pszBuf, _4K);
+        RTLogGetDestinations(pLogger, pszBuf, _4K);
     return strlen(pszBuf);
 }
 

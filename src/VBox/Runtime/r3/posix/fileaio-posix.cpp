@@ -1,10 +1,10 @@
-/* $Id: fileaio-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: fileaio-posix.cpp $ */
 /** @file
  * IPRT - File async I/O, native implementation for POSIX compliant host platforms.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -484,7 +484,8 @@ RTDECL(int) RTFileAioReqCancel(RTFILEAIOREQ hReq)
         /*
          * Notify the waiting thread that the request was canceled.
          */
-        AssertMsg(RT_VALID_PTR(pCtxInt), ("Invalid state. Request was canceled but wasn't submitted\n"));
+        AssertMsg(VALID_PTR(pCtxInt),
+                  ("Invalid state. Request was canceled but wasn't submitted\n"));
 
         Assert(!pCtxInt->pReqToCancel);
         ASMAtomicWritePtr(&pCtxInt->pReqToCancel, pReqInt);

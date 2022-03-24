@@ -1,10 +1,10 @@
-/* $Id: GuestOSTypeImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestOSTypeImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,7 @@ GuestOSType::GuestOSType()
     , mCPUCount(1)
     , mGraphicsControllerType(GraphicsControllerType_Null)
     , mVRAMSize(0)
-    , mHDDSize(0)
+    , mHDDSize(0), mMonitorCount(0)
     , mNetworkAdapterType(NetworkAdapterType_Am79C973)
     , mNumSerialEnabled(0)
     , mDVDStorageControllerType(StorageControllerType_PIIX3)
@@ -39,7 +39,6 @@ GuestOSType::GuestOSType()
     , mHDStorageControllerType(StorageControllerType_PIIX3)
     , mHDStorageBusType(StorageBus_IDE)
     , mChipsetType(ChipsetType_PIIX3)
-    , mIommuType(IommuType_None)
     , mAudioControllerType(AudioControllerType_AC97)
     , mAudioCodecType(AudioCodecType_STAC9700)
 {
@@ -105,7 +104,6 @@ HRESULT GuestOSType::init(const Global::OSType &ostype)
     unconst(mHDStorageControllerType)   = ostype.hdStorageControllerType;
     unconst(mHDStorageBusType)          = ostype.hdStorageBusType;
     unconst(mChipsetType)               = ostype.chipsetType;
-    unconst(mIommuType)                 = ostype.iommuType;
     unconst(mAudioControllerType)       = ostype.audioControllerType;
     unconst(mAudioCodecType)            = ostype.audioCodecType;
 
@@ -238,7 +236,7 @@ HRESULT GuestOSType::getRecommended3DAcceleration(BOOL *aRecommended3DAccelerati
 HRESULT GuestOSType::getRecommendedHDD(LONG64 *aHDDSize)
 {
     /* mHDDSize is constant during life time, no need to lock */
-    *aHDDSize = (LONG64)mHDDSize;
+    *aHDDSize = mHDDSize;
 
     return S_OK;
 }
@@ -354,15 +352,6 @@ HRESULT GuestOSType::getRecommendedChipset(ChipsetType_T *aChipsetType)
 }
 
 
-HRESULT GuestOSType::getRecommendedIommuType(IommuType_T *aIommuType)
-{
-    /* IOMMU type is constant during life time, no need to lock */
-    *aIommuType = mIommuType;
-
-    return S_OK;
-}
-
-
 HRESULT GuestOSType::getRecommendedAudioController(AudioControllerType_T *aAudioController)
 {
     *aAudioController = mAudioControllerType;
@@ -422,39 +411,11 @@ HRESULT GuestOSType::getRecommendedX2APIC(BOOL *aRecommendedX2APIC)
 
 HRESULT GuestOSType::getRecommendedCPUCount(ULONG *aRecommendedCPUCount)
 {
-    /* mCPUCount is constant during life time, no need to lock */
+    /* mRecommendedX2APIC is constant during life time, no need to lock */
     *aRecommendedCPUCount = mCPUCount;
 
     return S_OK;
 }
 
-HRESULT GuestOSType::getRecommendedTpmType(TpmType_T *aRecommendedTpmType)
-{
-    /* Value is constant during life time, no need to lock */
-    if (mOSHint & VBOXOSHINT_TPM2)
-        *aRecommendedTpmType = TpmType_v2_0;
-    else if (mOSHint & VBOXOSHINT_TPM)
-        *aRecommendedTpmType = TpmType_v1_2;
-    else
-        *aRecommendedTpmType = TpmType_None;
-
-    return S_OK;
-}
-
-HRESULT GuestOSType::getRecommendedSecureBoot(BOOL *aRecommendedSecureBoot)
-{
-    /* Value is constant during life time, no need to lock */
-    *aRecommendedSecureBoot = !!(mOSHint & VBOXOSHINT_EFI_SECUREBOOT);
-
-    return S_OK;
-}
-
-HRESULT GuestOSType::getRecommendedWDDMGraphics(BOOL *aRecommendedWDDMGraphics)
-{
-    /* Value is constant during life time, no need to lock */
-    *aRecommendedWDDMGraphics = !!(mOSHint & VBOXOSHINT_WDDM_GRAPHICS);
-
-    return S_OK;
-}
 
 /* vi: set tabstop=4 shiftwidth=4 expandtab: */

@@ -1,10 +1,10 @@
-/* $Id: dbgas.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgas.cpp $ */
 /** @file
  * IPRT - Debug Address Space.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -331,7 +331,7 @@ static void rtDbgAsDestroy(PRTDBGASINT pDbgAs)
     {
         PRTDBGASMOD pMod = pDbgAs->papModules[i];
         AssertPtr(pMod);
-        if (RT_VALID_PTR(pMod))
+        if (VALID_PTR(pMod))
         {
             Assert(pMod->iOrdinal == i);
             RTDbgModRelease((RTDBGMOD)pMod->Core.Key);

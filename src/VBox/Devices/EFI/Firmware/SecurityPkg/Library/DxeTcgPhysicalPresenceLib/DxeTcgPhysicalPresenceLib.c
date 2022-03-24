@@ -102,13 +102,9 @@ GetTpmCapability (
                           sizeof (RecvBuffer),
                           (UINT8*)&RecvBuffer
                           );
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if ((TpmRsp->tag != SwapBytes16 (TPM_TAG_RSP_COMMAND)) || (TpmRsp->returnCode != 0)) {
-    return EFI_DEVICE_ERROR;
-  }
+  ASSERT_EFI_ERROR (Status);
+  ASSERT (TpmRsp->tag == SwapBytes16 (TPM_TAG_RSP_COMMAND));
+  ASSERT (TpmRsp->returnCode == 0);
 
   TpmPermanentFlags = (TPM_PERMANENT_FLAGS *)&RecvBuffer[sizeof (TPM_RSP_COMMAND_HDR) + sizeof (UINT32)];
 
@@ -161,14 +157,8 @@ TpmPhysicalPresence (
                           sizeof (TpmRsp),
                           (UINT8*)&TpmRsp
                           );
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (TpmRsp.tag != SwapBytes16 (TPM_TAG_RSP_COMMAND)) {
-    return EFI_DEVICE_ERROR;
-  }
-
+  ASSERT_EFI_ERROR (Status);
+  ASSERT (TpmRsp.tag == SwapBytes16 (TPM_TAG_RSP_COMMAND));
   if (TpmRsp.returnCode != 0) {
     //
     // If it fails, some requirements may be needed for this command.
@@ -185,7 +175,7 @@ TpmPhysicalPresence (
   @param[in] TcgProtocol              EFI TCG Protocol instance.
   @param[in] Ordinal                  TPM command code.
   @param[in] AdditionalParameterSize  Additional parameter size.
-  @param[in] AdditionalParameters     Pointer to the Additional parameters.
+  @param[in] AdditionalParameters     Pointer to the Additional paramaters.
 
   @retval TCG_PP_OPERATION_RESPONSE_BIOS_FAILURE  Error occurred during sending command to TPM or
                                                   receiving response from TPM.
@@ -1283,10 +1273,7 @@ TcgPhysicalPresenceLibProcessRequest (
   //
   // Set operator physical presence flags
   //
-  Status = TpmPhysicalPresence (TcgProtocol, TPM_PHYSICAL_PRESENCE_PRESENT);
-  if (EFI_ERROR (Status)) {
-    return;
-  }
+  TpmPhysicalPresence (TcgProtocol, TPM_PHYSICAL_PRESENCE_PRESENT);
 
   //
   // Execute pending TPM request.

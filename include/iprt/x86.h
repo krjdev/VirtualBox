@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -634,8 +634,6 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_CPUID_STEXT_FEATURE_EDX_FLUSH_CMD         RT_BIT_32(28)
 /** EDX Bit 29 - ARCHCAP - Supports the IA32_ARCH_CAPABILITIES MSR. */
 #define X86_CPUID_STEXT_FEATURE_EDX_ARCHCAP           RT_BIT_32(29)
-/** EDX Bit 31 - SSBD - Supports the SSBD flag in IA32_SPEC_CTRL. */
-#define X86_CPUID_STEXT_FEATURE_EDX_SSBD              RT_BIT_32(31)
 
 /** @} */
 
@@ -786,34 +784,18 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
  * @{
  */
 /** Bit 0 - CLZERO - Clear zero instruction. */
-#define X86_CPUID_AMD_EFEID_EBX_CLZERO                      RT_BIT_32(0)
+#define X86_CPUID_AMD_EFEID_EBX_CLZERO       RT_BIT_32(0)
 /** Bit 1 - IRPerf - Instructions retired count support. */
-#define X86_CPUID_AMD_EFEID_EBX_IRPERF                      RT_BIT_32(1)
+#define X86_CPUID_AMD_EFEID_EBX_IRPERF       RT_BIT_32(1)
 /** Bit 2 - XSaveErPtr - Always XSAVE* and XRSTR* error pointers. */
-#define X86_CPUID_AMD_EFEID_EBX_XSAVE_ER_PTR                RT_BIT_32(2)
+#define X86_CPUID_AMD_EFEID_EBX_XSAVE_ER_PTR RT_BIT_32(2)
 /** Bit 4 - RDPRU - Supports the RDPRU instruction. */
-#define X86_CPUID_AMD_EFEID_EBX_RDPRU                       RT_BIT_32(4)
+#define X86_CPUID_AMD_EFEID_EBX_RDPRU        RT_BIT_32(4)
 /** Bit 8 - MCOMMIT - Supports the MCOMMIT instruction. */
-#define X86_CPUID_AMD_EFEID_EBX_MCOMMIT                     RT_BIT_32(8)
+#define X86_CPUID_AMD_EFEID_EBX_MCOMMIT      RT_BIT_32(8)
 /* AMD pipeline length: 9 feature bits ;-) */
 /** Bit 12 - IBPB - Supports the IBPB command in IA32_PRED_CMD. */
-#define X86_CPUID_AMD_EFEID_EBX_IBPB                        RT_BIT_32(12)
-/** Bit 14 - IBRS - Supports the IBRS bit in IA32_SPEC_CTRL. */
-#define X86_CPUID_AMD_EFEID_EBX_IBRS                        RT_BIT_32(14)
-/** Bit 15 - STIBP - Supports the STIBP bit in IA32_SPEC_CTRL. */
-#define X86_CPUID_AMD_EFEID_EBX_STIBP                       RT_BIT_32(15)
-/** Bit 16 - IBRS always on mode - IBRS should be set once during boot only. */
-#define X86_CPUID_AMD_EFEID_EBX_IBRS_ALWAYS_ON              RT_BIT_32(16)
-/** Bit 17 - STIBP always on mode - STIBP should be set once during boot only. */
-#define X86_CPUID_AMD_EFEID_EBX_STIBP_ALWAYS_ON             RT_BIT_32(17)
-/** Bit 18 - IBRS preferred - IBRS is preferred over software mitigations. */
-#define X86_CPUID_AMD_EFEID_EBX_IBRS_PREFERRED              RT_BIT_32(18)
-/** Bit 24 - Speculative Store Bypass Disable supported in SPEC_CTL. */
-#define X86_CPUID_AMD_EFEID_EBX_SPEC_CTRL_SSBD              RT_BIT_32(24)
-/** Bit 25 - Speculative Store Bypass Disable supported in VIRT_SPEC_CTL. */
-#define X86_CPUID_AMD_EFEID_EBX_VIRT_SPEC_CTRL_SSBD         RT_BIT_32(25)
-/** Bit 26 - Speculative Store Bypass Disable not required. */
-#define X86_CPUID_AMD_EFEID_EBX_NO_SSBD_REQUIRED            RT_BIT_32(26)
+#define X86_CPUID_AMD_EFEID_EBX_IBPB         RT_BIT_32(12)
 /** @} */
 
 
@@ -908,8 +890,6 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_CR3_PAE_PAGE_MASK               (0xffffffe0)
 /** Bits 12-51 - - AMD64 Page directory page number. */
 #define X86_CR3_AMD64_PAGE_MASK             UINT64_C(0x000ffffffffff000)
-/** Bits 12-47 - - Intel EPT Page directory page number. */
-#define X86_CR3_EPT_PAGE_MASK               UINT64_C(0x0000fffffffff000)
 /** @} */
 
 
@@ -1234,8 +1214,6 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_SPEC_CTRL_F_IBRS           RT_BIT_32(0)
 /** STIBP - Single thread indirect branch predictors. */
 #define MSR_IA32_SPEC_CTRL_F_STIBP          RT_BIT_32(1)
-/** SSBD - Speculative Store Bypass Disable. */
-#define MSR_IA32_SPEC_CTRL_F_SSBD           RT_BIT_32(2)
 
 /** Prediction command register.
  * Write only, logical processor scope, no state since write only. */
@@ -1519,51 +1497,8 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_LASTBRANCH_30_TO_IP             0x6de
 #define MSR_LASTBRANCH_31_TO_IP             0x6df
 
-#define MSR_LASTBRANCH_0_INFO               0xdc0
-#define MSR_LASTBRANCH_1_INFO               0xdc1
-#define MSR_LASTBRANCH_2_INFO               0xdc2
-#define MSR_LASTBRANCH_3_INFO               0xdc3
-#define MSR_LASTBRANCH_4_INFO               0xdc4
-#define MSR_LASTBRANCH_5_INFO               0xdc5
-#define MSR_LASTBRANCH_6_INFO               0xdc6
-#define MSR_LASTBRANCH_7_INFO               0xdc7
-#define MSR_LASTBRANCH_8_INFO               0xdc8
-#define MSR_LASTBRANCH_9_INFO               0xdc9
-#define MSR_LASTBRANCH_10_INFO              0xdca
-#define MSR_LASTBRANCH_11_INFO              0xdcb
-#define MSR_LASTBRANCH_12_INFO              0xdcc
-#define MSR_LASTBRANCH_13_INFO              0xdcd
-#define MSR_LASTBRANCH_14_INFO              0xdce
-#define MSR_LASTBRANCH_15_INFO              0xdcf
-#define MSR_LASTBRANCH_16_INFO              0xdd0
-#define MSR_LASTBRANCH_17_INFO              0xdd1
-#define MSR_LASTBRANCH_18_INFO              0xdd2
-#define MSR_LASTBRANCH_19_INFO              0xdd3
-#define MSR_LASTBRANCH_20_INFO              0xdd4
-#define MSR_LASTBRANCH_21_INFO              0xdd5
-#define MSR_LASTBRANCH_22_INFO              0xdd6
-#define MSR_LASTBRANCH_23_INFO              0xdd7
-#define MSR_LASTBRANCH_24_INFO              0xdd8
-#define MSR_LASTBRANCH_25_INFO              0xdd9
-#define MSR_LASTBRANCH_26_INFO              0xdda
-#define MSR_LASTBRANCH_27_INFO              0xddb
-#define MSR_LASTBRANCH_28_INFO              0xddc
-#define MSR_LASTBRANCH_29_INFO              0xddd
-#define MSR_LASTBRANCH_30_INFO              0xdde
-#define MSR_LASTBRANCH_31_INFO              0xddf
-
-/** LBR branch tracking selection MSR. */
-#define MSR_LASTBRANCH_SELECT               0x1c8
 /** LBR Top-of-stack MSR (index to most recent record). */
 #define MSR_LASTBRANCH_TOS                  0x1c9
-/** @} */
-
-/** @name Last event record registers.
- * @{ */
-/** Last event record source IP register. */
-#define MSR_LER_FROM_IP                     0x1dd
-/** Last event record destination IP register. */
-#define MSR_LER_TO_IP                       0x1de
 /** @} */
 
 /** Intel TSX (Transactional Synchronization Extensions) control MSR. */
@@ -1644,7 +1579,7 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_VMX_CR4_FIXED1             0x489
 /** Information for enumerating fields in the VMCS. */
 #define MSR_IA32_VMX_VMCS_ENUM              0x48A
-/** Allowed settings for secondary processor-based VM-execution controls. */
+/** Allowed settings for secondary proc-based VM execution controls */
 #define MSR_IA32_VMX_PROCBASED_CTLS2        0x48B
 /** EPT capabilities. */
 #define MSR_IA32_VMX_EPT_VPID_CAP           0x48C
@@ -1658,8 +1593,6 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_VMX_TRUE_ENTRY_CTLS        0x490
 /** Allowed settings for the VM-function controls. */
 #define MSR_IA32_VMX_VMFUNC                 0x491
-/** Tertiary processor-based VM execution controls. */
-#define MSR_IA32_VMX_PROCBASED_CTLS3        0x492
 
 /** Intel PT - Enable and control for trace packet generation. */
 #define MSR_IA32_RTIT_CTL                   0x570
@@ -1912,16 +1845,6 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
  *                      host state during world switch. */
 #define MSR_K8_VM_HSAVE_PA                  UINT32_C(0xc0010117)
 
-/** Virtualized speculation control for AMD processors.
- *
- * Unified interface among different CPU generations.
- * The VMM will set any architectural MSRs based on the CPU.
- * See "White Paper: AMD64 Technology Speculative Store Bypass Disable 5.21.18"
- * (12441_AMD64_SpeculativeStoreBypassDisable_Whitepaper_final.pdf) */
-#define MSR_AMD_VIRT_SPEC_CTL               UINT32_C(0xc001011f)
-/** Speculative Store Bypass Disable. */
-# define MSR_AMD_VIRT_SPEC_CTL_F_SSBD       RT_BIT(2)
-
 /** @} */
 
 
@@ -2015,16 +1938,6 @@ typedef X86PGPAEUINT const *PCX86PGPAEUINT;
  * Check if the given address is canonical.
  */
 #define X86_IS_CANONICAL(a_u64Addr)         ((uint64_t)(a_u64Addr) + UINT64_C(0x800000000000) < UINT64_C(0x1000000000000))
-
-/**
- * Gets the page base mask given the page shift.
- */
-#define X86_GET_PAGE_BASE_MASK(a_cShift)    (UINT64_C(0xffffffffffffffff) << (a_cShift))
-
-/**
- * Gets the page offset mask given the page shift.
- */
-#define X86_GET_PAGE_OFFSET_MASK(a_cShift)  (~X86_GET_PAGE_BASE_MASK(a_cShift))
 
 
 /** @name Page Table Entry
@@ -2133,10 +2046,8 @@ typedef union X86PTE
 {
     /** Unsigned integer view */
     X86PGUINT       u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Bit field view. */
     X86PTEBITS      n;
-#endif
     /** 32-bit view. */
     uint32_t        au32[1];
     /** 16-bit view. */
@@ -2204,10 +2115,8 @@ typedef union X86PTEPAE
 {
     /** Unsigned integer view */
     X86PGPAEUINT    u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Bit field view. */
     X86PTEPAEBITS   n;
-#endif
     /** 32-bit view. */
     uint32_t        au32[2];
     /** 16-bit view. */
@@ -2541,12 +2450,10 @@ typedef union X86PDE
 {
     /** Unsigned integer view. */
     X86PGUINT       u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Normal view. */
     X86PDEBITS      n;
     /** 4MB view (big). */
     X86PDE4MBITS    b;
-#endif
     /** 8 bit unsigned integer view. */
     uint8_t         au8[4];
     /** 16 bit unsigned integer view. */
@@ -2569,12 +2476,10 @@ typedef union X86PDEPAE
 {
     /** Unsigned integer view. */
     X86PGPAEUINT    u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Normal view. */
     X86PDEPAEBITS   n;
     /** 2MB page view (big). */
     X86PDE2MPAEBITS b;
-#endif
     /** 8 bit unsigned integer view. */
     uint8_t         au8[8];
     /** 16 bit unsigned integer view. */
@@ -2655,8 +2560,6 @@ typedef const X86PDPAE *PCX86PDPAE;
 #define X86_PDPE_AVL_MASK                   (RT_BIT_32(9) | RT_BIT_32(10) | RT_BIT_32(11))
 /** Bits 12-51 - - PAE - Physical Page number of the next level. */
 #define X86_PDPE_PG_MASK                    UINT64_C(0x000ffffffffff000)
-/** Bits 30-51 - - PG - Physical address of the 1GB page referenced by this entry. */
-#define X86_PDPE1G_PG_MASK                  UINT64_C(0x000fffffc0000000)
 /** Bits 63-52, 8-5, 2-1 - - PAE - MBZ bits (NX is long mode only). */
 #define X86_PDPE_PAE_MBZ_MASK               UINT64_C(0xfff00000000001e6)
 /** Bits 63 - NX - LM - No execution flag. Long Mode only. */
@@ -2796,14 +2699,12 @@ typedef union X86PDPE
 {
     /** Unsigned integer view. */
     X86PGPAEUINT    u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Normal view. */
     X86PDPEBITS     n;
     /** AMD64 view. */
     X86PDPEAMD64BITS lm;
     /** AMD64 big view. */
     X86PDPE1GB      b;
-#endif
     /** 8 bit unsigned integer view. */
     uint8_t         au8[8];
     /** 16 bit unsigned integer view. */
@@ -2918,10 +2819,8 @@ typedef union X86PML4E
 {
     /** Unsigned integer view. */
     X86PGPAEUINT    u;
-#ifndef VBOX_WITHOUT_PAGING_BIT_FIELDS
     /** Normal view. */
     X86PML4EBITS    n;
-#endif
     /** 8 bit unsigned integer view. */
     uint8_t         au8[8];
     /** 16 bit unsigned integer view. */
@@ -2982,22 +2881,19 @@ typedef const X86PML4 *PCX86PML4;
  */
 typedef struct X86FSTENV32P
 {
-    uint16_t    FCW;            /**< 0x00 */
-    uint16_t    padding1;       /**< 0x02 */
-    uint16_t    FSW;            /**< 0x04 */
-    uint16_t    padding2;       /**< 0x06 */
-    uint16_t    FTW;            /**< 0x08 */
-    uint16_t    padding3;       /**< 0x0a */
-    uint32_t    FPUIP;          /**< 0x0c */
-    uint16_t    FPUCS;          /**< 0x10 */
-    uint16_t    FOP;            /**< 0x12 */
-    uint32_t    FPUDP;          /**< 0x14 */
-    uint16_t    FPUDS;          /**< 0x18 */
-    uint16_t    padding4;       /**< 0x1a */
+    uint16_t    FCW;
+    uint16_t    padding1;
+    uint16_t    FSW;
+    uint16_t    padding2;
+    uint16_t    FTW;
+    uint16_t    padding3;
+    uint32_t    FPUIP;
+    uint16_t    FPUCS;
+    uint16_t    FOP;
+    uint32_t    FPUDP;
+    uint16_t    FPUDS;
+    uint16_t    padding4;
 } X86FSTENV32P;
-#ifndef VBOX_FOR_DTRACE_LIB
-AssertCompileSize(X86FSTENV32P, 0x1c);
-#endif
 /** Pointer to a 32-bit protected mode FSTENV image. */
 typedef X86FSTENV32P *PX86FSTENV32P;
 /** Pointer to a const 32-bit protected mode FSTENV image. */
@@ -3292,11 +3188,9 @@ AssertCompileMemberOffset(X86FXSTATE, au32RsrvdForSoftware, X86_OFF_FXSTATE_RSVD
  * @remarks This includes reserved bit 6.  */
 #define X86_FCW_MASK_ALL    UINT16_C(0x007f)
 /** Mask all exceptions. Same as X86_FSW_XCPT_MASK. */
-#define X86_FCW_XCPT_MASK   UINT16_C(0x003f)
+#define X86_FCW_XCPT_MASK    UINT16_C(0x003f)
 /** Precision control mask. */
 #define X86_FCW_PC_MASK     UINT16_C(0x0300)
-/** Precision control shift. */
-#define X86_FCW_PC_SHIFT    8
 /** Precision control: 24-bit. */
 #define X86_FCW_PC_24       UINT16_C(0x0000)
 /** Precision control: Reserved. */
@@ -3307,8 +3201,6 @@ AssertCompileMemberOffset(X86FXSTATE, au32RsrvdForSoftware, X86_OFF_FXSTATE_RSVD
 #define X86_FCW_PC_64       UINT16_C(0x0300)
 /** Rounding control mask. */
 #define X86_FCW_RC_MASK     UINT16_C(0x0c00)
-/** Rounding control shift. */
-#define X86_FCW_RC_SHIFT    10
 /** Rounding control: To nearest. */
 #define X86_FCW_RC_NEAREST  UINT16_C(0x0000)
 /** Rounding control: Down. */

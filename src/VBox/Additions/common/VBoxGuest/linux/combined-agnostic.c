@@ -1,10 +1,10 @@
-/* $Id: combined-agnostic.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: combined-agnostic.c $ */
 /** @file
  * VBoxGuest - Combine a bunch of OS agnostic sources into one compile unit.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,8 +53,6 @@
 #undef LOG_GROUP
 #include "common/alloc/alloc.c"
 #undef LOG_GROUP
-#include "common/checksum/crc32.c"
-#undef LOG_GROUP
 #include "common/err/errinfo.c"
 #undef LOG_GROUP
 #include "common/log/log.c"
@@ -68,8 +66,6 @@
 #include "common/log/logcom.c"
 #undef LOG_GROUP
 #include "common/log/logformat.c"
-#undef LOG_GROUP
-#include "common/log/RTLogCreateEx.c"
 #undef LOG_GROUP
 #include "common/misc/RTAssertMsg1Weak.c"
 #undef LOG_GROUP
@@ -99,8 +95,6 @@
 #undef LOG_GROUP
 #include "common/string/RTStrCopyP.c"
 #undef LOG_GROUP
-#include "common/string/RTStrEnd.c"
-#undef LOG_GROUP
 #include "common/string/RTStrICmpAscii.c"
 #undef LOG_GROUP
 #include "common/string/RTStrNICmpAscii.c"
@@ -122,10 +116,6 @@
 #include "common/string/strprintf.c"
 #undef LOG_GROUP
 #include "common/string/strprintf-ellipsis.c"
-#undef LOG_GROUP
-#include "common/string/strprintf2.c"
-#undef LOG_GROUP
-#include "common/string/strprintf2-ellipsis.c"
 #undef LOG_GROUP
 #include "common/string/strtonum.c"
 #undef LOG_GROUP

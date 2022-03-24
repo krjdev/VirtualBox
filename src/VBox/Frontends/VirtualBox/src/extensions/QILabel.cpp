@@ -1,10 +1,10 @@
-/* $Id: QILabel.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: QILabel.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QILabel class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,16 +39,16 @@
 
 
 /* static */
-const QRegularExpression QILabel::s_regExpCopy = QRegularExpression("<[^>]*>");
+const QRegExp QILabel::s_regExpCopy = QRegExp("<[^>]*>");
 QRegExp QILabel::s_regExpElide = QRegExp("(<compact\\s+elipsis=\"(start|middle|end)\"?>([^<]*)</compact>)");
 
-QILabel::QILabel(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
+QILabel::QILabel(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = 0 */)
     : QLabel(pParent, enmFlags)
 {
     init();
 }
 
-QILabel::QILabel(const QString &strText, QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
+QILabel::QILabel(const QString &strText, QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = 0 */)
     : QLabel(pParent, enmFlags)
 {
     init();
@@ -309,7 +309,7 @@ QString QILabel::compressText(const QString &strText) const
     QStringList result;
     QFontMetrics fm = fontMetrics();
     /* Split up any multi-line text: */
-    foreach (QString strLine, strText.split(QRegularExpression("<br */?>")))
+    foreach (QString strLine, strText.split(QRegExp("<br */?>")))
     {
         /* Search for the compact tag: */
         if (s_regExpElide.indexIn(strLine) > -1)
@@ -323,11 +323,7 @@ QString QILabel::compressText(const QString &strText) const
             /* Remove the whole compact tag (also the text): */
             const QString strFlat = removeHtmlTags(QString(strWork).remove(strCompact));
             /* What size will the text have without the compact text: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-            const int iFlatWidth = fm.horizontalAdvance(strFlat);
-#else
             const int iFlatWidth = fm.width(strFlat);
-#endif
             /* Create the shortened text: */
             const QString strNew = fm.elidedText(strElide, toTextElideMode(strElideMode), width() - (2 * HOR_PADDING) - iFlatWidth);
             /* Replace the compact part with the shortened text in the initial string: */

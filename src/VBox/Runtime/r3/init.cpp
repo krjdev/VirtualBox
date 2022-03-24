@@ -1,10 +1,10 @@
-/* $Id: init.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: init.cpp $ */
 /** @file
  * IPRT - Init Ring-3.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,7 +61,6 @@
 #include <iprt/string.h>
 #include <iprt/param.h>
 #ifdef RT_OS_WINDOWS
-# include <iprt/getopt.h>
 # include <iprt/utf16.h>
 #endif
 #if !defined(IN_GUEST) && !defined(RT_NO_GIP)
@@ -88,13 +87,13 @@ static bool volatile        g_fInitializing = false;
 
 /** The process path.
  * This is used by RTPathExecDir and RTProcGetExecutablePath and set by rtProcInitName. */
-DECL_HIDDEN_DATA(char)      g_szrtProcExePath[RTPATH_MAX];
+DECLHIDDEN(char)            g_szrtProcExePath[RTPATH_MAX];
 /** The length of g_szrtProcExePath. */
-DECL_HIDDEN_DATA(size_t)    g_cchrtProcExePath;
+DECLHIDDEN(size_t)          g_cchrtProcExePath;
 /** The length of directory path component of g_szrtProcExePath. */
-DECL_HIDDEN_DATA(size_t)    g_cchrtProcDir;
+DECLHIDDEN(size_t)          g_cchrtProcDir;
 /** The offset of the process name into g_szrtProcExePath. */
-DECL_HIDDEN_DATA(size_t)    g_offrtProcName;
+DECLHIDDEN(size_t)          g_offrtProcName;
 
 /** The IPRT init flags. */
 static uint32_t             g_fInitFlags;
@@ -109,23 +108,23 @@ static char **              g_papszrtOrgArgs;
 /**
  * Program start nanosecond TS.
  */
-DECL_HIDDEN_DATA(uint64_t)  g_u64ProgramStartNanoTS;
+DECLHIDDEN(uint64_t)        g_u64ProgramStartNanoTS;
 
 /**
  * The process identifier of the running process.
  */
-DECL_HIDDEN_DATA(RTPROCESS) g_ProcessSelf = NIL_RTPROCESS;
+DECLHIDDEN(RTPROCESS)       g_ProcessSelf = NIL_RTPROCESS;
 
 /**
  * The current process priority.
  */
-DECL_HIDDEN_DATA(RTPROCPRIORITY)  g_enmProcessPriority = RTPROCPRIORITY_DEFAULT;
+DECLHIDDEN(RTPROCPRIORITY)  g_enmProcessPriority = RTPROCPRIORITY_DEFAULT;
 
 /**
  * Set if the atexit callback has been called, i.e. indicating
  * that the process is terminating.
  */
-DECL_HIDDEN_DATA(bool volatile)   g_frtAtExitCalled = false;
+DECLHIDDEN(bool volatile)   g_frtAtExitCalled = false;
 
 #ifdef IPRT_WITH_ALIGNMENT_CHECKS
 /**
@@ -151,7 +150,7 @@ DECLHIDDEN(void) rtR3InitNativeObtrusive(uint32_t fFlags) { RT_NOREF_PV(fFlags);
  * This makes sure any loggers are flushed and will later also work the
  * termination callback chain.
  */
-static void rtR3ExitCallback(void) RT_NOTHROW_DEF
+static void rtR3ExitCallback(void)
 {
     ASMAtomicWriteBool(&g_frtAtExitCalled, true);
 
@@ -240,21 +239,6 @@ static int rtR3InitProgramPath(const char *pszProgramPath)
 }
 
 
-#ifdef RT_OS_WINDOWS
-/**
- * Checks the two argument vectors contains the same strings.
- */
-DECLINLINE(bool) rtR3InitArgvEquals(int cArgs, char **papszArgs1, char **papszArgs2)
-{
-    if (papszArgs1 != papszArgs2)
-        while (cArgs-- > 0)
-            if (strcmp(papszArgs1[cArgs], papszArgs2[cArgs]) != 0)
-                return false;
-    return true;
-}
-#endif
-
-
 /**
  * Internal worker which initializes or re-initializes the
  * program path, name and directory globals.
@@ -291,34 +275,42 @@ static int rtR3InitArgv(uint32_t fFlags, int cArgs, char ***ppapszArgs)
             /*
              * Convert the arguments.
              */
-            char **papszArgs;
+            char **papszArgs = (char **)RTMemAllocZ((cArgs + 1) * sizeof(char *));
+            if (!papszArgs)
+                return VERR_NO_MEMORY;
 
 #ifdef RT_OS_WINDOWS
             /* HACK ALERT! Try convert from unicode versions if possible.
-               Unfortunately for us, __wargv is only initialized if we have a unicode
-               main function.  So, use getoptarv.cpp code to do the conversions and
-               hope it gives us the same result. (CommandLineToArgvW was not in NT 3.1.) */
-            if (   cArgs == __argc
-                && rtR3InitArgvEquals(cArgs, papszOrgArgs, __argv))
+               Unfortunately for us, __wargv is only initialized if we have a
+               unicode main function.  So, we have to use CommandLineToArgvW to get
+               something similar. It should do the same conversion... :-) */
+            /** @todo Replace this CommandLineToArgvW call with a call into
+             *        getoptargv.cpp so we don't depend on shell32 and an API not present
+             *        in NT 3.1.  */
+            int    cArgsW     = -1;
+            PWSTR *papwszArgs = NULL;
+            if (   papszOrgArgs == __argv
+                && cArgs        == __argc
+                && (papwszArgs = CommandLineToArgvW(GetCommandLineW(), &cArgsW)) != NULL )
             {
-                char *pszCmdLine = NULL;
-                int rc = RTUtf16ToUtf8Tag(GetCommandLineW(), &pszCmdLine, "will-leak:rtR3InitArgv");
-                AssertRCReturn(rc, rc);
-
-                int cArgsFromCmdLine = -1;
-                rc = RTGetOptArgvFromString(&papszArgs, &cArgsFromCmdLine, pszCmdLine,
-                                            RTGETOPTARGV_CNV_QUOTE_MS_CRT | RTGETOPTARGV_CNV_MODIFY_INPUT, NULL);
-                AssertMsgRCReturn(rc, ("pszCmdLine='%s' rc=%Rrc\n", pszCmdLine, rc), rc);
-                AssertMsg(cArgsFromCmdLine == cArgs,
-                          ("cArgsFromCmdLine=%d cArgs=%d pszCmdLine='%s' rc=%Rrc\n", cArgsFromCmdLine, cArgs, pszCmdLine));
+                AssertMsg(cArgsW == cArgs, ("%d vs %d\n", cArgsW, cArgs));
+                for (int i = 0; i < cArgs; i++)
+                {
+                    int rc = RTUtf16ToUtf8Tag(papwszArgs[i], &papszArgs[i], "will-leak:rtR3InitArgv");
+                    if (RT_FAILURE(rc))
+                    {
+                        while (i--)
+                            RTStrFree(papszArgs[i]);
+                        RTMemFree(papszArgs);
+                        LocalFree(papwszArgs);
+                        return rc;
+                    }
+                }
+                LocalFree(papwszArgs);
             }
             else
 #endif
             {
-                papszArgs = (char **)RTMemAllocZTag((cArgs + 1) * sizeof(char *), "will-leak:rtR3InitArgv");
-                if (!papszArgs)
-                    return VERR_NO_MEMORY;
-
                 for (int i = 0; i < cArgs; i++)
                 {
                     int rc = RTStrCurrentCPToUtf8(&papszArgs[i], papszOrgArgs[i]);
@@ -444,13 +436,10 @@ static int rtR3InitBody(uint32_t fFlags, int cArgs, char ***ppapszArgs, const ch
      * Initialize SUPLib here so the GIP can get going as early as possible
      * (improves accuracy for the first client).
      */
-    if (fFlags & (RTR3INIT_FLAGS_SUPLIB | RTR3INIT_FLAGS_TRY_SUPLIB))
+    if (fFlags & RTR3INIT_FLAGS_SUPLIB)
     {
-        if (!(fFlags & ((SUPR3INIT_F_UNRESTRICTED | SUPR3INIT_F_LIMITED) << RTR3INIT_FLAGS_SUPLIB_SHIFT)))
-            g_fInitFlags |= fFlags |= SUPR3INIT_F_UNRESTRICTED << RTR3INIT_FLAGS_SUPLIB_SHIFT;
-        rc = SUPR3InitEx(fFlags >> RTR3INIT_FLAGS_SUPLIB_SHIFT, NULL /*ppSession*/);
-        AssertMsgReturn(RT_SUCCESS(rc) || (fFlags & RTR3INIT_FLAGS_TRY_SUPLIB),
-                        ("Failed to initialize the support library, rc=%Rrc!\n", rc), rc);
+        rc = SUPR3Init(NULL);
+        AssertMsgRCReturn(rc, ("Failed to initialize the support library, rc=%Rrc!\n", rc), rc);
     }
 #endif
 
@@ -462,24 +451,13 @@ static int rtR3InitBody(uint32_t fFlags, int cArgs, char ***ppapszArgs, const ch
 
 #if !defined(IN_GUEST) && !defined(RT_NO_GIP)
     /*
-     * The threading is initialized, so we can safely sleep a bit if GIP
-     * needs some time to start updating itself.  Currently limited to
-     * the first mapping of GIP (u32TransactionId <= 4), quite possible we
-     * could just ditch this now.
+     * The threading is initialized we can safely sleep a bit if GIP
+     * needs some time to update itself updating.
      */
-    /** @todo consider dropping this... */
-    PSUPGLOBALINFOPAGE pGip;
-    if (   (fFlags & (RTR3INIT_FLAGS_SUPLIB | RTR3INIT_FLAGS_TRY_SUPLIB))
-        && (pGip = g_pSUPGlobalInfoPage) != NULL
-        && pGip->u32Magic == SUPGLOBALINFOPAGE_MAGIC)
+    if ((fFlags & RTR3INIT_FLAGS_SUPLIB) && g_pSUPGlobalInfoPage)
     {
-        PSUPGIPCPU pGipCpu = SUPGetGipCpuPtr(pGip);
-        if (   pGipCpu
-            && pGipCpu->u32TransactionId <= 4)
-        {
-            RTThreadSleep(pGip->u32UpdateIntervalNS / RT_NS_1MS + 2);
-            RTTimeNanoTS();
-        }
+        RTThreadSleep(20);
+        RTTimeNanoTS();
     }
 #endif
 
@@ -571,7 +549,11 @@ static int rtR3InitBody(uint32_t fFlags, int cArgs, char ***ppapszArgs, const ch
 static int rtR3Init(uint32_t fFlags, int cArgs, char ***ppapszArgs, const char *pszProgramPath)
 {
     /* no entry log flow, because prefixes and thread may freak out. */
-    Assert(!(fFlags & ~RTR3INIT_FLAGS_VALID_MASK));
+    Assert(!(fFlags & ~(  RTR3INIT_FLAGS_DLL
+                        | RTR3INIT_FLAGS_SUPLIB
+                        | RTR3INIT_FLAGS_UNOBTRUSIVE
+                        | RTR3INIT_FLAGS_UTF8_ARGV
+                        | RTR3INIT_FLAGS_STANDALONE_APP)));
     Assert(!(fFlags & RTR3INIT_FLAGS_DLL) || cArgs == 0);
 
     /*
@@ -585,16 +567,11 @@ static int rtR3Init(uint32_t fFlags, int cArgs, char ***ppapszArgs, const char *
     {
         AssertMsg(cUsers > 1, ("%d\n", cUsers));
         Assert(!g_fInitializing);
-
 #if !defined(IN_GUEST) && !defined(RT_NO_GIP)
-        /* Initialize the support library if requested. We've always ignored the
-           status code here for some reason, making the two flags same. */
-        if (fFlags & (RTR3INIT_FLAGS_SUPLIB | RTR3INIT_FLAGS_TRY_SUPLIB))
+        if (fFlags & RTR3INIT_FLAGS_SUPLIB)
         {
-            if (!(fFlags & ((SUPR3INIT_F_UNRESTRICTED | SUPR3INIT_F_LIMITED) << RTR3INIT_FLAGS_SUPLIB_SHIFT)))
-                fFlags |= SUPR3INIT_F_UNRESTRICTED << RTR3INIT_FLAGS_SUPLIB_SHIFT;
-            SUPR3InitEx(fFlags >> RTR3INIT_FLAGS_SUPLIB_SHIFT, NULL /*ppSession*/);
-            g_fInitFlags |= fFlags & (RTR3INIT_FLAGS_SUPLIB | RTR3INIT_FLAGS_TRY_SUPLIB | RTR3INIT_FLAGS_SUPLIB_MASK);
+            SUPR3Init(NULL);
+            g_fInitFlags |= RTR3INIT_FLAGS_SUPLIB;
         }
 #endif
         g_fInitFlags |= fFlags & RTR3INIT_FLAGS_UTF8_ARGV;
@@ -617,22 +594,23 @@ static int rtR3Init(uint32_t fFlags, int cArgs, char ***ppapszArgs, const char *
             rc = rtR3InitArgv(fFlags, cArgs, ppapszArgs);
         return rc;
     }
+    ASMAtomicWriteBool(&g_fInitializing, true);
 
     /*
      * Do the initialization.
      */
-    ASMAtomicWriteBool(&g_fInitializing, true);
     int rc = rtR3InitBody(fFlags, cArgs, ppapszArgs, pszProgramPath);
-    ASMAtomicWriteBool(&g_fInitializing, false);
     if (RT_FAILURE(rc))
     {
         /* failure */
+        ASMAtomicWriteBool(&g_fInitializing, false);
         ASMAtomicDecS32(&g_cUsers);
         return rc;
     }
 
     /* success */
     LogFlow(("rtR3Init: returns VINF_SUCCESS\n"));
+    ASMAtomicWriteBool(&g_fInitializing, false);
     return VINF_SUCCESS;
 }
 

@@ -1,10 +1,10 @@
-/* $Id: thread-r0drv-nt.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: thread-r0drv-nt.cpp $ */
 /** @file
  * IPRT - Threads, Ring-0 Driver, NT.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@
 # include <iprt/asm-amd64-x86.h>
 #endif
 #include <iprt/assert.h>
-#include <iprt/err.h>
+#include <iprt/errcore.h>
 #include <iprt/mp.h>
 #include "internal-r0drv-nt.h"
 
@@ -224,17 +224,5 @@ RTDECL(bool) RTThreadIsInInterrupt(RTTHREAD hThread)
 
     KIRQL CurIrql = KeGetCurrentIrql();
     return CurIrql > PASSIVE_LEVEL; /** @todo Is there a more correct way? */
-}
-
-
-RTDECL(int) RTThreadQueryTerminationStatus(RTTHREAD hThread)
-{
-    AssertReturn(hThread == NIL_RTTHREAD, VERR_INVALID_HANDLE);
-    if (RT_LIKELY(g_pfnrtPsIsThreadTerminating))
-    {
-        BOOLEAN fRc = g_pfnrtPsIsThreadTerminating(PsGetCurrentThread());
-        return !fRc ? VINF_SUCCESS : VINF_THREAD_IS_TERMINATING;
-    }
-    return VERR_NOT_SUPPORTED;
 }
 

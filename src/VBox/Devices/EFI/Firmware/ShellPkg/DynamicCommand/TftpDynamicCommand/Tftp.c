@@ -11,11 +11,11 @@
 #include "Tftp.h"
 
 #define IP4_CONFIG2_INTERFACE_INFO_NAME_LENGTH 32
-EFI_HII_HANDLE   mTftpHiiHandle;
+EFI_HANDLE   mTftpHiiHandle;
 
 /*
    Constant strings and definitions related to the message indicating the amount of
-   progress in the downloading of a TFTP file.
+   progress in the dowloading of a TFTP file.
 */
 
 // Frame for the progression slider
@@ -48,7 +48,7 @@ CONST CHAR16         *mLocalFilePath;
   @param[out] Value     UINT16 value
 
   @return     TRUE      The value was returned.
-  @return     FALSE     A parsing error occurred.
+  @return     FALSE     A parsing error occured.
 **/
 STATIC
 BOOLEAN
@@ -585,7 +585,7 @@ RunTftp (
   @param[out] Value     UINT16 value
 
   @return     TRUE      The value was returned.
-  @return     FALSE     A parsing error occurred.
+  @return     FALSE     A parsing error occured.
 **/
 STATIC
 BOOLEAN
@@ -1081,20 +1081,20 @@ CheckPacket (
 }
 
 /**
-  Retrieve HII package list from ImageHandle and publish to HII database.
+  Retrive HII package list from ImageHandle and publish to HII database.
 
   @param ImageHandle            The image handle of the process.
 
   @return HII handle.
 **/
-EFI_HII_HANDLE
+EFI_HANDLE
 InitializeHiiPackage (
   EFI_HANDLE                  ImageHandle
   )
 {
   EFI_STATUS                  Status;
   EFI_HII_PACKAGE_LIST_HEADER *PackageList;
-  EFI_HII_HANDLE              HiiHandle;
+  EFI_HANDLE                  HiiHandle;
 
   //
   // Retrieve HII package list from ImageHandle

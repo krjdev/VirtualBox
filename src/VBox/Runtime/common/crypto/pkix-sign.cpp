@@ -1,10 +1,10 @@
-/* $Id: pkix-sign.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pkix-sign.cpp $ */
 /** @file
  * IPRT - Crypto - Public Key Infrastructure API, Verification.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,10 +40,8 @@
 
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
-# include <openssl/evp.h>
-# include <openssl/rsa.h>
-# include "internal/openssl-post.h"
+# include "openssl/evp.h"
+# include "openssl/rsa.h"
 # ifndef OPENSSL_VERSION_NUMBER
 #  error "Missing OPENSSL_VERSION_NUMBER!"
 # endif
@@ -156,8 +154,8 @@ RTDECL(int) RTCrPkixPubKeySignDigest(PCRTASN1OBJID pAlgorithm, RTCRKEY hPrivateK
     /* Create an EVP private key. */
     EVP_PKEY     *pEvpPrivateKey = NULL;
     const EVP_MD *pEvpMdType = NULL;
-    int rcOssl = rtCrKeyToOpenSslKeyEx(hPrivateKey, false /*fNeedPublic*/, pszAlgObjId,
-                                       (void **)&pEvpPrivateKey, (const void **)&pEvpMdType, pErrInfo);
+    int rcOssl = rtCrKeyToOpenSslKey(hPrivateKey, false /*fNeedPublic*/, pszAlgObjId,
+                                     (void **)&pEvpPrivateKey, (const void **)&pEvpMdType, pErrInfo);
     if (RT_SUCCESS(rcOssl))
     {
         /* Create an EVP Private key context we can use to validate the digest. */

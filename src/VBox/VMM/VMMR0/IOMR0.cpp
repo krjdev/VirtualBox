@@ -1,10 +1,10 @@
-/* $Id: IOMR0.cpp 93650 2022-02-08 10:43:53Z vboxsync $ */
+/* $Id: IOMR0.cpp $ */
 /** @file
  * IOM - Host Context Ring 0.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,13 +21,10 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_IOM
 #include <VBox/vmm/iom.h>
-#include <VBox/vmm/pgm.h>
 #include "IOMInternal.h"
 #include <VBox/vmm/vmcc.h>
 #include <VBox/log.h>
-#include <iprt/assert.h>
 #include <iprt/assertcompile.h>
-#include <iprt/errcore.h>
 
 
 
@@ -46,22 +43,6 @@ VMMR0_INT_DECL(void) IOMR0InitPerVMData(PGVM pGVM)
 
     iomR0IoPortInitPerVMData(pGVM);
     iomR0MmioInitPerVMData(pGVM);
-}
-
-
-/**
- * Called during ring-0 init (vmmR0InitVM).
- *
- * @returns VBox status code.
- * @param   pGVM    Pointer to the global VM structure.
- */
-VMMR0_INT_DECL(int) IOMR0InitVM(PGVM pGVM)
-{
-    int rc = PGMR0HandlerPhysicalTypeSetUpContext(pGVM, PGMPHYSHANDLERKIND_MMIO, 0 /*fFlags*/,
-                                                  iomMmioHandlerNew, iomMmioPfHandlerNew,
-                                                  "MMIO", pGVM->iom.s.hNewMmioHandlerType);
-    AssertRCReturn(rc, rc);
-    return VINF_SUCCESS;
 }
 
 

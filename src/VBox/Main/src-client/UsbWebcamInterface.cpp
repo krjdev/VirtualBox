@@ -1,10 +1,10 @@
-/* $Id: UsbWebcamInterface.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: UsbWebcamInterface.cpp $ */
 /** @file
  * UsbWebcamInterface - Driver Interface for USB Webcam emulation.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -404,10 +404,11 @@ int EmWebcam::SendControl(EMWEBCAMDRV *pDrv, void *pvUser, uint64_t u64DeviceId,
     }
 
     void *pv = NULL;
-    int rc = pDrvIns->pHlpR3->pfnCFGMQueryPtr(pCfg, "Object", &pv);
+    int rc = CFGMR3QueryPtr(pCfg, "Object", &pv);
     if (!RT_VALID_PTR(pv))
          rc = VERR_INVALID_PARAMETER;
-    AssertMsgRCReturn(rc, ("Configuration error: No/bad \"Object\" %p value! rc=%Rrc\n", pv, rc), rc);
+    AssertMsgReturn(RT_SUCCESS(rc),
+                    ("Configuration error: No/bad \"Object\" %p value! rc=%Rrc\n", pv, rc), rc);
 
     /* Everything ok. Initialize. */
     pThis->pRemote = (EMWEBCAMREMOTE *)pv;

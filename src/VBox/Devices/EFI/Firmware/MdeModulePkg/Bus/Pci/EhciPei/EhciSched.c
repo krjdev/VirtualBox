@@ -3,7 +3,6 @@ PEIM to produce gPeiUsb2HostControllerPpiGuid based on gPeiUsbControllerPpiGuid
 which is used to enable recovery function from USB Drivers.
 
 Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
-Copyright (c) Microsoft Corporation.<BR>
 
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -324,7 +323,7 @@ EhcCheckUrbResult (
     goto ON_EXIT;
   }
 
-  BASE_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
+  EFI_LIST_FOR_EACH (Entry, &Urb->Qh->Qtds) {
     Qtd   = EFI_LIST_CONTAINER (Entry, PEI_EHC_QTD, QtdList);
     QtdHw = &Qtd->QtdHw;
     State = (UINT8) QtdHw->Status;

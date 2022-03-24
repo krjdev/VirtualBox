@@ -1,10 +1,10 @@
-/* $Id: GuestDnDTargetImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDnDTargetImpl.cpp $ */
 /** @file
  * VBox Console COM Class implementation - Guest drag'n drop target.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -247,6 +247,23 @@ HRESULT GuestDnDTarget::removeFormats(const GuestDnDMIMEList &aFormats)
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
     return GuestDnDBase::i_removeFormats(aFormats);
+#endif /* VBOX_WITH_DRAG_AND_DROP */
+}
+
+HRESULT GuestDnDTarget::getProtocolVersion(ULONG *aProtocolVersion)
+{
+#if !defined(VBOX_WITH_DRAG_AND_DROP)
+    ReturnComNotImplemented();
+#else /* VBOX_WITH_DRAG_AND_DROP */
+
+    AutoCaller autoCaller(this);
+    if (FAILED(autoCaller.rc())) return autoCaller.rc();
+
+    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
+
+    *aProtocolVersion = m_pState->m_uProtocolVersion;
+
+    return S_OK;
 #endif /* VBOX_WITH_DRAG_AND_DROP */
 }
 
@@ -540,8 +557,7 @@ HRESULT GuestDnDTarget::drop(ULONG aScreenId, ULONG aX, ULONG aY,
                 }
                 else
                     /** @todo r=bird: This isn't an IPRT error, is it?   */
-                    hr = setError(VBOX_E_IPRT_ERROR, tr("Guest returned invalid drop formats (%zu formats)", "",
-                                                        lstFormats.size()), lstFormats.size());
+                    hr = setError(VBOX_E_IPRT_ERROR, tr("Guest returned invalid drop formats (%zu formats)"), lstFormats.size());
             }
             else
                 hr = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Waiting for response of dropped event failed (%Rrc)"), vrc);

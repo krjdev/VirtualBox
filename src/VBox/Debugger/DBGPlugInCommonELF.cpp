@@ -1,10 +1,10 @@
-/* $Id: DBGPlugInCommonELF.cpp 93470 2022-01-27 23:51:28Z vboxsync $ */
+/* $Id: DBGPlugInCommonELF.cpp $ */
 /** @file
  * DBGPlugInCommonELF - Common code for dealing with ELF images.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #define LOG_GROUP LOG_GROUP_DBGF /// @todo add new log group.
 #include "DBGPlugInCommonELF.h"
 
-#include <VBox/vmm/vmmr3vtable.h>
+#include <VBox/vmm/dbgf.h>
 #include <iprt/alloca.h>
 #include <iprt/asm.h>
 #include <iprt/assert.h>

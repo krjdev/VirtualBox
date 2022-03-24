@@ -1,4 +1,4 @@
-/* $Id: tstVMStructSize.cpp 93905 2022-02-24 09:13:26Z vboxsync $ */
+/* $Id: tstVMStructSize.cpp $ */
 /** @file
  * tstVMStructSize - testcase for check structure sizes/alignment
  *                   and to verify that HC and GC uses the same
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -226,7 +226,6 @@ int main()
     CHECK_PADDING_VM(8, vm);
     CHECK_PADDING_VM(8, cfgm);
     CHECK_PADDING_VM(8, apic);
-    CHECK_PADDING_VM(8, iem);
     PRINT_OFFSET(VM, cfgm);
     PRINT_OFFSET(VM, apCpusR3);
 
@@ -247,23 +246,15 @@ int main()
     PRINT_OFFSET(VMCPU, pgm);
     CHECK_PADDING_VMCPU(4096, pgm);
     CHECK_PADDING_VMCPU(4096, cpum);
-    CHECK_PADDING_VMCPU(4096, cpum);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.svm.Vmcb, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.svm.abMsrBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.svm.abIoBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.Vmcs, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.ShadowVmcs, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.abVmreadBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.abVmwriteBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.aEntryMsrLoadArea, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.aExitMsrStoreArea, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.aExitMsrLoadArea, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.abMsrBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.abIoBitmap, 4096);
-    CHECK_MEMBER_ALIGNMENT(VMCPU, cpum.s.Guest.hwvirt.vmx.abVirtApicPage, 4096);
 
     PVM pVM = NULL; NOREF(pVM);
+
+    CHECK_MEMBER_ALIGNMENT(VMCPU, vmm.s.u64CallRing3Arg, 8);
+#if defined(RT_OS_WINDOWS) && defined(RT_ARCH_AMD64)
+    CHECK_MEMBER_ALIGNMENT(VMCPU, vmm.s.CallRing3JmpBufR0, 16);
+    CHECK_MEMBER_ALIGNMENT(VMCPU, vmm.s.CallRing3JmpBufR0.xmm6, 16);
+#endif
+    CHECK_MEMBER_ALIGNMENT(VM, vmm.s.u64LastYield, 8);
 
     /* the VMCPUs are page aligned TLB hit reasons. */
     CHECK_SIZE_ALIGNMENT(VMCPU, 4096);
@@ -341,6 +332,9 @@ int main()
     CHECK_PADDING2(PDMCRITSECTRW);
 
     /* pgm */
+#if defined(VBOX_WITH_2X_4GB_ADDR_SPACE)
+    CHECK_MEMBER_ALIGNMENT(PGMCPU, AutoSet, 8);
+#endif
     CHECK_MEMBER_ALIGNMENT(PGMCPU, GCPhysCR3, sizeof(RTGCPHYS));
     CHECK_MEMBER_ALIGNMENT(PGMCPU, aGCPhysGstPaePDs, sizeof(RTGCPHYS));
     CHECK_MEMBER_ALIGNMENT(PGMCPU, DisState, 8);
@@ -353,7 +347,7 @@ int main()
     CHECK_MEMBER_ALIGNMENT(PGMREGMMIO2RANGE, RamRange, 16);
 
     /* TM */
-    CHECK_MEMBER_ALIGNMENT(TM, aTimerQueues, 64);
+    CHECK_MEMBER_ALIGNMENT(TM, TimerCritSect, sizeof(uintptr_t));
     CHECK_MEMBER_ALIGNMENT(TM, VirtualSyncLock, sizeof(uintptr_t));
 
     /* misc */
@@ -370,25 +364,27 @@ int main()
     CHECK_MEMBER_ALIGNMENT(EMCPU, aExitRecords, sizeof(EMEXITREC));
     CHECK_MEMBER_ALIGNMENT(PGM, CritSectX, sizeof(uintptr_t));
     CHECK_MEMBER_ALIGNMENT(PDM, CritSect, sizeof(uintptr_t));
+    CHECK_MEMBER_ALIGNMENT(MMHYPERHEAP, Lock, sizeof(uintptr_t));
 
     /* hm - 32-bit gcc won't align uint64_t naturally, so check. */
+    CHECK_MEMBER_ALIGNMENT(HM, uMaxAsid, 8);
     CHECK_MEMBER_ALIGNMENT(HM, vmx, 8);
+    CHECK_MEMBER_ALIGNMENT(HM, vmx.Msrs, 8);
     CHECK_MEMBER_ALIGNMENT(HM, svm, 8);
-    CHECK_MEMBER_ALIGNMENT(HM, ForR3.uMaxAsid, 8);
-    CHECK_MEMBER_ALIGNMENT(HM, ForR3.vmx, 8);
     CHECK_MEMBER_ALIGNMENT(HM, PatchTree, 8);
     CHECK_MEMBER_ALIGNMENT(HM, aPatches, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, vmx, 8);
-    CHECK_MEMBER_ALIGNMENT(HMR0PERVCPU, vmx.pfnStartVm, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.VmcsInfo, 8);
+    CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.VmcsInfo.pfnStartVM, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.VmcsInfoNstGst, 8);
-    CHECK_MEMBER_ALIGNMENT(HMR0PERVCPU, vmx.RestoreHost, 8);
+    CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.VmcsInfoNstGst.pfnStartVM, 8);
+    CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.RestoreHost, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, vmx.LastError, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, svm, 8);
-    CHECK_MEMBER_ALIGNMENT(HMR0PERVCPU, svm.pfnVMRun, 8);
+    CHECK_MEMBER_ALIGNMENT(HMCPU, svm.pfnVMRun, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, Event, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, Event.u64IntInfo, 8);
-    CHECK_MEMBER_ALIGNMENT(HMR0PERVCPU, svm.DisState, 8);
+    CHECK_MEMBER_ALIGNMENT(HMCPU, DisState, 8);
     CHECK_MEMBER_ALIGNMENT(HMCPU, StatEntry, 8);
 
     /* Make sure the set is large enough and has the correct size. */
@@ -438,11 +434,9 @@ int main()
     CHECK_EXPR(PGM_PAGE_HAS_ACTIVE_ALL_HANDLERS(&Page) == false);
 
 #undef AssertFatal
-#define AssertFatal(expr)           do { } while (0)
-#undef AssertFatalMsg
-#define AssertFatalMsg(expr, msg)   do { } while (0)
+#define AssertFatal(expr) do { } while (0)
 #undef Assert
-#define Assert(expr)                do { } while (0)
+#define Assert(expr)      do { } while (0)
 
     PGM_PAGE_CLEAR(&Page);
     CHECK_EXPR(PGM_PAGE_GET_HCPHYS_NA(&Page) == 0);

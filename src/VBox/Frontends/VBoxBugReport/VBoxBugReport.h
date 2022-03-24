@@ -1,10 +1,10 @@
-/* $Id: VBoxBugReport.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxBugReport.h $ */
 /** @file
  * VBoxBugReport - VirtualBox command-line diagnostics tool, internal header file.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,7 @@
  * collected via OS APIs.
  */
 
-/** @todo not sure if using a separate namespace would be beneficial */
+/* @todo not sure if using a separate namespace would be beneficial */
 
 #include <iprt/path.h>
 #include <iprt/stream.h>
@@ -47,29 +47,29 @@
 
 /* Base */
 
-DECL_INLINE_THROW(void) handleRtError(int rc, const char *pszMsgFmt, ...)
+inline void handleRtError(int rc, const char *pszMsgFmt, ...)
 {
     if (RT_FAILURE(rc))
     {
         va_list va;
         va_start(va, pszMsgFmt);
-        RTCString strMsg(pszMsgFmt, va);
+        RTCString msgArgs(pszMsgFmt, va);
         va_end(va);
-        strMsg.appendPrintfNoThrow(". %Rrf\n", rc);
-        throw RTCError(strMsg);
+        RTCStringFmt msg("%s. %s (%d)\n", msgArgs.c_str(), RTErrGetFull(rc), rc);
+        throw RTCError(msg.c_str());
     }
 }
 
-DECL_INLINE_THROW(void) handleComError(HRESULT hr, const char *pszMsgFmt, ...)
+inline void handleComError(HRESULT hr, const char *pszMsgFmt, ...)
 {
     if (FAILED(hr))
     {
         va_list va;
         va_start(va, pszMsgFmt);
-        RTCString strMsg(pszMsgFmt, va);
+        RTCString msgArgs(pszMsgFmt, va);
         va_end(va);
-        strMsg.appendPrintfNoThrow(". (hr=0x%x %Rhrc)\n", hr, hr);
-        throw RTCError(strMsg);
+        RTCStringFmt msg("%s (hr=0x%x)\n", msgArgs.c_str(), hr);
+        throw RTCError(msg.c_str());
     }
 }
 

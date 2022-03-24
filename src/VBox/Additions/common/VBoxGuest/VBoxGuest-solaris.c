@@ -1,10 +1,10 @@
-/* $Id: VBoxGuest-solaris.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuest-solaris.c $ */
 /** @file
  * VirtualBox Guest Additions Driver for Solaris.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1091,6 +1091,13 @@ static uint_t vgdrvSolarisISR(caddr_t Arg)
 }
 
 
+/**
+ * Poll notifier for mouse poll events.
+ *
+ * @param   pDevExt   Pointer to the device extension.
+ *
+ * @remarks This must be called without holding any spinlocks.
+ */
 void VGDrvNativeISRMousePollEvent(PVBOXGUESTDEVEXT pDevExt)
 {
     LogFlow(("VGDrvNativeISRMousePollEvent:\n"));

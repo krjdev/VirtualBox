@@ -1,10 +1,10 @@
-/* $Id: NEMAll.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NEMAll.cpp $ */
 /** @file
  * NEM - Native execution manager, R0 and R3 context code.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -85,15 +85,6 @@ VMM_INT_DECL(int)  NEMHCNotifyPhysPageAllocated(PVMCC pVM, RTGCPHYS GCPhys, RTHC
     return VINF_SUCCESS;
 #endif
 }
-
-
-#ifndef VBOX_WITH_NATIVE_NEM
-VMM_INT_DECL(uint32_t) NEMHCGetFeatures(PVMCC pVM)
-{
-    RT_NOREF(pVM);
-    return 0;
-}
-#endif
 
 
 #ifndef VBOX_WITH_NATIVE_NEM

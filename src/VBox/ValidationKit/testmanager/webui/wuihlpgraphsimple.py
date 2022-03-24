@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: wuihlpgraphsimple.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: wuihlpgraphsimple.py $
 
 """
 Test Manager Web-UI - Graph Helpers - Simple/Stub Implementation.
@@ -7,7 +7,7 @@ Test Manager Web-UI - Graph Helpers - Simple/Stub Implementation.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 # Validation Kit imports.
 from common.webutils                    import escapeAttr, escapeElem;
@@ -82,7 +82,8 @@ class WuiHlpBarGraph(WuiHlpGraphBase):
                        '      <table class="tmbargraphl2" height="100%%" width="100%%" ' \
                                     'border="0" cellspacing="0" cellpadding="0">\n' \
                      % (escapeElem(oRow.sName), escapeAttr(str(self.cxMaxBar + 2)));
-            for j, oValue in enumerate(oRow.aoValues):
+            for j in range(len(oRow.aoValues)):
+                oValue = oRow.aoValues[j];
                 cPct   = int(float(oValue) * 100 / fpMax);
                 cxBar  = int(float(oValue) * self.cxMaxBar / fpMax);
                 sValue = escapeElem(oRow.asValues[j]);
@@ -123,9 +124,10 @@ class WuiHlpBarGraph(WuiHlpGraphBase):
 
         sReport += '<div class="tmgraphlegend">\n' \
                    '  <p>Legend:\n';
-        for j, sValue in enumerate(aoTable[0].asValues):
+        for j in range(len(aoTable[0].asValues)):
             sColor = self.kasColors[j % len(self.kasColors)];
-            sReport += '    <font color="%s">&#x25A0; %s</font>\n' % (sColor, escapeElem(sValue),);
+            sReport += '    <font color="%s">&#x25A0; %s</font>\n' \
+                     % (sColor, escapeElem(aoTable[0].asValues[j]));
         sReport += '  </p>\n' \
                    '</div>\n';
 

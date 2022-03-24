@@ -1,4 +1,4 @@
-/* $Id: MsiCommon.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MsiCommon.cpp $ */
 /** @file
  * MSI support routines
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 
 #include "MsiCommon.h"
 #include "PciInline.h"
-#include "DevPciInternal.h"
 
 
 DECLINLINE(uint16_t) msiGetMessageControl(PPDMPCIDEV pDev)
@@ -330,19 +329,13 @@ void MsiNotify(PPDMDEVINS pDevIns, PCPDMPCIHLP pPciHlp, PPDMPCIDEV pDev, int iVe
         return;
     }
 
-    MSIMSG Msi;
-    Msi.Addr.u64 = msiGetMsiAddress(pDev);
-    Msi.Data.u32 = msiGetMsiData(pDev, iVector);
+    RTGCPHYS   GCAddr = msiGetMsiAddress(pDev);
+    uint32_t   u32Value = msiGetMsiData(pDev, iVector);
 
     if (puPending)
         *puPending &= ~(1<<iVector);
 
-    PPDMDEVINS pDevInsBus = pPciHlp->pfnGetBusByNo(pDevIns, pDev->Int.s.idxPdmBus);
-    Assert(pDevInsBus);
-    PDEVPCIBUS pBus = PDMINS_2_DATA(pDevInsBus, PDEVPCIBUS);
-    uint16_t const uBusDevFn = PCIBDF_MAKE(pBus->iBus, pDev->uDevFn);
-
     Assert(pPciHlp->pfnIoApicSendMsi != NULL);
-    pPciHlp->pfnIoApicSendMsi(pDevIns, uBusDevFn, &Msi, uTagSrc);
+    pPciHlp->pfnIoApicSendMsi(pDevIns, GCAddr, u32Value, uTagSrc);
 }
 

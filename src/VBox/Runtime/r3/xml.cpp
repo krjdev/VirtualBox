@@ -1,10 +1,10 @@
-/* $Id: xml.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: xml.cpp $ */
 /** @file
  * IPRT - XML Manipulation API.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -146,15 +146,20 @@ XmlError::XmlError(xmlErrorPtr aErr)
     return finalMsg;
 }
 
-EIPRTFailure::EIPRTFailure(int aRC, const char *pszContextFmt, ...)
-    : RuntimeError(NULL)
-    , mRC(aRC)
+EIPRTFailure::EIPRTFailure(int aRC, const char *pcszContext, ...)
+    : RuntimeError(NULL),
+      mRC(aRC)
 {
-    va_list va;
-    va_start(va, pszContextFmt);
-    m_strMsg.printfVNoThrow(pszContextFmt, va);
-    va_end(va);
-    m_strMsg.appendPrintfNoThrow(" %Rrc (%Rrs)", aRC, aRC);
+    char *pszContext2;
+    va_list args;
+    va_start(args, pcszContext);
+    RTStrAPrintfV(&pszContext2, pcszContext, args);
+    va_end(args);
+    char *newMsg;
+    RTStrAPrintf(&newMsg, "%s: %d (%s)", pszContext2, aRC, RTErrGetShort(aRC));
+    setWhat(newMsg);
+    RTStrFree(newMsg);
+    RTStrFree(pszContext2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,29 +170,9 @@ EIPRTFailure::EIPRTFailure(int aRC, const char *pszContextFmt, ...)
 
 struct File::Data
 {
-    Data(RTFILE a_hHandle, const char *a_pszFilename, bool a_fFlushOnClose)
-        : strFileName(a_pszFilename)
-        , handle(a_hHandle)
-        , opened(a_hHandle != NIL_RTFILE)
-        , flushOnClose(a_fFlushOnClose)
+    Data()
+        : handle(NIL_RTFILE), opened(false)
     { }
-
-    ~Data()
-    {
-        if (flushOnClose)
-        {
-            RTFileFlush(handle);
-            if (!strFileName.isEmpty())
-                RTDirFlushParent(strFileName.c_str());
-        }
-
-        if (opened)
-        {
-            RTFileClose(handle);
-            handle = NIL_RTFILE;
-            opened = false;
-        }
-    }
 
     RTCString strFileName;
     RTFILE handle;
@@ -196,10 +181,11 @@ struct File::Data
 };
 
 File::File(Mode aMode, const char *aFileName, bool aFlushIt /* = false */)
-    : m(NULL)
+    : m(new Data())
 {
-    /* Try open the file first, as the destructor will not be invoked if we throw anything from here. For details see:
-       https://stackoverflow.com/questions/9971782/destructor-not-invoked-when-an-exception-is-thrown-in-the-constructor */
+    m->strFileName = aFileName;
+    m->flushOnClose = aFlushIt;
+
     uint32_t flags = 0;
     const char *pcszMode = "???";
     switch (aMode)
@@ -222,41 +208,43 @@ File::File(Mode aMode, const char *aFileName, bool aFlushIt /* = false */)
             pcszMode = "reading/writing";
             break;
     }
-    RTFILE hFile = NIL_RTFILE;
-    int vrc = RTFileOpen(&hFile, aFileName, flags);
+
+    int vrc = RTFileOpen(&m->handle, aFileName, flags);
     if (RT_FAILURE(vrc))
         throw EIPRTFailure(vrc, "Runtime error opening '%s' for %s", aFileName, pcszMode);
 
-    /* Now we can create the data and stuff: */
-    try
-    {
-        m = new Data(hFile, aFileName, aFlushIt && (flags & RTFILE_O_ACCESS_MASK) != RTFILE_O_READ);
-    }
-    catch (std::bad_alloc &)
-    {
-        RTFileClose(hFile);
-        throw;
-    }
+    m->opened = true;
+    m->flushOnClose = aFlushIt && (flags & RTFILE_O_ACCESS_MASK) != RTFILE_O_READ;
 }
 
 File::File(RTFILE aHandle, const char *aFileName /* = NULL */, bool aFlushIt /* = false */)
-    : m(NULL)
+    : m(new Data())
 {
     if (aHandle == NIL_RTFILE)
         throw EInvalidArg(RT_SRC_POS);
 
-    m = new Data(aHandle, aFileName, aFlushIt);
+    m->handle = aHandle;
+
+    if (aFileName)
+        m->strFileName = aFileName;
+
+    m->flushOnClose = aFlushIt;
 
     setPos(0);
 }
 
 File::~File()
 {
-    if (m)
+    if (m->flushOnClose)
     {
-        delete m;
-        m = NULL;
+        RTFileFlush(m->handle);
+        if (!m->strFileName.isEmpty())
+            RTDirFlushParent(m->strFileName.c_str());
     }
+
+    if (m->opened)
+        RTFileClose(m->handle);
+    delete m;
 }
 
 const char *File::uri() const
@@ -401,12 +389,12 @@ int MemoryBuf::read(char *aBuf, int aLen)
 
 struct GlobalLock::Data
 {
-    PFNEXTERNALENTITYLOADER pfnOldLoader;
+    PFNEXTERNALENTITYLOADER pOldLoader;
     RTCLock lock;
 
     Data()
-        : pfnOldLoader(NULL)
-        , lock(gGlobal.sxml.lock)
+        : pOldLoader(NULL),
+          lock(gGlobal.sxml.lock)
     {
     }
 };
@@ -418,16 +406,16 @@ GlobalLock::GlobalLock()
 
 GlobalLock::~GlobalLock()
 {
-    if (m->pfnOldLoader)
-        xmlSetExternalEntityLoader(m->pfnOldLoader);
+    if (m->pOldLoader)
+        xmlSetExternalEntityLoader(m->pOldLoader);
     delete m;
     m = NULL;
 }
 
-void GlobalLock::setExternalEntityLoader(PFNEXTERNALENTITYLOADER pfnLoader)
+void GlobalLock::setExternalEntityLoader(PFNEXTERNALENTITYLOADER pLoader)
 {
-    m->pfnOldLoader = xmlGetExternalEntityLoader();
-    xmlSetExternalEntityLoader(pfnLoader);
+    m->pOldLoader = xmlGetExternalEntityLoader();
+    xmlSetExternalEntityLoader(pLoader);
 }
 
 // static
@@ -1840,7 +1828,7 @@ ElementNode *Document::createRootElement(const char *pcszRootElementName,
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void xmlParserBaseGenericError(void *pCtx, const char *pszMsg, ...) RT_NOTHROW_DEF
+static void xmlParserBaseGenericError(void *pCtx, const char *pszMsg, ...)
 {
     NOREF(pCtx);
     va_list args;
@@ -1849,7 +1837,7 @@ static void xmlParserBaseGenericError(void *pCtx, const char *pszMsg, ...) RT_NO
     va_end(args);
 }
 
-static void xmlParserBaseStructuredError(void *pCtx, xmlErrorPtr error) RT_NOTHROW_DEF
+static void xmlParserBaseStructuredError(void *pCtx, xmlErrorPtr error)
 {
     NOREF(pCtx);
     /* we expect that there is always a trailing NL */
@@ -2034,7 +2022,7 @@ int XmlStringWriter::write(const Document &rDoc, RTCString *pStrDst)
     return rc;
 }
 
-/*static*/ int XmlStringWriter::WriteCallbackForSize(void *pvUser, const char *pachBuf, int cbToWrite) RT_NOTHROW_DEF
+/*static*/ int XmlStringWriter::WriteCallbackForSize(void *pvUser, const char *pachBuf, int cbToWrite)
 {
     if (cbToWrite > 0)
         *(size_t *)pvUser += (unsigned)cbToWrite;
@@ -2042,7 +2030,7 @@ int XmlStringWriter::write(const Document &rDoc, RTCString *pStrDst)
     return cbToWrite;
 }
 
-/*static*/ int XmlStringWriter::WriteCallbackForReal(void *pvUser, const char *pachBuf, int cbToWrite) RT_NOTHROW_DEF
+/*static*/ int XmlStringWriter::WriteCallbackForReal(void *pvUser, const char *pachBuf, int cbToWrite)
 {
     XmlStringWriter *pThis = static_cast<XmlStringWriter*>(pvUser);
     if (!pThis->m_fOutOfMemory)
@@ -2064,7 +2052,7 @@ int XmlStringWriter::write(const Document &rDoc, RTCString *pStrDst)
     return -1; /* failure */
 }
 
-/*static*/ int XmlStringWriter::CloseCallback(void *pvUser) RT_NOTHROW_DEF
+int XmlStringWriter::CloseCallback(void *pvUser)
 {
     /* Nothing to do here. */
     RT_NOREF(pvUser);
@@ -2189,7 +2177,8 @@ void XmlFileParser::read(const RTCString &strFilename,
     doc.refreshInternals();
 }
 
-/*static*/ int XmlFileParser::ReadCallback(void *aCtxt, char *aBuf, int aLen) RT_NOTHROW_DEF
+// static
+int XmlFileParser::ReadCallback(void *aCtxt, char *aBuf, int aLen)
 {
     ReadContext *pContext = static_cast<ReadContext*>(aCtxt);
 
@@ -2208,7 +2197,7 @@ void XmlFileParser::read(const RTCString &strFilename,
     return -1 /* failure */;
 }
 
-/*static*/ int XmlFileParser::CloseCallback(void *aCtxt) RT_NOTHROW_DEF
+int XmlFileParser::CloseCallback(void *aCtxt)
 {
     /// @todo to be written
     NOREF(aCtxt);
@@ -2316,7 +2305,7 @@ void XmlFileWriter::write(const char *pcszFilename, bool fSafe)
     }
 }
 
-/*static*/ int XmlFileWriter::WriteCallback(void *aCtxt, const char *aBuf, int aLen) RT_NOTHROW_DEF
+int XmlFileWriter::WriteCallback(void *aCtxt, const char *aBuf, int aLen)
 {
     WriteContext *pContext = static_cast<WriteContext*>(aCtxt);
 
@@ -2334,7 +2323,7 @@ void XmlFileWriter::write(const char *pcszFilename, bool fSafe)
     return -1 /* failure */;
 }
 
-/*static*/ int XmlFileWriter::CloseCallback(void *aCtxt) RT_NOTHROW_DEF
+int XmlFileWriter::CloseCallback(void *aCtxt)
 {
     /// @todo to be written
     NOREF(aCtxt);

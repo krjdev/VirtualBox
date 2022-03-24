@@ -1,10 +1,10 @@
-/* $Id: VBoxDbgBase.cpp 93468 2022-01-27 21:17:12Z vboxsync $ */
+/* $Id: VBoxDbgBase.cpp $ */
 /** @file
  * VBox Debugger GUI - Base classes.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,7 +33,7 @@
 
 
 VBoxDbgBase::VBoxDbgBase(VBoxDbgGui *a_pDbgGui)
-    : m_pDbgGui(a_pDbgGui), m_pUVM(NULL), m_pVMM(NULL), m_hGUIThread(RTThreadNativeSelf())
+    : m_pDbgGui(a_pDbgGui), m_pUVM(NULL), m_hGUIThread(RTThreadNativeSelf())
 {
     NOREF(m_pDbgGui); /* shut up warning. */
 
@@ -41,12 +41,11 @@ VBoxDbgBase::VBoxDbgBase(VBoxDbgGui *a_pDbgGui)
      * Register
      */
     m_pUVM = a_pDbgGui->getUvmHandle();
-    m_pVMM = a_pDbgGui->getVMMFunctionTable();
-    if (m_pUVM && m_pVMM)
+    if (m_pUVM)
     {
-        m_pVMM->pfnVMR3RetainUVM(m_pUVM);
+        VMR3RetainUVM(m_pUVM);
 
-        int rc = m_pVMM->pfnVMR3AtStateRegister(m_pUVM, atStateChange, this);
+        int rc = VMR3AtStateRegister(m_pUVM, atStateChange, this);
         AssertRC(rc);
     }
 }
@@ -58,14 +57,13 @@ VBoxDbgBase::~VBoxDbgBase()
      * If the VM is still around.
      */
     /** @todo need to do some locking here?  */
-    PUVM          pUVM = ASMAtomicXchgPtrT(&m_pUVM, NULL, PUVM);
-    PCVMMR3VTABLE pVMM = ASMAtomicXchgPtrT(&m_pVMM, NULL, PCVMMR3VTABLE);
-    if (pUVM && pVMM)
+    PUVM pUVM = ASMAtomicXchgPtrT(&m_pUVM, NULL, PUVM);
+    if (pUVM)
     {
-        int rc = pVMM->pfnVMR3AtStateDeregister(pUVM, atStateChange, this);
+        int rc = VMR3AtStateDeregister(pUVM, atStateChange, this);
         AssertRC(rc);
 
-        pVMM->pfnVMR3ReleaseUVM(pUVM);
+        VMR3ReleaseUVM(pUVM);
     }
 }
 
@@ -75,12 +73,10 @@ VBoxDbgBase::stamReset(const QString &rPat)
 {
     QByteArray Utf8Array = rPat.toUtf8();
     const char *pszPat = !rPat.isEmpty() ? Utf8Array.constData() : NULL;
-    PUVM          pUVM = m_pUVM;
-    PCVMMR3VTABLE pVMM = m_pVMM;
-    if (   pUVM
-        && pVMM
-        && pVMM->pfnVMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
-        return pVMM->pfnSTAMR3Reset(pUVM, pszPat);
+    PUVM pUVM = m_pUVM;
+    if (    pUVM
+        &&  VMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
+        return STAMR3Reset(pUVM, pszPat);
     return VERR_INVALID_HANDLE;
 }
 
@@ -90,31 +86,27 @@ VBoxDbgBase::stamEnum(const QString &rPat, PFNSTAMR3ENUM pfnEnum, void *pvUser)
 {
     QByteArray Utf8Array = rPat.toUtf8();
     const char *pszPat = !rPat.isEmpty() ? Utf8Array.constData() : NULL;
-    PUVM          pUVM = m_pUVM;
-    PCVMMR3VTABLE pVMM = m_pVMM;
-    if (   pUVM
-        && pVMM
-        && pVMM->pfnVMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
-        return pVMM->pfnSTAMR3Enum(pUVM, pszPat, pfnEnum, pvUser);
+    PUVM pUVM = m_pUVM;
+    if (    pUVM
+        &&  VMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
+        return STAMR3Enum(pUVM, pszPat, pfnEnum, pvUser);
     return VERR_INVALID_HANDLE;
 }
 
 
 int
-VBoxDbgBase::dbgcCreate(PCDBGCIO pIo, unsigned fFlags)
+VBoxDbgBase::dbgcCreate(PDBGCBACK pBack, unsigned fFlags)
 {
-    PUVM          pUVM = m_pUVM;
-    PCVMMR3VTABLE pVMM = m_pVMM;
-    if (   pUVM
-        && pVMM
-        && pVMM->pfnVMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
-        return pVMM->pfnDBGCCreate(pUVM, pIo, fFlags);
+    PUVM pUVM = m_pUVM;
+    if (    pUVM
+        &&  VMR3GetStateU(pUVM) < VMSTATE_DESTROYING)
+        return DBGCCreate(pUVM, pBack, fFlags);
     return VERR_INVALID_HANDLE;
 }
 
 
 /*static*/ DECLCALLBACK(void)
-VBoxDbgBase::atStateChange(PUVM pUVM, PCVMMR3VTABLE pVMM, VMSTATE enmState, VMSTATE /*enmOldState*/, void *pvUser)
+VBoxDbgBase::atStateChange(PUVM pUVM, VMSTATE enmState, VMSTATE /*enmOldState*/, void *pvUser)
 {
     VBoxDbgBase *pThis = (VBoxDbgBase *)pvUser; NOREF(pUVM);
     switch (enmState)
@@ -122,14 +114,12 @@ VBoxDbgBase::atStateChange(PUVM pUVM, PCVMMR3VTABLE pVMM, VMSTATE enmState, VMST
         case VMSTATE_TERMINATED:
         {
             /** @todo need to do some locking here?  */
-            PUVM          pUVM2 = ASMAtomicXchgPtrT(&pThis->m_pUVM, NULL, PUVM);
-            PCVMMR3VTABLE pVMM2 = ASMAtomicXchgPtrT(&pThis->m_pVMM, NULL, PCVMMR3VTABLE);
-            if (pUVM2 && pVMM2)
+            PUVM pUVM2 = ASMAtomicXchgPtrT(&pThis->m_pUVM, NULL, PUVM);
+            if (pUVM2)
             {
                 Assert(pUVM2 == pUVM);
-                Assert(pVMM2 == pVMM);
                 pThis->sigTerminated();
-                pVMM->pfnVMR3ReleaseUVM(pUVM2);
+                VMR3ReleaseUVM(pUVM2);
             }
             break;
         }
@@ -141,7 +131,6 @@ VBoxDbgBase::atStateChange(PUVM pUVM, PCVMMR3VTABLE pVMM, VMSTATE enmState, VMST
         default:
             break;
     }
-    RT_NOREF(pVMM);
 }
 
 
@@ -239,10 +228,7 @@ bool
 VBoxDbgBaseWindow::event(QEvent *a_pEvt)
 {
     bool fRc = QWidget::event(a_pEvt);
-    if (   a_pEvt->type() == QEvent::Paint
-        || a_pEvt->type() == QEvent::UpdateRequest
-        || a_pEvt->type() == QEvent::LayoutRequest) /** @todo Someone with Qt knowledge should figure out how to properly do this. */
-        vPolishSizeAndPos();
+    vPolishSizeAndPos();
     return fRc;
 }
 

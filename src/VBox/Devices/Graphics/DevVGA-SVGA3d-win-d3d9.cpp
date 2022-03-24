@@ -1,10 +1,10 @@
-/* $Id: DevVGA-SVGA3d-win-d3d9.cpp 93307 2022-01-18 11:31:09Z vboxsync $ */
+/* $Id: DevVGA-SVGA3d-win-d3d9.cpp $ */
 /** @file
  * DevVMWare - VMWare SVGA device Direct3D 9 backend.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,22 +30,6 @@ typedef enum D3D9TextureType
     D3D9TextureType_Bounce,
     D3D9TextureType_Emulated
 } D3D9TextureType;
-
-DECLINLINE(D3DCUBEMAP_FACES) vmsvga3dCubemapFaceFromIndex(uint32_t iFace)
-{
-    D3DCUBEMAP_FACES Face;
-    switch (iFace)
-    {
-        case 0: Face = D3DCUBEMAP_FACE_POSITIVE_X; break;
-        case 1: Face = D3DCUBEMAP_FACE_NEGATIVE_X; break;
-        case 2: Face = D3DCUBEMAP_FACE_POSITIVE_Y; break;
-        case 3: Face = D3DCUBEMAP_FACE_NEGATIVE_Y; break;
-        case 4: Face = D3DCUBEMAP_FACE_POSITIVE_Z; break;
-        default:
-        case 5: Face = D3DCUBEMAP_FACE_NEGATIVE_Z; break;
-    }
-    return Face;
-}
 
 IDirect3DTexture9 *D3D9GetTexture(PVMSVGA3DSURFACE pSurface,
                                   D3D9TextureType enmType)
@@ -925,9 +909,9 @@ HRESULT D3D9Conversion::setConversionState(IDirect3DTexture9 *pSourceTexture,
      * https://docs.microsoft.com/en-us/windows/win32/direct3d9/directly-mapping-texels-to-pixels
      */
     float const xLeft   = -0.5f;
-    float const xRight  = (float)(cWidth - 1) - 0.5f;
+    float const xRight  = (cWidth - 1) - 0.5f;
     float const yTop    = -0.5f;
-    float const yBottom = (float)(cHeight - 1) - 0.5f;
+    float const yBottom = (cHeight - 1) - 0.5f;
 
     Vertex const aVertices[] =
     {

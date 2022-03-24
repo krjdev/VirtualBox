@@ -1,4 +1,4 @@
-/* $Id: keyboard-types.h 44789 2013-02-21 17:10:48Z vboxsync $ */
+/* $Id: keyboard-types.h $ */
 /** @file
  * VBox/Frontends/Common - X11 keyboard driver translation tables (PC scan code
  *                         mappings for known keyboard maps).

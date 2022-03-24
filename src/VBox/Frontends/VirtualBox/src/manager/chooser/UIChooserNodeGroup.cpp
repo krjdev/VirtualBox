@@ -1,10 +1,10 @@
-/* $Id: UIChooserNodeGroup.cpp 93867 2022-02-21 12:14:42Z vboxsync $ */
+/* $Id: UIChooserNodeGroup.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserNodeGroup class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 /* GUI includes: */
-#include "UIChooserAbstractModel.h"
 #include "UIChooserNodeGroup.h"
 #include "UIChooserNodeGlobal.h"
 #include "UIChooserNodeMachine.h"
@@ -26,42 +25,29 @@
 
 
 UIChooserNodeGroup::UIChooserNodeGroup(UIChooserNode *pParent,
+                                       bool fFavorite,
                                        int iPosition,
-                                       const QUuid &uId,
                                        const QString &strName,
-                                       UIChooserNodeGroupType enmGroupType,
                                        bool fOpened)
-    : UIChooserNode(pParent, false /* favorite */)
-    , m_uId(uId)
+    : UIChooserNode(pParent, fFavorite)
     , m_strName(strName)
-    , m_enmGroupType(enmGroupType)
     , m_fOpened(fOpened)
 {
-    /* Add to parent: */
     if (parentNode())
         parentNode()->addNode(this, iPosition);
-
-    /* Apply language settings: */
     retranslateUi();
 }
 
 UIChooserNodeGroup::UIChooserNodeGroup(UIChooserNode *pParent,
-                                       int iPosition,
-                                       UIChooserNodeGroup *pCopyFrom)
-    : UIChooserNode(pParent, false /* favorite */)
-    , m_uId(pCopyFrom->id())
+                                       UIChooserNodeGroup *pCopyFrom,
+                                       int iPosition)
+    : UIChooserNode(pParent, pCopyFrom->isFavorite())
     , m_strName(pCopyFrom->name())
-    , m_enmGroupType(pCopyFrom->groupType())
     , m_fOpened(pCopyFrom->isOpened())
 {
-    /* Add to parent: */
     if (parentNode())
         parentNode()->addNode(this, iPosition);
-
-    /* Copy internal stuff: */
     copyContents(pCopyFrom);
-
-    /* Apply language settings: */
     retranslateUi();
 }
 
@@ -75,11 +61,7 @@ UIChooserNodeGroup::~UIChooserNodeGroup()
         delete m_nodesGlobal.last();
     while (!m_nodesMachine.isEmpty())
         delete m_nodesMachine.last();
-
-    /* Delete item: */
     delete item();
-
-    /* Remove from parent: */
     if (parentNode())
         parentNode()->removeNode(this);
 }
@@ -104,56 +86,38 @@ QString UIChooserNodeGroup::fullName() const
 
 QString UIChooserNodeGroup::description() const
 {
-    return name();
+    return m_strDescription;
 }
 
-QString UIChooserNodeGroup::definition(bool fFull /* = false */) const
+QString UIChooserNodeGroup::definition() const
 {
-    QString strNodePrefix;
-    switch (groupType())
-    {
-        case UIChooserNodeGroupType_Local:
-            strNodePrefix = UIChooserAbstractModel::prefixToString(UIChooserNodeDataPrefixType_Local);
-            break;
-        case UIChooserNodeGroupType_Provider:
-            strNodePrefix = UIChooserAbstractModel::prefixToString(UIChooserNodeDataPrefixType_Provider);
-            break;
-        case UIChooserNodeGroupType_Profile:
-            strNodePrefix = UIChooserAbstractModel::prefixToString(UIChooserNodeDataPrefixType_Profile);
-            break;
-        default:
-            AssertFailedReturn(QString());
-    }
-    const QString strNodeOptionOpened = UIChooserAbstractModel::optionToString(UIChooserNodeDataOptionType_GroupOpened);
-    return   fFull
-           ? QString("%1%2=%3").arg(strNodePrefix).arg(isOpened() ? strNodeOptionOpened : "").arg(name())
-           : QString("%1=%2").arg(strNodePrefix).arg(fullName());
+    return QString("g=%1").arg(name());
 }
 
-bool UIChooserNodeGroup::hasNodes(UIChooserNodeType enmType /* = UIChooserNodeType_Any */) const
+bool UIChooserNodeGroup::hasNodes(UIChooserItemType enmType /* = UIChooserItemType_Any */) const
 {
     switch (enmType)
     {
-        case UIChooserNodeType_Any:
-            return hasNodes(UIChooserNodeType_Group) || hasNodes(UIChooserNodeType_Global) || hasNodes(UIChooserNodeType_Machine);
-        case UIChooserNodeType_Group:
+        case UIChooserItemType_Any:
+            return hasNodes(UIChooserItemType_Group) || hasNodes(UIChooserItemType_Global) || hasNodes(UIChooserItemType_Machine);
+        case UIChooserItemType_Group:
             return !m_nodesGroup.isEmpty();
-        case UIChooserNodeType_Global:
+        case UIChooserItemType_Global:
             return !m_nodesGlobal.isEmpty();
-        case UIChooserNodeType_Machine:
+        case UIChooserItemType_Machine:
             return !m_nodesMachine.isEmpty();
     }
     return false;
 }
 
-QList<UIChooserNode*> UIChooserNodeGroup::nodes(UIChooserNodeType enmType /* = UIChooserNodeType_Any */) const
+QList<UIChooserNode*> UIChooserNodeGroup::nodes(UIChooserItemType enmType /* = UIChooserItemType_Any */) const
 {
     switch (enmType)
     {
-        case UIChooserNodeType_Any:     return m_nodesGlobal + m_nodesGroup + m_nodesMachine;
-        case UIChooserNodeType_Group:   return m_nodesGroup;
-        case UIChooserNodeType_Global:  return m_nodesGlobal;
-        case UIChooserNodeType_Machine: return m_nodesMachine;
+        case UIChooserItemType_Any:     return m_nodesGlobal + m_nodesGroup + m_nodesMachine;
+        case UIChooserItemType_Group:   return m_nodesGroup;
+        case UIChooserItemType_Global:  return m_nodesGlobal;
+        case UIChooserItemType_Machine: return m_nodesMachine;
     }
     AssertFailedReturn(QList<UIChooserNode*>());
 }
@@ -162,9 +126,9 @@ void UIChooserNodeGroup::addNode(UIChooserNode *pNode, int iPosition)
 {
     switch (pNode->type())
     {
-        case UIChooserNodeType_Group:   m_nodesGroup.insert(iPosition == -1 ? m_nodesGroup.size() : iPosition, pNode); return;
-        case UIChooserNodeType_Global:  m_nodesGlobal.insert(iPosition == -1 ? m_nodesGlobal.size() : iPosition, pNode); return;
-        case UIChooserNodeType_Machine: m_nodesMachine.insert(iPosition == -1 ? m_nodesMachine.size() : iPosition, pNode); return;
+        case UIChooserItemType_Group:   m_nodesGroup.insert(iPosition == -1 ? m_nodesGroup.size() : iPosition, pNode); return;
+        case UIChooserItemType_Global:  m_nodesGlobal.insert(iPosition == -1 ? m_nodesGlobal.size() : iPosition, pNode); return;
+        case UIChooserItemType_Machine: m_nodesMachine.insert(iPosition == -1 ? m_nodesMachine.size() : iPosition, pNode); return;
         default: break;
     }
     AssertFailedReturnVoid();
@@ -174,9 +138,9 @@ void UIChooserNodeGroup::removeNode(UIChooserNode *pNode)
 {
     switch (pNode->type())
     {
-        case UIChooserNodeType_Group:   m_nodesGroup.removeAll(pNode); return;
-        case UIChooserNodeType_Global:  m_nodesGlobal.removeAll(pNode); return;
-        case UIChooserNodeType_Machine: m_nodesMachine.removeAll(pNode); return;
+        case UIChooserItemType_Group:   m_nodesGroup.removeAll(pNode); return;
+        case UIChooserItemType_Global:  m_nodesGlobal.removeAll(pNode); return;
+        case UIChooserItemType_Machine: m_nodesMachine.removeAll(pNode); return;
         default: break;
     }
     AssertFailedReturnVoid();
@@ -200,13 +164,26 @@ void UIChooserNodeGroup::updateAllNodes(const QUuid &uId)
         pNode->updateAllNodes(uId);
 }
 
+bool UIChooserNodeGroup::hasAtLeastOneCloudNode() const
+{
+    foreach (UIChooserNode *pNode, m_nodesGroup)
+        if (pNode->hasAtLeastOneCloudNode())
+            return true;
+
+    foreach (UIChooserNode *pNode, m_nodesMachine)
+        if (pNode->hasAtLeastOneCloudNode())
+            return true;
+
+    return false;
+}
+
 int UIChooserNodeGroup::positionOf(UIChooserNode *pNode)
 {
     switch (pNode->type())
     {
-        case UIChooserNodeType_Group:   return m_nodesGroup.indexOf(pNode->toGroupNode());
-        case UIChooserNodeType_Global:  return m_nodesGlobal.indexOf(pNode->toGlobalNode());
-        case UIChooserNodeType_Machine: return m_nodesMachine.indexOf(pNode->toMachineNode());
+        case UIChooserItemType_Group:   return m_nodesGroup.indexOf(pNode->toGroupNode());
+        case UIChooserItemType_Global:  return m_nodesGlobal.indexOf(pNode->toGlobalNode());
+        case UIChooserItemType_Machine: return m_nodesMachine.indexOf(pNode->toMachineNode());
         default: break;
     }
     AssertFailedReturn(0);
@@ -226,40 +203,20 @@ void UIChooserNodeGroup::setName(const QString &strName)
         item()->updateItem();
 }
 
-void UIChooserNodeGroup::searchForNodes(const QString &strSearchTerm, int iSearchFlags, QList<UIChooserNode*> &matchedItems)
+void UIChooserNodeGroup::searchForNodes(const QString &strSearchTerm, int iItemSearchFlags, QList<UIChooserNode*> &matchedItems)
 {
-    /* If we are searching for the group-node: */
-    if (   (   iSearchFlags & UIChooserItemSearchFlag_LocalGroup
-            && groupType() == UIChooserNodeGroupType_Local)
-        || (   iSearchFlags & UIChooserItemSearchFlag_CloudProvider
-            && groupType() == UIChooserNodeGroupType_Provider)
-        || (   iSearchFlags & UIChooserItemSearchFlag_CloudProfile
-            && groupType() == UIChooserNodeGroupType_Profile))
+    if (iItemSearchFlags & UIChooserItemSearchFlag_Group)
     {
-        /* If the search term is empty we just add the node to the matched list: */
+        /* if the search term is empty we just add the node to the matched list: */
         if (strSearchTerm.isEmpty())
             matchedItems << this;
         else
         {
-            /* If exact ID flag specified => check node ID: */
-            if (iSearchFlags & UIChooserItemSearchFlag_ExactId)
-            {
-                if (id().toString() == strSearchTerm)
-                    matchedItems << this;
-            }
-            /* If exact name flag specified => check node name: */
-            else if (iSearchFlags & UIChooserItemSearchFlag_ExactName)
+            if (iItemSearchFlags & UIChooserItemSearchFlag_ExactName)
             {
                 if (name() == strSearchTerm)
                     matchedItems << this;
             }
-            /* If full name flag specified => check full node name: */
-            else if (iSearchFlags & UIChooserItemSearchFlag_FullName)
-            {
-                if (fullName() == strSearchTerm)
-                    matchedItems << this;
-            }
-            /* Otherwise check if name contains search term: */
             else
             {
                 if (name().contains(strSearchTerm, Qt::CaseInsensitive))
@@ -268,13 +225,14 @@ void UIChooserNodeGroup::searchForNodes(const QString &strSearchTerm, int iSearc
         }
     }
 
-    /* Search among all the children: */
     foreach (UIChooserNode *pNode, m_nodesGroup)
-        pNode->searchForNodes(strSearchTerm, iSearchFlags, matchedItems);
+        pNode->searchForNodes(strSearchTerm, iItemSearchFlags, matchedItems);
+
     foreach (UIChooserNode *pNode, m_nodesGlobal)
-        pNode->searchForNodes(strSearchTerm, iSearchFlags, matchedItems);
+        pNode->searchForNodes(strSearchTerm, iItemSearchFlags, matchedItems);
+
     foreach (UIChooserNode *pNode, m_nodesMachine)
-        pNode->searchForNodes(strSearchTerm, iSearchFlags, matchedItems);
+        pNode->searchForNodes(strSearchTerm, iItemSearchFlags, matchedItems);
 }
 
 void UIChooserNodeGroup::sortNodes()
@@ -295,13 +253,11 @@ void UIChooserNodeGroup::sortNodes()
     m_nodesMachine = mapMachine.values();
 }
 
-QUuid UIChooserNodeGroup::id() const
-{
-    return m_uId;
-}
-
 void UIChooserNodeGroup::retranslateUi()
 {
+    /* Update description: */
+    m_strDescription = tr("Virtual Machine group");
+
     /* Update group-item: */
     if (item())
         item()->updateItem();
@@ -309,10 +265,10 @@ void UIChooserNodeGroup::retranslateUi()
 
 void UIChooserNodeGroup::copyContents(UIChooserNodeGroup *pCopyFrom)
 {
-    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserNodeType_Group))
-        new UIChooserNodeGroup(this, m_nodesGroup.size(), pNode->toGroupNode());
-    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserNodeType_Global))
-        new UIChooserNodeGlobal(this, m_nodesGlobal.size(), pNode->toGlobalNode());
-    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserNodeType_Machine))
-        new UIChooserNodeMachine(this, m_nodesMachine.size(), pNode->toMachineNode());
+    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserItemType_Group))
+        new UIChooserNodeGroup(this, pNode->toGroupNode(), m_nodesGroup.size());
+    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserItemType_Global))
+        new UIChooserNodeGlobal(this, pNode->toGlobalNode(), m_nodesGlobal.size());
+    foreach (UIChooserNode *pNode, pCopyFrom->nodes(UIChooserItemType_Machine))
+        new UIChooserNodeMachine(this, pNode->toMachineNode(), m_nodesMachine.size());
 }

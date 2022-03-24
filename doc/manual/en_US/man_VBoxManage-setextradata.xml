@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-setextradata" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-12 20:57:40 +0100 (Sa, 12. Mär 2022) $</pubdate>
+    <pubdate>August 2019</pubdate>
     <title>VBoxManage setextradata</title>
   </refentryinfo>
 
@@ -32,7 +32,7 @@
     <refname>VBoxManage-setextradata</refname>
     <refpurpose>set a keyword value that is associated with a virtual machine or
       configuration</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>

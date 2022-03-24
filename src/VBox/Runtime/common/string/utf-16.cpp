@@ -1,10 +1,10 @@
-/* $Id: utf-16.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: utf-16.cpp $ */
 /** @file
  * IPRT - UTF-16.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -739,8 +739,8 @@ RTDECL(int)  RTUtf16ToUtf8Tag(PCRTUTF16 pwszString, char **ppszString, const cha
     /*
      * Validate input.
      */
-    AssertPtr(ppszString);
-    AssertPtr(pwszString);
+    Assert(VALID_PTR(ppszString));
+    Assert(VALID_PTR(pwszString));
     *ppszString = NULL;
 
     /*
@@ -786,8 +786,8 @@ RTDECL(int)  RTUtf16BigToUtf8Tag(PCRTUTF16 pwszString, char **ppszString, const 
     /*
      * Validate input.
      */
-    AssertPtr(ppszString);
-    AssertPtr(pwszString);
+    Assert(VALID_PTR(ppszString));
+    Assert(VALID_PTR(pwszString));
     *ppszString = NULL;
 
     /*
@@ -825,8 +825,8 @@ RTDECL(int)  RTUtf16LittleToUtf8Tag(PCRTUTF16 pwszString, char **ppszString, con
     /*
      * Validate input.
      */
-    AssertPtr(ppszString);
-    AssertPtr(pwszString);
+    Assert(VALID_PTR(ppszString));
+    Assert(VALID_PTR(pwszString));
     *ppszString = NULL;
 
     /*
@@ -1184,65 +1184,6 @@ RTDECL(int) RTUtf16GetCpExInternal(PCRTUTF16 *ppwsz, PRTUNICP pCp)
     return rc;
 }
 RT_EXPORT_SYMBOL(RTUtf16GetCpExInternal);
-
-
-RTDECL(int) RTUtf16GetCpNExInternal(PCRTUTF16 *ppwsz, size_t *pcwc, PRTUNICP pCp)
-{
-    int          rc;
-    const size_t cwc = *pcwc;
-    if (cwc > 0)
-    {
-        PCRTUTF16     pwsz = *ppwsz;
-        const RTUTF16 wc   = **ppwsz;
-
-        /* simple */
-        if (wc < 0xd800 || (wc > 0xdfff && wc < 0xfffe))
-        {
-            *pCp   = wc;
-            *pcwc  = cwc  - 1;
-            *ppwsz = pwsz + 1;
-            return VINF_SUCCESS;
-        }
-
-        if (wc < 0xfffe)
-        {
-            /* surrogate pair */
-            if (wc < 0xdc00)
-            {
-                if (cwc >= 2)
-                {
-                    const RTUTF16 wc2 = pwsz[1];
-                    if (wc2 >= 0xdc00 && wc2 <= 0xdfff)
-                    {
-                        *pCp   = 0x10000 + (((wc & 0x3ff) << 10) | (wc2 & 0x3ff));
-                        *pcwc  = cwc  - 2;
-                        *ppwsz = pwsz + 2;
-                        return VINF_SUCCESS;
-                    }
-
-                    RTStrAssertMsgFailed(("wc=%#08x wc2=%#08x - invalid 2nd char in surrogate pair\n", wc, wc2));
-                }
-                else
-                    RTStrAssertMsgFailed(("wc=%#08x - incomplete surrogate pair\n", wc));
-            }
-            else
-                RTStrAssertMsgFailed(("wc=%#08x - invalid surrogate pair order\n", wc));
-            rc = VERR_INVALID_UTF16_ENCODING;
-        }
-        else
-        {
-            RTStrAssertMsgFailed(("wc=%#08x - endian indicator\n", wc));
-            rc = VERR_CODE_POINT_ENDIAN_INDICATOR;
-        }
-        *pcwc  = cwc  - 1;
-        *ppwsz = pwsz + 1;
-    }
-    else
-        rc = VERR_END_OF_STRING;
-    *pCp = RTUNICP_INVALID;
-    return rc;
-}
-RT_EXPORT_SYMBOL(RTUtf16GetCpNExInternal);
 
 
 RTDECL(int) RTUtf16BigGetCpExInternal(PCRTUTF16 *ppwsz, PRTUNICP pCp)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: tst-a1.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: tst-a1.py $
 
 """
 Analyzer Experiment  1.
@@ -8,7 +8,7 @@ Analyzer Experiment  1.
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 
 
 import os.path
@@ -47,10 +47,10 @@ from testanalysis import diff
 
 def usage():
     """ Display usage """
-    print('usage: %s [options] <testresults.xml> [baseline.xml]' % (sys.argv[0]));
-    print('')
-    print('options:')
-    print('  --filter <test-sub-string>')
+    print 'usage: %s [options] <testresults.xml> [baseline.xml]' % (sys.argv[0]);
+    print ''
+    print 'options:'
+    print '  --filter <test-sub-string>'
     return 1;
 
 def main(asArgs):
@@ -67,14 +67,14 @@ def main(asArgs):
         elif asArgs[iArg].startswith('--help'):
             return usage();
         elif asArgs[iArg].startswith('--'):
-            print('syntax error: unknown option "%s"' % (asArgs[iArg]));
+            print 'syntax error: unknown option "%s"' % (asArgs[iArg]);
             return usage();
         elif sTestFile is None:
             sTestFile = asArgs[iArg];
         elif sBaseFile is None:
             sBaseFile = asArgs[iArg];
         else:
-            print('syntax error: too many file names: %s' % (asArgs[iArg]))
+            print 'syntax error: too many file names: %s' % (asArgs[iArg])
             return usage();
         iArg += 1;
 

@@ -1,10 +1,10 @@
-/* $Id: DrvUDP.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvUDP.cpp $ */
 /** @file
  * UDP socket stream driver.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -158,7 +158,7 @@ static DECLCALLBACK(void) drvUDPDestruct(PPDMDRVINS pDrvIns)
         LogRel(("DrvUDP#%u: Closed socket to %s:%u\n", pThis->pDrvIns->iInstance, pThis->pszServerAddress, pThis->uServerPort));
     }
 
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszServerAddress);
+    MMR3HeapFree(pThis->pszServerAddress);
     pThis->pszServerAddress = NULL;
 }
 
@@ -171,9 +171,7 @@ static DECLCALLBACK(void) drvUDPDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvUDPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     RT_NOREF1(fFlags);
-    PDRVUDP         pThis = PDMINS_2_DATA(pDrvIns, PDRVUDP);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    PDRVUDP pThis = PDMINS_2_DATA(pDrvIns, PDRVUDP);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
@@ -191,11 +189,11 @@ static DECLCALLBACK(int) drvUDPConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "ServerAddress|ServerPort", "");
 
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "ServerAddress", &pThis->pszServerAddress);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "ServerAddress", &pThis->pszServerAddress);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"ServerAddress\" resulted in %Rrc"), rc);
-    rc = pHlp->pfnCFGMQueryU16(pCfg, "ServerPort", &pThis->uServerPort);
+    rc = CFGMR3QueryU16(pCfg, "ServerPort", &pThis->uServerPort);
     if (RT_FAILURE(rc))
         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
                                    N_("Configuration error: querying \"ServerPort\" resulted in %Rrc"), rc);

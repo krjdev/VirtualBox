@@ -1,10 +1,10 @@
-/* $Id: mappings.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: mappings.cpp $ */
 /** @file
  * Shared Folders Service - Mappings support.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -457,11 +457,9 @@ int vbsfMappingsRemove(PSHFLSTRING pMapName)
 
                     RTStrFree(g_FolderMapping[i].pszFolderName);
                     RTMemFree(g_FolderMapping[i].pMapName);
-                    RTMemFree(g_FolderMapping[i].pAutoMountPoint);
-                    g_FolderMapping[i].pszFolderName   = NULL;
-                    g_FolderMapping[i].pMapName        = NULL;
-                    g_FolderMapping[i].pAutoMountPoint = NULL;
-                    g_FolderMapping[i].fValid          = false;
+                    g_FolderMapping[i].pszFolderName = NULL;
+                    g_FolderMapping[i].pMapName      = NULL;
+                    g_FolderMapping[i].fValid        = false;
                     vbsfRootHandleRemove(i);
                     vbsfMappingsWakeupAllWaiters();
                     if (rc == VERR_FILE_NOT_FOUND)

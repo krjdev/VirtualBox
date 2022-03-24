@@ -1,5 +1,5 @@
 /** @file
-  MSR Definitions for Intel processors based on the Skylake/Kabylake/Coffeelake/Cannonlake microarchitecture.
+  MSR Defintions for Intel processors based on the Skylake/Kabylake/Coffeelake/Cannonlake microarchitecture.
 
   Provides defines for Machine Specific Registers(MSR) indexes. Data structures
   are provided for MSRs that contain one or more bit fields.  If the MSR value

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,38 +29,8 @@
 # pragma once
 #endif
 
-#include <iprt/critsect.h>
 #include <iprt/types.h>
 #include <iprt/list.h>
-
-/** @name VBOX_SHCL_FMT_XXX - Data formats (flags) for Shared Clipboard.
- * @{
- */
-/** No format set. */
-#define VBOX_SHCL_FMT_NONE          0
-/** Shared Clipboard format is an Unicode text. */
-#define VBOX_SHCL_FMT_UNICODETEXT   RT_BIT(0)
-/** Shared Clipboard format is bitmap (BMP / DIB). */
-#define VBOX_SHCL_FMT_BITMAP        RT_BIT(1)
-/** Shared Clipboard format is HTML. */
-#define VBOX_SHCL_FMT_HTML          RT_BIT(2)
-#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
-/** Shared Clipboard format is a transfer list. */
-# define VBOX_SHCL_FMT_URI_LIST     RT_BIT(3)
-#endif
-/** @}  */
-
-
-/** A single Shared Clipboard format (VBOX_SHCL_FMT_XXX). */
-typedef uint32_t SHCLFORMAT;
-/** Pointer to a single Shared Clipboard format (VBOX_SHCL_FMT_XXX). */
-typedef SHCLFORMAT *PSHCLFORMAT;
-
-/** Bit map (flags) of Shared Clipboard formats (VBOX_SHCL_FMT_XXX). */
-typedef uint32_t SHCLFORMATS;
-/** Pointer to a bit map of Shared Clipboard formats (VBOX_SHCL_FMT_XXX). */
-typedef SHCLFORMATS *PSHCLFORMATS;
-
 
 /**
  * Shared Clipboard transfer direction.
@@ -78,6 +48,17 @@ typedef enum SHCLTRANSFERDIR
 } SHCLTRANSFERDIR;
 /** Pointer to a shared clipboard transfer direction. */
 typedef SHCLTRANSFERDIR *PSHCLTRANSFERDIR;
+
+
+/** A single Shared Clipboard format (VBOX_SHCL_FMT_XXX). */
+typedef uint32_t SHCLFORMAT;
+/** Pointer to a single Shared Clipboard format (VBOX_SHCL_FMT_XXX). */
+typedef SHCLFORMAT *PSHCLFORMAT;
+
+/** Bit map (flags) of Shared Clipboard formats (VBOX_SHCL_FMT_XXX). */
+typedef uint32_t SHCLFORMATS;
+/** Pointer to a bit map of Shared Clipboard formats (VBOX_SHCL_FMT_XXX). */
+typedef SHCLFORMATS *PSHCLFORMATS;
 
 
 /**
@@ -136,10 +117,6 @@ typedef SHCLEVENTID    *PSHCLEVENTID;
 /** NIL shared clipboard event ID. */
 #define NIL_SHCLEVENTID                          UINT32_MAX
 
-/** Pointer to a shared clipboard event source.
- *  Forward declaration, needed for SHCLEVENT. */
-typedef struct SHCLEVENTSOURCE *PSHCLEVENTSOURCE;
-
 /**
  * Shared Clipboard event.
  */
@@ -147,8 +124,6 @@ typedef struct SHCLEVENT
 {
     /** List node. */
     RTLISTNODE          Node;
-    /** Parent (source) this event belongs to. */
-    PSHCLEVENTSOURCE    pParent;
     /** The event's ID, for self-reference. */
     SHCLEVENTID         idEvent;
     /** Reference count to this event. */
@@ -171,13 +146,13 @@ typedef struct SHCLEVENTSOURCE
 {
     /** The event source ID. */
     SHCLEVENTSOURCEID uID;
-    /** Critical section for serializing access. */
-    RTCRITSECT        CritSect;
     /** Next upcoming event ID. */
     SHCLEVENTID       idNextEvent;
     /** List of events (PSHCLEVENT). */
     RTLISTANCHOR      lstEvents;
 } SHCLEVENTSOURCE;
+/** Pointer to a shared clipboard event source. */
+typedef SHCLEVENTSOURCE *PSHCLEVENTSOURCE;
 
 /** @name Shared Clipboard data payload functions.
  *  @{
@@ -190,21 +165,22 @@ void ShClPayloadFree(PSHCLEVENTPAYLOAD pPayload);
  *  @{
  */
 int ShClEventSourceCreate(PSHCLEVENTSOURCE pSource, SHCLEVENTSOURCEID idEvtSrc);
-int ShClEventSourceDestroy(PSHCLEVENTSOURCE pSource);
+void ShClEventSourceDestroy(PSHCLEVENTSOURCE pSource);
 void ShClEventSourceReset(PSHCLEVENTSOURCE pSource);
-int ShClEventSourceGenerateAndRegisterEvent(PSHCLEVENTSOURCE pSource, PSHCLEVENT *ppEvent);
-PSHCLEVENT ShClEventSourceGetFromId(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent);
-PSHCLEVENT ShClEventSourceGetLast(PSHCLEVENTSOURCE pSource);
 /** @} */
 
 /** @name Shared Clipboard event functions.
  *  @{
  */
-uint32_t ShClEventGetRefs(PSHCLEVENT pEvent);
-uint32_t ShClEventRetain(PSHCLEVENT pEvent);
-uint32_t ShClEventRelease(PSHCLEVENT pEvent);
-int ShClEventSignal(PSHCLEVENT pEvent, PSHCLEVENTPAYLOAD pPayload);
-int ShClEventWait(PSHCLEVENT pEvent, RTMSINTERVAL uTimeoutMs, PSHCLEVENTPAYLOAD *ppPayload);
+SHCLEVENTID ShClEventIdGenerateAndRegister(PSHCLEVENTSOURCE pSource);
+SHCLEVENTID ShClEventGetLast(PSHCLEVENTSOURCE pSource);
+uint32_t ShClEventRetain(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent);
+uint32_t ShClEventRelease(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent);
+int ShClEventSignal(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent, PSHCLEVENTPAYLOAD pPayload);
+int ShClEventUnregister(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent);
+int ShClEventWait(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent, RTMSINTERVAL uTimeoutMs, PSHCLEVENTPAYLOAD *ppPayload);
+
+void ShClEventPayloadDetach(PSHCLEVENTSOURCE pSource, SHCLEVENTID idEvent);
 /** @} */
 
 /**
@@ -230,109 +206,6 @@ typedef struct SHCLCONTEXT SHCLCONTEXT;
 /** @} */
 /** Pointer to opaque data structure the X11/VBox frontend/glue code. */
 typedef SHCLCONTEXT *PSHCLCONTEXT;
-
-/**
- * @name Shared Clipboard callback table.
- *
- * This table gets used by
- *   - the backends on the host (where required)
- *   - guest side implementations (e.g. VBoxClient)
- *   - by the underlying core code (e.g. X11 backend -> X11 common code -> callback)
- *
- * Some clipboard mechanisms (e.g. X11) require asynchronous and/or event-driven handling
- * of clipboard data, making it hard to control our program flow when testing stuff.
- *
- * So overriding required callbacks on runtime for testing purposes makes this approach much
- * more flexible without implementing separate code paths for production code and test units.
- *
- * @{
- */
-typedef struct _SHCLCALLBACKS
-{
-    /**
-     * Callback for reporting supported clipoard formats of current clipboard data.
-     *
-     * @note On X11:
-     *         Runs in Xt event thread for the X11 code.
-     *
-     * @returns VBox status code.
-     * @param   pCtx            Opaque context pointer for the glue code.
-     * @param   fFormats        The formats available.
-     * @param   pvUser          Implementation-dependent pointer to data for fullfilling the request.
-     *                          Optional and can be NULL.
-     */
-    DECLCALLBACKMEMBER(int, pfnReportFormats, (PSHCLCONTEXT pCtx, SHCLFORMATS fFormats, void *pvUser));
-
-    /**
-     * Callback for reading data from the clipboard.
-     * Optional and can be NULL.
-     *
-     * @note Used for testing X11 clipboard code.
-     *
-     * @returns VBox status code.
-     * @param   pCtx            Opaque context pointer for the glue code.
-     * @param   uFmt            The format in which the data should be read
-     *                          (VBOX_SHCL_FMT_XXX).
-     * @param   ppv             Returns an allocated buffer with data from on success.
-     *                          Needs to be free'd with RTMemFree() by the caller.
-     * @param   pcb             Returns the amount of data read (in bytes) on success.
-     * @param   pvUser          Implementation-dependent pointer to data for fullfilling the request.
-     *                          Optional and can be NULL.
-     */
-    DECLCALLBACKMEMBER(int, pfnOnClipboardRead, (PSHCLCONTEXT pCtx, SHCLFORMAT uFmt, void **ppv, size_t *pcb, void *pvUser));
-
-    /**
-     * Callback for writing data to the clipboard.
-     * Optional and can be NULL.
-     *
-     * @note Used for testing X11 clipboard code.
-     *
-     * @returns VBox status code.
-     * @param   pCtx            Opaque context pointer for the glue code.
-     * @param   uFmt            The format in which the data should be written as
-     *                          (VBOX_SHCL_FMT_XXX).
-     * @param   pv              The clipboard data to write.
-     * @param   cb              The size of the data in @a pv.
-     * @param   pvUser          Implementation-dependent pointer to data for fullfilling the request.
-     *                          Optional and can be NULL.
-     */
-    DECLCALLBACKMEMBER(int, pfnOnClipboardWrite, (PSHCLCONTEXT pCtx, SHCLFORMAT uFmt, void *pv, size_t cb, void *pvUser));
-
-    /**
-     * Callback for requesting clipboard data from the source.
-     *
-     * @note On X11:
-     *         The function will be invoked for every single target the clipboard requests.
-     *         Runs in Xt event thread for the X11 code.
-     *
-     * @returns VBox status code. VERR_NO_DATA if no data available.
-     * @param   pCtx            Opaque context pointer for the glue code.
-     * @param   uFmt            The format in which the data should be transferred
-     *                          (VBOX_SHCL_FMT_XXX).
-     * @param   ppv             Returns an allocated buffer with data read from the guest on success.
-     *                          Needs to be free'd with RTMemFree() by the caller.
-     * @param   pcb             Returns the amount of data read (in bytes) on success.
-     * @param   pvUser          Implementation-dependent pointer to data for fullfilling the request.
-     *                          Optional and can be NULL.
-     *                          On X11: Of type PSHCLX11READDATAREQ; We RTMemFree() this in this function.
-     */
-    DECLCALLBACKMEMBER(int, pfnOnRequestDataFromSource, (PSHCLCONTEXT pCtx, SHCLFORMAT uFmt, void **ppv, uint32_t *pcb, void *pvUser));
-
-    /**
-     * Callback for sending clipboard data to the destination.
-     *
-     * @returns VBox status code.
-     * @param   pCtx            Opaque context pointer for the glue code.
-     * @param   pv              The clipboard data returned if the request succeeded.
-     * @param   cb              The size of the data in @a pv.
-     * @param   pvUser          Implementation-dependent pointer to data for fullfilling the request.
-     *                          Optional and can be NUL
-     *                          On X11: Of type PSHCLX11READDATAREQ.
-     */
-    DECLCALLBACKMEMBER(int, pfnOnSendDataToDest, (PSHCLCONTEXT pCtx, void *pv, uint32_t cb, void *pvUser));
-} SHCLCALLBACKS;
-typedef SHCLCALLBACKS *PSHCLCALLBACKS;
-/** @} */
 
 /** Opaque request structure for X11 clipboard data.
  * @{ */

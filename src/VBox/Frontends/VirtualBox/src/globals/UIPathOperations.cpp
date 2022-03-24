@@ -1,10 +1,10 @@
-/* $Id: UIPathOperations.cpp 93982 2022-02-28 14:15:03Z vboxsync $ */
+/* $Id: UIPathOperations.cpp $ */
 /** @file
  * VBox Qt GUI - UIPathOperations class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -133,11 +133,7 @@ const QChar UIPathOperations::dosDelimiter = QChar('\\');
 
 /* static */ QStringList UIPathOperations::pathTrail(const QString &path)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    return path.split(UIPathOperations::delimiter, Qt::SkipEmptyParts);
-#else
     return path.split(UIPathOperations::delimiter, QString::SkipEmptyParts);
-#endif
 }
 
 /* static */ bool UIPathOperations::doesPathStartWithDriveLetter(const QString &path)

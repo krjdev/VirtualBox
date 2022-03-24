@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -75,7 +75,7 @@ typedef RTMEMCACHE                             *PRTMEMCACHE;
  *
  * @remarks No serialization is performed.
  */
-typedef DECLCALLBACKTYPE(int, FNMEMCACHECTOR,(RTMEMCACHE hMemCache, void *pvObj, void *pvUser));
+typedef DECLCALLBACK(int) FNMEMCACHECTOR(RTMEMCACHE hMemCache, void *pvObj, void *pvUser);
 /** Pointer to an object constructor for the memory cache. */
 typedef FNMEMCACHECTOR *PFNMEMCACHECTOR;
 
@@ -90,7 +90,7 @@ typedef FNMEMCACHECTOR *PFNMEMCACHECTOR;
  *
  * @remarks No serialization is performed.
  */
-typedef DECLCALLBACKTYPE(void, FNMEMCACHEDTOR,(RTMEMCACHE hMemCache, void *pvObj, void *pvUser));
+typedef DECLCALLBACK(void) FNMEMCACHEDTOR(RTMEMCACHE hMemCache, void *pvObj, void *pvUser);
 /** Pointer to an object destructor for the memory cache. */
 typedef FNMEMCACHEDTOR *PFNMEMCACHEDTOR;
 

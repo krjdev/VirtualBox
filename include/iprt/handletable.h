@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,7 +63,7 @@ RT_C_DECLS_BEGIN
  *                          RTHANDLETABLE_FLAGS_CONTEXT set. Otherwise NULL.
  * @param   pvUser          The user context argument specified when creating the table.
  */
-typedef DECLCALLBACKTYPE(int, FNRTHANDLETABLERETAIN,(RTHANDLETABLE hHandleTable, void *pvObj, void *pvCtx, void *pvUser));
+typedef DECLCALLBACK(int) FNRTHANDLETABLERETAIN(RTHANDLETABLE hHandleTable, void *pvObj, void *pvCtx, void *pvUser);
 /** Pointer to a FNHANDLETABLERETAIN. */
 typedef FNRTHANDLETABLERETAIN *PFNRTHANDLETABLERETAIN;
 
@@ -78,7 +78,7 @@ typedef FNRTHANDLETABLERETAIN *PFNRTHANDLETABLERETAIN;
  * @param   pvUser          The user context argument specified when creating the table.
  *
  */
-typedef DECLCALLBACKTYPE(void, FNRTHANDLETABLEDELETE,(RTHANDLETABLE hHandleTable, uint32_t h, void *pvObj, void *pvCtx, void *pvUser));
+typedef DECLCALLBACK(void) FNRTHANDLETABLEDELETE(RTHANDLETABLE hHandleTable, uint32_t h, void *pvObj, void *pvCtx, void *pvUser);
 /** Pointer to a FNRTHANDLETABLEDELETE. */
 typedef FNRTHANDLETABLEDELETE *PFNRTHANDLETABLEDELETE;
 

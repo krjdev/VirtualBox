@@ -26,9 +26,7 @@
 #
 
 [Sources]
-  FirmwarePerformanceCommon.c
-  FirmwarePerformanceCommon.h
-  FirmwarePerformanceTraditional.c
+  FirmwarePerformanceSmm.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -36,7 +34,7 @@
 
 [LibraryClasses]
   UefiDriverEntryPoint
-  MmServicesTableLib
+  SmmServicesTableLib
   BaseLib
   DebugLib
   TimerLib
@@ -44,11 +42,12 @@
   PcdLib
   BaseMemoryLib
   MemoryAllocationLib
+  UefiBootServicesTableLib
   SynchronizationLib
   SmmMemLib
 
 [Protocols]
-  gEfiMmRscHandlerProtocolGuid                 ## CONSUMES
+  gEfiSmmRscHandlerProtocolGuid                 ## CONSUMES
 
 [Guids]
   ## SOMETIMES_PRODUCES   ## UNDEFINED # SaveLockBox
@@ -62,7 +61,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdProgressCodeS3SuspendEnd    ## CONSUMES
 
 [Depex]
-  gEfiMmRscHandlerProtocolGuid
+  gEfiSmmRscHandlerProtocolGuid
 
 [UserExtensions.TianoCore."ExtraFiles"]
   FirmwarePerformanceSmmExtra.uni

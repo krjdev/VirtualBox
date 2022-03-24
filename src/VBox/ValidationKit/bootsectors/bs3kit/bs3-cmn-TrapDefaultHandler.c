@@ -1,10 +1,10 @@
-/* $Id: bs3-cmn-TrapDefaultHandler.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-cmn-TrapDefaultHandler.c $ */
 /** @file
  * BS3Kit - Bs3TrapDefaultHandler
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -115,7 +115,7 @@ static void bs3TrapDefaultHandlerV8086Syscall(PBS3TRAPFRAME pTrapFrame)
         uint32_t uValue;
         switch (pTrapFrame->Ctx.rdx.u8)
         {
-            case 0: uValue = ASMGetCR0(); break;
+            case 0: uValue = ASMGetDR0(); break;
             case 2: uValue = ASMGetCR2(); break;
             case 3: uValue = ASMGetCR3(); break;
             case 4: uValue = ASMGetCR4(); break;

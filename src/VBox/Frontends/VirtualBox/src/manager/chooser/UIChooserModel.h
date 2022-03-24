@@ -1,10 +1,10 @@
-/* $Id: UIChooserModel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserModel.h $ */
 /** @file
  * VBox Qt GUI - UIChooserModel class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,11 +28,6 @@
 #include "UIChooserAbstractModel.h"
 #include "UIExtraDataDefs.h"
 
-/* COM includes: */
-#include "COMEnums.h"
-#include "CCloudMachine.h"
-#include "CMachine.h"
-
 /* Forward declaration: */
 class QDrag;
 class UIActionPool;
@@ -40,10 +35,19 @@ class UIChooser;
 class UIChooserHandlerMouse;
 class UIChooserHandlerKeyboard;
 class UIChooserItem;
-class UIChooserItemMachine;
 class UIChooserNode;
 class UIChooserView;
 class UIVirtualMachineItem;
+
+
+/** Context-menu types. */
+enum UIGraphicsSelectorContextMenuType
+{
+    UIGraphicsSelectorContextMenuType_Global,
+    UIGraphicsSelectorContextMenuType_Group,
+    UIGraphicsSelectorContextMenuType_Machine
+};
+
 
 /** UIChooserAbstractModel extension used as VM Chooser-pane model.
   * This class is used to operate on tree of visible tree items
@@ -54,49 +58,47 @@ class UIChooserModel : public UIChooserAbstractModel
 
 signals:
 
-    /** @name Tool stuff.
+    /** @name General stuff.
       * @{ */
-        /** Notifies listeners about tool popup-menu request for certain @a enmClass and @a position. */
+        /** Notify listeners about tool menu popup request for certain @a enmClass and @a position. */
         void sigToolMenuRequested(UIToolClass enmClass, const QPoint &position);
     /** @} */
 
     /** @name Selection stuff.
       * @{ */
-        /** Notifies listeners about selection changed. */
+        /** Notifies about selection changed. */
         void sigSelectionChanged();
-        /** Notifies listeners about selection invalidated. */
+        /** Notifies about selection invalidated. */
         void sigSelectionInvalidated();
 
-        /** Notifies listeners about group toggling started. */
+        /** Notifies about group toggling started. */
         void sigToggleStarted();
-        /** Notifies listeners about group toggling finished. */
+        /** Notifies about group toggling finished. */
         void sigToggleFinished();
     /** @} */
 
     /** @name Layout stuff.
       * @{ */
-        /** Notifies listeners about root item minimum width @a iHint changed. */
+        /** Notifies about root item minimum width @a iHint changed. */
         void sigRootItemMinimumWidthHintChanged(int iHint);
-    /** @} */
-
-    /** @name Action stuff.
-      * @{ */
-        /** Notifies listeners about start or show request. */
-        void sigStartOrShowRequest();
     /** @} */
 
 public:
 
     /** Constructs Chooser-model passing @a pParent to the base-class. */
-    UIChooserModel(UIChooser *pParent, UIActionPool *pActionPool);
+    UIChooserModel(UIChooser *pParent);
     /** Destructs Chooser-model. */
-    virtual ~UIChooserModel() RT_OVERRIDE;
+    virtual ~UIChooserModel() /* override */;
 
     /** @name General stuff.
       * @{ */
         /** Inits model. */
-        virtual void init() RT_OVERRIDE;
+        virtual void init() /* override */;
+        /** Deinits model. */
+        virtual void deinit() /* override */;
 
+        /** Returns the Chooser reference. */
+        UIChooser *chooser() const;
         /** Returns the action-pool reference. */
         UIActionPool *actionPool() const;
         /** Returns the scene reference. */
@@ -126,9 +128,6 @@ public:
         /** Clear selected-items list. */
         void clearSelectedItems();
 
-        /** Returns a list of selected-items. */
-        const QList<UIChooserItem*> &selectedItems() const;
-
         /** Adds @a pItem to list of selected. */
         void addToSelectedItems(UIChooserItem *pItem);
         /** Removes @a pItem from list of selected. */
@@ -136,6 +135,9 @@ public:
 
         /** Returns first selected-item. */
         UIChooserItem *firstSelectedItem() const;
+        /** Returns a list of selected-items. */
+        const QList<UIChooserItem*> &selectedItems() const;
+
         /** Returns first selected machine item. */
         UIVirtualMachineItem *firstSelectedMachineItem() const;
         /** Returns a list of selected machine items. */
@@ -147,31 +149,17 @@ public:
         bool isGlobalItemSelected() const;
         /** Returns whether machine item is selected. */
         bool isMachineItemSelected() const;
-        /** Returns whether local machine item is selected. */
-        bool isLocalMachineItemSelected() const;
-        /** Returns whether cloud machine item is selected. */
-        bool isCloudMachineItemSelected() const;
 
         /** Returns whether single group is selected. */
         bool isSingleGroupSelected() const;
-        /** Returns whether single local group is selected. */
-        bool isSingleLocalGroupSelected() const;
-        /** Returns whether single cloud provider group is selected. */
-        bool isSingleCloudProviderGroupSelected() const;
-        /** Returns whether single cloud profile group is selected. */
-        bool isSingleCloudProfileGroupSelected() const;
         /** Returns whether all machine items of one group is selected. */
         bool isAllItemsOfOneGroupSelected() const;
 
-        /** Returns full name of currently selected group. */
-        QString fullGroupName() const;
-
         /** Finds closest non-selected-item. */
         UIChooserItem *findClosestUnselectedItem() const;
-        /** Makes sure selection doesn't contain item with certain @a uId. */
-        void makeSureNoItemWithCertainIdSelected(const QUuid &uId);
-        /** Makes sure at least one item selected. */
-        void makeSureAtLeastOneItemSelected();
+
+        /** Makes sure some item is selected. */
+        void makeSureSomeItemIsSelected();
 
         /** Defines current @a pItem. */
         void setCurrentItem(UIChooserItem *pItem);
@@ -191,14 +179,11 @@ public:
 
     /** @name Search stuff.
       * @{ */
-        /** Performs a search for an item matching @a strDefinition. */
-        UIChooserItem *searchItemByDefinition(const QString &strDefinition) const;
-
-        /** Performs a search using @a strSearchTerm and @a iSearchFlags specified. */
-        virtual void performSearch(const QString &strSearchTerm, int iSearchFlags) RT_OVERRIDE;
-        /** Resets the search result data members and disables item's visual effects.
+        /** Performs a search starting from the m_pInvisibleRootNode. */
+        virtual void performSearch(const QString &strSearchTerm, int iItemSearchFlags) /* override */;
+        /** Cleans the search result data members and disables item's visual effects.
           * Also returns a list of all nodes which may be utilized by the calling code. */
-        virtual QList<UIChooserNode*> resetSearch() RT_OVERRIDE;
+        virtual QList<UIChooserNode*> resetSearch() /* override */;
 
         /** Selects next/prev (wrt. @a fIsNext) search result. */
         void selectSearchResult(bool fIsNext);
@@ -211,27 +196,11 @@ public:
         /** Returns the root instance. */
         UIChooserItem *root() const;
 
-        /** Starts editing selected group item name. */
-        void startEditingSelectedGroupItemName();
-        /** Disbands selected group item. */
-        void disbandSelectedGroupItem();
-        /** Removes selected machine items. */
-        void removeSelectedMachineItems();
-        /** Moves selected machine items to group item.
-          * @param  strName  Holds the group item name to move items to, if
-          *                  that name isn't specified, new top-level group
-          *                  item will be created. */
-        void moveSelectedMachineItemsToGroupItem(const QString &strName);
-        /** Starts or shows selected items. */
-        void startOrShowSelectedItems();
-        /** Refreshes selected machine items. */
-        void refreshSelectedMachineItems();
-        /** Sorts selected [parent] group item. */
-        void sortSelectedGroupItem();
-        /** Changes current machine item to the one with certain @a uId. */
-        void setCurrentMachineItem(const QUuid &uId);
-        /** Sets global tools item to be the current one. */
-        void setCurrentGlobalItem();
+        /** Starts editing group name. */
+        void startEditingGroupItemName();
+
+        /** Activates machine item. */
+        void activateMachineItem();
 
         /** Defines current @a pDragObject. */
         void setCurrentDragObject(QDrag *pDragObject);
@@ -262,62 +231,30 @@ protected:
     /** @name Event handling stuff.
       * @{ */
         /** Preprocesses Qt @a pEvent for passed @a pObject. */
-        virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+        virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
     /** @} */
 
 protected slots:
 
     /** @name Main event handling stuff.
       * @{ */
-        /** Handles local machine registering/unregistering for machine with certain @a uMachineId. */
-        virtual void sltLocalMachineRegistrationChanged(const QUuid &uMachineId, const bool fRegistered) RT_OVERRIDE;
-
-        /** Handles event about cloud provider with @a uProviderId being uninstalled. */
-        virtual void sltHandleCloudProviderUninstall(const QUuid &uProviderId) RT_OVERRIDE;
+        /** Handles machine registering/unregistering for machine with certain @a uId. */
+        virtual void sltMachineRegistered(const QUuid &uId, const bool fRegistered) /* override */;
     /** @} */
 
     /** @name Children stuff.
       * @{ */
-        /** Handles reload machine with certain @a uMachineId request. */
-        virtual void sltReloadMachine(const QUuid &uMachineId) RT_OVERRIDE;
-
-        /** Handles command to detach COM. */
-        virtual void sltDetachCOM() RT_OVERRIDE;
+        /** Handles reload machine with certain @a uId request. */
+        virtual void sltReloadMachine(const QUuid &uId) /* override */;
     /** @} */
 
+#ifdef VBOX_GUI_WITH_CLOUD_VMS
     /** @name Cloud stuff.
       * @{ */
-        /** Handles cloud machine unregistering for @a uId.
-          * @param  strProviderShortName  Brings provider short name.
-          * @param  strProfileName        Brings profile name. */
-        virtual void sltCloudMachineUnregistered(const QString &strProviderShortName,
-                                                 const QString &strProfileName,
-                                                 const QUuid &uId) RT_OVERRIDE;
-        /** Handles cloud machine unregistering for a list of @a ids.
-          * @param  strProviderShortName  Brings provider short name.
-          * @param  strProfileName        Brings profile name. */
-        virtual void sltCloudMachinesUnregistered(const QString &strProviderShortName,
-                                                  const QString &strProfileName,
-                                                  const QList<QUuid> &ids) RT_OVERRIDE;
-        /** Handles cloud machine registering for @a comMachine.
-          * @param  strProviderShortName  Brings provider short name.
-          * @param  strProfileName        Brings profile name. */
-        virtual void sltCloudMachineRegistered(const QString &strProviderShortName,
-                                               const QString &strProfileName,
-                                               const CCloudMachine &comMachine) RT_OVERRIDE;
-        /** Handles cloud machine registering for a list of @a machines.
-          * @param  strProviderShortName  Brings provider short name.
-          * @param  strProfileName        Brings profile name. */
-        virtual void sltCloudMachinesRegistered(const QString &strProviderShortName,
-                                                const QString &strProfileName,
-                                                const QVector<CCloudMachine> &machines) RT_OVERRIDE;
-
-        /** Handles read cloud machine list task complete signal. */
-        virtual void sltHandleReadCloudMachineListTaskComplete() RT_OVERRIDE;
-
-        /** Handles Cloud Profile Manager cumulative changes. */
-        virtual void sltHandleCloudProfileManagerCumulativeChange() RT_OVERRIDE;
+        /** Handles acquire cloud machine task complete signal. */
+        virtual void sltHandleCloudAcquireInstancesTaskComplete(UITask *pTask) /* override */;
     /** @} */
+#endif /* VBOX_GUI_WITH_CLOUD_VMS */
 
 private slots:
 
@@ -332,24 +269,31 @@ private slots:
 
     /** @name Children stuff.
       * @{ */
+        /** Handles group rename request. */
+        void sltEditGroupName();
+        /** Handles group sort request. */
+        void sltSortGroup();
+        /** Handles group destroy request. */
+        void sltUngroupSelectedGroup();
+
+        /** Handles create new machine request. */
+        void sltCreateNewMachine();
+        /** Handles group selected machines request. */
+        void sltGroupSelectedMachines();
+        /** Handles sort parent group request. */
+        void sltSortParentGroup();
+        /** Handles refresh request. */
+        void sltPerformRefreshAction();
+        /** Handles remove selected machine request. */
+        void sltRemoveSelectedMachine();
+
         /** Handles D&D scrolling. */
         void sltStartScrolling();
         /** Handles D&D object destruction. */
         void sltCurrentDragObjectDestroyed();
-    /** @} */
 
-    /** @name Cloud stuff.
-      * @{ */
-        /** Handles cloud machine removal.
-          * @param  strProviderShortName  Brings the provider short name.
-          * @param  strProfileName        Brings the profile name.
-          * @param  strName               Brings the machine name. */
-        void sltHandleCloudMachineRemoved(const QString &strProviderShortName,
-                                          const QString &strProfileName,
-                                          const QString &strName);
-
-        /** Updates selected cloud profiles. */
-        void sltUpdateSelectedCloudProfiles();
+        /** Handles machine search widget show/hide request. */
+        void sltShowHideSearchWidget();
     /** @} */
 
 private:
@@ -364,17 +308,15 @@ private:
         void prepareContextMenu();
         /** Prepares handlers. */
         void prepareHandlers();
-        /** Prepares cloud update timer. */
-        void prepareCloudUpdateTimer();
         /** Prepares connections. */
         void prepareConnections();
-        /** Loads settings. */
-        void loadSettings();
+        /** Loads last selected-items. */
+        void loadLastSelectedItem();
 
+        /** Saves last selected-items. */
+        void saveLastSelectedItem();
         /** Cleanups connections. */
         void cleanupConnections();
-        /** Cleanups cloud update timer.*/
-        void cleanupCloudUpdateTimer();
         /** Cleanups handlers. */
         void cleanupHandlers();
         /** Cleanups context-menu. */
@@ -389,6 +331,8 @@ private:
       * @{ */
         /** Handles context-menu @a pEvent. */
         bool processContextMenuEvent(QGraphicsSceneContextMenuEvent *pEvent);
+        /** Popups context-menu of certain @a enmType in specified @a point. */
+        void popupContextMenu(UIGraphicsSelectorContextMenuType enmType, QPoint point);
     /** @} */
 
     /** @name Selection stuff.
@@ -405,33 +349,24 @@ private:
 
     /** @name Children stuff.
       * @{ */
-        /** Clears tree for main root. */
-        void clearTreeForMainRoot();
-        /** [Re]builds tree for main root, preserves selection if requested. */
-        void buildTreeForMainRoot(bool fPreserveSelection = false);
-        /** Update tree for main root. */
-        void updateTreeForMainRoot();
+        /** Build tree for main root. */
+        void buildTreeForMainRoot();
 
-        /** Removes a list of local virtual @a machineItems. */
-        void removeLocalMachineItems(const QList<UIChooserItemMachine*> &machineItems);
-        /** Unregisters a list of local virtual @a machines. */
-        void unregisterLocalMachines(const QList<CMachine> &machines);
-        /** Unregisters a list of cloud virtual @a machineItems. */
-        void unregisterCloudMachineItems(const QList<UIChooserItemMachine*> &machineItems);
+        /** Removes machine @a items. */
+        void removeItems(const QList<UIChooserItem*> &items);
+        /** Unregisters virtual machines using list of @a ids. */
+        void unregisterMachines(const QList<QUuid> &ids);
 
         /** Processes drag move @a pEvent. */
         bool processDragMoveEvent(QGraphicsSceneDragDropEvent *pEvent);
         /** Processes drag leave @a pEvent. */
         bool processDragLeaveEvent(QGraphicsSceneDragDropEvent *pEvent);
-
-        /** Applies the global item height hint. */
-        void applyGlobalItemHeightHint();
     /** @} */
 
     /** @name General stuff.
       * @{ */
-        /** Holds the action-pool reference. */
-        UIActionPool *m_pActionPool;
+        /** Holds the Chooser reference. */
+        UIChooser *m_pChooser;
 
         /** Holds the scene reference. */
         QGraphicsScene *m_pScene;
@@ -441,19 +376,18 @@ private:
         /** Holds the keyboard handler instance. */
         UIChooserHandlerKeyboard *m_pKeyboardHandler;
 
-        /** Holds the map of local context-menu instances. */
-        QMap<UIChooserNodeType, QMenu*>  m_localMenus;
-        /** Holds the map of cloud context-menu instances. */
-        QMap<UIChooserNodeType, QMenu*>  m_cloudMenus;
+        /** Holds the global item context menu instance. */
+        QMenu *m_pContextMenuGlobal;
+        /** Holds the group item context menu instance. */
+        QMenu *m_pContextMenuGroup;
+        /** Holds the machine item context menu instance. */
+        QMenu *m_pContextMenuMachine;
     /** @} */
 
     /** @name Selection stuff.
       * @{ */
         /** Holds the current-item reference. */
         QPointer<UIChooserItem>  m_pCurrentItem;
-
-        /** Holds whether selection save allowed. */
-        bool  m_fSelectionSaveAllowed;
     /** @} */
 
     /** @name Search stuff.
@@ -478,16 +412,8 @@ private:
         int              m_iScrollingTokenSize;
         /** Holds whether drag scrolling is in progress. */
         bool             m_fIsScrollingInProgress;
-
-        /** Holds the global item height hint. */
-        int  m_iGlobalItemHeightHint;
-    /** @} */
-
-    /** @name Cloud stuff.
-      * @{ */
-        /** Holds cloud profile update timer instance. */
-        QTimer *m_pTimerCloudProfileUpdate;
     /** @} */
 };
+
 
 #endif /* !FEQT_INCLUDED_SRC_manager_chooser_UIChooserModel_h */

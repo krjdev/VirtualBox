@@ -1,10 +1,10 @@
-/* $Id: vscsi.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vscsi.h $ */
 /** @file
  * VBox storage drivers - Virtual SCSI driver
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -289,15 +289,15 @@ typedef VSCSILUNIOCALLBACKS *PVSCSILUNIOCALLBACKS;
 /**
  * The virtual SCSI request completed callback.
  */
-typedef DECLCALLBACKTYPE(void, FNVSCSIREQCOMPLETED,(VSCSIDEVICE hVScsiDevice,
-                                                    void *pvVScsiDeviceUser,
-                                                    void *pvVScsiReqUser,
-                                                    int rcScsiCode,
-                                                    bool fRedoPossible,
-                                                    int rcReq,
-                                                    size_t cbXfer,
-                                                    VSCSIXFERDIR enmXferDir,
-                                                    size_t cbSense));
+typedef DECLCALLBACK(void) FNVSCSIREQCOMPLETED(VSCSIDEVICE hVScsiDevice,
+                                               void *pvVScsiDeviceUser,
+                                               void *pvVScsiReqUser,
+                                               int rcScsiCode,
+                                               bool fRedoPossible,
+                                               int rcReq,
+                                               size_t cbXfer,
+                                               VSCSIXFERDIR enmXferDir,
+                                               size_t cbSense);
 /** Pointer to a virtual SCSI request completed callback. */
 typedef FNVSCSIREQCOMPLETED *PFNVSCSIREQCOMPLETED;
 

@@ -50,7 +50,6 @@ FfsFindNextFile (
   @retval  EFI_SUCCESS
 **/
 EFI_STATUS
-EFIAPI
 FfsFindSection (
   IN EFI_SECTION_TYPE              SectionType,
   IN EFI_FFS_FILE_HEADER           *FfsFileHeader,

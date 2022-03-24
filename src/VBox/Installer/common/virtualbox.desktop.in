@@ -1,9 +1,10 @@
 [Desktop Entry]
+Encoding=UTF-8
 Version=1.0
 Name=@VBOX_PRODUCT@
-GenericName=Virtualization Software
-GenericName[de]=Virtualisierung Software
-GenericName[ru]=
+GenericName=Virtual Machine
+GenericName[de]=Virtuelle Maschine
+GenericName[ru]=Виртуальная машина
 Type=Application
 Exec=VirtualBox %U
 TryExec=VirtualBox
@@ -11,6 +12,7 @@ Keywords=virtualization;
 Keywords[de]=Virtualisierung;
 Keywords[ru]=виртуализация;
 MimeType=application/x-virtualbox-vbox;application/x-virtualbox-vbox-extpack;application/x-virtualbox-ovf;application/x-virtualbox-ova;
+DocPath=file://@VBOX_DOC_PATH@/UserManual.pdf
 Icon=virtualbox
 Categories=Emulator;System;
 Actions=Manager;

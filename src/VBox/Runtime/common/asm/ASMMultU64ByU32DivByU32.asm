@@ -1,10 +1,10 @@
-; $Id: ASMMultU64ByU32DivByU32.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMMultU64ByU32DivByU32.asm $
 ;; @file
 ; IPRT - Assembly Functions, ASMMultU64ByU32DivByU32.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -38,8 +38,8 @@
 ;
 ; @cproto  DECLASM(uint64_t) ASMMultU64ByU32DivByU32(uint64_t u64A, uint32_t u32B, uint32_t u32C);
 ;
-RT_BEGINPROC ASMMultU64ByU32DivByU32
-%if ARCH_BITS == 64
+BEGINPROC_EXPORTED ASMMultU64ByU32DivByU32
+%ifdef RT_ARCH_AMD64
 
  %ifdef ASM_CALL64_MSC
     mov     rax, rcx                    ; rax = u64A
@@ -53,34 +53,19 @@ RT_BEGINPROC ASMMultU64ByU32DivByU32
     mul     r9
     div     r8
 
-%else ; 16 or 32 bit
+%else ; X86
     ;
     ; This implementation is converted from the GCC inline
     ; version of the code. Nothing additional has been done
     ; performance wise.
     ;
- %if ARCH_BITS == 16
-    push    bp
-    mov     bp, sp
-    push    eax                         ; push all return registers to preserve high value (paranoia)
-    push    ebx
-    push    ecx
-    push    edx
- %endif
     push    esi
     push    edi
 
- %if ARCH_BITS == 16
-  %define u64A_Lo     [bp + 4 + 04h]
-  %define u64A_Hi     [bp + 4 + 08h]
-  %define u32B        [bp + 4 + 0ch]
-  %define u32C        [bp + 4 + 10h]
- %else
-  %define u64A_Lo     [esp + 04h + 08h]
-  %define u64A_Hi     [esp + 08h + 08h]
-  %define u32B        [esp + 0ch + 08h]
-  %define u32C        [esp + 10h + 08h]
- %endif
+%define u64A_Lo     [esp + 04h + 08h]
+%define u64A_Hi     [esp + 08h + 08h]
+%define u32B        [esp + 0ch + 08h]
+%define u32C        [esp + 10h + 08h]
 
     ; Load parameters into registers.
     mov     eax, u64A_Lo
@@ -111,20 +96,6 @@ RT_BEGINPROC ASMMultU64ByU32DivByU32
     ; epilogue
     pop     edi
     pop     esi
- %if ARCH_BITS == 16
-    ;  DX:CX:BX:AX, where DX holds bits 15:0, CX bits 31:16, BX bits 47:32, and AX bits 63:48.
-    mov     ax, [bp - 4*4]              ; dx = bits 15:0
-    shr     eax, 16
-    mov     ax, [bp - 3*4]              ; cx = bits 31:16
-    mov     dx, [bp - 2*4]              ; bx = bits 47:32
-    shr     edx, 16
-    mov     dx, [bp - 1*4]              ; ax = bits 63:48
-    pop     edx
-    pop     ecx
-    pop     ebx
-    pop     eax
-    leave
- %endif
 %endif
     ret
 ENDPROC ASMMultU64ByU32DivByU32

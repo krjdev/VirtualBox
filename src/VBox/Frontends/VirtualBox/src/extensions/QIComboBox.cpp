@@ -1,10 +1,10 @@
-/* $Id: QIComboBox.cpp 94064 2022-03-02 15:49:12Z vboxsync $ */
+/* $Id: QIComboBox.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIComboBox class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 
 /* GUI includes: */
 #include "QIComboBox.h"
-#include "QILineEdit.h"
 
 /* Other VBox includes: */
 #include "iprt/assert.h"
@@ -46,15 +45,18 @@ public:
 
     /** Constructs an accessibility interface passing @a pWidget to the base-class. */
     QIAccessibilityInterfaceForQIComboBox(QWidget *pWidget)
-        : QAccessibleWidget(pWidget, QAccessible::ComboBox)
+        : QAccessibleWidget(pWidget, QAccessible::ToolBar)
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const /* override */;
+
+    /** Returns a text for the passed @a enmTextRole. */
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
 private:
 
@@ -98,6 +100,11 @@ int QIAccessibilityInterfaceForQIComboBox::indexOfChild(const QAccessibleInterfa
     return -1;
 }
 
+QString QIAccessibilityInterfaceForQIComboBox::text(QAccessible::Text /* enmTextRole */) const
+{
+    /* Return empty string: */
+    return QString();
+}
 
 
 /*********************************************************************************************************************************
@@ -229,13 +236,6 @@ void QIComboBox::addItem(const QString &strText, const QVariant &userData /* = Q
     return m_pComboBox->addItem(strText, userData);
 }
 
-void QIComboBox::insertItems(int iIndex, const QStringList &items)
-{
-    /* Redirect to combo-box: */
-    AssertPtrReturnVoid(m_pComboBox);
-    return m_pComboBox->insertItems(iIndex, items);
-}
-
 void QIComboBox::insertItem(int iIndex, const QString &strText, const QVariant &userData /* = QVariant() */) const
 {
     /* Redirect to combo-box: */
@@ -302,20 +302,6 @@ void QIComboBox::setSizeAdjustPolicy(QComboBox::SizeAdjustPolicy enmPolicy)
     m_pComboBox->setSizeAdjustPolicy(enmPolicy);
 }
 
-void QIComboBox::mark(bool fError, const QString &strErrorMessage /* = QString() */)
-{
-    AssertPtrReturnVoid(m_pComboBox);
-    QILineEdit *pLineEdit = isEditable() ? qobject_cast<QILineEdit*>(m_pComboBox->lineEdit()) : 0;
-    if (pLineEdit)
-        pLineEdit->mark(fError, strErrorMessage);
-}
-
-void QIComboBox::insertSeparator(int iIndex)
-{
-    AssertPtrReturnVoid(m_pComboBox);
-    m_pComboBox->insertSeparator(iIndex);
-}
-
 void QIComboBox::clear()
 {
     /* Redirect to combo-box: */
@@ -342,10 +328,6 @@ void QIComboBox::setEditable(bool fEditable) const
     /* Redirect to combo-box: */
     AssertPtrReturnVoid(m_pComboBox);
     m_pComboBox->setEditable(fEditable);
-
-    /* Replace the line-edit so that we can mark errors: */
-    if (isEditable())
-        m_pComboBox->setLineEdit(new QILineEdit);
 }
 
 void QIComboBox::setCurrentIndex(int iIndex) const
@@ -397,30 +379,18 @@ void QIComboBox::prepare()
             setFocusProxy(m_pComboBox);
             connect(m_pComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),
                     this, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::activated));
-#ifdef VBOX_IS_QT6_OR_LATER /** @todo qt6: textActivated was added in 5.14 actually */
-            connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::textActivated),
-                    this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::textActivated));
-#else
             connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::activated),
                     this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::activated));
-#endif
             connect(m_pComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
                     this, static_cast<void(QIComboBox::*)(int)>(&QIComboBox::currentIndexChanged));
-#ifndef VBOX_IS_QT6_OR_LATER
             connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
                     this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::currentIndexChanged));
-#endif
             connect(m_pComboBox, &QComboBox::currentTextChanged, this, &QIComboBox::currentTextChanged);
             connect(m_pComboBox, &QComboBox::editTextChanged, this, &QIComboBox::editTextChanged);
-#ifdef VBOX_IS_QT6_OR_LATER /** @todo qt6: textHighlighted was added in 5.14 actually */
-            connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::textHighlighted),
-                    this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::textHighlighted));
-#else
             connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::highlighted),
                     this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::highlighted));
             connect(m_pComboBox, static_cast<void(QComboBox::*)(const QString &)>(&QComboBox::highlighted),
                     this, static_cast<void(QIComboBox::*)(const QString &)>(&QIComboBox::highlighted));
-#endif
             /* Add combo-box into layout: */
             pLayout->addWidget(m_pComboBox);
         }

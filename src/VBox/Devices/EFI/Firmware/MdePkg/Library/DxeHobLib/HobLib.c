@@ -1,5 +1,5 @@
 /** @file
-  HOB Library implementation for Dxe Phase.
+  HOB Library implemenation for Dxe Phase.
 
 Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent

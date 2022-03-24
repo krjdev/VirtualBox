@@ -494,7 +494,7 @@ BuildGatherList (
     }
 
     //
-    // Record descriptor header
+    // Record descirptor header
     //
     if (Index == 0) {
       BlockDescriptorsHeader = BlockDescriptors1;

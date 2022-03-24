@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: report.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: report.py $
 
 """
 Test Manager - Report models.
@@ -7,7 +7,7 @@ Test Manager - Report models.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.
@@ -1221,8 +1221,8 @@ class ReportGraphModel(ReportModelBase): # pylint: disable=too-few-public-method
             # Look up the VCS revision details.
             #
             for oSeries in oCollection.aoSeries:
-                for iRevision in oSeries.aiRevisions:
-                    oSeries.aoRevInfo.append(self.oCache.getVcsRevInfo(sCurRepository, iRevision));
+                for i in range(len(oSeries.aiRevisions)):
+                    oSeries.aoRevInfo.append(self.oCache.getVcsRevInfo(sCurRepository, oSeries.aiRevisions[i]));
             aoRet.append(oCollection);
 
         return aoRet;

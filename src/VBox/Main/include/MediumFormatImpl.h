@@ -1,10 +1,10 @@
-/* $Id: MediumFormatImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MediumFormatImpl.h $ */
 /** @file
  * MediumFormat COM class implementation
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -52,7 +52,7 @@ public:
     typedef std::vector<Property> PropertyArray;
     typedef std::vector<com::Utf8Str> StrArray;
 
-    DECLARE_COMMON_CLASS_METHODS(MediumFormat)
+    DECLARE_EMPTY_CTOR_DTOR(MediumFormat)
 
     HRESULT FinalConstruct();
     void FinalRelease();

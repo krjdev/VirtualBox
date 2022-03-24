@@ -1,10 +1,10 @@
-/* $Id: QIDialogButtonBox.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIDialogButtonBox.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIDialogButtonBox class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -114,7 +114,7 @@ void QIDialogButtonBox::retranslateUi()
 QBoxLayout *QIDialogButtonBox::boxLayout() const
 {
     QBoxLayout *pLayout = qobject_cast<QBoxLayout*>(layout());
-    AssertMsg(RT_VALID_PTR(pLayout), ("Layout of the QDialogButtonBox isn't a box layout."));
+    AssertMsg(VALID_PTR(pLayout), ("Layout of the QDialogButtonBox isn't a box layout."));
     return pLayout;
 }
 

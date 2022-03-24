@@ -1,10 +1,10 @@
-/* $Id: UITabBar.cpp 94064 2022-03-02 15:49:12Z vboxsync $ */
+/* $Id: UITabBar.cpp $ */
 /** @file
  * VBox Qt GUI - UITabBar class implementation.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -98,28 +98,24 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Handles mouse-press @a pEvent. */
-    virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse-release @a pEvent. */
-    virtual void mouseReleaseEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseReleaseEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse-move @a pEvent. */
-    virtual void mouseMoveEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseMoveEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse-enter @a pEvent. */
-#ifdef VBOX_IS_QT6_OR_LATER
-    virtual void enterEvent(QEnterEvent *pEvent) RT_OVERRIDE;
-#else
-    virtual void enterEvent(QEvent *pEvent) RT_OVERRIDE;
-#endif
+    virtual void enterEvent(QEvent *pEvent) /* override */;
     /** Handles mouse-leave @a pEvent. */
-    virtual void leaveEvent(QEvent *pEvent) RT_OVERRIDE;
+    virtual void leaveEvent(QEvent *pEvent) /* override */;
 
 private slots:
 
@@ -250,7 +246,7 @@ void UITabBarItem::paintEvent(QPaintEvent * /* pEvent */)
     QPainter painter(this);
 
     /* Prepare palette colors: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     const QColor color0 = m_fCurrent
                         ? pal.color(QPalette::Shadow).darker(110)
                         : pal.color(QPalette::Window).lighter(105);
@@ -371,7 +367,7 @@ void UITabBarItem::paintEvent(QPaintEvent * /* pEvent */)
     QPainter painter(this);
 
     /* Prepare palette colors: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     const QColor color0 = m_fCurrent ? pal.color(QPalette::Base)
                         : m_fHovered ? pal.color(QPalette::Base).darker(102)
                         :              pal.color(QPalette::Button).darker(102);
@@ -578,11 +574,7 @@ void UITabBarItem::mouseMoveEvent(QMouseEvent *pEvent)
     pDrag->exec();
 }
 
-#ifdef VBOX_IS_QT6_OR_LATER
-void UITabBarItem::enterEvent(QEnterEvent *pEvent)
-#else
 void UITabBarItem::enterEvent(QEvent *pEvent)
-#endif
 {
     /* Make sure button isn't hovered: */
     if (m_fHovered)
@@ -601,20 +593,7 @@ void UITabBarItem::leaveEvent(QEvent *pEvent)
 {
     /* Make sure button is hovered: */
     if (!m_fHovered)
-    {
-#ifdef VBOX_IS_QT6_OR_LATER /** @todo qt6: Code duplication of enterEvent; split out in separate method (complete wast of time to cook up a QEnterEvent here). */
-# ifdef VBOX_WS_MAC
-        m_pLayoutStacked->setCurrentWidget(m_pButtonClose);
-# endif
-        m_fHovered = true;
-        /* And call for repaint: */
-        update();
-        RT_NOREF(pEvent);
-        return;
-#else
         return QWidget::enterEvent(pEvent);
-#endif
-    }
 
     /* Invert hovered state: */
 #ifdef VBOX_WS_MAC
@@ -801,7 +780,7 @@ bool UITabBar::removeTab(const QUuid &uuid)
         }
     }
     /* Flush wiped out items: */
-    m_aItems.removeAll((UITabBarItem *)0);
+    m_aItems.removeAll(0);
 
     /* If we had removed current item: */
     if (fMoveCurrent)
@@ -957,7 +936,7 @@ void UITabBar::dropEvent(QDropEvent *pEvent)
     /* Determine ID of token-item: */
     const QUuid tokenUuid = m_pItemToken->uuid();
     /* Determine ID of dropped-item: */
-    const QUuid droppedUuid(pMimeData->data(UITabBarItem::MimeType));
+    const QUuid droppedUuid = pMimeData->data(UITabBarItem::MimeType);
 
     /* Make sure these uuids are different: */
     if (droppedUuid == tokenUuid)

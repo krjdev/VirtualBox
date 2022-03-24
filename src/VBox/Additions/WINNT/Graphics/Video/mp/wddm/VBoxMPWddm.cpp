@@ -1,10 +1,10 @@
-/* $Id: VBoxMPWddm.cpp 93749 2022-02-15 12:35:21Z vboxsync $ */
+/* $Id: VBoxMPWddm.cpp $ */
 /** @file
  * VBox WDDM Miniport driver
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,6 @@
 #include <iprt/asm.h>
 #include <iprt/param.h>
 #include <iprt/initterm.h>
-#include <iprt/utf16.h>
 
 #include <VBox/VBoxGuestLib.h>
 #include <VBox/VMMDev.h> /* for VMMDevVideoSetVisibleRegion */
@@ -41,6 +40,8 @@
 #ifdef VBOX_WITH_MESA3D
 #include "gallium/VBoxMPGaWddm.h"
 #endif
+
+#include <stdio.h>
 
 #ifdef DEBUG
 DWORD g_VBoxLogUm = VBOXWDDM_CFG_LOG_UM_BACKDOOR;
@@ -502,7 +503,7 @@ bool vboxWddmGhDisplayCheckSetInfoForDisabledTargetsNew(PVBOXMP_DEVEXT pDevExt)
     for (int i = 0; i < VBoxCommonFromDeviceExt(pDevExt)->cDisplays; ++i)
     {
         VBOXWDDM_TARGET *pTarget = &pDevExt->aTargets[i];
-        Assert(pTarget->u32Id == (unsigned)i);
+        Assert(pTarget->u32Id == i);
         if (pTarget->VidPnSourceId != D3DDDI_ID_UNINITIALIZED)
         {
             Assert(pTarget->VidPnSourceId < (D3DDDI_VIDEO_PRESENT_SOURCE_ID)VBoxCommonFromDeviceExt(pDevExt)->cDisplays);
@@ -561,7 +562,7 @@ bool vboxWddmGhDisplayCheckSetInfoForDisabledTargetsLegacy(PVBOXMP_DEVEXT pDevEx
     for (int i = 0; i < VBoxCommonFromDeviceExt(pDevExt)->cDisplays; ++i)
     {
         VBOXWDDM_TARGET *pTarget = &pDevExt->aTargets[i];
-        Assert(pTarget->u32Id == (unsigned)i);
+        Assert(pTarget->u32Id == i);
         if (pTarget->VidPnSourceId != D3DDDI_ID_UNINITIALIZED)
         {
             Assert(pTarget->VidPnSourceId < (D3DDDI_VIDEO_PRESENT_SOURCE_ID)VBoxCommonFromDeviceExt(pDevExt)->cDisplays);
@@ -1092,6 +1093,7 @@ NTSTATUS DxgkDdiStartDevice(
 
                     DWORD dwVal = VBOXWDDM_CFG_DRV_DEFAULT;
                     HANDLE hKey = NULL;
+                    WCHAR aNameBuf[100];
 
                     Status = IoOpenDeviceRegistryKey(pDevExt->pPDO, PLUGPLAY_REGKEY_DRIVER, GENERIC_READ, &hKey);
                     if (!NT_SUCCESS(Status))
@@ -1123,9 +1125,8 @@ NTSTATUS DxgkDdiStartDevice(
                         }
                         else if (hKey)
                         {
-                            WCHAR wszNameBuf[sizeof(VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX) / sizeof(WCHAR) + 32];
-                            RTUtf16Printf(wszNameBuf, RT_ELEMENTS(wszNameBuf), "%ls%u", VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX, i);
-                            Status = vboxWddmRegQueryValueDword(hKey, wszNameBuf, &dwVal);
+                            swprintf(aNameBuf, L"%s%d", VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX, i);
+                            Status = vboxWddmRegQueryValueDword(hKey, aNameBuf, &dwVal);
                             if (NT_SUCCESS(Status))
                             {
                                 pTarget->fConnected = !!(dwVal & VBOXWDDM_CFG_DRVTARGET_CONNECTED);
@@ -1557,8 +1558,6 @@ VOID DxgkDdiUnload(
     {
         RTLogDestroy(pLogger);
     }
-
-    RTR0Term();
 }
 
 NTSTATUS DxgkDdiQueryInterface(
@@ -1648,9 +1647,6 @@ NTSTATUS APIENTRY DxgkDdiQueryAdapterInfo(
                 pCaps->PresentationCaps.Value = 0;
                 pCaps->PresentationCaps.NoScreenToScreenBlt = 1;
                 pCaps->PresentationCaps.NoOverlapScreenBlt = 1;
-                pCaps->PresentationCaps.AlignmentShift = 2;
-                pCaps->PresentationCaps.MaxTextureWidthShift = 2; /* Up to 8196 */
-                pCaps->PresentationCaps.MaxTextureHeightShift = 2; /* Up to 8196 */
                 pCaps->MaxQueuedFlipOnVSync = 0; /* do we need it? */
                 pCaps->FlipCaps.Value = 0;
                 /* ? pCaps->FlipCaps.FlipOnVSyncWithNoWait = 1; */
@@ -1681,7 +1677,7 @@ NTSTATUS APIENTRY DxgkDdiQueryAdapterInfo(
 #endif
 
                 if (VBoxQueryWinVersion(NULL) >= WINVERSION_8)
-                    pCaps->WDDMVersion = DXGKDDI_WDDMv1_2;
+                    pCaps->WDDMVersion = DXGKDDI_WDDMv1;
             }
             else
             {
@@ -1761,7 +1757,7 @@ NTSTATUS APIENTRY DxgkDdiQueryAdapterInfo(
                     pQAI->u32AdapterCaps |= VBOXWDDM_QAI_CAP_DXVA; /** @todo Fetch from registry. */
                     if (VBoxQueryWinVersion(NULL) >= WINVERSION_7)
                     {
-                        pQAI->u32AdapterCaps |= VBOXWDDM_QAI_CAP_WIN7;
+                        // pQAI->u32AdapterCaps |= VBOXWDDM_QAI_CAP_WIN7;
                         // pQAI->u32AdapterCaps |= VBOXWDDM_QAI_CAP_DXVAHD; /** @todo Fetch from registry. */
                     }
 
@@ -2515,10 +2511,7 @@ static BOOLEAN vboxWddmCallIsrCb(PVOID Context)
     PVBOXMP_DEVEXT pDevExt = pdc->pDevExt;
     if (pDevExt->fCmdVbvaEnabled)
     {
-#ifdef DEBUG_sunlover
-        /** @todo Remove VBOX_WITH_VIDEOHWACCEL code, because the host does not support it anymore. */
         AssertFailed(); /* Should not be here, because this is not used with 3D gallium driver. */
-#endif
         return FALSE;
     }
     return DxgkDdiInterruptRoutineLegacy(pDevExt, pdc->MessageNumber);
@@ -3234,6 +3227,7 @@ DxgkDdiEscape(
                 }
 
                 HANDLE hKey = NULL;
+                WCHAR aNameBuf[100];
                 uint32_t cAdjusted = 0;
 
                 for (int i = 0; i < VBoxCommonFromDeviceExt(pDevExt)->cDisplays; ++i)
@@ -3266,11 +3260,10 @@ DxgkDdiEscape(
 
                     Assert(hKey);
 
-                    WCHAR wszNameBuf[sizeof(VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX) / sizeof(WCHAR) + 32];
-                    RTUtf16Printf(wszNameBuf, RT_ELEMENTS(wszNameBuf), "%ls%d", VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX, i);
-                    Status = vboxWddmRegSetValueDword(hKey, wszNameBuf, VBOXWDDM_CFG_DRVTARGET_CONNECTED);
+                    swprintf(aNameBuf, L"%s%d", VBOXWDDM_REG_DRV_DISPFLAGS_PREFIX, i);
+                    Status = vboxWddmRegSetValueDword(hKey, aNameBuf, VBOXWDDM_CFG_DRVTARGET_CONNECTED);
                     if (!NT_SUCCESS(Status))
-                        WARN(("VBOXESC_CONFIGURETARGETS vboxWddmRegSetValueDword (%ls) failed Status 0x%x\n", wszNameBuf, Status));
+                        WARN(("VBOXESC_CONFIGURETARGETS vboxWddmRegSetValueDword (%d) failed Status 0x%x\n", aNameBuf, Status));
 
                 }
 
@@ -3332,15 +3325,15 @@ DxgkDdiEscape(
 
                 if (pAlloc->bAssigned)
                 {
-                    PVBOXMP_DEVEXT pDevExt2 = pDevice->pAdapter;
-                    Assert(pAlloc->AllocData.SurfDesc.VidPnSourceId < (D3DDDI_VIDEO_PRESENT_SOURCE_ID)VBoxCommonFromDeviceExt(pDevExt2)->cDisplays);
-                    PVBOXWDDM_SOURCE pSource = &pDevExt2->aSources[pAlloc->AllocData.SurfDesc.VidPnSourceId];
+                    PVBOXMP_DEVEXT pDevExt = pDevice->pAdapter;
+                    Assert(pAlloc->AllocData.SurfDesc.VidPnSourceId < (D3DDDI_VIDEO_PRESENT_SOURCE_ID)VBoxCommonFromDeviceExt(pDevExt)->cDisplays);
+                    PVBOXWDDM_SOURCE pSource = &pDevExt->aSources[pAlloc->AllocData.SurfDesc.VidPnSourceId];
                     if (pSource->AllocData.hostID != pAlloc->AllocData.hostID)
                     {
                         pSource->AllocData.hostID = pAlloc->AllocData.hostID;
                         pSource->u8SyncState &= ~VBOXWDDM_HGSYNC_F_SYNCED_LOCATION;
 
-                        vboxWddmGhDisplayCheckSetInfo(pDevExt2);
+                        vboxWddmGhDisplayCheckSetInfo(pDevExt);
                     }
                 }
 
@@ -3869,7 +3862,7 @@ DxgkDdiCommitVidPn(
             for (int i = 0; i < VBoxCommonFromDeviceExt(pDevExt)->cDisplays; ++i)
             {
                 VBOXWDDM_TARGET *pTarget = &pDevExt->aTargets[i];
-                Assert(pTarget->u32Id == (unsigned)i);
+                Assert(pTarget->u32Id == i);
                 if (pTarget->VidPnSourceId != D3DDDI_ID_UNINITIALIZED)
                 {
                     continue;
@@ -4447,15 +4440,6 @@ DxgkDdiCreateContext(
                         break;
                     }
 #endif
-#ifdef VBOX_WITH_VMSVGA3D_DX
-                    /** @todo Implement buffers submittion and memory menagement for this new type of context **/
-                    case VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX:
-                    {
-                        pContext->enmType = VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX;
-                        WARN(("Context type VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX is not supported yet"));
-                        break;
-                    }
-#endif
                     default:
                     {
                         WARN(("unsupported context type %d", pInfo->enmType));
@@ -4530,14 +4514,6 @@ DxgkDdiDestroyContext(
         case VBOXWDDM_CONTEXT_TYPE_GA_3D:
         {
             Status = GaContextDestroy(pDevExt->pGa, pContext);
-            break;
-        }
-#endif
-#ifdef VBOX_WITH_VMSVGA3D_DX
-        case VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX:
-        {
-            pContext->enmType = VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX;
-            WARN(("Context type VBOXWDDM_CONTEXT_TYPE_VMSVGA_DX is not supported yet"));
             break;
         }
 #endif
@@ -5006,11 +4982,14 @@ static NTSTATUS vboxWddmInitFullGraphicsDriver(IN PDRIVER_OBJECT pDriverObject, 
 
     DriverInitializationData.DxgkDdiLinkDevice = NULL; //DxgkDdiLinkDevice;
     DriverInitializationData.DxgkDdiSetDisplayPrivateDriverFormat = DxgkDdiSetDisplayPrivateDriverFormat;
-
-    if (DriverInitializationData.Version >= DXGKDDI_INTERFACE_VERSION_WIN7)
-    {
-        DriverInitializationData.DxgkDdiQueryVidPnHWCapability = DxgkDdiQueryVidPnHWCapability;
-    }
+//#if (DXGKDDI_INTERFACE_VERSION >= DXGKDDI_INTERFACE_VERSION_WIN7)
+//# error port to Win7 DDI
+//            DriverInitializationData.DxgkDdiRenderKm  = DxgkDdiRenderKm;
+//            DriverInitializationData.DxgkDdiRestartFromTimeout  = DxgkDdiRestartFromTimeout;
+//            DriverInitializationData.DxgkDdiSetVidPnSourceVisibility  = DxgkDdiSetVidPnSourceVisibility;
+//            DriverInitializationData.DxgkDdiUpdateActiveVidPnPresentPath  = DxgkDdiUpdateActiveVidPnPresentPath;
+//            DriverInitializationData.DxgkDdiQueryVidPnHWCapability  = DxgkDdiQueryVidPnHWCapability;
+//#endif
 
     NTSTATUS Status = DxgkInitialize(pDriverObject,
                           pRegistryPath,

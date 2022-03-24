@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: xcode-6.2-extractor.sh 69210 2017-10-24 13:38:47Z vboxsync $
+# $Id: xcode-6.2-extractor.sh $
 ## @file
 # Extracts the necessary bits from the Xcode 6.2 (Xcode_6.2.dmg,
 # md5sum fe4c6c99182668cf14bfa5703bedeed6) and the Command Line

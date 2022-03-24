@@ -1,10 +1,10 @@
-/* $Id: RTPathParentLength.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTPathParentLength.cpp $ */
 /** @file
  * IPRT - RTPathParentLength
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -86,7 +86,7 @@ RTDECL(size_t) RTPathParentLengthEx(const char *pszPath, uint32_t fFlags)
  * @note    Currently ignores UNC and may therefore return the server or
  *          double-slash prefix as parent.
  */
-RTDECL(size_t) RTPathParentLength(const char *pszPath)
+size_t RTPathParentLength(const char *pszPath)
 {
 #if RTPATH_STYLE == RTPATH_STR_F_STYLE_DOS
     return rtPathParentLengthStyleDos(pszPath, 0);

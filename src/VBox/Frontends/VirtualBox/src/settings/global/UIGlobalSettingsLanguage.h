@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsLanguage.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGlobalSettingsLanguage.h $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsLanguage class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,14 +23,15 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIGlobalSettingsLanguage.gen.h"
 
 /* Forward declartions: */
-class UILanguageSettingsEditor;
 struct UIDataSettingsGlobalLanguage;
 typedef UISettingsCache<UIDataSettingsGlobalLanguage> UISettingsCacheGlobalLanguage;
 
 /** Global settings: Language page. */
-class SHARED_LIBRARY_STUFF UIGlobalSettingsLanguage : public UISettingsPageGlobal
+class SHARED_LIBRARY_STUFF UIGlobalSettingsLanguage : public UISettingsPageGlobal,
+                                                      public Ui::UIGlobalSettingsLanguage
 {
     Q_OBJECT;
 
@@ -39,47 +40,58 @@ public:
     /** Constructs Language settings page. */
     UIGlobalSettingsLanguage();
     /** Destructs Language settings page. */
-    virtual ~UIGlobalSettingsLanguage() RT_OVERRIDE;
+    ~UIGlobalSettingsLanguage();
 
 protected:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+
+    /** Handles show @a pEvent. */
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
+    /** Performs final page polishing. */
+    virtual void polishEvent(QShowEvent *pEvent) /* override */;
+
+private slots:
+
+    /** Handles @a pItem painting with passed @a pPainter. */
+    void sltHandleItemPainting(QTreeWidgetItem *pItem, QPainter *pPainter);
+
+    /** Handles @a pCurrentItem change. */
+    void sltHandleCurrentItemChange(QTreeWidgetItem *pCurrentItem);
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
     /** Cleanups all. */
     void cleanup();
 
-    /** Saves existing data from cache. */
-    bool saveData();
+    /** Reloads language list, choosing item with @a strLanguageId as current. */
+    void reloadLanguageTree(const QString &strLanguageId);
+
+    /** Saves existing language data from the cache. */
+    bool saveLanguageData();
+
+    /** Holds whether the page is polished. */
+    bool m_fPolished;
 
     /** Holds the page data cache instance. */
     UISettingsCacheGlobalLanguage *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the language settings editor instance. */
-        UILanguageSettingsEditor *m_pEditorLanguageSettings;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_global_UIGlobalSettingsLanguage_h */

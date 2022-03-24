@@ -1,10 +1,10 @@
-/* $Id: UnattendedScript.h 93195 2022-01-11 23:33:34Z vboxsync $ */
+/* $Id: UnattendedScript.h $ */
 /** @file
  * Classes for reading/parsing/saving scripts for unattended installation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 #endif
 
 #include "TextScript.h"
-#include "iprt/expreval.h"
 
 using namespace xml;
 
@@ -43,8 +42,6 @@ protected:
     Unattended *mpUnattended;
 
 public:
-    DECLARE_TRANSLATE_METHODS(UnattendedScriptTemplate)
-
     UnattendedScriptTemplate(Unattended *pUnattended, const char *pszDefaultTemplateFilename, const char *pszDefaultFilename);
     virtual ~UnattendedScriptTemplate()             {}
 
@@ -52,14 +49,6 @@ public:
     HRESULT saveToString(Utf8Str &rStrDst);
 
 protected:
-    typedef enum
-    {
-        kValueEscaping_None,
-        kValueEscaping_Bourne,
-        kValueEscaping_XML_Element,
-        kValueEscaping_XML_Attribute_Double_Quotes
-    } kEvalEscaping_T;
-
     /**
      * Gets the replacement value for the given placeholder.
      *
@@ -73,65 +62,26 @@ protected:
     HRESULT getReplacement(const char *pachPlaceholder, size_t cchPlaceholder, bool fOutputting, RTCString &rValue);
 
     /**
-     * Gets the replacement value for the given expression placeholder
-     * (@@VBOX_INSERT[expr]@@ and friends).
+     * Overridable worker for getReplacement.
      *
      * @returns COM status code.
-     * @param   hEvaluator      The evaluator to use for the expression.
-     * @param   pachPlaceholder The placholder string.  Not zero terminated.
-     * @param   cchPlaceholder  The length of the placeholder.
-     * @param   fOutputting     Indicates whether we actually need the correct value
-     *                          or is just syntax checking excluded template parts.
-     * @param   ppszValue       Where to return the value.  Free by calling
-     *                          RTStrFree.  Set to NULL for empty string.
-     */
-    HRESULT getReplacementForExpr(RTEXPREVAL hEvaluator, const char *pachPlaceholder, size_t cchPlaceholder,
-                                  bool fOutputting, char **ppszValue) RT_NOEXCEPT;
-
-    /**
-     * Resolves a conditional expression.
-     *
-     * @returns COM status code.
-     * @param   hEvaluator      The evaluator to use for the expression.
-     * @param   pachPlaceholder The placholder string.  Not zero terminated.
-     * @param   cchPlaceholder  The length of the placeholder.
-     * @param   pfOutputting    Where to return the result of the conditional. This
-     *                          holds the current outputting state on input in case
-     *                          someone want to sanity check anything.
-     */
-    HRESULT resolveConditionalExpr(RTEXPREVAL hEvaluator, const char *pachPlaceholder, size_t cchPlaceholder,
-                                   bool *pfOutputting) RT_NOEXCEPT;
-
-    /** @callback_method_impl{FNRTEXPREVALQUERYVARIABLE}  */
-    static DECLCALLBACK(int) queryVariableForExpr(const char *pchName, size_t cchName, void *pvUser,
-                                                  char **ppszValue) RT_NOEXCEPT;
-
-    /**
-     * Gets a variable.
-     *
-     * This is used both for getting replacements (@@VBOX_INSERT_XXX@@) and in
-     * expressions (@@VBOX_INSERT[expr]@@, @@VBOX_COND[expr]@@).
-     *
-     * @returns VBox status code.
-     * @retval  VERR_NOT_FOUND if variable does not exist.
-     *
-     * @param   pchName             The variable name.  Not zero terminated.
-     * @param   cchName             The length of the name.
-     * @param   rstrTmp             String object that can be used for keeping the
-     *                              value returned via @a *ppszValue.
-     * @param   ppszValue           If a value is desired, this is where to return
-     *                              it.  This points to a string that should be
-     *                              accessible for a little while after the function
-     *                              returns.  Use @a rstrTmp for storage if
-     *                              necessary.
-     *
-     *                              This will be NULL when called from the 'defined'
-     *                              operator.  In which case no errors should be
-     *                              set.
+     * @param   pachPlaceholder     The placholder string.  Not zero terminated.
+     * @param   cchPlaceholder      The length of the placeholder.
+     * @param   cchFullPlaceholder  The full placeholder length, including suffixes
+     *                              indicating how it should be escaped (for error
+     *                              messages).
+     * @param   fOutputting         Indicates whether we actually need the correct
+     *                              value or is just syntax checking excluded
+     *                              template parts.  Intended for voiding triggering
+     *                              sanity checks regarding which replacements
+     *                              should be used and not (e.g. no guest additions
+     *                              path when installing GAs aren't enabled).
+     * @param   rValue              Where to return the value.
      * @throws  std::bad_alloc
-     * @see     FNRTEXPREVALQUERYVARIABLE
      */
-    virtual int queryVariable(const char *pchName, size_t cchName, Utf8Str &rstrTmp, const char **ppszValue);
+    virtual HRESULT getUnescapedReplacement(const char *pachPlaceholder, size_t cchPlaceholder,
+                                            size_t cchFullPlaceholder, bool fOutputting, RTCString &rValue);
+
 
     /**
      * Get the result of a conditional.
@@ -153,8 +103,6 @@ protected:
 class UnattendedSUSEXMLScript : public UnattendedXMLScript
 {
 public:
-    DECLARE_TRANSLATE_METHODS(UnattendedSUSEXMLScript)
-
     UnattendedSUSEXMLScript(VirtualBoxBase *pSetError, const char *pszDefaultFilename = "autoinst.xml")
         : UnattendedXMLScript(pSetError, pszDefaultFilename) {}
     ~UnattendedSUSEXMLScript() {}

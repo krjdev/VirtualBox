@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93124 2022-01-04 04:28:30Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Top-level makefile for src/VBox/Main/UnattendedTemplates.
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -35,20 +35,12 @@ ifdef VBOX_WITH_UNATTENDED
  	ol_ks.cfg \
  	fedora_ks.cfg \
  	suse_autoinstall.xml \
- 	os2_response_files.rsp \
  	win_nt5_unattended.sif \
  	win_nt6_unattended.xml \
  	\
  	debian_postinstall.sh \
  	redhat_postinstall.sh \
- 	ol_postinstall.sh \
- 	os2_cid_install.cmd \
  	win_postinstall.cmd
-
- ifndef VBOX_WITH_OPEN_WATCOM
-  VBoxUnattendedTemplates_SOURCES += \
-  	os2_util.exe
- endif
 
  ifndef VBOX_OSE
   VBoxUnattendedTemplates_SOURCES += \

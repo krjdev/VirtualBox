@@ -1,10 +1,10 @@
-/* $Id: IEMAllInstructionsOneByte.cpp.h 94261 2022-03-16 01:34:29Z vboxsync $ */
+/* $Id: IEMAllInstructionsOneByte.cpp.h $ */
 /** @file
  * IEM - Instruction Decoding and Emulation.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2250,8 +2250,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_GREG_U16(u16Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu16Dst, u16Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u16_eflags),
-                                         pu16Dst, u16Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u16, pu16Dst, u16Src, pEFlags);
                 IEM_MC_STORE_GREG_U16(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u16Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2274,8 +2273,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_MEM_U16(u16Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu16Dst, u16Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u16_eflags),
-                                         pu16Dst, u16Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u16, pu16Dst, u16Src, pEFlags);
                 IEM_MC_STORE_GREG_U16(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u16Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2301,8 +2299,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_GREG_U32(u32Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu32Dst, u32Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u32_eflags),
-                                         pu32Dst, u32Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u32, pu32Dst, u32Src, pEFlags);
                 IEM_MC_STORE_GREG_U32(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u32Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2325,8 +2322,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_MEM_U32(u32Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu32Dst, u32Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u32_eflags),
-                                         pu32Dst, u32Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u32, pu32Dst, u32Src, pEFlags);
                 IEM_MC_STORE_GREG_U32(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u32Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2352,8 +2348,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_GREG_U64(u64Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu64Dst, u64Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u64_eflags),
-                                         pu64Dst, u64Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u64, pu64Dst, u64Src, pEFlags);
                 IEM_MC_STORE_GREG_U64(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u64Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2376,8 +2371,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Iz)
                 IEM_MC_FETCH_MEM_U64(u64Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu64Dst, u64Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u64_eflags),
-                                         pu64Dst, u64Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u64, pu64Dst, u64Src, pEFlags);
                 IEM_MC_STORE_GREG_U64(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u64Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2448,8 +2442,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_GREG_U16(u16Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu16Dst, u16Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u16_eflags),
-                                         pu16Dst, u16Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u16, pu16Dst, u16Src, pEFlags);
                 IEM_MC_STORE_GREG_U16(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u16Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2472,8 +2465,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_MEM_U16(u16Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu16Dst, u16Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u16_eflags),
-                                         pu16Dst, u16Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u16, pu16Dst, u16Src, pEFlags);
                 IEM_MC_STORE_GREG_U16(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u16Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2497,8 +2489,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_GREG_U32(u32Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu32Dst, u32Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u32_eflags),
-                                         pu32Dst, u32Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u32, pu32Dst, u32Src, pEFlags);
                 IEM_MC_STORE_GREG_U32(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u32Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2521,8 +2512,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_MEM_U32(u32Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu32Dst, u32Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u32_eflags),
-                                         pu32Dst, u32Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u32, pu32Dst, u32Src, pEFlags);
                 IEM_MC_STORE_GREG_U32(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u32Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2546,8 +2536,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_GREG_U64(u64Tmp, (bRm & X86_MODRM_RM_MASK) | pVCpu->iem.s.uRexB);
                 IEM_MC_REF_LOCAL(pu64Dst, u64Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u64_eflags),
-                                         pu64Dst, u64Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u64, pu64Dst, u64Src, pEFlags);
                 IEM_MC_STORE_GREG_U64(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u64Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -2570,8 +2559,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev_Ib)
                 IEM_MC_FETCH_MEM_U64(u64Tmp, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
                 IEM_MC_REF_LOCAL(pu64Dst, u64Tmp);
                 IEM_MC_REF_EFLAGS(pEFlags);
-                IEM_MC_CALL_VOID_AIMPL_3(IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_u64_eflags),
-                                         pu64Dst, u64Src, pEFlags);
+                IEM_MC_CALL_VOID_AIMPL_3(iemAImpl_imul_two_u64, pu64Dst, u64Src, pEFlags);
                 IEM_MC_STORE_GREG_U64(((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK) | pVCpu->iem.s.uRexReg, u64Tmp);
 
                 IEM_MC_ADVANCE_RIP();
@@ -6013,13 +6001,13 @@ FNIEMOP_DEF(iemOp_Grp2_Eb_Ib)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Eb_Ib, "rol Eb,Ib"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Eb_Ib, "ror Eb,Ib"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Eb_Ib, "rcl Eb,Ib"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Eb_Ib, "rcr Eb,Ib"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Eb_Ib, "shl Eb,Ib"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Eb_Ib, "shr Eb,Ib"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Eb_Ib, "sar Eb,Ib"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Eb_Ib, "rol Eb,Ib"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Eb_Ib, "ror Eb,Ib"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Eb_Ib, "rcl Eb,Ib"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Eb_Ib, "rcr Eb,Ib"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Eb_Ib, "shl Eb,Ib"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Eb_Ib, "shr Eb,Ib"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Eb_Ib, "sar Eb,Ib"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc maybe stupid */
     }
@@ -6076,13 +6064,13 @@ FNIEMOP_DEF(iemOp_Grp2_Ev_Ib)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Ev_Ib, "rol Ev,Ib"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Ev_Ib, "ror Ev,Ib"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Ev_Ib, "rcl Ev,Ib"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Ev_Ib, "rcr Ev,Ib"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Ev_Ib, "shl Ev,Ib"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Ev_Ib, "shr Ev,Ib"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Ev_Ib, "sar Ev,Ib"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Ev_Ib, "rol Ev,Ib"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Ev_Ib, "ror Ev,Ib"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Ev_Ib, "rcl Ev,Ib"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Ev_Ib, "rcr Ev,Ib"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Ev_Ib, "shl Ev,Ib"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Ev_Ib, "shr Ev,Ib"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Ev_Ib, "sar Ev,Ib"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc maybe stupid */
     }
@@ -6590,13 +6578,13 @@ FNIEMOP_DEF(iemOp_Grp2_Eb_1)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Eb_1, "rol Eb,1"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Eb_1, "ror Eb,1"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Eb_1, "rcl Eb,1"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Eb_1, "rcr Eb,1"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Eb_1, "shl Eb,1"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Eb_1, "shr Eb,1"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Eb_1, "sar Eb,1"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Eb_1, "rol Eb,1"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Eb_1, "ror Eb,1"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Eb_1, "rcl Eb,1"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Eb_1, "rcr Eb,1"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Eb_1, "shl Eb,1"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Eb_1, "shr Eb,1"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Eb_1, "sar Eb,1"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc maybe, well... */
     }
@@ -6650,13 +6638,13 @@ FNIEMOP_DEF(iemOp_Grp2_Ev_1)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Ev_1, "rol Ev,1"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Ev_1, "ror Ev,1"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Ev_1, "rcl Ev,1"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Ev_1, "rcr Ev,1"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Ev_1, "shl Ev,1"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Ev_1, "shr Ev,1"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Ev_1, "sar Ev,1"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Ev_1, "rol Ev,1"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Ev_1, "ror Ev,1"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Ev_1, "rcl Ev,1"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Ev_1, "rcr Ev,1"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Ev_1, "shl Ev,1"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Ev_1, "shr Ev,1"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Ev_1, "sar Ev,1"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc maybe, well... */
     }
@@ -6785,13 +6773,13 @@ FNIEMOP_DEF(iemOp_Grp2_Eb_CL)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Eb_CL, "rol Eb,CL"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Eb_CL, "ror Eb,CL"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Eb_CL, "rcl Eb,CL"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Eb_CL, "rcr Eb,CL"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Eb_CL, "shl Eb,CL"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Eb_CL, "shr Eb,CL"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Eb_CL, "sar Eb,CL"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Eb_CL, "rol Eb,CL"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Eb_CL, "ror Eb,CL"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Eb_CL, "rcl Eb,CL"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Eb_CL, "rcr Eb,CL"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Eb_CL, "shl Eb,CL"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Eb_CL, "shr Eb,CL"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Eb_CL, "sar Eb,CL"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc, grr. */
     }
@@ -6846,13 +6834,13 @@ FNIEMOP_DEF(iemOp_Grp2_Ev_CL)
     PCIEMOPSHIFTSIZES pImpl;
     switch ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK)
     {
-        case 0: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rol_eflags); IEMOP_MNEMONIC(rol_Ev_CL, "rol Ev,CL"); break;
-        case 1: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_ror_eflags); IEMOP_MNEMONIC(ror_Ev_CL, "ror Ev,CL"); break;
-        case 2: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcl_eflags); IEMOP_MNEMONIC(rcl_Ev_CL, "rcl Ev,CL"); break;
-        case 3: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_rcr_eflags); IEMOP_MNEMONIC(rcr_Ev_CL, "rcr Ev,CL"); break;
-        case 4: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shl_eflags); IEMOP_MNEMONIC(shl_Ev_CL, "shl Ev,CL"); break;
-        case 5: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shr_eflags); IEMOP_MNEMONIC(shr_Ev_CL, "shr Ev,CL"); break;
-        case 7: pImpl = IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_sar_eflags); IEMOP_MNEMONIC(sar_Ev_CL, "sar Ev,CL"); break;
+        case 0: pImpl = &g_iemAImpl_rol; IEMOP_MNEMONIC(rol_Ev_CL, "rol Ev,CL"); break;
+        case 1: pImpl = &g_iemAImpl_ror; IEMOP_MNEMONIC(ror_Ev_CL, "ror Ev,CL"); break;
+        case 2: pImpl = &g_iemAImpl_rcl; IEMOP_MNEMONIC(rcl_Ev_CL, "rcl Ev,CL"); break;
+        case 3: pImpl = &g_iemAImpl_rcr; IEMOP_MNEMONIC(rcr_Ev_CL, "rcr Ev,CL"); break;
+        case 4: pImpl = &g_iemAImpl_shl; IEMOP_MNEMONIC(shl_Ev_CL, "shl Ev,CL"); break;
+        case 5: pImpl = &g_iemAImpl_shr; IEMOP_MNEMONIC(shr_Ev_CL, "shr Ev,CL"); break;
+        case 7: pImpl = &g_iemAImpl_sar; IEMOP_MNEMONIC(sar_Ev_CL, "sar Ev,CL"); break;
         case 6: return IEMOP_RAISE_INVALID_OPCODE();
         IEM_NOT_REACHED_DEFAULT_CASE_RET(); /* gcc maybe stupid */
     }
@@ -7452,7 +7440,7 @@ FNIEMOP_DEF_1(iemOp_fld_m32r, uint8_t, bRm)
 
     IEM_MC_PREPARE_FPU_USAGE();
     IEM_MC_IF_FPUREG_IS_EMPTY(7)
-        IEM_MC_CALL_FPU_AIMPL_2(iemAImpl_fld_r80_from_r32, pFpuRes, pr32Val);
+        IEM_MC_CALL_FPU_AIMPL_2(iemAImpl_fld_r32_to_r80, pFpuRes, pr32Val);
         IEM_MC_PUSH_FPU_RESULT_MEM_OP(FpuRes, pVCpu->iem.s.iEffSeg, GCPtrEffSrc);
     IEM_MC_ELSE()
         IEM_MC_FPU_STACK_PUSH_OVERFLOW_MEM_OP(pVCpu->iem.s.iEffSeg, GCPtrEffSrc);
@@ -9338,7 +9326,7 @@ FNIEMOP_DEF_1(iemOp_fld_m64r,    uint8_t, bRm)
     IEM_MC_FETCH_MEM_R64(r64Val, pVCpu->iem.s.iEffSeg, GCPtrEffSrc);
     IEM_MC_PREPARE_FPU_USAGE();
     IEM_MC_IF_FPUREG_IS_EMPTY(7)
-        IEM_MC_CALL_FPU_AIMPL_2(iemAImpl_fld_r80_from_r64, pFpuRes, pr64Val);
+        IEM_MC_CALL_FPU_AIMPL_2(iemAImpl_fld_r64_to_r80, pFpuRes, pr64Val);
         IEM_MC_PUSH_FPU_RESULT_MEM_OP(FpuRes, pVCpu->iem.s.iEffSeg, GCPtrEffSrc);
     IEM_MC_ELSE()
         IEM_MC_FPU_STACK_PUSH_OVERFLOW_MEM_OP(pVCpu->iem.s.iEffSeg, GCPtrEffSrc);
@@ -10116,39 +10104,7 @@ FNIEMOP_DEF_1(iemOp_fild_m64i,   uint8_t, bRm)
 
 
 /** Opcode 0xdf !11/6. */
-FNIEMOP_DEF_1(iemOp_fbstp_m80d,  uint8_t, bRm)
-{
-    IEMOP_MNEMONIC(fbstp_m80d, "fbstp m80d");
-    IEM_MC_BEGIN(3, 2);
-    IEM_MC_LOCAL(RTGCPTR,               GCPtrEffDst);
-    IEM_MC_LOCAL(uint16_t,              u16Fsw);
-    IEM_MC_ARG_LOCAL_REF(uint16_t *,    pu16Fsw,    u16Fsw, 0);
-    IEM_MC_ARG(PRTPBCD80U,              pd80Dst,            1);
-    IEM_MC_ARG(PCRTFLOAT80U,            pr80Value,          2);
-
-    IEM_MC_CALC_RM_EFF_ADDR(GCPtrEffDst, bRm, 0);
-    IEMOP_HLP_DONE_DECODING_NO_LOCK_PREFIX();
-    IEM_MC_MAYBE_RAISE_DEVICE_NOT_AVAILABLE();
-    IEM_MC_MAYBE_RAISE_FPU_XCPT();
-
-    IEM_MC_MEM_MAP(pd80Dst, IEM_ACCESS_DATA_W, pVCpu->iem.s.iEffSeg, GCPtrEffDst, 1 /*arg*/);
-    IEM_MC_PREPARE_FPU_USAGE();
-    IEM_MC_IF_FPUREG_NOT_EMPTY_REF_R80(pr80Value, 0)
-        IEM_MC_CALL_FPU_AIMPL_3(iemAImpl_fst_r80_to_d80, pu16Fsw, pd80Dst, pr80Value);
-        IEM_MC_MEM_COMMIT_AND_UNMAP_FOR_FPU_STORE(pd80Dst, IEM_ACCESS_DATA_W, u16Fsw);
-        IEM_MC_UPDATE_FSW_WITH_MEM_OP_THEN_POP(u16Fsw, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
-    IEM_MC_ELSE()
-        IEM_MC_IF_FCW_IM()
-            IEM_MC_STORE_MEM_INDEF_D80_BY_REF(pd80Dst);
-            IEM_MC_MEM_COMMIT_AND_UNMAP(pd80Dst, IEM_ACCESS_DATA_W);
-        IEM_MC_ENDIF();
-        IEM_MC_FPU_STACK_UNDERFLOW_MEM_OP_THEN_POP(UINT8_MAX, pVCpu->iem.s.iEffSeg, GCPtrEffDst);
-    IEM_MC_ENDIF();
-    IEM_MC_ADVANCE_RIP();
-
-    IEM_MC_END();
-    return VINF_SUCCESS;
-}
+FNIEMOP_STUB_1(iemOp_fbstp_m80d,  uint8_t, bRm);
 
 
 /** Opcode 0xdf !11/7. */
@@ -10341,73 +10297,62 @@ FNIEMOP_DEF(iemOp_loop_Jb)
     /** @todo Check out the #GP case if EIP < CS.Base or EIP > CS.Limit when
      * using the 32-bit operand size override.  How can that be restarted?  See
      * weird pseudo code in intel manual. */
-
-    /** NB: At least Windows for Workgroups 3.11 (NDIS.386) and Windows 95 (NDIS.VXD, IOS)
-     * use LOOP $-2 to implement NdisStallExecution and other CPU stall APIs. Shortcutting
-     * the loop causes guest crashes, but when logging it's nice to skip a few million
-     * lines of useless output. */
-#if defined(LOG_ENABLED)
-    if ((LogIs3Enabled() || LogIs4Enabled()) && (-(int8_t)IEM_GET_INSTR_LEN(pVCpu) == i8Imm))
-        switch (pVCpu->iem.s.enmEffAddrMode)
-        {
-            case IEMMODE_16BIT:
-                IEM_MC_BEGIN(0,0);
-                IEM_MC_STORE_GREG_U16_CONST(X86_GREG_xCX, 0);
-                IEM_MC_ADVANCE_RIP();
-                IEM_MC_END();
-                return VINF_SUCCESS;
-
-            case IEMMODE_32BIT:
-                IEM_MC_BEGIN(0,0);
-                IEM_MC_STORE_GREG_U32_CONST(X86_GREG_xCX, 0);
-                IEM_MC_ADVANCE_RIP();
-                IEM_MC_END();
-                return VINF_SUCCESS;
-
-            case IEMMODE_64BIT:
-                IEM_MC_BEGIN(0,0);
-                IEM_MC_STORE_GREG_U64_CONST(X86_GREG_xCX, 0);
-                IEM_MC_ADVANCE_RIP();
-                IEM_MC_END();
-                return VINF_SUCCESS;
-
-            IEM_NOT_REACHED_DEFAULT_CASE_RET();
-        }
-#endif
-
     switch (pVCpu->iem.s.enmEffAddrMode)
     {
         case IEMMODE_16BIT:
             IEM_MC_BEGIN(0,0);
-
-            IEM_MC_SUB_GREG_U16(X86_GREG_xCX, 1);
-            IEM_MC_IF_CX_IS_NZ() {
-                IEM_MC_REL_JMP_S8(i8Imm);
-            } IEM_MC_ELSE() {
+            if (-(int8_t)IEM_GET_INSTR_LEN(pVCpu) != i8Imm)
+            {
+                IEM_MC_SUB_GREG_U16(X86_GREG_xCX, 1);
+                IEM_MC_IF_CX_IS_NZ() {
+                    IEM_MC_REL_JMP_S8(i8Imm);
+                } IEM_MC_ELSE() {
+                    IEM_MC_ADVANCE_RIP();
+                } IEM_MC_ENDIF();
+            }
+            else
+            {
+                IEM_MC_STORE_GREG_U16_CONST(X86_GREG_xCX, 0);
                 IEM_MC_ADVANCE_RIP();
-            } IEM_MC_ENDIF();
+            }
             IEM_MC_END();
             return VINF_SUCCESS;
 
         case IEMMODE_32BIT:
             IEM_MC_BEGIN(0,0);
-            IEM_MC_SUB_GREG_U32(X86_GREG_xCX, 1);
-            IEM_MC_IF_ECX_IS_NZ() {
-                IEM_MC_REL_JMP_S8(i8Imm);
-            } IEM_MC_ELSE() {
+            if (-(int8_t)IEM_GET_INSTR_LEN(pVCpu) != i8Imm)
+            {
+                IEM_MC_SUB_GREG_U32(X86_GREG_xCX, 1);
+                IEM_MC_IF_ECX_IS_NZ() {
+                    IEM_MC_REL_JMP_S8(i8Imm);
+                } IEM_MC_ELSE() {
+                    IEM_MC_ADVANCE_RIP();
+                } IEM_MC_ENDIF();
+            }
+            else
+            {
+                IEM_MC_STORE_GREG_U32_CONST(X86_GREG_xCX, 0);
                 IEM_MC_ADVANCE_RIP();
-            } IEM_MC_ENDIF();
+            }
             IEM_MC_END();
             return VINF_SUCCESS;
 
         case IEMMODE_64BIT:
             IEM_MC_BEGIN(0,0);
-            IEM_MC_SUB_GREG_U64(X86_GREG_xCX, 1);
-            IEM_MC_IF_RCX_IS_NZ() {
-                IEM_MC_REL_JMP_S8(i8Imm);
-            } IEM_MC_ELSE() {
+            if (-(int8_t)IEM_GET_INSTR_LEN(pVCpu) != i8Imm)
+            {
+                IEM_MC_SUB_GREG_U64(X86_GREG_xCX, 1);
+                IEM_MC_IF_RCX_IS_NZ() {
+                    IEM_MC_REL_JMP_S8(i8Imm);
+                } IEM_MC_ELSE() {
+                    IEM_MC_ADVANCE_RIP();
+                } IEM_MC_ENDIF();
+            }
+            else
+            {
+                IEM_MC_STORE_GREG_U64_CONST(X86_GREG_xCX, 0);
                 IEM_MC_ADVANCE_RIP();
-            } IEM_MC_ENDIF();
+            }
             IEM_MC_END();
             return VINF_SUCCESS;
 
@@ -10661,10 +10606,7 @@ FNIEMOP_DEF(iemOp_lock)
 FNIEMOP_DEF(iemOp_int1)
 {
     IEMOP_MNEMONIC(int1, "int1"); /* icebp */
-    /** @todo Does not generate #UD on 286, or so they say...  Was allegedly a
-     * prefix byte on 8086 and/or/maybe 80286 without meaning according to the 286
-     * LOADALL memo.  Needs some testing. */
-    IEMOP_HLP_MIN_386();
+    IEMOP_HLP_MIN_386(); /** @todo does not generate #UD on 286, or so they say... */
     /** @todo testcase! */
     return IEM_MC_DEFER_TO_CIMPL_2(iemCImpl_int, X86_XCPT_DB, IEMINT_INT1);
 }
@@ -11307,19 +11249,19 @@ FNIEMOP_DEF(iemOp_Grp3_Eb)
         case 4:
             IEMOP_MNEMONIC(mul_Eb, "mul Eb");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_mul_u8_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, iemAImpl_mul_u8);
         case 5:
             IEMOP_MNEMONIC(imul_Eb, "imul Eb");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_u8_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, iemAImpl_imul_u8);
         case 6:
             IEMOP_MNEMONIC(div_Eb, "div Eb");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF | X86_EFL_OF | X86_EFL_CF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_div_u8_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, iemAImpl_div_u8);
         case 7:
             IEMOP_MNEMONIC(idiv_Eb, "idiv Eb");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF | X86_EFL_OF | X86_EFL_CF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_idiv_u8_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEb, bRm, iemAImpl_idiv_u8);
         IEM_NOT_REACHED_DEFAULT_CASE_RET();
     }
 }
@@ -11347,19 +11289,19 @@ FNIEMOP_DEF(iemOp_Grp3_Ev)
         case 4:
             IEMOP_MNEMONIC(mul_Ev, "mul Ev");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_mul_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, &g_iemAImpl_mul);
         case 5:
             IEMOP_MNEMONIC(imul_Ev, "imul Ev");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, &g_iemAImpl_imul);
         case 6:
             IEMOP_MNEMONIC(div_Ev, "div Ev");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF | X86_EFL_OF | X86_EFL_CF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_div_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, &g_iemAImpl_div);
         case 7:
             IEMOP_MNEMONIC(idiv_Ev, "idiv Ev");
             IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF | X86_EFL_OF | X86_EFL_CF);
-            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_idiv_eflags));
+            return FNIEMOP_CALL_2(iemOpCommonGrp3MulDivEv, bRm, &g_iemAImpl_idiv);
         IEM_NOT_REACHED_DEFAULT_CASE_RET();
     }
 }

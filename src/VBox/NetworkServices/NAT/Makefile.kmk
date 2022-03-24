@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-makefile for NAT Networking
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -36,11 +36,7 @@ VBOX_PATH_NAT_SRC := $(PATH_SUB_CURRENT)
 PROGRAMS += VBoxNetNATHardened
 VBoxNetNATHardened_TEMPLATE = VBOXR3HARDENEDEXE
 VBoxNetNATHardened_NAME     = VBoxNetNAT
-  ifdef VBOX_WITH_AUTOMATIC_DEFS_QUOTING
-VBoxNetNATHardened_DEFS     = SERVICE_NAME="VBoxNetNAT"
-  else
 VBoxNetNATHardened_DEFS     = SERVICE_NAME=\"VBoxNetNAT\"
-  endif
 VBoxNetNATHardened_SOURCES  = VBoxNetNATHardened.cpp
 VBoxNetNATHardened_LDFLAGS.win = /SUBSYSTEM:windows
 $(call VBOX_SET_VER_INFO_EXE,VBoxNetNATHardened,VirtualBox NAT Engine,$(VBOX_WINDOWS_ICON_FILE)) # Version info / description.
@@ -76,7 +72,7 @@ VBoxNetNAT_DEFS.win  = VBOX_COM_OUTOFPROC_MODULE _WIN32_WINNT=0x501 # Windows XP
 # settings.
  ifeq ($(KBUILD_TARGET),solaris)
   ifneq ($(VBOX_GCC_VERSION_CXX),)
-   if $(VBOX_GCC_VERSION_CXX) >= 40600
+   ifneq ($(int-ge $(VBOX_GCC_VERSION_CXX),40600),)
 # we compile C++ code with -std=c++0x / -std=c++11
 VBoxNetNAT_CFLAGS.solaris += -std=c99
 VBoxNetNAT_DEFS.solaris += _XOPEN_SOURCE=600
@@ -92,8 +88,12 @@ VBoxNetNAT_INCS += . $(addprefix ../../Devices/Network/lwip-new/,$(LWIP_INCS))
 
 VBoxNetNAT_SOURCES = \
 	VBoxNetLwipNAT.cpp \
-	../NetLib/IntNetIf.cpp \
+	../NetLib/VBoxNetBaseService.cpp \
 	../NetLib/VBoxNetPortForwardString.cpp \
+	../NetLib/VBoxNetIntIf.cpp \
+	../NetLib/VBoxNetUDP.cpp \
+	../NetLib/VBoxNetARP.cpp \
+	../NetLib/ComHostUtils.cpp \
 	$(addprefix ../../Devices/Network/lwip-new/,$(LWIP_SOURCES)) \
 	proxy_pollmgr.c \
 	proxy_rtadvd.c \

@@ -1,10 +1,10 @@
-/* $Id: SessionImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SessionImpl.h $ */
 /** @file
  * VBox Client Session COM Class definition
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,7 @@
 # include "win/resource.h"
 #endif
 
-#if defined(RT_OS_WINDOWS) && !RT_MSC_PREREQ(RT_MSC_VER_VC140)
+#ifdef RT_OS_WINDOWS
 [threading(free)]
 #endif
 class ATL_NO_VTABLE Session :
@@ -46,7 +46,7 @@ public:
 
     DECLARE_NOT_AGGREGATABLE(Session)
 
-    DECLARE_COMMON_CLASS_METHODS(Session)
+    DECLARE_EMPTY_CTOR_DTOR(Session)
 
     HRESULT FinalConstruct();
     void FinalRelease();

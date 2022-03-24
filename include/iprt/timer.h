@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -80,7 +80,7 @@ typedef struct RTTIMER   *PRTTIMER;
  *                      callback after the timer was started. For omni timers
  *                      this will be 1 when a cpu comes back online.
  */
-typedef DECLCALLBACKTYPE(void, FNRTTIMER,(PRTTIMER pTimer, void *pvUser, uint64_t iTick));
+typedef DECLCALLBACK(void) FNRTTIMER(PRTTIMER pTimer, void *pvUser, uint64_t iTick);
 /** Pointer to FNRTTIMER() function. */
 typedef FNRTTIMER *PFNRTTIMER;
 
@@ -140,7 +140,7 @@ RTDECL(int) RTTimerCreateEx(PRTTIMER *ppTimer, uint64_t u64NanoInterval, uint32_
 #define RTTIMER_FLAGS_CPU(iCpu)     ( (iCpu) | RTTIMER_FLAGS_CPU_SPECIFIC )
 /** Macro that validates the flags. */
 #define RTTIMER_FLAGS_ARE_VALID(fFlags) \
-    ( !((fFlags) & ((fFlags) & RTTIMER_FLAGS_CPU_SPECIFIC ? ~UINT32_C(0x3ffff) : ~UINT32_C(0x30000))) )
+    ( !((fFlags) & ~((fFlags) & RTTIMER_FLAGS_CPU_SPECIFIC ? UINT32_C(0x3ffff) : UINT32_C(0x30000))) )
 /** @} */
 
 /**
@@ -289,7 +289,7 @@ RTDECL(bool) RTTimerCanDoHighResolution(void);
  *                      callback after the timer was started. Will jump if we've
  *                      skipped ticks when lagging behind.
  */
-typedef DECLCALLBACKTYPE(void, FNRTTIMERLR,(RTTIMERLR hTimerLR, void *pvUser, uint64_t iTick));
+typedef DECLCALLBACK(void) FNRTTIMERLR(RTTIMERLR hTimerLR, void *pvUser, uint64_t iTick);
 /** Pointer to FNRTTIMER() function. */
 typedef FNRTTIMERLR *PFNRTTIMERLR;
 

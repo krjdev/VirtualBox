@@ -1,10 +1,10 @@
-/* $Id: CFGM.cpp 93470 2022-01-27 23:51:28Z vboxsync $ */
+/* $Id: CFGM.cpp $ */
 /** @file
  * CFGM - Configuration Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,7 +59,6 @@
 #include <VBox/vmm/cfgm.h>
 #include <VBox/vmm/dbgf.h>
 #include <VBox/vmm/mm.h>
-#include <VBox/vmm/vmm.h>
 #include "CFGMInternal.h"
 #include <VBox/vmm/vm.h>
 #include <VBox/vmm/uvm.h>
@@ -68,7 +67,6 @@
 #include <VBox/log.h>
 #include <iprt/assert.h>
 #include <iprt/mem.h>
-#include <iprt/memsafer.h>
 #include <iprt/param.h>
 #include <iprt/string.h>
 #include <iprt/utf16.h>
@@ -225,7 +223,7 @@ VMMR3DECL(int) CFGMR3Init(PVM pVM, PFNCFGMCONSTRUCTOR pfnCFGMConstructor, void *
      * Call the constructor if specified, if not use the default one.
      */
     if (pfnCFGMConstructor)
-        rc = pfnCFGMConstructor(pVM->pUVM, pVM, VMMR3GetVTable(), pvUser);
+        rc = pfnCFGMConstructor(pVM->pUVM, pVM, pvUser);
     else
         rc = CFGMR3ConstructDefaultTree(pVM);
     if (RT_SUCCESS(rc))
@@ -682,7 +680,6 @@ VMMR3DECL(int) CFGMR3QuerySize(PCFGMNODE pNode, const char *pszName, size_t *pcb
                 break;
 
             case CFGMVALUETYPE_STRING:
-            case CFGMVALUETYPE_PASSWORD:
                 *pcb = pLeaf->Value.String.cb;
                 break;
 
@@ -865,102 +862,6 @@ VMMR3DECL(int) CFGMR3QueryBytes(PCFGMNODE pNode, const char *pszName, void *pvDa
         else
             rc = VERR_CFGM_NOT_BYTES;
     }
-    return rc;
-}
-
-
-/**
- * Query zero terminated character value.
- *
- * @returns VBox status code.
- * @param   pNode           Which node to search for pszName in.
- * @param   pszName         Name of a zero terminate character value.
- * @param   pszString       Where to store the string.
- * @param   cchString       Size of the string buffer. (Includes terminator.)
- *
- * @note    Concurrent calls to this function and CFGMR3QueryPasswordDef are not
- *          supported.
- */
-VMMR3DECL(int) CFGMR3QueryPassword(PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString)
-{
-    PCFGMLEAF pLeaf;
-    int rc = cfgmR3ResolveLeaf(pNode, pszName, &pLeaf);
-    if (RT_SUCCESS(rc))
-    {
-        if (pLeaf->enmType == CFGMVALUETYPE_PASSWORD)
-        {
-            size_t cbSrc = pLeaf->Value.String.cb;
-            if (cchString >= cbSrc)
-            {
-                RTMemSaferUnscramble(pLeaf->Value.String.psz, cbSrc);
-                memcpy(pszString, pLeaf->Value.String.psz, cbSrc);
-                memset(pszString + cbSrc, 0, cchString - cbSrc);
-                RTMemSaferScramble(pLeaf->Value.String.psz, cbSrc);
-
-                Assert(pszString[cbSrc - 1] == '\0');
-            }
-            else
-                rc = VERR_CFGM_NOT_ENOUGH_SPACE;
-        }
-        else
-            rc = VERR_CFGM_NOT_PASSWORD;
-    }
-    return rc;
-}
-
-
-/**
- * Query zero terminated character value with default.
- *
- * @returns VBox status code.
- * @param   pNode           Which node to search for pszName in.
- * @param   pszName         Name of a zero terminate character value.
- * @param   pszString       Where to store the string. This will not be set on overflow error.
- * @param   cchString       Size of the string buffer. (Includes terminator.)
- * @param   pszDef          The default value.
- *
- * @note    Concurrent calls to this function and CFGMR3QueryPassword are not
- *          supported.
- */
-VMMR3DECL(int) CFGMR3QueryPasswordDef(PCFGMNODE pNode, const char *pszName, char *pszString, size_t cchString, const char *pszDef)
-{
-    PCFGMLEAF pLeaf;
-    int rc = cfgmR3ResolveLeaf(pNode, pszName, &pLeaf);
-    if (RT_SUCCESS(rc))
-    {
-        if (pLeaf->enmType == CFGMVALUETYPE_PASSWORD)
-        {
-            size_t cbSrc = pLeaf->Value.String.cb;
-            if (cchString >= cbSrc)
-            {
-                RTMemSaferUnscramble(pLeaf->Value.String.psz, cbSrc);
-                memcpy(pszString, pLeaf->Value.String.psz, cbSrc);
-                memset(pszString + cbSrc, 0, cchString - cbSrc);
-                RTMemSaferScramble(pLeaf->Value.String.psz, cbSrc);
-
-                Assert(pszString[cbSrc - 1] == '\0');
-            }
-            else
-                rc = VERR_CFGM_NOT_ENOUGH_SPACE;
-        }
-        else
-            rc = VERR_CFGM_NOT_PASSWORD;
-    }
-
-    if (RT_FAILURE(rc) && rc != VERR_CFGM_NOT_ENOUGH_SPACE)
-    {
-        size_t cchDef = strlen(pszDef);
-        if (cchString > cchDef)
-        {
-            memcpy(pszString, pszDef, cchDef);
-            memset(pszString + cchDef, 0, cchString - cchDef);
-            if (rc == VERR_CFGM_VALUE_NOT_FOUND || rc == VERR_CFGM_NO_PARENT)
-                rc = VINF_SUCCESS;
-        }
-        else if (rc == VERR_CFGM_VALUE_NOT_FOUND || rc == VERR_CFGM_NO_PARENT)
-            rc = VERR_CFGM_NOT_ENOUGH_SPACE;
-    }
-
     return rc;
 }
 
@@ -2136,12 +2037,6 @@ static void cfgmR3FreeValue(PVM pVM, PCFGMLEAF pLeaf)
                 pLeaf->Value.String.cb = 0;
                 break;
 
-            case CFGMVALUETYPE_PASSWORD:
-                RTMemSaferFree(pLeaf->Value.String.psz, pLeaf->Value.String.cb);
-                pLeaf->Value.String.psz = NULL;
-                pLeaf->Value.String.cb = 0;
-                break;
-
             case CFGMVALUETYPE_INTEGER:
                 break;
         }
@@ -2189,10 +2084,8 @@ VMMR3DECL(int) CFGMR3InsertInteger(PCFGMNODE pNode, const char *pszName, uint64_
 
 
 /**
- * Inserts a new string value.
- *
- * This variant expects that the caller know the length of the string already so
- * we can avoid calling strlen() here.
+ * Inserts a new string value. This variant expects that the caller know the length
+ * of the string already so we can avoid calling strlen() here.
  *
  * @returns VBox status code.
  * @param   pNode           Parent node.
@@ -2242,10 +2135,8 @@ VMMR3DECL(int) CFGMR3InsertStringN(PCFGMNODE pNode, const char *pszName, const c
 
 
 /**
- * Inserts a new string value.
- *
- * Calls strlen(pszString) internally; if you know the length of the string,
- * CFGMR3InsertStringLengthKnown() is faster.
+ * Inserts a new string value. Calls strlen(pszString) internally; if you know the
+ * length of the string, CFGMR3InsertStringLengthKnown() is faster.
  *
  * @returns VBox status code.
  * @param   pNode           Parent node.
@@ -2349,7 +2240,7 @@ VMMR3DECL(int) CFGMR3InsertStringW(PCFGMNODE pNode, const char *pszName, PCRTUTF
 
 
 /**
- * Inserts a new bytes value.
+ * Inserts a new integer value.
  *
  * @returns VBox status code.
  * @param   pNode           Parent node.
@@ -2400,77 +2291,6 @@ VMMR3DECL(int) CFGMR3InsertBytes(PCFGMNODE pNode, const char *pszName, const voi
 
 
 /**
- * Inserts a new password value.
- *
- * This variant expects that the caller know the length of the password string
- * already so we can avoid calling strlen() here.
- *
- * @returns VBox status code.
- * @param   pNode           Parent node.
- * @param   pszName         Value name.
- * @param   pszString       The value. Must not be NULL.
- * @param   cchString       The length of the string excluding the terminator.
- */
-VMMR3DECL(int) CFGMR3InsertPasswordN(PCFGMNODE pNode, const char *pszName, const char *pszString, size_t cchString)
-{
-    Assert(RTStrNLen(pszString, cchString) == cchString);
-
-    int rc;
-    if (pNode)
-    {
-        /*
-         * Allocate string object first using the safer memory API since this
-         * is considered sensitive information.
-         */
-        char *pszStringCopy = (char *)RTMemSaferAllocZ(cchString + 1);
-        if (pszStringCopy)
-        {
-            memcpy(pszStringCopy, pszString, cchString);
-            pszStringCopy[cchString] = '\0';
-            RTMemSaferScramble(pszStringCopy, cchString + 1);
-
-            /*
-             * Create value leaf and set it to string type.
-             */
-            PCFGMLEAF pLeaf;
-            rc = cfgmR3InsertLeaf(pNode, pszName, &pLeaf);
-            if (RT_SUCCESS(rc))
-            {
-                pLeaf->enmType = CFGMVALUETYPE_PASSWORD;
-                pLeaf->Value.String.psz = pszStringCopy;
-                pLeaf->Value.String.cb  = cchString + 1;
-            }
-            else
-                RTMemSaferFree(pszStringCopy, cchString + 1);
-        }
-        else
-            rc = VERR_NO_MEMORY;
-    }
-    else
-        rc = VERR_CFGM_NO_PARENT;
-
-    return rc;
-}
-
-
-/**
- * Inserts a new password value.
- *
- * Calls strlen(pszString) internally; if you know the length of the string,
- * CFGMR3InsertStringLengthKnown() is faster.
- *
- * @returns VBox status code.
- * @param   pNode           Parent node.
- * @param   pszName         Value name.
- * @param   pszString       The value.
- */
-VMMR3DECL(int) CFGMR3InsertPassword(PCFGMNODE pNode, const char *pszName, const char *pszString)
-{
-    return CFGMR3InsertPasswordN(pNode, pszName, pszString, strlen(pszString));
-}
-
-
-/**
  * Make a copy of the specified value under the given node.
  *
  * @returns VBox status code.
@@ -2492,10 +2312,6 @@ VMMR3DECL(int) CFGMR3InsertValue(PCFGMNODE pNode, PCFGMLEAF pValue)
 
         case CFGMVALUETYPE_STRING:
             rc = CFGMR3InsertStringN(pNode, pValue->szName, pValue->Value.String.psz, pValue->Value.String.cb - 1);
-            break;
-
-        case CFGMVALUETYPE_PASSWORD:
-            rc = CFGMR3InsertPasswordN(pNode, pValue->szName, pValue->Value.String.psz, pValue->Value.String.cb - 1);
             break;
 
         default:
@@ -3432,10 +3248,6 @@ static void cfgmR3Dump(PCFGMNODE pRoot, unsigned iLevel, PCDBGFINFOHLP pHlp)
 
             case CFGMVALUETYPE_BYTES:
                 pHlp->pfnPrintf(pHlp, "  %-*s <bytes>   = \"%.*Rhxs\" (cb=%zu)\n", (int)cchMax, pLeaf->szName, pLeaf->Value.Bytes.cb, pLeaf->Value.Bytes.pau8, pLeaf->Value.Bytes.cb);
-                break;
-
-            case CFGMVALUETYPE_PASSWORD:
-                pHlp->pfnPrintf(pHlp, "  %-*s <password>= \"***REDACTED***\" (cb=%zu)\n", (int)cchMax, pLeaf->szName, pLeaf->Value.String.cb);
                 break;
 
             default:

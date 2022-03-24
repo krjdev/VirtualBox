@@ -1,10 +1,10 @@
-/* $Id: ldrNative.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ldrNative.cpp $ */
 /** @file
  * IPRT - Binary Image Loader, Native interface.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -160,11 +160,8 @@ RTDECL(int) RTLdrLoadEx(const char *pszFilename, PRTLDRMOD phLdrMod, uint32_t fF
         rc = rtldrNativeLoad(pszFilename, &pMod->hNative, fFlags, pErrInfo);
         if (RT_SUCCESS(rc))
         {
-            if (fFlags & RTLDRLOAD_FLAGS_NO_UNLOAD)
-                RTMEM_MAY_LEAK(pMod);
-
             *phLdrMod = &pMod->Core;
-            LogFlow(("RTLdrLoad: returns %Rrc *phLdrMod=%RTldrm\n", rc,*phLdrMod));
+            LogFlow(("RTLdrLoad: returns %Rrc *phLdrMod=%RTldrm\n", rc, *phLdrMod));
             return rc;
         }
 

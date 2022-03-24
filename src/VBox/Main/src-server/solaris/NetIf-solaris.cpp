@@ -1,10 +1,10 @@
-/* $Id: NetIf-solaris.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NetIf-solaris.cpp $ */
 /** @file
  * Main - NetIfList, Solaris implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,7 @@
 #ifdef VBOX_WITH_HOSTNETIF_API
 
 #include <map>
-#include <iprt/sanitized/string>
+#include <string>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stropts.h>

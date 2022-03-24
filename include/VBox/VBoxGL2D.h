@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -238,25 +238,6 @@ extern PFNVBOXVHWA_FRAMEBUFFER_TEXTURE3D vboxglFramebufferTexture3D;
 extern PFNVBOXVHWA_GET_FRAMEBUFFER_ATTACHMENT_PARAMETRIV vboxglGetFramebufferAttachmentParameteriv;
 
 
-/*
- * Glossing over qt 5 vs 6 differences.
- *
- * Note! We could use the qt6 classes in 5, but we probably don't have the
- *       necessary modules in our current qt builds.
- */
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-class QOpenGLWidget;
-class QOpenGLContext;
-# define MY_QOpenGLWidget   QOpenGLWidget
-# define MY_QOpenGLContext  QOpenGLContext
-#else
-class QGLWidget;
-class QGLContext;
-# define MY_QOpenGLWidget   QGLWidget
-# define MY_QOpenGLContext  QGLContext
-#endif
-
-
 class VBoxGLInfo
 {
 public:
@@ -280,7 +261,7 @@ public:
         mInitialized(false)
     {}
 
-    void init(const MY_QOpenGLContext *pContext);
+    void init(const class QGLContext * pContext);
 
     bool isInitialized() const { return mInitialized; }
 
@@ -298,7 +279,7 @@ public:
 
     static int parseVersion(const GLubyte * ver);
 private:
-    void initExtSupport(const MY_QOpenGLContext &context);
+    void initExtSupport(const class QGLContext & context);
 
     int mGLVersion;
     bool mFragmentShaderSupported;
@@ -327,9 +308,9 @@ public:
     VBoxGLTmpContext();
     ~VBoxGLTmpContext();
 
-    const MY_QOpenGLContext *makeCurrent();
+    const class QGLContext * makeCurrent();
 private:
-    MY_QOpenGLWidget *mWidget;
+    class QGLWidget * mWidget;
 };
 
 
@@ -357,7 +338,7 @@ public:
         mInitialized(false)
     {}
 
-    void init(const MY_QOpenGLContext *pContext);
+    void init(const class QGLContext * pContext);
 
     bool isInitialized() const { return mInitialized; }
 

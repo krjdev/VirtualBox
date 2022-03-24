@@ -1,10 +1,10 @@
-/* $Id: tstAnimate.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: tstAnimate.cpp $ */
 /** @file
  * VBox Animation Testcase / Tool.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,7 +51,7 @@
 static volatile bool g_fSignaled = false;
 
 
-static void SigInterrupt(int iSignal) RT_NOTHROW_DEF
+static void SigInterrupt(int iSignal)
 {
     NOREF(iSignal);
     signal(SIGINT, SigInterrupt);
@@ -59,7 +59,7 @@ static void SigInterrupt(int iSignal) RT_NOTHROW_DEF
     RTPrintf("caught SIGINT\n");
 }
 
-typedef DECLCALLBACKTYPE(int, FNSETGUESTGPR,(PVM, uint32_t));
+typedef DECLCALLBACK(int) FNSETGUESTGPR(PVM, uint32_t);
 typedef FNSETGUESTGPR *PFNSETGUESTGPR;
 static int scriptGPReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
 {
@@ -71,7 +71,7 @@ static int scriptGPReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
     return ((PFNSETGUESTGPR)(uintptr_t)pvUser)(pVM, u32);
 }
 
-typedef DECLCALLBACKTYPE(int, FNSETGUESTSEL,(PVM, uint16_t));
+typedef DECLCALLBACK(int) FNSETGUESTSEL(PVM, uint16_t);
 typedef FNSETGUESTSEL *PFNSETGUESTSEL;
 static int scriptSelReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
 {
@@ -83,7 +83,7 @@ static int scriptSelReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
     return ((PFNSETGUESTSEL)(uintptr_t)pvUser)(pVM, u16);
 }
 
-typedef DECLCALLBACKTYPE(int, FNSETGUESTSYS,(PVM, uint32_t));
+typedef DECLCALLBACK(int) FNSETGUESTSYS(PVM, uint32_t);
 typedef FNSETGUESTSYS *PFNSETGUESTSYS;
 static int scriptSysReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
 {
@@ -96,7 +96,7 @@ static int scriptSysReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
 }
 
 
-typedef DECLCALLBACKTYPE(int, FNSETGUESTDTR,(PVM, uint32_t, uint16_t));
+typedef DECLCALLBACK(int) FNSETGUESTDTR(PVM, uint32_t, uint16_t);
 typedef FNSETGUESTDTR *PFNSETGUESTDTR;
 static int scriptDtrReg(PVM pVM, char *pszVar, char *pszValue, void *pvUser)
 {
@@ -284,12 +284,12 @@ static DECLCALLBACK(int) loadMem(PVM pVM, RTFILE File, uint64_t *poff)
         RTGCPHYS GCPhys = 0;
         for (;;)
         {
-            if (!(GCPhys % (GUEST_PAGE_SIZE * 0x1000)))
+            if (!(GCPhys % (PAGE_SIZE * 0x1000)))
                 RTPrintf("info: %RGp...\n", GCPhys);
 
             /* read a page from the file */
             size_t cbRead = 0;
-            uint8_t au8Page[GUEST_PAGE_SIZE * 16];
+            uint8_t au8Page[PAGE_SIZE * 16];
             rc = RTFileRead(File, &au8Page, sizeof(au8Page), &cbRead);
             if (RT_SUCCESS(rc) && !cbRead)
                 rc = RTFileRead(File, &au8Page, sizeof(au8Page), &cbRead);
@@ -318,13 +318,15 @@ static DECLCALLBACK(int) loadMem(PVM pVM, RTFILE File, uint64_t *poff)
 
 
 /**
- * @callback_method_impl{FNCFGMCONSTRUCTOR, Creates the default configuration.}
- *
+ * Creates the default configuration.
  * This assumes an empty tree.
+ *
+ * @returns VBox status code.
+ * @param   pVM     Pointer to the VM.
  */
-static DECLCALLBACK(int) cfgmR3CreateDefault(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, void *pvUser)
+static DECLCALLBACK(int) cfgmR3CreateDefault(PUVM pUVM, PVM pVM, void *pvUser)
 {
-    RT_NOREF(pUVM, pVMM);
+    RT_NOREF1(pUVM);
     uint64_t cbMem = *(uint64_t *)pvUser;
     int rc;
     int rcAll = VINF_SUCCESS;
@@ -618,7 +620,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
     RT_NOREF1(envp);
     int rcRet = 1;
     int rc;
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
 
     /*
      * Parse input.
@@ -801,7 +803,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
             rc = RTFileQuerySize(FileRawMem, &cbMem);
             AssertReleaseRC(rc);
             cbMem -= offRawMem;
-            cbMem &= ~(uint64_t)GUEST_PAGE_OFFSET_MASK;
+            cbMem &= ~(PAGE_SIZE - 1);
         }
         else
         {

@@ -1,10 +1,10 @@
-/* $Id: RTNtPathExpand8dot3Path.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTNtPathExpand8dot3Path.cpp $ */
 /** @file
  * IPRT - Native NT, RTNtPathExpand8dot3Path.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -130,7 +130,7 @@ RTDECL(int) RTNtPathExpand8dot3Path(PUNICODE_STRING pUniStr, bool fPathOnly)
         {
             RT_ZERO(*puBuf);
 
-            RTNT_IO_STATUS_BLOCK_REINIT(&Ios);
+            IO_STATUS_BLOCK Ios = RTNT_IO_STATUS_BLOCK_INITIALIZER;
             UNICODE_STRING  NtFilterStr;
             NtFilterStr.Buffer = pwszFix;
             NtFilterStr.Length = (USHORT)((uintptr_t)pwszFixEnd - (uintptr_t)pwszFix);

@@ -1,10 +1,10 @@
-/* $Id: VBoxSkeletonMainVM.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxSkeletonMainVM.cpp $ */
 /** @file
  * Skeleton main VM module.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -83,7 +83,6 @@ static const VBOXEXTPACKVMREG g_vboxSkeletonExtPackVMReg =
 {
     VBOXEXTPACKVMREG_VERSION,
     /* .uVBoxFullVersion =  */  VBOX_FULL_VERSION,
-    /* .pszNlsBaseName =    */  NULL,
     /* .pfnConsoleReady =   */  NULL,
     /* .pfnUnload =         */  NULL,
     /* .pfnVMConfigureVMM = */  NULL,

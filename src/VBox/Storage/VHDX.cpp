@@ -1,10 +1,10 @@
-/* $Id: VHDX.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VHDX.cpp $ */
 /** @file
  * VHDX - VHDX Disk image, Core Code.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1785,7 +1785,7 @@ static DECLCALLBACK(int) vhdxProbe(const char *pszFilename, PVDINTERFACE pVDIfsD
     PVDINTERFACEIOINT pIfIo = VDIfIoIntGet(pVDIfsImage);
     AssertPtrReturn(pIfIo, VERR_INVALID_PARAMETER);
 
-    if (   !RT_VALID_PTR(pszFilename)
+    if (   !VALID_PTR(pszFilename)
         || !*pszFilename)
         rc = VERR_INVALID_PARAMETER;
     else
@@ -1842,7 +1842,7 @@ static DECLCALLBACK(int) vhdxOpen(const char *pszFilename, unsigned uOpenFlags,
 
     /* Check open flags. All valid flags are supported. */
     if (   uOpenFlags & ~VD_OPEN_FLAGS_MASK
-        || !RT_VALID_PTR(pszFilename)
+        || !VALID_PTR(pszFilename)
         || !*pszFilename)
         rc = VERR_INVALID_PARAMETER;
     else

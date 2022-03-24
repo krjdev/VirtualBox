@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsProxy.cpp 94251 2022-03-15 17:55:39Z vboxsync $ */
+/* $Id: UIGlobalSettingsProxy.cpp $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsProxy class implementation.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,12 +16,16 @@
  */
 
 /* Qt includes: */
-#include <QVBoxLayout>
+#include <QButtonGroup>
+#include <QRegExpValidator>
 
 /* GUI includes: */
-#include "UIGlobalProxyFeaturesEditor.h"
+#include "QIWidgetValidator.h"
 #include "UIGlobalSettingsProxy.h"
 #include "UIExtraDataManager.h"
+#include "UIMessageCenter.h"
+#include "UICommon.h"
+#include "VBoxUtils.h"
 
 /* COM includes: */
 #include "CSystemProperties.h"
@@ -39,10 +43,10 @@ struct UIDataSettingsGlobalProxy
     /** Returns whether the @a other passed data is equal to this one. */
     bool equal(const UIDataSettingsGlobalProxy &other) const
     {
-        return    true
+        return true
                && (m_enmProxyMode == other.m_enmProxyMode)
                && (m_strProxyHost == other.m_strProxyHost)
-                  ;
+               ;
     }
 
     /** Returns whether the @a other passed data is equal to this one. */
@@ -57,18 +61,16 @@ struct UIDataSettingsGlobalProxy
 };
 
 
-/*********************************************************************************************************************************
-*   Class UIGlobalSettingsProxy implementation.                                                                                  *
-*********************************************************************************************************************************/
-
 UIGlobalSettingsProxy::UIGlobalSettingsProxy()
     : m_pCache(0)
 {
+    /* Prepare: */
     prepare();
 }
 
 UIGlobalSettingsProxy::~UIGlobalSettingsProxy()
 {
+    /* Cleanup: */
     cleanup();
 }
 
@@ -80,11 +82,15 @@ void UIGlobalSettingsProxy::loadToCacheFrom(QVariant &data)
     /* Clear cache initially: */
     m_pCache->clear();
 
-    /* Cache old data: */
-    UIDataSettingsGlobalProxy oldData;
-    oldData.m_enmProxyMode = m_properties.GetProxyMode();
-    oldData.m_strProxyHost = m_properties.GetProxyURL();
-    m_pCache->cacheInitialData(oldData);
+    /* Prepare old proxy data: */
+    UIDataSettingsGlobalProxy oldProxyData;
+
+    /* Gather old proxy data: */
+    oldProxyData.m_enmProxyMode = m_properties.GetProxyMode();
+    oldProxyData.m_strProxyHost = m_properties.GetProxyURL();
+
+    /* Cache old proxy data: */
+    m_pCache->cacheInitialData(oldProxyData);
 
     /* Upload properties to data: */
     UISettingsPageGlobal::uploadData(data);
@@ -92,10 +98,19 @@ void UIGlobalSettingsProxy::loadToCacheFrom(QVariant &data)
 
 void UIGlobalSettingsProxy::getFromCache()
 {
-    /* Load old data from cache: */
-    const UIDataSettingsGlobalProxy &oldData = m_pCache->base();
-    m_pEditorGlobalProxyFeatures->setProxyMode(oldData.m_enmProxyMode);
-    m_pEditorGlobalProxyFeatures->setProxyHost(oldData.m_strProxyHost);
+    /* Get old proxy data from the cache: */
+    const UIDataSettingsGlobalProxy &oldProxyData = m_pCache->base();
+
+    /* Load old proxy data from the cache: */
+    switch (oldProxyData.m_enmProxyMode)
+    {
+        case KProxyMode_System:  m_pRadioProxyAuto->setChecked(true); break;
+        case KProxyMode_NoProxy: m_pRadioProxyDisabled->setChecked(true); break;
+        case KProxyMode_Manual:  m_pRadioProxyEnabled->setChecked(true); break;
+        case KProxyMode_Max:     break; /* (compiler warnings) */
+    }
+    m_pHostEditor->setText(oldProxyData.m_strProxyHost);
+    sltHandleProxyToggle();
 
     /* Revalidate: */
     revalidate();
@@ -103,13 +118,16 @@ void UIGlobalSettingsProxy::getFromCache()
 
 void UIGlobalSettingsProxy::putToCache()
 {
-    /* Prepare new data: */
-    UIDataSettingsGlobalProxy newData = m_pCache->base();
+    /* Prepare new proxy data: */
+    UIDataSettingsGlobalProxy newProxyData = m_pCache->base();
 
-    /* Cache new data: */
-    newData.m_enmProxyMode = m_pEditorGlobalProxyFeatures->proxyMode();
-    newData.m_strProxyHost = m_pEditorGlobalProxyFeatures->proxyHost();
-    m_pCache->cacheCurrentData(newData);
+    /* Gather new proxy data: */
+    newProxyData.m_enmProxyMode = m_pRadioProxyEnabled->isChecked()  ? KProxyMode_Manual
+                                : m_pRadioProxyDisabled->isChecked() ? KProxyMode_NoProxy : KProxyMode_System;
+    newProxyData.m_strProxyHost = m_pHostEditor->text();
+
+    /* Cache new proxy data: */
+    m_pCache->cacheCurrentData(newProxyData);
 }
 
 void UIGlobalSettingsProxy::saveFromCacheTo(QVariant &data)
@@ -117,8 +135,8 @@ void UIGlobalSettingsProxy::saveFromCacheTo(QVariant &data)
     /* Fetch data to properties: */
     UISettingsPageGlobal::fetchData(data);
 
-    /* Update data and failing state: */
-    setFailed(!saveData());
+    /* Update proxy data and failing state: */
+    setFailed(!saveProxyData());
 
     /* Upload properties to data: */
     UISettingsPageGlobal::uploadData(data);
@@ -127,7 +145,7 @@ void UIGlobalSettingsProxy::saveFromCacheTo(QVariant &data)
 bool UIGlobalSettingsProxy::validate(QList<UIValidationMessage> &messages)
 {
     /* Pass if proxy is disabled: */
-    if (m_pEditorGlobalProxyFeatures->proxyMode() != KProxyMode_Manual)
+    if (!m_pRadioProxyEnabled->isChecked())
         return true;
 
     /* Pass by default: */
@@ -137,7 +155,7 @@ bool UIGlobalSettingsProxy::validate(QList<UIValidationMessage> &messages)
     UIValidationMessage message;
 
     /* Check for URL presence: */
-    if (m_pEditorGlobalProxyFeatures->proxyHost().trimmed().isEmpty())
+    if (m_pHostEditor->text().trimmed().isEmpty())
     {
         message.second << tr("No proxy URL is currently specified.");
         fPass = false;
@@ -146,7 +164,7 @@ bool UIGlobalSettingsProxy::validate(QList<UIValidationMessage> &messages)
     else
 
     /* Check for URL validness: */
-    if (!QUrl(m_pEditorGlobalProxyFeatures->proxyHost().trimmed()).isValid())
+    if (!QUrl(m_pHostEditor->text().trimmed()).isValid())
     {
         message.second << tr("Invalid proxy URL is currently specified.");
         fPass = true;
@@ -155,7 +173,7 @@ bool UIGlobalSettingsProxy::validate(QList<UIValidationMessage> &messages)
     else
 
     /* Check for password presence: */
-    if (!QUrl(m_pEditorGlobalProxyFeatures->proxyHost().trimmed()).password().isEmpty())
+    if (!QUrl(m_pHostEditor->text().trimmed()).password().isEmpty())
     {
         message.second << tr("You have provided a proxy password. "
                              "Please be aware that the password will be saved in plain text. "
@@ -174,44 +192,61 @@ bool UIGlobalSettingsProxy::validate(QList<UIValidationMessage> &messages)
 
 void UIGlobalSettingsProxy::retranslateUi()
 {
+    /* Translate uic generated strings: */
+    Ui::UIGlobalSettingsProxy::retranslateUi(this);
+
+    /* Translate proxy URL editor: */
+    m_pHostEditor->setWhatsThis(tr("Holds the proxy URL. "
+                                   "The format is: "
+                                   "<table cellspacing=0 style='white-space:pre'>"
+                                   "<tr><td>[{type}://][{userid}[:{password}]@]{server}[:{port}]</td></tr>"
+                                   "<tr><td>http://username:password@proxy.host.com:port</td></tr>"
+                                   "</table>"));
+}
+
+void UIGlobalSettingsProxy::sltHandleProxyToggle()
+{
+    /* Update widgets availability: */
+    m_pContainerProxy->setEnabled(m_pRadioProxyEnabled->isChecked());
+
+    /* Revalidate: */
+    revalidate();
 }
 
 void UIGlobalSettingsProxy::prepare()
 {
+    /* Apply UI decorations: */
+    Ui::UIGlobalSettingsProxy::setupUi(this);
+
     /* Prepare cache: */
     m_pCache = new UISettingsCacheGlobalProxy;
     AssertPtrReturnVoid(m_pCache);
 
-    /* Prepare everything: */
-    prepareWidgets();
-    prepareConnections();
+    /* Layout created in the .ui file. */
+    {
+        /* Create button-group: */
+        QButtonGroup *pButtonGroup = new QButtonGroup(this);
+        AssertPtrReturnVoid(pButtonGroup);
+        {
+            /* Configure button-group: */
+            pButtonGroup->addButton(m_pRadioProxyAuto);
+            pButtonGroup->addButton(m_pRadioProxyDisabled);
+            pButtonGroup->addButton(m_pRadioProxyEnabled);
+            connect(pButtonGroup, static_cast<void(QButtonGroup::*)(QAbstractButton*)>(&QButtonGroup::buttonClicked),
+                    this, &UIGlobalSettingsProxy::sltHandleProxyToggle);
+        }
+
+        /* Host editor created in the .ui file. */
+        AssertPtrReturnVoid(m_pHostEditor);
+        {
+            /* Configure editor: */
+            m_pHostEditor->setValidator(new QRegExpValidator(QRegExp("\\S+"), m_pHostEditor));
+            connect(m_pHostEditor, &QILineEdit::textEdited, this, &UIGlobalSettingsProxy::revalidate);
+        }
+    }
 
     /* Apply language settings: */
     retranslateUi();
-}
-
-void UIGlobalSettingsProxy::prepareWidgets()
-{
-    /* Prepare main layout: */
-    QVBoxLayout *pLayout = new QVBoxLayout(this);
-    if (pLayout)
-    {
-        /* Prepare global proxy features editor: */
-        m_pEditorGlobalProxyFeatures = new UIGlobalProxyFeaturesEditor(this);
-        if (m_pEditorGlobalProxyFeatures)
-            pLayout->addWidget(m_pEditorGlobalProxyFeatures);
-
-        /* Add stretch to the end: */
-        pLayout->addStretch();
-    }
-}
-
-void UIGlobalSettingsProxy::prepareConnections()
-{
-    connect(m_pEditorGlobalProxyFeatures, &UIGlobalProxyFeaturesEditor::sigProxyModeChanged,
-            this, &UIGlobalSettingsProxy::revalidate);
-    connect(m_pEditorGlobalProxyFeatures, &UIGlobalProxyFeaturesEditor::sigProxyHostChanged,
-            this, &UIGlobalSettingsProxy::revalidate);
 }
 
 void UIGlobalSettingsProxy::cleanup()
@@ -221,37 +256,27 @@ void UIGlobalSettingsProxy::cleanup()
     m_pCache = 0;
 }
 
-bool UIGlobalSettingsProxy::saveData()
+bool UIGlobalSettingsProxy::saveProxyData()
 {
     /* Prepare result: */
     bool fSuccess = true;
-    /* Save settings from cache: */
-    if (   fSuccess
-        && m_pCache->wasChanged())
+    /* Save proxy settings from the cache: */
+    if (fSuccess && m_pCache->wasChanged())
     {
-        /* Get old data from cache: */
-        const UIDataSettingsGlobalProxy &oldData = m_pCache->base();
-        /* Get new data from cache: */
-        const UIDataSettingsGlobalProxy &newData = m_pCache->data();
+        /* Get old proxy data from the cache: */
+        //const UIDataSettingsGlobalProxy &oldProxyData = m_pCache->base();
+        /* Get new proxy data from the cache: */
+        const UIDataSettingsGlobalProxy &newProxyData = m_pCache->data();
 
-        /* Save new data from cache: */
-        if (   fSuccess
-            && newData.m_enmProxyMode != oldData.m_enmProxyMode)
-        {
-            m_properties.SetProxyMode(newData.m_enmProxyMode);
-            fSuccess &= m_properties.isOk();
-        }
-        if (   fSuccess
-            && newData.m_strProxyHost != oldData.m_strProxyHost)
-        {
-            m_properties.SetProxyURL(newData.m_strProxyHost);
-            fSuccess &= m_properties.isOk();
-        }
+        /* Save new proxy data from the cache: */
+        m_properties.SetProxyMode(newProxyData.m_enmProxyMode);
+        fSuccess &= m_properties.isOk();
+        m_properties.SetProxyURL(newProxyData.m_strProxyHost);
+        fSuccess &= m_properties.isOk();
 
         /* Drop the old extra data setting if still around: */
-        if (   fSuccess
-            && !gEDataManager->proxySettings().isEmpty())
-            /* fSuccess = */ gEDataManager->setProxySettings(QString());
+        if (fSuccess && !gEDataManager->proxySettings().isEmpty())
+            gEDataManager->setProxySettings(QString());
     }
     /* Return result: */
     return fSuccess;

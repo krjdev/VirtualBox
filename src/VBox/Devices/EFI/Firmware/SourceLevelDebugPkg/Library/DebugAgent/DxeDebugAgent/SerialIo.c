@@ -9,7 +9,7 @@
 #include "DxeDebugAgentLib.h"
 
 //
-// Serial I/O Protocol Interface definitions.
+// Serial I/O Protocol Interface defintions.
 //
 
 /**
@@ -231,7 +231,7 @@ typedef struct {
 } DEBUG_SERIAL_FIFO;
 
 //
-// Global Variables
+// Global Varibles
 //
 EFI_HANDLE                   mSerialIoHandle        = NULL;
 UINTN                        mLoopbackBuffer        = 0;
@@ -389,7 +389,7 @@ SerialReset (
   mSerialIoMode.ControlMask = SERIAL_PORT_DEFAULT_CONTROL_MASK;
   mLoopbackBuffer = 0;
   //
-  // Not reset serial device hardware indeed.
+  // Not reset serial devcie hardware indeed.
   //
   return EFI_SUCCESS;
 }

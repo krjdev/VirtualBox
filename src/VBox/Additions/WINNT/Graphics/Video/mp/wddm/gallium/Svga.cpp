@@ -1,10 +1,10 @@
-/* $Id: Svga.cpp 93834 2022-02-17 21:11:03Z vboxsync $ */
+/* $Id: Svga.cpp $ */
 /** @file
  * VirtualBox Windows Guest Mesa3D - VMSVGA.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,172 +25,6 @@
 #include <iprt/errcore.h>
 #include <iprt/mem.h>
 #include <iprt/memobj.h>
-
-static NTSTATUS SvgaCmdBufSubmit(VBOXWDDM_EXT_VMSVGA *pSvga, uint32_t cbSubmit, uint32_t idx)
-{
-    AssertReturn(idx < pSvga->u32NumCmdBufs, VERR_INVALID_PARAMETER);
-    AssertReturn(cbSubmit <= PAGE_SIZE, VERR_INVALID_PARAMETER);
-    int rc = STATUS_SUCCESS;
-    SVGACBHeader *pHdr = &((SVGACBHeader *)pSvga->pvR0Hdr)[idx];
-    RTHCPHYS paHdr = pSvga->paHdr + idx * sizeof(SVGACBHeader);
-
-    pHdr->status = SVGA_CB_STATUS_NONE;
-    pHdr->errorOffset = 0;
-    pHdr->id = 0;
-    pHdr->flags = SVGA_CB_FLAG_NO_IRQ;
-    pHdr->length = cbSubmit;
-    pHdr->ptr.pa = pSvga->paCmd;
-
-    SVGARegWrite(pSvga, SVGA_REG_COMMAND_HIGH, (uint32_t)(paHdr >> 32));
-    SVGARegWrite(pSvga, SVGA_REG_COMMAND_LOW, (uint32_t)paHdr | SVGA_CB_CONTEXT_0);
-
-    return rc;
-}
-
-static NTSTATUS SvgaCmdBufCtxInit(VBOXWDDM_EXT_VMSVGA *pSvga, bool enable)
-{
-    int rc = STATUS_SUCCESS;
-
-    AssertReturn(enable == (pSvga->hMemObj == NIL_RTR0MEMOBJ), STATUS_INVALID_PARAMETER);
-
-    if (enable)
-    {
-        pSvga->u32NumCmdBufs = 8;
-
-        rc = RTR0MemObjAllocPageTag(&pSvga->hMemObj, 2 * PAGE_SIZE,
-                                false /* executable R0 mapping */, "WDDMGA");
-
-        pSvga->pvR0Hdr = RTR0MemObjAddress(pSvga->hMemObj);
-        pSvga->paHdr   = RTR0MemObjGetPagePhysAddr(pSvga->hMemObj, 0/*iPage*/);
-        memset(pSvga->pvR0Hdr, 0, PAGE_SIZE);
-
-        pSvga->pvR0Cmd = (uint8_t *)pSvga->pvR0Hdr + PAGE_SIZE;
-        pSvga->paCmd   = RTR0MemObjGetPagePhysAddr(pSvga->hMemObj, 1/*iPage*/);
-        memset(pSvga->pvR0Cmd, 0, PAGE_SIZE);
-    }
-
-    SVGACBHeader *pHdr = (SVGACBHeader *)pSvga->pvR0Hdr;
-
-    pHdr->status = SVGA_CB_STATUS_NONE;
-    pHdr->errorOffset = 0;
-    pHdr->id = 0;
-    pHdr->flags = SVGA_CB_FLAG_NO_IRQ;
-    pHdr->length = sizeof(uint32_t) + sizeof(SVGADCCmdStartStop);
-    pHdr->ptr.pa = pSvga->paCmd;
-
-    uint32_t *pu32Id = (uint32_t *)pSvga->pvR0Cmd;
-    SVGADCCmdStartStop *pCommand = (SVGADCCmdStartStop *)&pu32Id[1];
-
-    *pu32Id = SVGA_DC_CMD_START_STOP_CONTEXT;
-    pCommand->enable = enable;
-    pCommand->context = SVGA_CB_CONTEXT_0;
-
-    SVGARegWrite(pSvga, SVGA_REG_COMMAND_HIGH, (uint32_t)(pSvga->paHdr >> 32));
-    SVGARegWrite(pSvga, SVGA_REG_COMMAND_LOW, (uint32_t)pSvga->paHdr | 0x3f);
-
-    if (!enable)
-    {
-        rc = RTR0MemObjFree(pSvga->hMemObj, true);
-        pSvga->hMemObj = NIL_RTR0MEMOBJ;
-    }
-    else
-    {
-        uint32_t idx;
-
-        for(idx = 0; idx < pSvga->u32NumCmdBufs; idx++)
-        {
-            pHdr->status = SVGA_CB_STATUS_COMPLETED;
-            pHdr->errorOffset = 0;
-            pHdr->id = 0;
-            pHdr->flags = SVGA_CB_FLAG_NO_IRQ;
-            pHdr->length = 0;
-            pHdr->ptr.pa = 0;
-
-            pHdr++;
-        }
-    }
-
-    AssertRC(rc);
-    return rc;
-}
-
-static uint32_t SvgaCmdBufReserve(VBOXWDDM_EXT_VMSVGA *pSvga)
-{
-    SVGACBHeader *pHdr = (SVGACBHeader *)pSvga->pvR0Hdr;
-    uint32_t idx;
-
-    for(idx = 0; idx < pSvga->u32NumCmdBufs; idx++)
-    {
-        if (ASMAtomicCmpXchgU32((volatile uint32_t *)&pHdr->status, SVGA_CB_STATUS_NONE, SVGA_CB_STATUS_COMPLETED))
-        {
-            return idx;
-        }
-
-        pHdr++;
-    }
-
-    return UINT32_MAX;
-}
-
-/** @todo The size of each Object Table should not be hardcoded but estimated using some VMSVGA device limits **/
-static NTSTATUS SvgaObjectTablesInit(VBOXWDDM_EXT_VMSVGA *pSvga, bool enable)
-{
-    uint32_t idCmdHdr = UINT32_MAX;
-    void *pvCmd = NULL;
-    int rc = STATUS_SUCCESS;
-
-    if (enable)
-    {
-        rc = RTR0MemObjAllocPageTag(&pSvga->hMemObjOTables, (SVGA_OTABLE_DXCONTEXT + 1) * PAGE_SIZE,
-                                false /* executable R0 mapping */, "WDDMGA");
-    }
-    else
-    {
-        rc = RTR0MemObjFree(pSvga->hMemObjOTables, true);
-        pSvga->hMemObjOTables = NIL_RTR0MEMOBJ;
-        return rc;
-    }
-
-    idCmdHdr = SvgaCmdBufReserve(pSvga);
-
-    if (idCmdHdr < pSvga->u32NumCmdBufs)
-    {
-        pvCmd = pSvga->pvR0Cmd;
-    }
-    else
-    {
-        GALOGREL(32, ("WDDM: SvgaCmdBufReserve failed\n"));
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    SVGA3dCmdHeader *pHeader = (SVGA3dCmdHeader *)pvCmd;
-    SVGA3dCmdSetOTableBase64 *pCommand = (SVGA3dCmdSetOTableBase64 *)&pHeader[1];
-    uint32_t cbSubmit = 0;
-    uint32_t idOTable;
-
-    for(idOTable = 0; idOTable <= SVGA_OTABLE_DXCONTEXT; idOTable++)
-    {
-        RTHCPHYS paOT = RTR0MemObjGetPagePhysAddr(pSvga->hMemObjOTables, idOTable);
-
-        pHeader->id = SVGA_3D_CMD_SET_OTABLE_BASE64;
-        pHeader->size = sizeof(SVGA3dCmdSetOTableBase64);
-        pCommand->type = (SVGAOTableType)idOTable;
-        pCommand->baseAddress = paOT >> 12;
-        pCommand->sizeInBytes = PAGE_SIZE;
-        pCommand->validSizeInBytes = 0;
-        pCommand->ptDepth = SVGA3D_MOBFMT_PTDEPTH64_0;
-
-        cbSubmit += sizeof(SVGA3dCmdHeader) + sizeof(SVGA3dCmdSetOTableBase64);
-
-        pHeader = (SVGA3dCmdHeader *)&pCommand[1];
-        pCommand = (SVGA3dCmdSetOTableBase64 *)&pHeader[1];
-    }
-
-    SvgaCmdBufSubmit(pSvga, cbSubmit, idCmdHdr);
-
-    AssertRC(rc);
-    return rc;
-}
 
 static NTSTATUS svgaHwInit(VBOXWDDM_EXT_VMSVGA *pSvga)
 {
@@ -235,12 +69,6 @@ static NTSTATUS svgaHwInit(VBOXWDDM_EXT_VMSVGA *pSvga)
         SVGARegWrite(pSvga, SVGA_REG_IRQMASK, SVGA_IRQFLAG_ANY_FENCE);
     }
 
-    if (pSvga->u32Caps & SVGA_CAP_COMMAND_BUFFERS)
-    {
-        SvgaCmdBufCtxInit(pSvga, true);
-        SvgaObjectTablesInit(pSvga, true);
-    }
-
     return Status;
 }
 
@@ -266,12 +94,6 @@ void SvgaAdapterStop(PVBOXWDDM_EXT_VMSVGA pSvga,
             GaMemFree(pSvga->pu32GMRBits);
             pSvga->pu32GMRBits = NULL;
             pSvga->cbGMRBits = 0;
-        }
-
-        if (pSvga->u32Caps & SVGA_CAP_COMMAND_BUFFERS)
-        {
-            SvgaObjectTablesInit(pSvga, false);
-            SvgaCmdBufCtxInit(pSvga, false);
         }
 
         /* Disable SVGA device. */
@@ -377,15 +199,6 @@ NTSTATUS SvgaQueryInfo(PVBOXWDDM_EXT_VMSVGA pSvga,
     for (i = 0; i < RT_ELEMENTS(pSvgaInfo->au32Regs); ++i)
     {
         pSvgaInfo->au32Regs[i] = SVGARegRead(pSvga, i);
-    }
-
-    if (RT_LIKELY(pSvga->u32Caps & SVGA_CAP_GBOBJECTS))
-    {
-        for (i = 0; i < RT_ELEMENTS(pSvgaInfo->au32Caps); ++i)
-        {
-            SVGARegWrite(pSvga, SVGA_REG_DEV_CAP, i);
-            pSvgaInfo->au32Caps[i] = SVGARegRead(pSvga, SVGA_REG_DEV_CAP);
-        }
     }
 
     /* Beginning of FIFO. */
@@ -1230,45 +1043,18 @@ NTSTATUS SvgaBlitGMRFBToScreen(PVBOXWDDM_EXT_VMSVGA pSvga,
                                RECT const *pDstRect)
 {
     NTSTATUS Status = STATUS_SUCCESS;
-    uint32_t cbSubmit = 0;
-    uint32_t idx = UINT32_MAX;
-    void *pvCmd = NULL;
 
+    uint32_t cbSubmit = 0;
     SvgaGenBlitGMRFBToScreen(pSvga, idDstScreen, xSrc, ySrc, pDstRect,
                              NULL, 0, &cbSubmit);
 
-    if (pSvga->u32Caps & SVGA_CAP_COMMAND_BUFFERS)
-    {
-        idx = SvgaCmdBufReserve(pSvga);
-
-        if (idx < pSvga->u32NumCmdBufs)
-        {
-            pvCmd = pSvga->pvR0Cmd;
-        }
-        else
-        {
-            GALOGREL(32, ("WDDM: SvgaCmdBufReserve failed\n"));
-        }
-    }
-    else
-    {
-        pvCmd = SvgaFifoReserve(pSvga, cbSubmit);
-    }
-
+    void *pvCmd = SvgaFifoReserve(pSvga, cbSubmit);
     if (pvCmd)
     {
         Status = SvgaGenBlitGMRFBToScreen(pSvga, idDstScreen, xSrc, ySrc, pDstRect,
                                           pvCmd, cbSubmit, NULL);
         Assert(Status == STATUS_SUCCESS);
-
-        if (pSvga->u32Caps & SVGA_CAP_COMMAND_BUFFERS)
-        {
-            SvgaCmdBufSubmit(pSvga, cbSubmit, idx);
-        }
-        else
-        {
-            SvgaFifoCommit(pSvga, cbSubmit);
-        }
+        SvgaFifoCommit(pSvga, cbSubmit);
     }
     else
     {

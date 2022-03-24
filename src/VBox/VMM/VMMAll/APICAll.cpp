@@ -1,10 +1,10 @@
-/* $Id: APICAll.cpp 93655 2022-02-08 13:56:01Z vboxsync $ */
+/* $Id: APICAll.cpp $ */
 /** @file
  * APIC - Advanced Programmable Interrupt Controller - All Contexts.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,9 +20,7 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_DEV_APIC
-#define VMCPU_INCL_CPUM_GST_CTX /* for macOS hack */
 #include "APICInternal.h"
-#include <VBox/vmm/apic.h>
 #include <VBox/vmm/pdmdev.h>
 #include <VBox/vmm/pdmapi.h>
 #include <VBox/vmm/vmcc.h>
@@ -611,11 +609,6 @@ static VBOXSTRICTRC apicSendIntr(PVMCC pVM, PVMCPUCC pVCpu, uint8_t uVector, XAP
                                  XAPICDELIVERYMODE enmDeliveryMode, PCVMCPUSET pDestCpuSet, bool *pfIntrAccepted,
                                  uint32_t uSrcTag, int rcRZ)
 {
-    AssertCompile(sizeof(pVM->apic.s) <= sizeof(pVM->apic.padding));
-    AssertCompile(sizeof(pVCpu->apic.s) <= sizeof(pVCpu->apic.padding));
-#ifdef IN_RING0
-    AssertCompile(sizeof(pVM->apicr0.s) <= sizeof(pVM->apicr0.padding));
-#endif
     VBOXSTRICTRC  rcStrict  = VINF_SUCCESS;
     VMCPUID const cCpus     = pVM->cCpus;
     bool          fAccepted = false;
@@ -978,8 +971,6 @@ DECLINLINE(VBOXSTRICTRC) apicSendIpi(PVMCPUCC pVCpu, int rcRZ)
 
     PX2APICPAGE pX2ApicPage = VMCPU_TO_X2APICPAGE(pVCpu);
     uint32_t const fDest    = XAPIC_IN_X2APIC_MODE(pVCpu) ? pX2ApicPage->icr_hi.u32IcrHi : pXApicPage->icr_hi.u.u8Dest;
-    Log5(("apicSendIpi: delivery=%u mode=%u init=%u trigger=%u short=%u vector=%#x fDest=%#x\n",
-          enmDeliveryMode, enmDestMode, enmInitLevel, enmTriggerMode, enmDestShorthand, uVector, fDest));
 
 #if XAPIC_HARDWARE_VERSION == XAPIC_HARDWARE_VERSION_P4
     /*
@@ -1235,10 +1226,12 @@ static int apicSetTprEx(PVMCPUCC pVCpu, uint32_t uTpr, bool fForceX2ApicBehaviou
  * @returns Strict VBox status code.
  * @param   pVCpu                   The cross context virtual CPU structure.
  * @param   uEoi                    The EOI value.
+ * @param   rcBusy                  The busy return code when the write cannot
+ *                                  be completed successfully in this context.
  * @param   fForceX2ApicBehaviour   Pretend the APIC is in x2APIC mode during
  *                                  this write.
  */
-static VBOXSTRICTRC apicSetEoi(PVMCPUCC pVCpu, uint32_t uEoi, bool fForceX2ApicBehaviour)
+static VBOXSTRICTRC apicSetEoi(PVMCPUCC pVCpu, uint32_t uEoi, int rcBusy, bool fForceX2ApicBehaviour)
 {
     VMCPU_ASSERT_EMT(pVCpu);
 
@@ -1266,7 +1259,11 @@ static VBOXSTRICTRC apicSetEoi(PVMCPUCC pVCpu, uint32_t uEoi, bool fForceX2ApicB
         bool const fLevelTriggered = apicTestVectorInReg(&pXApicPage->tmr, uVector);
         if (fLevelTriggered)
         {
-            PDMIoApicBroadcastEoi(pVCpu->CTX_SUFF(pVM), uVector);
+            VBOXSTRICTRC rc = PDMIoApicBroadcastEoi(pVCpu->CTX_SUFF(pVM), uVector);
+            if (rc == VINF_SUCCESS)
+            { /* likely */ }
+            else
+                return rcBusy;
 
             /*
              * Clear the vector from the TMR.
@@ -1335,7 +1332,6 @@ static VBOXSTRICTRC apicSetLdr(PVMCPUCC pVCpu, uint32_t uLdr)
 
     PXAPICPAGE pXApicPage = VMCPU_TO_XAPICPAGE(pVCpu);
     apicWriteRaw32(pXApicPage, XAPIC_OFF_LDR, uLdr & XAPIC_LDR_VALID);
-    STAM_COUNTER_INC(&pVCpu->apic.s.StatLdrWrite);
     return VINF_SUCCESS;
 }
 
@@ -1361,7 +1357,6 @@ static VBOXSTRICTRC apicSetDfr(PVMCPUCC pVCpu, uint32_t uDfr)
 
     PXAPICPAGE pXApicPage = VMCPU_TO_XAPICPAGE(pVCpu);
     apicWriteRaw32(pXApicPage, XAPIC_OFF_DFR, uDfr);
-    STAM_COUNTER_INC(&pVCpu->apic.s.StatDfrWrite);
     return VINF_SUCCESS;
 }
 
@@ -1384,7 +1379,6 @@ static VBOXSTRICTRC apicSetTimerDcr(PVMCPUCC pVCpu, uint32_t uTimerDcr)
 
     PXAPICPAGE pXApicPage = VMCPU_TO_XAPICPAGE(pVCpu);
     apicWriteRaw32(pXApicPage, XAPIC_OFF_TIMER_DCR, uTimerDcr);
-    STAM_COUNTER_INC(&pVCpu->apic.s.StatDcrWrite);
     return VINF_SUCCESS;
 }
 
@@ -1519,7 +1513,6 @@ static VBOXSTRICTRC apicSetLvtEntry(PVMCPUCC pVCpu, uint16_t offLvt, uint32_t uL
     PCAPIC pApic = VM_TO_APIC(pVCpu->CTX_SUFF(pVM));
     if (offLvt == XAPIC_OFF_LVT_TIMER)
     {
-        STAM_COUNTER_INC(&pVCpu->apic.s.StatLvtTimerWrite);
         if (   !pApic->fSupportsTscDeadline
             && (uLvt & XAPIC_LVT_TIMER_TSCDEADLINE))
         {
@@ -1785,7 +1778,7 @@ DECLINLINE(VBOXSTRICTRC) apicWriteRegister(PPDMDEVINS pDevIns, PVMCPUCC pVCpu, u
 
         case XAPIC_OFF_EOI:
         {
-            rcStrict = apicSetEoi(pVCpu, uValue, false /* fForceX2ApicBehaviour */);
+            rcStrict = apicSetEoi(pVCpu, uValue, VINF_IOM_R3_MMIO_WRITE, false /* fForceX2ApicBehaviour */);
             break;
         }
 
@@ -1939,19 +1932,6 @@ VMM_INT_DECL(VBOXSTRICTRC) APICReadMsr(PVMCPUCC pVCpu, uint32_t u32Reg, uint64_t
             case MSR_IA32_X2APIC_ID:
             {
                 STAM_COUNTER_INC(&pVCpu->apic.s.StatIdMsrRead);
-                /* Horrible macOS hack (sample rdmsr addres: 0008:ffffff801686f21a). */
-                if (   !pApic->fMacOSWorkaround
-                    || pVCpu->cpum.GstCtx.cs.Sel != 8
-                    || pVCpu->cpum.GstCtx.rip < UINT64_C(0xffffff8000000000))
-                { /* likely */ }
-                else
-                {
-                    PCX2APICPAGE pX2ApicPage = VMCPU_TO_CX2APICPAGE(pVCpu);
-                    uint32_t const idApic = pX2ApicPage->id.u32ApicId;
-                    *pu64Value = (idApic << 24) | idApic;
-                    Log(("APIC: Applying macOS hack to MSR_IA32_X2APIC_ID: %#RX64\n", *pu64Value));
-                    break;
-                }
                 RT_FALL_THRU();
             }
             case MSR_IA32_X2APIC_VERSION:
@@ -2131,7 +2111,7 @@ VMM_INT_DECL(VBOXSTRICTRC) APICWriteMsr(PVMCPUCC pVCpu, uint32_t u32Reg, uint64_
 
             case MSR_IA32_X2APIC_EOI:
             {
-                rcStrict = apicSetEoi(pVCpu, u32Value, false /* fForceX2ApicBehaviour */);
+                rcStrict = apicSetEoi(pVCpu, u32Value, VINF_CPUM_R3_MSR_WRITE, false /* fForceX2ApicBehaviour */);
                 break;
             }
 
@@ -3116,8 +3096,6 @@ bool apicPostInterrupt(PVMCPUCC pVCpu, uint8_t uVector, XAPICTRIGGERMODE enmTrig
     bool     fAccepted = true;
 
     STAM_PROFILE_START(&pApicCpu->StatPostIntr, a);
-    STAM_REL_COUNTER_INC(&pApicCpu->StatPostIntrCnt);
-    STAM_REL_COUNTER_INC(&pApicCpu->aStatVectors[uVector]);
 
     /*
      * Only post valid interrupt vectors.
@@ -3514,7 +3492,7 @@ VMM_INT_DECL(VBOXSTRICTRC) APICHvSetEoi(PVMCPUCC pVCpu, uint32_t uEoi)
 {
     Assert(pVCpu);
     VMCPU_ASSERT_EMT_OR_NOT_RUNNING(pVCpu);
-    return apicSetEoi(pVCpu, uEoi, true /* fForceX2ApicBehaviour */);
+    return apicSetEoi(pVCpu, uEoi, VINF_CPUM_R3_MSR_WRITE, true /* fForceX2ApicBehaviour */);
 }
 
 

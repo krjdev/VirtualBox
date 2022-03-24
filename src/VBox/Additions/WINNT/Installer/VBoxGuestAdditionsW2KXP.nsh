@@ -1,10 +1,10 @@
-; $Id: VBoxGuestAdditionsW2KXP.nsh 94160 2022-03-10 19:29:09Z vboxsync $
+; $Id: VBoxGuestAdditionsW2KXP.nsh $
 ;; @file
 ; VBoxGuestAdditionsW2KXP.nsh - Guest Additions installation for Windows 2000/XP.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -182,31 +182,19 @@ Function W2K_CopyFiles
   FILE "$%PATH_OUT%\bin\additions\VBoxMouse.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxMouse.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxMouse.cat"
-  ${Else}
-    FILE "/oname=VBoxMouse.cat" "$%PATH_OUT%\bin\additions\VBoxMouse-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxMouse.cat"
 !endif
 
   ; Guest driver
   FILE "$%PATH_OUT%\bin\additions\VBoxGuest.sys"
   FILE "$%PATH_OUT%\bin\additions\VBoxGuest.inf"
 !ifdef VBOX_SIGN_ADDITIONS
-  ${If} $g_strWinVersion == "10"
-    FILE "$%PATH_OUT%\bin\additions\VBoxGuest.cat"
-  ${Else}
-    FILE "/oname=VBoxGuest.cat" "$%PATH_OUT%\bin\additions\VBoxGuest-PreW10.cat"
-  ${EndIf}
+  FILE "$%PATH_OUT%\bin\additions\VBoxGuest.cat"
 !endif
 
   ; Guest driver files
   FILE "$%PATH_OUT%\bin\additions\VBoxTray.exe"
   FILE "$%PATH_OUT%\bin\additions\VBoxControl.exe" ; Not used by W2K and up, but required by the .INF file
-
-!ifdef VBOX_WITH_ADDITIONS_SHIPPING_AUDIO_TEST
-  FILE "$%PATH_OUT%\bin\additions\VBoxAudioTest.exe"
-!endif
 
   ; WHQL fake
 !ifdef WHQL_FAKE
@@ -245,11 +233,7 @@ Function W2K_CopyFiles
     SetOutPath "$INSTDIR"
 
     !ifdef VBOX_SIGN_ADDITIONS
-      ${If} $g_strWinVersion == "10"
-        FILE "$%PATH_OUT%\bin\additions\VBoxWddm.cat"
-      ${Else}
-        FILE "/oname=VBoxWddm.cat" "$%PATH_OUT%\bin\additions\VBoxWddm-PreW10.cat"
-      ${EndIf}
+      FILE "$%PATH_OUT%\bin\additions\VBoxWddm.cat"
     !endif
     FILE "$%PATH_OUT%\bin\additions\VBoxWddm.sys"
     FILE "$%PATH_OUT%\bin\additions\VBoxWddm.inf"
@@ -262,7 +246,7 @@ Function W2K_CopyFiles
       FILE "$%PATH_OUT%\bin\additions\VBoxGL.dll"
     !endif
 
-    !if $%KBUILD_TARGET_ARCH% == "amd64"
+    !if $%BUILD_TARGET_ARCH% == "amd64"
       FILE "$%PATH_OUT%\bin\additions\VBoxDispD3D-x86.dll"
       !if $%VBOX_WITH_MESA3D% == "1"
         FILE "$%PATH_OUT%\bin\additions\VBoxNine-x86.dll"
@@ -270,7 +254,7 @@ Function W2K_CopyFiles
         FILE "$%PATH_OUT%\bin\additions\VBoxICD-x86.dll"
         FILE "$%PATH_OUT%\bin\additions\VBoxGL-x86.dll"
       !endif
-    !endif ; $%KBUILD_TARGET_ARCH% == "amd64"
+    !endif ; $%BUILD_TARGET_ARCH% == "amd64"
 
     Goto doneCr
   ${EndIf}
@@ -320,9 +304,8 @@ Function W2K_InstallFiles
   !if $%BUILD_TARGET_ARCH% == "x86"
     ; On x86 we have to use a different shared folder driver linked against an older RDBSS for Windows 7 and older.
     ${If} $g_strWinVersion == "2000"
-    ${OrIf} $g_strWinVersion == "XP"
-    ${OrIf} $g_strWinVersion == "2003"
     ${OrIf} $g_strWinVersion == "Vista"
+    ${OrIf} $g_strWinVersion == "XP"
     ${OrIf} $g_strWinVersion == "7"
       !insertmacro ReplaceDLL "$%PATH_OUT%\bin\additions\VBoxSFW2K.sys" "$g_strSystemDir\drivers\VBoxSF.sys" "$INSTDIR"
     ${Else}
@@ -334,7 +317,7 @@ Function W2K_InstallFiles
 
   !insertmacro ReplaceDLL "$%PATH_OUT%\bin\additions\VBoxMRXNP.dll" "$g_strSystemDir\VBoxMRXNP.dll" "$INSTDIR"
   AccessControl::GrantOnFile "$g_strSystemDir\VBoxMRXNP.dll" "(BU)" "GenericRead"
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     ; Only 64-bit installer: Copy the 32-bit DLL for 32 bit applications.
     !insertmacro ReplaceDLL "$%PATH_OUT%\bin\additions\VBoxMRXNP-x86.dll" "$g_strSysWow64\VBoxMRXNP.dll" "$INSTDIR"
     AccessControl::GrantOnFile "$g_strSysWow64\VBoxMRXNP.dll" "(BU)" "GenericRead"
@@ -486,7 +469,7 @@ Function ${un}W2K_UninstallInstDir
     ; Try to delete libWine in case it is there from old installation
     Delete /REBOOTOK "$INSTDIR\libWine.dll"
 
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     Delete /REBOOTOK "$INSTDIR\VBoxDispD3D-x86.dll"
     !if $%VBOX_WITH_MESA3D% == "1"
       Delete /REBOOTOK "$INSTDIR\VBoxNine-x86.dll"
@@ -497,7 +480,7 @@ Function ${un}W2K_UninstallInstDir
 
       Delete /REBOOTOK "$INSTDIR\VBoxD3D9wddm-x86.dll"
       Delete /REBOOTOK "$INSTDIR\wined3dwddm-x86.dll"
-  !endif ; $%KBUILD_TARGET_ARCH% == "amd64"
+  !endif ; $%BUILD_TARGET_ARCH% == "amd64"
 !endif ; $%VBOX_WITH_WDDM% == "1"
 
   ; WHQL fake
@@ -554,7 +537,7 @@ Function ${un}W2K_Uninstall
   ; Obsolete files end
 
   Delete /REBOOTOK "$g_strSystemDir\VBoxDispD3D.dll"
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     Delete /REBOOTOK "$g_strSysWow64\VBoxDispD3D-x86.dll"
   !endif
 
@@ -564,7 +547,7 @@ Function ${un}W2K_Uninstall
     Delete /REBOOTOK "$g_strSystemDir\VBoxICD.dll"
     Delete /REBOOTOK "$g_strSystemDir\VBoxGL.dll"
 
-    !if $%KBUILD_TARGET_ARCH% == "amd64"
+    !if $%BUILD_TARGET_ARCH% == "amd64"
       Delete /REBOOTOK "$g_strSysWow64\VBoxNine-x86.dll"
       Delete /REBOOTOK "$g_strSysWow64\VBoxSVGA-x86.dll"
       Delete /REBOOTOK "$g_strSysWow64\VBoxICD-x86.dll"
@@ -615,7 +598,7 @@ Function ${un}W2K_Uninstall
   ${CmdExecute} "$\"$INSTDIR\VBoxDrvInst.exe$\" netprovider remove VBoxSF" "true"
   ${CmdExecute} "$\"$INSTDIR\VBoxDrvInst.exe$\" service delete VBoxSF" "true"
   Delete /REBOOTOK "$g_strSystemDir\VBoxMRXNP.dll" ; The network provider DLL will be locked
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     ; Only 64-bit installer: Also remove 32-bit DLLs on 64-bit target arch in Wow64 node
     Delete /REBOOTOK "$g_strSysWow64\VBoxMRXNP.dll"
   !endif ; amd64
@@ -627,3 +610,4 @@ FunctionEnd
 !macroend
 !insertmacro W2K_Uninstall ""
 !insertmacro W2K_Uninstall "un."
+

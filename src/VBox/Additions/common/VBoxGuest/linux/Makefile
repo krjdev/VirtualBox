@@ -1,10 +1,10 @@
-# $Id: Makefile 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile $
 ## @file
 # VirtualBox Guest Additions Module Makefile.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,7 @@ VBOXGUEST_DIR = $(VBOX_MODULE_SRC_DIR)
 VBOXMOD_NAME = vboxguest
 VBOXMOD_OBJS = \
 	VBoxGuest-linux.o \
-	VBoxGuest-common.o
+	VBoxGuest.o
 ifndef VBOX_WITHOUT_COMBINED_SOURCES
 VBOXMOD_OBJS += \
 	common/string/strformatrt.o \
@@ -72,7 +72,6 @@ VBOXMOD_OBJS += \
 	r0drv/linux/RTLogWriteDebugger-r0drv-linux.o \
 	r0drv/generic/semspinmutex-r0drv-generic.o \
 	common/alloc/alloc.o \
-	common/checksum/crc32.o \
 	common/err/RTErrConvertFromErrno.o \
 	common/err/RTErrConvertToErrno.o \
 	common/err/errinfo.o \
@@ -82,7 +81,6 @@ VBOXMOD_OBJS += \
 	common/log/logrelellipsis.o \
 	common/log/logcom.o \
 	common/log/logformat.o \
-	common/log/RTLogCreateEx.o \
 	common/misc/RTAssertMsg1Weak.o \
 	common/misc/RTAssertMsg2.o \
 	common/misc/RTAssertMsg2Add.o \
@@ -97,7 +95,6 @@ VBOXMOD_OBJS += \
 	common/string/RTStrCopy.o \
 	common/string/RTStrCopyEx.o \
 	common/string/RTStrCopyP.o \
-	common/string/RTStrEnd.o \
 	common/string/RTStrICmpAscii.o \
 	common/string/RTStrNICmpAscii.o \
 	common/string/RTStrNCmp.o \
@@ -110,8 +107,6 @@ VBOXMOD_OBJS += \
 	common/string/strformattype.o \
 	common/string/strprintf.o \
 	common/string/strprintf-ellipsis.o \
-	common/string/strprintf2.o \
-	common/string/strprintf2-ellipsis.o \
 	common/string/strtonum.o \
 	common/string/utf-8.o \
 	common/table/avlpv.o \
@@ -129,11 +124,11 @@ VBOXMOD_OBJS += \
 	generic/mppresent-generic.o \
 	VBox/log-vbox.o \
 	VBox/logbackdoor.o
- ifeq ($(VBOX_KBUILD_TARGET_ARCH),amd64)
+ ifeq ($(BUILD_TARGET_ARCH),amd64)
 VBOXMOD_OBJS += common/alloc/heapsimple.o
  endif
 endif # VBOX_WITHOUT_COMBINED_SOURCES
-ifeq ($(VBOX_KBUILD_TARGET_ARCH),x86)
+ifeq ($(BUILD_TARGET_ARCH),x86)
 VBOXMOD_OBJS += \
 	common/math/gcc/divdi3.o \
 	common/math/gcc/divmoddi4.o \
@@ -155,7 +150,7 @@ VBOXMOD_DEFS = \
 	RT_WITH_VBOX \
 	VBGL_VBOXGUEST \
 	VBOX_WITH_HGCM
-ifeq ($(VBOX_KBUILD_TARGET_ARCH),amd64)
+ifeq ($(BUILD_TARGET_ARCH),amd64)
 VBOXMOD_DEFS += VBOX_WITH_64_BITS_GUESTS
 endif
 ifeq ($(KERN_VERSION),24)

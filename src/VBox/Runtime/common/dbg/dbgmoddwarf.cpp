@@ -1,10 +1,10 @@
-/* $Id: dbgmoddwarf.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgmoddwarf.cpp $ */
 /** @file
  * IPRT - Debug Info Reader For DWARF.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -234,8 +234,7 @@ typedef struct RTDWARFCURSOR
  */
 typedef struct RTDWARFLINESTATE
 {
-    /** @name Virtual Line Number Machine Registers.
-     * @{ */
+    /** Virtual Line Number Machine Registers. */
     struct
     {
         uint64_t        uAddress;
@@ -297,8 +296,8 @@ typedef RTDWARFLINESTATE *PRTDWARFLINESTATE;
  * @param   uForm           The data form.
  * @param   pCursor         The cursor to read data from.
  */
-typedef DECLCALLBACKTYPE(int, FNRTDWARFATTRDECODER,(PRTDWARFDIE pDie, uint8_t *pbMember, PCRTDWARFATTRDESC pDesc,
-                                                    uint32_t uForm, PRTDWARFCURSOR pCursor));
+typedef DECLCALLBACK(int) FNRTDWARFATTRDECODER(PRTDWARFDIE pDie, uint8_t *pbMember, PCRTDWARFATTRDESC pDesc,
+                                               uint32_t uForm, PRTDWARFCURSOR pCursor);
 /** Pointer to an attribute decoder callback. */
 typedef FNRTDWARFATTRDECODER *PFNRTDWARFATTRDECODER;
 
@@ -3824,14 +3823,14 @@ static int rtDwarfLine_RunProgram(PRTDWARFLINESTATE pLnState, PRTDWARFCURSOR pCu
                         }
 
                         /*
-                         * Note! Was defined in DWARF 4.  But... Watcom used it for setting the
-                         *       segment in DWARF 2, creating an incompatibility with the newer
-                         *       standard.  And gcc 10 uses v3 for these.
+                         * Note! Was defined in DWARF 4.  But... Watcom used it
+                         *       for setting the segment in DWARF 2, creating
+                         *       an incompatibility with the newer standard.
                          */
                         case DW_LNE_set_descriminator:
                             if (pLnState->Hdr.uVer != 2)
                             {
-                                Assert(pLnState->Hdr.uVer >= 3);
+                                Assert(pLnState->Hdr.uVer >= 4);
                                 pLnState->Regs.uDiscriminator = rtDwarfCursor_GetULeb128AsU32(pCursor, UINT32_MAX);
                                 Log2(("%08x: DW_LNE_set_descriminator: %u\n", offOpCode, pLnState->Regs.uDiscriminator));
                             }
@@ -5159,7 +5158,7 @@ static int rtDwarfInfo_SnoopSymbols(PRTDBGMODDWARF pThis, PRTDWARFDIE pDie)
                 Log5(("label %s %#x:%#llx\n", pLabel->pszName, pLabel->uSegment, pLabel->Address.uAddress));
                 if (pThis->iWatcomPass == 1)
                     rc = rtDbgModDwarfRecordSegOffset(pThis, pLabel->uSegment, pLabel->Address.uAddress);
-                else if (pLabel->pszName && *pLabel->pszName != '\0') /* Seen empty labels with isolinux. */
+                else
                 {
                     RTDBGSEGIDX iSeg;
                     RTUINTPTR   offSeg;

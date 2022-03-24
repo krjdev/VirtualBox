@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,14 +55,12 @@
  * @remarks Called with the PDM lock held.  The device lock is NOT take because
  *          that is very likely be a lock order violation.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNPCICONFIGREAD,(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev,
-                                                        uint32_t uAddress, unsigned cb, uint32_t *pu32Value));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNPCICONFIGREAD(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev,
+                                                   uint32_t uAddress, unsigned cb, uint32_t *pu32Value);
 /** Pointer to a FNPCICONFIGREAD() function. */
 typedef FNPCICONFIGREAD *PFNPCICONFIGREAD;
-#if !RT_CLANG_PREREQ(11, 0) /* Clang 11 (at least) has trouble with nothrow and pointers to function pointers. */
 /** Pointer to a PFNPCICONFIGREAD. */
 typedef PFNPCICONFIGREAD *PPFNPCICONFIGREAD;
-#endif
 
 /**
  * Callback function for writing to the PCI configuration space.
@@ -82,14 +80,12 @@ typedef PFNPCICONFIGREAD *PPFNPCICONFIGREAD;
  * @remarks Called with the PDM lock held.  The device lock is NOT take because
  *          that is very likely be a lock order violation.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNPCICONFIGWRITE,(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev,
-                                                         uint32_t uAddress, unsigned cb, uint32_t u32Value));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNPCICONFIGWRITE(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev,
+                                                    uint32_t uAddress, unsigned cb, uint32_t u32Value);
 /** Pointer to a FNPCICONFIGWRITE() function. */
 typedef FNPCICONFIGWRITE *PFNPCICONFIGWRITE;
-#if !RT_CLANG_PREREQ(11, 0) /* Clang 11 (at least) has trouble with nothrow and pointers to function pointers. */
 /** Pointer to a PFNPCICONFIGWRITE. */
 typedef PFNPCICONFIGWRITE *PPFNPCICONFIGWRITE;
-#endif
 
 /**
  * Callback function for mapping an PCI I/O region.
@@ -126,8 +122,8 @@ typedef PFNPCICONFIGWRITE *PPFNPCICONFIGWRITE;
  * @remarks Called with the PDM lock held.  The device lock is NOT take because
  *          that is very likely be a lock order violation.
  */
-typedef DECLCALLBACKTYPE(int, FNPCIIOREGIONMAP,(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev, uint32_t iRegion,
-                                                RTGCPHYS GCPhysAddress, RTGCPHYS cb, PCIADDRESSSPACE enmType));
+typedef DECLCALLBACK(int) FNPCIIOREGIONMAP(PPDMDEVINS pDevIns, PPDMPCIDEV pPciDev, uint32_t iRegion,
+                                           RTGCPHYS GCPhysAddress, RTGCPHYS cb, PCIADDRESSSPACE enmType);
 /** Pointer to a FNPCIIOREGIONMAP() function. */
 typedef FNPCIIOREGIONMAP *PFNPCIIOREGIONMAP;
 
@@ -142,8 +138,7 @@ typedef FNPCIIOREGIONMAP *PFNPCIIOREGIONMAP;
  * @param   cbRegion        The region size.
  * @param   enmType         Combination of the PCI_ADDRESS_SPACE_* values.
  */
-typedef DECLCALLBACKTYPE(int, FNPCIIOREGIONOLDSETTER,(PPDMPCIDEV pPciDev, uint32_t iRegion, RTGCPHYS cbRegion,
-                                                      PCIADDRESSSPACE enmType));
+typedef DECLCALLBACK(int) FNPCIIOREGIONOLDSETTER(PPDMPCIDEV pPciDev, uint32_t iRegion, RTGCPHYS cbRegion, PCIADDRESSSPACE enmType);
 /** Pointer to a FNPCIIOREGIONOLDSETTER() function. */
 typedef FNPCIIOREGIONOLDSETTER *PFNPCIIOREGIONOLDSETTER;
 
@@ -157,7 +152,7 @@ typedef FNPCIIOREGIONOLDSETTER *PFNPCIIOREGIONOLDSETTER;
  * @param   iOtherRegion    The number of the region swap with.
  * @sa      @bugref{9359}
  */
-typedef DECLCALLBACKTYPE(int, FNPCIIOREGIONSWAP,(PPDMPCIDEV pPciDev, uint32_t iRegion, uint32_t iOtherRegion));
+typedef DECLCALLBACK(int) FNPCIIOREGIONSWAP(PPDMPCIDEV pPciDev, uint32_t iRegion, uint32_t iOtherRegion);
 /** Pointer to a FNPCIIOREGIONSWAP() function. */
 typedef FNPCIIOREGIONSWAP *PFNPCIIOREGIONSWAP;
 

@@ -1,10 +1,10 @@
-/* $Id: DevBusMouse.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevBusMouse.cpp $ */
 /** @file
  * BusMouse - Microsoft Bus (parallel) mouse controller device.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -236,13 +236,12 @@ static void bmsR3MouseEvent(PBMSSTATE pThis, int dx, int dy, int dz, int dw, int
 /**
  * @callback_method_impl{FNTMTIMERDEV}
  */
-static DECLCALLBACK(void) bmsR3TimerCallback(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) bmsR3TimerCallback(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     PBMSSTATE   pThis   = PDMDEVINS_2_DATA(pDevIns, PBMSSTATE);
     PBMSSTATER3 pThisCC = PDMDEVINS_2_DATA(pDevIns, PBMSSTATER3);
     uint8_t     irq_bit;
-    RT_NOREF(pvUser, hTimer);
-    Assert(hTimer == pThis->hMouseTimer);
+    RT_NOREF(pvUser, pTimer);
 
     /* Toggle the IRQ line if interrupts are enabled. */
     irq_bit = BMS_IRQ_BIT(pThis->irq);
@@ -283,7 +282,7 @@ static DECLCALLBACK(void) bmsR3TimerCallback(PPDMDEVINS pDevIns, TMTIMERHANDLE h
     }
 
     /* Re-arm the timer. */
-    PDMDevHlpTimerSetMillies(pDevIns, hTimer, pThis->cTimerPeriodMs);
+    PDMDevHlpTimerSetMillies(pDevIns, pThis->hMouseTimer, pThis->cTimerPeriodMs);
 }
 
 # endif /* IN_RING3 */
@@ -573,7 +572,7 @@ static DECLCALLBACK(int) bmsR3MousePort_PutEvent(PPDMIMOUSEPORT pInterface, int3
     PPDMDEVINS  pDevIns = pThisCC->pDevIns;
     PBMSSTATE   pThis   = PDMDEVINS_2_DATA(pDevIns, PBMSSTATE);
     int rc = PDMDevHlpCritSectEnter(pDevIns, pDevIns->CTX_SUFF(pCritSectRo), VERR_SEM_BUSY);
-    PDM_CRITSECT_RELEASE_ASSERT_RC_DEV(pDevIns, pDevIns->CTX_SUFF(pCritSectRo), rc);
+    AssertReleaseRC(rc);
 
     bmsR3MouseEvent(pThis, dx, dy, dz, dw, fButtons);
 
@@ -716,7 +715,7 @@ static DECLCALLBACK(int) bmsR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFGM
      * Create the interrupt timer.
      */
     rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL, bmsR3TimerCallback, pThis,
-                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT | TMTIMER_FLAGS_NO_RING0, "Bus Mouse", &pThis->hMouseTimer);
+                              TMTIMER_FLAGS_DEFAULT_CRIT_SECT, "Bus Mouse Timer", &pThis->hMouseTimer);
     AssertRCReturn(rc, rc);
 
     /*

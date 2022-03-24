@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsAudio.h 94039 2022-03-01 13:10:19Z vboxsync $ */
+/* $Id: UIMachineSettingsAudio.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsAudio class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,18 +23,15 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIMachineSettingsAudio.gen.h"
 
 /* Forward declarations: */
-class QCheckBox;
-class QGridLayout;
-class QLabel;
-class UIAudioControllerEditor;
-class UIAudioHostDriverEditor;
 struct UIDataSettingsMachineAudio;
 typedef UISettingsCache<UIDataSettingsMachineAudio> UISettingsCacheMachineAudio;
 
 /** Machine settings: Audio page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsAudio : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsAudio : public UISettingsPageMachine,
+                                                    public Ui::UIMachineSettingsAudio
 {
     Q_OBJECT;
 
@@ -48,36 +45,32 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
-    /** Prepares connections. */
-    void prepareConnections();
     /** Cleanups all. */
     void cleanup();
 
@@ -86,26 +79,6 @@ private:
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineAudio *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the audio check-box instance. */
-        QCheckBox               *m_pCheckBoxAudio;
-        /** Holds the audio settings widget instance. */
-        QWidget                 *m_pWidgetAudioSettings;
-        /** Holds the audio settings layout instance. */
-        QGridLayout             *m_pLayoutAudioSettings;
-        /** Holds the audio host driver editor instance. */
-        UIAudioHostDriverEditor *m_pEditorAudioHostDriver;
-        /** Holds the audio host controller instance instance. */
-        UIAudioControllerEditor *m_pEditorAudioController;
-        /** Holds the audio extended label instance. */
-        QLabel                  *m_pLabelAudioExtended;
-        /** Holds the audio output check-box instance. */
-        QCheckBox               *m_pCheckBoxAudioOutput;
-        /** Holds the audio input check-box instance. */
-        QCheckBox               *m_pCheckBoxAudioInput;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsAudio_h */

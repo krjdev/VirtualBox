@@ -1,10 +1,10 @@
-/* $Id: VBoxHook.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxHook.cpp $ */
 /** @file
  * VBoxHook -- Global windows hook dll
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,7 +53,7 @@ static void WriteLog(const char *pszFormat, ...);
 
 static void CALLBACK VBoxHandleWinEvent(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd,
                                         LONG idObject, LONG idChild,
-                                        DWORD dwEventThread, DWORD dwmsEventTime) RT_NOTHROW_DEF
+                                        DWORD dwEventThread, DWORD dwmsEventTime)
 {
     RT_NOREF(hWinEventHook, idChild, dwEventThread, dwmsEventTime);
     DWORD dwStyle;
@@ -108,7 +108,7 @@ static void CALLBACK VBoxHandleWinEvent(HWINEVENTHOOK hWinEventHook, DWORD event
 
 static void CALLBACK VBoxHandleDesktopEvent(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd,
                                             LONG idObject, LONG idChild,
-                                            DWORD dwEventThread, DWORD dwmsEventTime) RT_NOTHROW_DEF
+                                            DWORD dwEventThread, DWORD dwmsEventTime)
 {
     RT_NOREF(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEventTime);
     if (!g_hDesktopNotifyEvent)

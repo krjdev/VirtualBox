@@ -143,6 +143,7 @@ struct _EDKII_FORM_BROWSER_EXTENSION_PROTOCOL {
   SAVE_REMINDER          SaveReminder;
 };
 
+extern EFI_GUID gEfiFormBrowserExProtocolGuid;
 extern EFI_GUID gEdkiiFormBrowserExProtocolGuid;
 
 #endif

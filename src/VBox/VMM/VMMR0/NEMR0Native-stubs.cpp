@@ -1,4 +1,4 @@
-/* $Id: NEMR0Native-stubs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NEMR0Native-stubs.cpp $ */
 /** @file
  * NEM - Native execution manager, ring-0 stubs until there is a driverless mode.
  */

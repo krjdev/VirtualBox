@@ -1,10 +1,10 @@
-/* $Id: UISettingsSelector.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISettingsSelector.h $ */
 /** @file
  * VBox Qt GUI - UISettingsSelector class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ class QITreeWidget;
 class UISelectorActionItem;
 class UISelectorItem;
 class UISettingsPage;
-class QIToolBar;
+class UIToolBar;
 
 
 /** QObject subclass providing settings dialog
@@ -56,7 +56,7 @@ public:
     /** Constructs settings selector passing @a pParent to the base-class. */
     UISettingsSelector(QWidget *pParent = 0);
     /** Destructs settings selector. */
-    virtual ~UISettingsSelector() RT_OVERRIDE;
+    virtual ~UISettingsSelector() /* override */;
 
     /** Returns the widget selector operates on. */
     virtual QWidget *widget() const = 0;
@@ -138,10 +138,10 @@ public:
     /** Constructs settings selector passing @a pParent to the base-class. */
     UISettingsSelectorTreeView(QWidget *pParent = 0);
     /** Destructs settings selector. */
-    virtual ~UISettingsSelectorTreeView() RT_OVERRIDE;
+    virtual ~UISettingsSelectorTreeView() /* override */;
 
     /** Returns the widget selector operates on. */
-    virtual QWidget *widget() const RT_OVERRIDE;
+    virtual QWidget *widget() const /* override */;
 
     /** Adds a new selector item.
       * @param  strBigIcon     Brings the big icon reference.
@@ -152,27 +152,27 @@ public:
       * @param  pPage          Brings the selector section page reference.
       * @param  iParentID      Brings the parent section ID or -1 if there is no parent. */
     virtual QWidget *addItem(const QString &strBigIcon, const QString &strMediumIcon, const QString &strSmallIcon,
-                             int iID, const QString &strLink, UISettingsPage *pPage = 0, int iParentID = -1) RT_OVERRIDE;
+                             int iID, const QString &strLink, UISettingsPage *pPage = 0, int iParentID = -1) /* override */;
 
     /** Defines the @a strText for section with @a iID. */
-    virtual void setItemText(int iID, const QString &strText) RT_OVERRIDE;
+    virtual void setItemText(int iID, const QString &strText) /* override */;
     /** Returns the text for section with @a iID. */
-    virtual QString itemText(int iID) const RT_OVERRIDE;
+    virtual QString itemText(int iID) const /* override */;
 
     /** Returns the current selector ID. */
-    virtual int currentId() const RT_OVERRIDE;
+    virtual int currentId() const /* override */;
 
     /** Returns the section ID for passed @a strLink. */
-    virtual int linkToId(const QString &strLink) const RT_OVERRIDE;
+    virtual int linkToId(const QString &strLink) const /* override */;
 
     /** Make the section with @a iID current. */
-    virtual void selectById(int iID) RT_OVERRIDE;
+    virtual void selectById(int iID) /* override */;
 
     /** Make the section with @a iID @a fVisible. */
-    virtual void setVisibleById(int iID, bool fVisible) RT_OVERRIDE;
+    virtual void setVisibleById(int iID, bool fVisible) /* override */;
 
     /** Performs selector polishing. */
-    virtual void polish() RT_OVERRIDE;
+    virtual void polish() /* override */;
 
 private slots:
 
@@ -182,7 +182,7 @@ private slots:
 private:
 
     /** Clears selector of all the items. */
-    virtual void clear() RT_OVERRIDE;
+    virtual void clear() /* override */;
 
     /** Returns page path for passed @a strMatch. */
     QString pagePath(const QString &strMatch) const;
@@ -211,10 +211,10 @@ public:
     /** Constructs settings selector passing @a pParent to the base-class. */
     UISettingsSelectorToolBar(QWidget *pParent = 0);
     /** Destructs settings selector. */
-    virtual ~UISettingsSelectorToolBar() RT_OVERRIDE;
+    virtual ~UISettingsSelectorToolBar() /* override */;
 
     /** Returns the widget selector operates on. */
-    virtual QWidget *widget() const RT_OVERRIDE;
+    virtual QWidget *widget() const /* override */;
 
     /** Adds a new selector item.
       * @param  strBigIcon     Brings the big icon reference.
@@ -225,35 +225,35 @@ public:
       * @param  pPage          Brings the selector section page reference.
       * @param  iParentID      Brings the parent section ID or -1 if there is no parent. */
     virtual QWidget *addItem(const QString &strBigIcon, const QString &strMediumIcon, const QString &strSmallIcon,
-                             int iID, const QString &strLink, UISettingsPage *pPage = 0, int iParentID = -1) RT_OVERRIDE;
+                             int iID, const QString &strLink, UISettingsPage *pPage = 0, int iParentID = -1) /* override */;
 
     /** Defines the @a strText for section with @a iID. */
-    virtual void setItemText(int iID, const QString &strText) RT_OVERRIDE;
+    virtual void setItemText(int iID, const QString &strText) /* override */;
     /** Returns the text for section with @a iID. */
-    virtual QString itemText(int iID) const RT_OVERRIDE;
+    virtual QString itemText(int iID) const /* override */;
 
     /** Returns the current selector ID. */
-    virtual int currentId() const RT_OVERRIDE;
+    virtual int currentId() const /* override */;
 
     /** Returns the section ID for passed @a strLink. */
-    virtual int linkToId(const QString &strLink) const RT_OVERRIDE;
+    virtual int linkToId(const QString &strLink) const /* override */;
 
     /** Returns the section page for passed @a iID. */
-    virtual QWidget *idToPage(int iID) const RT_OVERRIDE;
+    virtual QWidget *idToPage(int iID) const /* override */;
     /** Returns the section root-page for passed @a iID. */
-    virtual QWidget *rootPage(int iID) const RT_OVERRIDE;
+    virtual QWidget *rootPage(int iID) const /* override */;
 
     /** Make the section with @a iID current. */
-    virtual void selectById(int iID) RT_OVERRIDE;
+    virtual void selectById(int iID) /* override */;
 
     /** Make the section with @a iID @a fVisible. */
-    virtual void setVisibleById(int iID, bool fVisible) RT_OVERRIDE;
+    virtual void setVisibleById(int iID, bool fVisible) /* override */;
 
     /** Returns the list of all root pages. */
-    virtual QList<QWidget*> rootPages() const RT_OVERRIDE;
+    virtual QList<QWidget*> rootPages() const /* override */;
 
     /** Returns minimum selector width. */
-    virtual int minWidth() const RT_OVERRIDE;
+    virtual int minWidth() const /* override */;
 
 private slots:
 
@@ -265,7 +265,7 @@ private slots:
 private:
 
     /** Clears selector of all the items. */
-    virtual void clear() RT_OVERRIDE;
+    virtual void clear() /* override */;
 
     /** Searches for action item with passed @a iID. */
     UISelectorActionItem *findActionItem(int iID) const;
@@ -275,7 +275,7 @@ private:
     UISelectorActionItem *findActionItemByTabWidget(QTabWidget *pTabWidget, int iIndex) const;
 
     /** Holds the toolbar instance. */
-    QIToolBar *m_pToolBar;
+    UIToolBar *m_pToolBar;
     /** Holds the action group instance. */
     QActionGroup *m_pActionGroup;
 };

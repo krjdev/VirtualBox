@@ -1,10 +1,10 @@
-/* $Id: VBoxMPVidModes.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxMPVidModes.cpp $ */
 /** @file
  * VBox Miniport video modes related functions
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -17,15 +17,19 @@
 
 #include "VBoxMPCommon.h"
 
+#if _MSC_VER >= 1400 /* bird: MS fixed swprintf to be standard-conforming... */
+#define _INC_SWPRINTF_INL_
+extern "C" int __cdecl swprintf(wchar_t *, const wchar_t *, ...);
+#endif
+#include <wchar.h>
 #include <VBoxVideoVBE.h>
-#include <iprt/utf16.h>
 
 #ifdef VBOX_WITH_WDDM
 # define VBOX_WITHOUT_24BPP_MODES
 #endif
 
 /* Custom video modes which are being read from registry at driver startup. */
-static VIDEO_MODE_INFORMATION g_CustomVideoModes[VBOX_VIDEO_MAX_SCREENS] = { {0} };
+static VIDEO_MODE_INFORMATION g_CustomVideoModes[VBOX_VIDEO_MAX_SCREENS] = { 0 };
 
 static BOOLEAN
 VBoxMPValidateVideoModeParamsGuest(PVBOXMP_DEVEXT pExt, uint32_t iDisplay, uint32_t xres, uint32_t yres, uint32_t bpp)
@@ -156,15 +160,15 @@ void VBoxMPCmnInitCustomVideoModes(PVBOXMP_DEVEXT pExt)
         }
         else
         {
-            wchar_t wszKeyName[32];
-            RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomXRes%d", iMode);
-            rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomXRes);
+            wchar_t keyname[32];
+            swprintf(keyname, L"CustomXRes%d", iMode);
+            rc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomXRes);
             VBOXMP_WARN_VPS_NOBP(rc);
-            RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomYRes%d", iMode);
-            rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomYRes);
+            swprintf(keyname, L"CustomYRes%d", iMode);
+            rc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomYRes);
             VBOXMP_WARN_VPS_NOBP(rc);
-            RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomBPP%d", iMode);
-            rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &CustomBPP);
+            swprintf(keyname, L"CustomBPP%d", iMode);
+            rc = VBoxMPCmnRegQueryDword(Registry, keyname, &CustomBPP);
             VBOXMP_WARN_VPS_NOBP(rc);
         }
 
@@ -400,19 +404,19 @@ VBoxMPFillModesTable(PVBOXMP_DEVEXT pExt, int iDisplay, PVIDEO_MODE_INFORMATION 
             break;
         }
 
-        wchar_t wszKeyName[24];
+        wchar_t keyname[24];
         uint32_t xres, yres, bpp = 0;
 
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomMode%dWidth", curKey);
-        rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &xres);
+        swprintf(keyname, L"CustomMode%dWidth", curKey);
+        rc = VBoxMPCmnRegQueryDword(Registry, keyname, &xres);
         VBOXMP_CHECK_VPS_BREAK(rc);
 
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomMode%dHeight", curKey);
-        rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &yres);
+        swprintf(keyname, L"CustomMode%dHeight", curKey);
+        rc = VBoxMPCmnRegQueryDword(Registry, keyname, &yres);
         VBOXMP_CHECK_VPS_BREAK(rc);
 
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomMode%dBPP", curKey);
-        rc = VBoxMPCmnRegQueryDword(Registry, wszKeyName, &bpp);
+        swprintf(keyname, L"CustomMode%dBPP", curKey);
+        rc = VBoxMPCmnRegQueryDword(Registry, keyname, &bpp);
         VBOXMP_CHECK_VPS_BREAK(rc);
 
         LOG(("got custom mode[%u]=%ux%u:%u", curKey, xres, yres, bpp));
@@ -697,15 +701,15 @@ static void VBoxMPRegSaveModeInfo(PVBOXMP_DEVEXT pExt, uint32_t iDisplay, PVIDEO
     }
     else
     {
-        wchar_t wszKeyName[32];
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomXRes%d", iDisplay);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, pMode->VisScreenWidth);
+        wchar_t keyname[32];
+        swprintf(keyname, L"CustomXRes%d", iDisplay);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, pMode->VisScreenWidth);
         VBOXMP_WARN_VPS(rc);
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomYRes%d", iDisplay);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, pMode->VisScreenHeight);
+        swprintf(keyname, L"CustomYRes%d", iDisplay);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, pMode->VisScreenHeight);
         VBOXMP_WARN_VPS(rc);
-        RTUtf16Printf(wszKeyName, RT_ELEMENTS(wszKeyName), "CustomBPP%d", iDisplay);
-        rc = VBoxMPCmnRegSetDword(Registry, wszKeyName, pMode->BitsPerPlane);
+        swprintf(keyname, L"CustomBPP%d", iDisplay);
+        rc = VBoxMPCmnRegSetDword(Registry, keyname, pMode->BitsPerPlane);
         VBOXMP_WARN_VPS(rc);
     }
 
@@ -797,7 +801,7 @@ void VBoxMPXpdmBuildVideoModesTable(PVBOXMP_DEVEXT pExt)
          * Only alternate index if one of mode parameters changed and
          * regardless of conditions always add 2 entries to the table.
          */
-        bAlternativeIndex = FALSE;
+        BOOLEAN bAlternativeIndex = FALSE;
 
         BOOLEAN bChanged = (pExt->Prev_xres!=specialMode.VisScreenWidth
                             || pExt->Prev_yres!=specialMode.VisScreenHeight

@@ -1,10 +1,10 @@
-/* $Id: GuestImpl.h 93468 2022-01-27 21:17:12Z vboxsync $ */
+/* $Id: GuestImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -62,7 +62,7 @@ class ATL_NO_VTABLE Guest :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS (Guest)
+    DECLARE_EMPTY_CTOR_DTOR (Guest)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -94,19 +94,14 @@ public:
     ComObjPtr<Console> i_getConsole(void) { return mParent; }
     void i_setAdditionsStatus(VBoxGuestFacilityType a_enmFacility, VBoxGuestFacilityStatus a_enmStatus,
                               uint32_t a_fFlags, PCRTTIMESPEC a_pTimeSpecTS);
-    void i_onUserStateChanged(const Utf8Str &aUser, const Utf8Str &aDomain, VBoxGuestUserState enmState,
-                              const uint8_t *puDetails, uint32_t cbDetails);
+    void i_onUserStateChange(Bstr aUser, Bstr aDomain, VBoxGuestUserState enmState, const uint8_t *puDetails, uint32_t cbDetails);
     void i_setSupportedFeatures(uint32_t aCaps);
     HRESULT i_setStatistic(ULONG aCpuId, GUESTSTATTYPE enmType, ULONG aVal);
     BOOL i_isPageFusionEnabled();
     void i_setCpuCount(uint32_t aCpus) { mCpus = aCpus; }
-    static HRESULT i_setErrorStatic(HRESULT aResultCode, const char *aText, ...)
+    static HRESULT i_setErrorStatic(HRESULT aResultCode, const Utf8Str &aText)
     {
-        va_list va;
-        va_start(va, aText);
-        HRESULT hrc = setErrorInternalV(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, va, false, true);
-        va_end(va);
-        return hrc;
+        return setErrorInternal(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, false, true);
     }
     uint32_t    i_getAdditionsRevision(void) { return mData.mAdditionsRevision; }
     uint32_t    i_getAdditionsVersion(void) { return mData.mAdditionsVersionFull; }
@@ -118,9 +113,9 @@ public:
     }
 #ifdef VBOX_WITH_GUEST_CONTROL
     int         i_dispatchToSession(PVBOXGUESTCTRLHOSTCBCTX pCtxCb, PVBOXGUESTCTRLHOSTCALLBACK pSvcCb);
+    int         i_sessionRemove(uint32_t uSessionID);
     int         i_sessionCreate(const GuestSessionStartupInfo &ssInfo, const GuestCredentials &guestCreds,
                                 ComObjPtr<GuestSession> &pGuestSession);
-    int         i_sessionDestroy(uint32_t uSessionID);
     inline bool i_sessionExists(uint32_t uSessionID);
     /** Returns the VBOX_GUESTCTRL_GF_0_XXX mask reported by the guest. */
     uint64_t    i_getGuestControlFeatures0() const { return mData.mfGuestFeatures0; }
@@ -177,7 +172,6 @@ private:
 
      HRESULT findSession(const com::Utf8Str &aSessionName,
                          std::vector<ComPtr<IGuestSession> > &aSessions);
-     HRESULT shutdown(const std::vector<GuestShutdownFlag_T> &aFlags);
      HRESULT updateGuestAdditions(const com::Utf8Str &aSource,
                                   const std::vector<com::Utf8Str> &aArguments,
                                   const std::vector<AdditionsUpdateFlag_T> &aFlags,
@@ -188,7 +182,7 @@ private:
      * @{ */
     void i_updateStats(uint64_t iTick);
     static DECLCALLBACK(int) i_staticEnumStatsCallback(const char *pszName, STAMTYPE enmType, void *pvSample,
-                                                       STAMUNIT enmUnit, const char *pszUnit, STAMVISIBILITY enmVisiblity,
+                                                       STAMUNIT enmUnit, STAMVISIBILITY enmVisiblity,
                                                        const char *pszDesc, void *pvUser);
 
     /** @}  */

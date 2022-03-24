@@ -1,10 +1,10 @@
-/* $Id: NtProcessStartup-stub.cpp 93260 2022-01-17 09:54:11Z vboxsync $ */
+/* $Id: NtProcessStartup-stub.cpp $ */
 /** @file
  * IPRT - NtProcessStartup stub to make the link happy.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,29 +31,10 @@
 #include <iprt/asm.h>
 
 
-/**
- * This is the entrypoint the linker picks, however it is never called for
- * ring-0 binaries.
- */
 extern "C" void __cdecl NtProcessStartup(void *pvIgnored);
 extern "C" void __cdecl NtProcessStartup(void *pvIgnored)
 {
     ASMBreakpoint();
     NOREF(pvIgnored);
 }
-
-
-#ifdef IN_RING0
-/**
- * This dummy entry point is required for using BufferOverflowK.lib and
- * /guard:cf and /GS.  It is never called.
- */
-extern "C" long __stdcall DriverEntry(void *pvDrvObjIgn, void *pvRegPathIgn);
-extern "C" long __stdcall DriverEntry(void *pvDrvObjIgn, void *pvRegPathIgn)
-{
-    ASMBreakpoint();
-    RT_NOREF(pvDrvObjIgn, pvRegPathIgn);
-    return UINT32_C(0xc0000022);
-}
-#endif
 

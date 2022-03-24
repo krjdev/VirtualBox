@@ -1,10 +1,10 @@
-/* $Id: D3DFeatureLevel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: D3DFeatureLevel.cpp $ */
 /** @file
  * ????
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,8 +26,7 @@
 
 int main(int argc, char *argv[])
 {
-    (void)argc, argv;
-
+    HRESULT rc;
     D3D_FEATURE_LEVEL iFeatureLevelMax = static_cast<D3D_FEATURE_LEVEL>(0);
 
     /* The list of feature levels we're selecting from. */
@@ -40,10 +39,10 @@ int main(int argc, char *argv[])
         D3D_FEATURE_LEVEL_9_1
     };
 
-    HRESULT rc = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, aiFeatureLevels,
+    rc = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, aiFeatureLevels,
         ARRAYSIZE(aiFeatureLevels), D3D11_SDK_VERSION, NULL, &iFeatureLevelMax, NULL);
 
-    printf("Maximum supported feature level: 0x%X, hr=0x%X.\n", iFeatureLevelMax, (unsigned int)rc);
+    printf("Maximum supported feature level: 0x%X, hr=0x%X.\n", iFeatureLevelMax, rc);
 
     return rc;
 }

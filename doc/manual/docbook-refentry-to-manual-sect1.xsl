@@ -95,9 +95,6 @@
   <xsl:element name="sect2">
     <xsl:attribute name="role">not-in-toc</xsl:attribute>
     <xsl:attribute name="condition">refsect1</xsl:attribute>
-    <xsl:if test="@id">
-      <xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-    </xsl:if>
     <xsl:apply-templates />
   </xsl:element>
 </xsl:template>
@@ -108,9 +105,6 @@
   <xsl:element name="sect3">
     <xsl:attribute name="role">not-in-toc</xsl:attribute>
     <xsl:attribute name="condition">refsect2</xsl:attribute>
-    <xsl:if test="@id">
-      <xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-    </xsl:if>
     <xsl:apply-templates />
   </xsl:element>
 </xsl:template>
@@ -121,9 +115,6 @@
   <xsl:element name="sect4">
     <xsl:attribute name="role">not-in-toc</xsl:attribute>
     <xsl:attribute name="condition">refsect3</xsl:attribute>
-    <xsl:if test="@id">
-      <xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
-    </xsl:if>
     <xsl:apply-templates />
   </xsl:element>
 </xsl:template>

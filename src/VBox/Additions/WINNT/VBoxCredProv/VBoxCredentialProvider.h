@@ -1,10 +1,10 @@
-/* $Id: VBoxCredentialProvider.h 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxCredentialProvider.h $ */
 /** @file
  * VBoxCredentialProvider - Main file of the VirtualBox Credential Provider.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #endif
 
 #include <iprt/win/windows.h>
-#include <iprt/win/credentialprovider.h>
+#include <credentialprovider.h>
 #include <Shlguid.h>
 
 #include "VBoxCredProvUtils.h"
@@ -65,26 +65,28 @@ struct VBOXCREDPROV_FIELD
 };
 
 #ifndef PCREDENTIAL_PROVIDER_FIELD_DESCRIPTOR
-# define PCREDENTIAL_PROVIDER_FIELD_DESCRIPTOR CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR*
+ #define PCREDENTIAL_PROVIDER_FIELD_DESCRIPTOR CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR*
 #endif
 
-#if !defined(NTDDI_VERSION) || !defined(NTDDI_WIN8) || NTDDI_VERSION < NTDDI_WIN8 /* < Windows 8 */
-/* 2d837775-f6cd-464e-a745-482fd0b47493, introduced in windows 8 */
-DEFINE_GUID(CPFG_CREDENTIAL_PROVIDER_LOGO, 0x2d837775, 0xf6cd, 0x464e, 0xa7, 0x45, 0x48, 0x2f, 0xd0, 0xb4, 0x74, 0x93);
-/* 286BBFF3-BAD4-438F-B007-79B7267C3D48, introduced in windows 8. */
-DEFINE_GUID(CPFG_CREDENTIAL_PROVIDER_LABEL, 0x286BBFF3, 0xBAD4, 0x438F, 0xB0 ,0x07, 0x79, 0xB7, 0x26, 0x7C, 0x3D, 0x48);
+#ifndef CPFG_CREDENTIAL_PROVIDER_LOGO
+ /* 2d837775-f6cd-464e-a745-482fd0b47493 */
+ DEFINE_GUID(CPFG_CREDENTIAL_PROVIDER_LOGO, 0x2d837775, 0xf6cd, 0x464e, 0xa7, 0x45, 0x48, 0x2f, 0xd0, 0xb4, 0x74, 0x93);
 #endif
 
+#ifndef CPFG_CREDENTIAL_PROVIDER_LABEL
+ /* 286BBFF3-BAD4-438F-B007-79B7267C3D48 */
+ DEFINE_GUID(CPFG_CREDENTIAL_PROVIDER_LABEL, 0x286BBFF3, 0xBAD4, 0x438F, 0xB0 ,0x07, 0x79, 0xB7, 0x26, 0x7C, 0x3D, 0x48);
+#endif
 
 /** The credential provider's default fields. */
 static const VBOXCREDPROV_FIELD s_VBoxCredProvDefaultFields[] =
 {
     /** The user's profile image (tile). */
-    { { VBOXCREDPROV_FIELDID_TILEIMAGE,      CPFT_TILE_IMAGE,    L"Tile Image",     {0}                            }, CPFS_DISPLAY_IN_BOTH,            CPFIS_NONE    },
+    { { VBOXCREDPROV_FIELDID_TILEIMAGE,      CPFT_TILE_IMAGE,    L"Tile Image",     0,                             }, CPFS_DISPLAY_IN_BOTH,            CPFIS_NONE    },
     { { VBOXCREDPROV_FIELDID_USERNAME,       CPFT_LARGE_TEXT,    L"Username",       CPFG_LOGON_USERNAME            }, CPFS_DISPLAY_IN_BOTH,            CPFIS_NONE    },
     { { VBOXCREDPROV_FIELDID_PASSWORD,       CPFT_PASSWORD_TEXT, L"Password",       CPFG_LOGON_PASSWORD            }, CPFS_DISPLAY_IN_SELECTED_TILE,   CPFIS_FOCUSED },
-    { { VBOXCREDPROV_FIELDID_DOMAINNAME,     CPFT_LARGE_TEXT,    L"",               {0}                            }, CPFS_DISPLAY_IN_SELECTED_TILE,   CPFIS_FOCUSED },
-    { { VBOXCREDPROV_FIELDID_SUBMIT_BUTTON,  CPFT_SUBMIT_BUTTON, L"Submit",         {0}                            }, CPFS_DISPLAY_IN_SELECTED_TILE,   CPFIS_FOCUSED },
+    { { VBOXCREDPROV_FIELDID_DOMAINNAME,     CPFT_LARGE_TEXT,    L"",               0                              }, CPFS_DISPLAY_IN_SELECTED_TILE,   CPFIS_FOCUSED },
+    { { VBOXCREDPROV_FIELDID_SUBMIT_BUTTON,  CPFT_SUBMIT_BUTTON, L"Submit",         0                              }, CPFS_DISPLAY_IN_SELECTED_TILE,   CPFIS_FOCUSED },
     /** New since Windows 8: The image used to represent a credential provider on the logon page. */
     { { VBOXCREDPROV_FIELDID_PROVIDER_LOGO,  CPFT_TILE_IMAGE,    L"Provider Logo",  CPFG_CREDENTIAL_PROVIDER_LOGO  }, CPFS_HIDDEN /* Not used yet. */, CPFIS_NONE },
     /** New since Windows 8: The label associated with a credential provider on the logon page. */

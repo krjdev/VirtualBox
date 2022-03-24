@@ -4,7 +4,7 @@
 # VirtualBox linux installation script
 
 #
-# Copyright (C) 2007-2022 Oracle Corporation
+# Copyright (C) 2007-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,7 @@ ARCH="_ARCH_"
 HARDENED="_HARDENED_"
 # The "BUILD_" prefixes prevent the variables from being overwritten when we
 # read the configuration from the previous installation.
-BUILD_VBOX_KBUILD_TYPE="_BUILDTYPE_"
+BUILD_BUILDTYPE="_BUILDTYPE_"
 BUILD_USERNAME="_USERNAME_"
 CONFIG_DIR="/etc/vbox"
 CONFIG="vbox.cfg"
@@ -307,7 +307,7 @@ if [ "$ACTION" = "install" ]; then
     echo "INSTALL_VER='$VERSION'" >> $CONFIG_DIR/$CONFIG
     echo "INSTALL_REV='$SVNREV'" >> $CONFIG_DIR/$CONFIG
     echo "# Build type and user name for logging purposes" >> $CONFIG_DIR/$CONFIG
-    echo "VBOX_KBUILD_TYPE='$BUILD_VBOX_KBUILD_TYPE'" >> $CONFIG_DIR/$CONFIG
+    echo "BUILD_TYPE='$BUILD_BUILDTYPE'" >> $CONFIG_DIR/$CONFIG
     echo "USERNAME='$BUILD_USERNAME'" >> $CONFIG_DIR/$CONFIG
 
     # Create users group
@@ -328,26 +328,14 @@ if [ "$ACTION" = "install" ]; then
     ln -sf $INSTALLATION_DIR/VBox.sh /usr/bin/vboxwebsrv
     ln -sf $INSTALLATION_DIR/vbox-img /usr/bin/vbox-img
     ln -sf $INSTALLATION_DIR/vboximg-mount /usr/bin/vboximg-mount
-    if [ -d /usr/share/pixmaps/ ]; then
-        ln -sf $INSTALLATION_DIR/VBox.png /usr/share/pixmaps/VBox.png
-    fi
+    ln -sf $INSTALLATION_DIR/VBox.png /usr/share/pixmaps/VBox.png
     if [ -f $INSTALLATION_DIR/VBoxDTrace ]; then
         ln -sf $INSTALLATION_DIR/VBox.sh /usr/bin/VBoxDTrace
     fi
-    if [ -f $INSTALLATION_DIR/VBoxAudioTest ]; then
-        ln -sf $INSTALLATION_DIR/VBox.sh /usr/bin/VBoxAudioTest
-    fi
     # Unity and Nautilus seem to look here for their icons
-    if [ -d /usr/share/pixmaps/ ]; then
-        ln -sf $INSTALLATION_DIR/icons/128x128/virtualbox.png /usr/share/pixmaps/virtualbox.png
-    fi
-    if [ -d /usr/share/applications/ ]; then
-        ln -sf $INSTALLATION_DIR/virtualbox.desktop /usr/share/applications/virtualbox.desktop
-        ln -sf $INSTALLATION_DIR/virtualboxvm.desktop /usr/share/applications/virtualboxvm.desktop
-    fi
-    if [ -d /usr/share/mime/packages/ ]; then
-        ln -sf $INSTALLATION_DIR/virtualbox.xml /usr/share/mime/packages/virtualbox.xml
-    fi
+    ln -sf $INSTALLATION_DIR/icons/128x128/virtualbox.png /usr/share/pixmaps/virtualbox.png
+    ln -sf $INSTALLATION_DIR/virtualbox.desktop /usr/share/applications/virtualbox.desktop
+    ln -sf $INSTALLATION_DIR/virtualbox.xml /usr/share/mime/packages/virtualbox.xml
     ln -sf $INSTALLATION_DIR/rdesktop-vrdp /usr/bin/rdesktop-vrdp
     ln -sf $INSTALLATION_DIR/src/vboxhost /usr/src/vboxhost-_VERSION_
 
@@ -363,8 +351,15 @@ if [ "$ACTION" = "install" ]; then
     if [ -f $INSTALLATION_DIR/VBoxDTrace ]; then
         ln -sf VBoxDTrace /usr/bin/vboxdtrace > /dev/null 2>&1
     fi
-    if [ -f $INSTALLATION_DIR/VBoxAudioTest ]; then
-        ln -sf VBoxAudioTest /usr/bin/vboxaudiotest > /dev/null 2>&1
+
+    # Create legacy symlinks if necesary for Qt5/xcb stuff.
+    if [ -d $INSTALLATION_DIR/legacy ]; then
+        if ! /sbin/ldconfig -p | grep -q "\<libxcb\.so\.1\>"; then
+            for f in `ls -1 $INSTALLATION_DIR/legacy/`; do
+                ln -s $INSTALLATION_DIR/legacy/$f $INSTALLATION_DIR/$f
+                echo $INSTALLATION_DIR/$f >> $CONFIG_DIR/$CONFIG_FILES
+            done
+        fi
     fi
 
     # Icons

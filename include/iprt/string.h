@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -90,16 +90,6 @@ RT_C_DECLS_END
 #if defined(RT_OS_NETBSD) && defined(_KERNEL)
 RT_C_DECLS_BEGIN
 char *strpbrk(const char *pszStr, const char *pszChars);
-RT_C_DECLS_END
-#endif
-
-#if (defined(RT_OS_DARWIN) || defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS)) && !defined(IPRT_NO_CRT)
-RT_C_DECLS_BEGIN
-# if !defined(RT_OS_DARWIN) || RT_CLANG_PREREQ(7 /* whatever post gcc-4.2 */, 0)
-RTDECL(void *) mempcpy(void *pvDst, const void *pvSrc, size_t cb);
-# else
-void *mempcpy(void *pvDst, const void *pvSrc, size_t cb);
-# endif
 RT_C_DECLS_END
 #endif
 
@@ -287,27 +277,6 @@ RTR3DECL(int)  RTStrUtf8ToCurrentCPExTag(char **ppszString, const char *pszStrin
  */
 RTR3DECL(int)  RTStrCurrentCPToUtf8Tag(char **ppszString, const char *pszString, const char *pszTag);
 
-/**
- * Allocates tmp buffer, translates pszString from console codepage to UTF-8.
- *
- * @returns iprt status code.
- * @param   ppszString      Receives pointer of allocated UTF-8 string.
- *                          The returned pointer must be freed using RTStrFree().
- * @param   pszString       Native string to convert.
- */
-#define RTStrConsoleCPToUtf8(ppszString, pszString)     RTStrConsoleCPToUtf8Tag((ppszString), (pszString), RTSTR_TAG)
-
-/**
- * Allocates tmp buffer, translates pszString from console codepage to UTF-8.
- *
- * @returns iprt status code.
- * @param   ppszString      Receives pointer of allocated UTF-8 string.
- *                          The returned pointer must be freed using RTStrFree().
- * @param   pszString       Native string to convert.
- * @param   pszTag          Allocation tag used for statistics and such.
- */
-RTR3DECL(int)  RTStrConsoleCPToUtf8Tag(char **ppszString, const char *pszString, const char *pszTag);
-
 #endif /* IN_RING3 */
 
 /**
@@ -340,22 +309,22 @@ RTDECL(char *) RTStrDupTag(const char *pszString, const char *pszTag);
  * Allocates a new copy of the given UTF-8 string (default tag).
  *
  * @returns iprt status code.
- * @param   ppszCopy        Receives pointer of the allocated UTF-8 string.
+ * @param   ppszString      Receives pointer of the allocated UTF-8 string.
  *                          The returned pointer must be freed using RTStrFree().
  * @param   pszString       UTF-8 string to duplicate.
  */
-#define RTStrDupEx(ppszCopy, pszString)     RTStrDupExTag((ppszCopy), (pszString), RTSTR_TAG)
+#define RTStrDupEx(ppszString, pszString)   RTStrDupExTag((ppszString), (pszString), RTSTR_TAG)
 
 /**
  * Allocates a new copy of the given UTF-8 string (custom tag).
  *
  * @returns iprt status code.
- * @param   ppszCopy        Receives pointer of the allocated UTF-8 string.
+ * @param   ppszString      Receives pointer of the allocated UTF-8 string.
  *                          The returned pointer must be freed using RTStrFree().
  * @param   pszString       UTF-8 string to duplicate.
  * @param   pszTag          Allocation tag used for statistics and such.
  */
-RTDECL(int)  RTStrDupExTag(char **ppszCopy, const char *pszString, const char *pszTag);
+RTDECL(int)  RTStrDupExTag(char **ppszString, const char *pszString, const char *pszTag);
 
 /**
  * Allocates a new copy of the given UTF-8 substring (default tag).
@@ -377,31 +346,6 @@ RTDECL(int)  RTStrDupExTag(char **ppszCopy, const char *pszString, const char *p
  * @param   pszTag          Allocation tag used for statistics and such.
  */
 RTDECL(char *) RTStrDupNTag(const char *pszString, size_t cchMax, const char *pszTag);
-
-/**
- * Allocates a new copy of the given UTF-8 substring (default tag).
- *
- * @returns iprt status code (VINF_SUCCESS or VERR_NO_STR_MEMORY).
- * @param   ppszCopy        Receives pointer of the allocated UTF-8 substring.
- *                          The returned pointer must be freed using RTStrFree().
- * @param   pszString       UTF-8 string to duplicate.
- * @param   cchMax          The max number of chars to duplicate, not counting
- *                          the terminator.
- */
-#define RTStrDupNEx(ppszCopy, pszString, cchMax)    RTStrDupNExTag((ppszCopy), (pszString), (cchMax), RTSTR_TAG)
-
-/**
- * Allocates a new copy of the given UTF-8 substring (custom tag).
- *
- * @returns iprt status code (VINF_SUCCESS or VERR_NO_STR_MEMORY).
- * @param   ppszCopy        Receives pointer of the allocated UTF-8 substring.
- *                          The returned pointer must be freed using RTStrFree().
- * @param   pszString       UTF-8 string to duplicate.
- * @param   cchMax          The max number of chars to duplicate, not counting
- *                          the terminator.
- * @param   pszTag          Allocation tag used for statistics and such.
- */
-RTDECL(int) RTStrDupNExTag(char **ppszCopy, const char *pszString, size_t cchMax, const char *pszTag);
 
 /**
  * Appends a string onto an existing IPRT allocated string (default tag).
@@ -821,7 +765,7 @@ RTDECL(size_t) RTStrPurgeEncoding(char *psz);
 
 /**
  * Sanitizes a (valid) UTF-8 string by replacing all characters outside a white
- * list in-place by an ASCII replacedment character.
+ * list in-place by an ASCII replacement character.
  *
  * Multi-byte characters will be replaced byte by byte.
  *
@@ -1394,7 +1338,7 @@ DECLINLINE(char *) RTStrPutCp(char *psz, RTUNICP CodePoint)
 {
     if (CodePoint < 0x80)
     {
-        *psz++ = (char)CodePoint;
+        *psz++ = (unsigned char)CodePoint;
         return psz;
     }
     return RTStrPutCpInternal(psz, CodePoint);
@@ -1490,10 +1434,6 @@ RTDECL(char *) RTStrPrevCp(const char *pszStart, const char *psz);
  * Group 1, the basic runtime typedefs (excluding those which obviously are
  * pointer):
  *      - \%RTbool          - Takes a bool value and prints 'true', 'false', or '!%d!'.
- *      - \%RTeic           - Takes a #PCRTERRINFO value outputting 'rc: msg',
- *                            or 'rc - msg' with the \# flag.
- *      - \%RTeim           - Takes a #PCRTERRINFO value outputting ': msg', or
- *                            ' - msg' with the \# flag.
  *      - \%RTfile          - Takes a #RTFILE value.
  *      - \%RTfmode         - Takes a #RTFMODE value.
  *      - \%RTfoff          - Takes a #RTFOFF value.
@@ -1563,8 +1503,6 @@ RTDECL(char *) RTStrPrevCp(const char *pszStart, const char *psz);
  *                            i.e. a series of space separated bytes formatted as two digit hex value.
  *                            Use the precision to specify the length. Default length is 16 bytes.
  *                            The width, if specified, is ignored.
- *                            The space separtor can get change to a colon by
- *                            using the ' flag, and removed entirely using \#.
  *      - \%RhXd            - Same as \%Rhxd, but takes an additional uint64_t
  *                            value with the memory start address/offset after
  *                            the memory pointer.
@@ -1599,28 +1537,21 @@ RTDECL(char *) RTStrPrevCp(const char *pszStart, const char *psz);
  *                            short description of the specified status code.
  *      - \%Rrf             - Takes an integer iprt status code as argument. Will insert the
  *                            full description of the specified status code.
- *                            Note! Works like \%Rrs when IN_RT_STATIC is defined (so please avoid).
  *      - \%Rra             - Takes an integer iprt status code as argument. Will insert the
  *                            status code define + full description.
- *                            Note! Reduced output when IN_RT_STATIC is defined (so please avoid).
  *      - \%Rwc             - Takes a long Windows error code as argument. Will insert the status
  *                            code define corresponding to the Windows error code.
  *      - \%Rwf             - Takes a long Windows error code as argument. Will insert the
  *                            full description of the specified status code.
- *                            Note! Works like \%Rwc when IN_RT_STATIC is defined.
  *      - \%Rwa             - Takes a long Windows error code as argument. Will insert the
  *                            error code define + full description.
- *                            Note! Reduced output when IN_RT_STATIC is defined (so please avoid).
  *
  *      - \%Rhrc            - Takes a COM/XPCOM status code as argument. Will insert the status
  *                            code define corresponding to the Windows error code.
  *      - \%Rhrf            - Takes a COM/XPCOM status code as argument. Will insert the
  *                            full description of the specified status code.
- *                            Note! Works like \%Rhrc when IN_RT_STATIC is
- *                                  defined on Windows (so please avoid).
  *      - \%Rhra            - Takes a COM/XPCOM error code as argument. Will insert the
  *                            error code define + full description.
- *                            Note! Reduced output when IN_RT_STATIC is defined on Windows (so please avoid).
  *
  *      - \%Rfn             - Pretty printing of a function or method. It drops the
  *                            return code and parameter list.
@@ -1672,7 +1603,7 @@ RTDECL(char *) RTStrPrevCp(const char *pszStart, const char *psz);
  *
  */
 
-#ifndef DECLARED_FNRTSTROUTPUT          /* duplicated in iprt/log.h & errcore.h */
+#ifndef DECLARED_FNRTSTROUTPUT          /* duplicated in iprt/log.h */
 # define DECLARED_FNRTSTROUTPUT
 /**
  * Output callback.
@@ -1682,7 +1613,7 @@ RTDECL(char *) RTStrPrevCp(const char *pszStart, const char *psz);
  * @param   pachChars   Pointer to an array of utf-8 characters.
  * @param   cbChars     Number of bytes in the character array pointed to by pachChars.
  */
-typedef DECLCALLBACKTYPE(size_t, FNRTSTROUTPUT,(void *pvArg, const char *pachChars, size_t cbChars));
+typedef DECLCALLBACK(size_t) FNRTSTROUTPUT(void *pvArg, const char *pachChars, size_t cbChars);
 /** Pointer to callback function. */
 typedef FNRTSTROUTPUT *PFNRTSTROUTPUT;
 #endif
@@ -1738,9 +1669,9 @@ typedef FNRTSTROUTPUT *PFNRTSTROUTPUT;
  * @param   fFlags          Flags (RTSTR_NTFS_*).
  * @param   chArgSize       The argument size specifier, 'l' or 'L'.
  */
-typedef DECLCALLBACKTYPE(size_t, FNSTRFORMAT,(void *pvArg, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput,
-                                              const char **ppszFormat, va_list *pArgs, int cchWidth,
-                                              int cchPrecision, unsigned fFlags, char chArgSize));
+typedef DECLCALLBACK(size_t) FNSTRFORMAT(void *pvArg, PFNRTSTROUTPUT pfnOutput, void *pvArgOutput,
+                                         const char **ppszFormat, va_list *pArgs, int cchWidth,
+                                         int cchPrecision, unsigned fFlags, char chArgSize);
 /** Pointer to a FNSTRFORMAT() function. */
 typedef FNSTRFORMAT *PFNSTRFORMAT;
 
@@ -1956,10 +1887,10 @@ RTDECL(ssize_t) RTStrFormatR80u2(char *pszBuf, size_t cbBuf, PCRTFLOAT80U2 pr80V
  * @param   fFlags          Flags (NTFS_*).
  * @param   pvUser          The user argument.
  */
-typedef DECLCALLBACKTYPE(size_t, FNRTSTRFORMATTYPE,(PFNRTSTROUTPUT pfnOutput, void *pvArgOutput,
-                                                    const char *pszType, void const *pvValue,
-                                                    int cchWidth, int cchPrecision, unsigned fFlags,
-                                                    void *pvUser));
+typedef DECLCALLBACK(size_t) FNRTSTRFORMATTYPE(PFNRTSTROUTPUT pfnOutput, void *pvArgOutput,
+                                               const char *pszType, void const *pvValue,
+                                               int cchWidth, int cchPrecision, unsigned fFlags,
+                                               void *pvUser);
 /** Pointer to a FNRTSTRFORMATTYPE. */
 typedef FNRTSTRFORMATTYPE *PFNRTSTRFORMATTYPE;
 
@@ -2691,6 +2622,8 @@ RTDECL(size_t) RTStrNLen(const char *pszString, size_t cchMax);
  */
 RTDECL(int) RTStrNLenEx(const char *pszString, size_t cchMax, size_t *pcch);
 
+RT_C_DECLS_END
+
 /** The maximum size argument of a memchr call. */
 #define RTSTR_MEMCHR_MAX            ((~(size_t)0 >> 1) - 15)
 
@@ -2703,7 +2636,41 @@ RTDECL(int) RTStrNLenEx(const char *pszString, size_t cchMax, size_t *pcch);
  * @param   pszString   The string.
  * @param   cchMax      The max string length.  RTSTR_MAX is fine.
  */
-RTDECL(char *) RTStrEnd(char const *pszString, size_t cchMax);
+#if defined(__cplusplus) && !defined(DOXYGEN_RUNNING)
+DECLINLINE(char const *) RTStrEnd(char const *pszString, size_t cchMax)
+{
+    /* Avoid potential issues with memchr seen in glibc.
+     * See sysdeps/x86_64/memchr.S in glibc versions older than 2.11 */
+    while (cchMax > RTSTR_MEMCHR_MAX)
+    {
+        char const *pszRet = (char const *)memchr(pszString, '\0', RTSTR_MEMCHR_MAX);
+        if (RT_LIKELY(pszRet))
+            return pszRet;
+        pszString += RTSTR_MEMCHR_MAX;
+        cchMax    -= RTSTR_MEMCHR_MAX;
+    }
+    return (char const *)memchr(pszString, '\0', cchMax);
+}
+
+DECLINLINE(char *) RTStrEnd(char *pszString, size_t cchMax)
+#else
+DECLINLINE(char *) RTStrEnd(const char *pszString, size_t cchMax)
+#endif
+{
+    /* Avoid potential issues with memchr seen in glibc.
+     * See sysdeps/x86_64/memchr.S in glibc versions older than 2.11 */
+    while (cchMax > RTSTR_MEMCHR_MAX)
+    {
+        char *pszRet = (char *)memchr(pszString, '\0', RTSTR_MEMCHR_MAX);
+        if (RT_LIKELY(pszRet))
+            return pszRet;
+        pszString += RTSTR_MEMCHR_MAX;
+        cchMax    -= RTSTR_MEMCHR_MAX;
+    }
+    return (char *)memchr(pszString, '\0', cchMax);
+}
+
+RT_C_DECLS_BEGIN
 
 /**
  * Finds the offset at which a simple character first occurs in a string.
@@ -2719,8 +2686,9 @@ DECLINLINE(size_t) RTStrOffCharOrTerm(const char *pszHaystack, char chNeedle)
     while (   (ch = *psz) != chNeedle
            && ch != '\0')
         psz++;
-    return (size_t)(psz - pszHaystack);
+    return psz - pszHaystack;
 }
+
 
 /**
  * Matches a simple string pattern.
@@ -3362,7 +3330,7 @@ RTDECL(PRTSTRSPACECORE) RTStrSpaceGetN(PRTSTRSPACE pStrSpace, const char *pszStr
  * @param   pStr        The string node
  * @param   pvUser      The user specified argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTSTRSPACECALLBACK,(PRTSTRSPACECORE pStr, void *pvUser));
+typedef DECLCALLBACK(int)   FNRTSTRSPACECALLBACK(PRTSTRSPACECORE pStr, void *pvUser);
 /** Pointer to callback function for RTStrSpaceEnumerate() and RTStrSpaceDestroy(). */
 typedef FNRTSTRSPACECALLBACK *PFNRTSTRSPACECALLBACK;
 
@@ -3492,3 +3460,4 @@ RTDECL(uint64_t *) RTStrMemFind64(const void *pvHaystack, uint64_t uNeedle, size
 RT_C_DECLS_END
 
 #endif /* !IPRT_INCLUDED_string_h */
+

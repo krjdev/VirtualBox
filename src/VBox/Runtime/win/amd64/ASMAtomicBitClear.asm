@@ -3,7 +3,7 @@
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ BEGINCODE
 ; @param   edx  iBit        The bit to toggle set.
 ; @remark  No memory barrier, take care on smp.
 ;
-RT_BEGINPROC ASMAtomicBitClear
+BEGINPROC_EXPORTED ASMAtomicBitClear
         lock btr [rcx], edx
         ret
 ENDPROC ASMAtomicBitClear

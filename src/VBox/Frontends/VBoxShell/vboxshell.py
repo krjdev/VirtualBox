@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# $Id: vboxshell.py 94189 2022-03-11 19:02:57Z vboxsync $
+# $Id: vboxshell.py $
 
 """
 VirtualBox Python Shell.
@@ -23,7 +23,7 @@ from __future__ import print_function
 
 __copyright__ = \
 """
-Copyright (C) 2009-2022 Oracle Corporation
+Copyright (C) 2009-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -33,7 +33,7 @@ Foundation, in version 2 as it comes in the "COPYING" file of the
 VirtualBox OSE distribution. VirtualBox OSE is distributed in the
 hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
 """
-__version__ = "$Revision: 94189 $"
+__version__ = "$Revision: 148572 $"
 
 
 import gc
@@ -364,11 +364,7 @@ def monitorSource(ctx, eventSource, active, dur):
         elif  evtype == ctx['global'].constants.VBoxEventType_OnGuestPropertyChanged:
             gpcev = ctx['global'].queryInterface(event, 'IGuestPropertyChangedEvent')
             if gpcev:
-                if gpcev.fWasDeleted is True:
-                    print("property %s was deleted" % (gpcev.name))
-                else:
-                    print("guest property change: name=%s value=%s flags='%s'" %
-                          (gpcev.name, gpcev.value, gpcev.flags))
+                print("guest property change: name=%s value=%s" % (gpcev.name, gpcev.value))
         elif  evtype == ctx['global'].constants.VBoxEventType_OnMousePointerShapeChanged:
             psev = ctx['global'].queryInterface(event, 'IMousePointerShapeChangedEvent')
             if psev:
@@ -1660,6 +1656,8 @@ def getAdapterType(ctx, natype):
         return "e1000"
     elif (natype == ctx['global'].constants.NetworkAdapterType_Virtio):
         return "virtio"
+    elif (natype == ctx['global'].constants.NetworkAdapterType_Virtio_1_0):
+        return "virtio_1.0"
     elif (natype == ctx['global'].constants.NetworkAdapterType_Null):
         return None
     else:

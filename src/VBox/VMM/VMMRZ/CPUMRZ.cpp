@@ -1,10 +1,10 @@
-/* $Id: CPUMRZ.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: CPUMRZ.cpp $ */
 /** @file
  * CPUM - Raw-mode and ring-0 context.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -98,10 +98,8 @@ VMMRZ_INT_DECL(void)    CPUMRZFpuStateActualizeForRead(PVMCPUCC pVCpu)
 {
     if (pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST)
     {
-        Assert(pVCpu->cpum.s.Guest.fUsedFpuGuest);
         cpumRZSaveGuestFpuState(&pVCpu->cpum.s, false /*fLeaveFpuAccessible*/);
         pVCpu->cpum.s.fUseFlags |= CPUM_USED_FPU_GUEST;
-        pVCpu->cpum.s.Guest.fUsedFpuGuest = true;
         Log7(("CPUMRZFpuStateActualizeForRead\n"));
     }
 }
@@ -121,7 +119,6 @@ VMMRZ_INT_DECL(void)    CPUMRZFpuStateActualizeSseForRead(PVMCPUCC pVCpu)
 #else
     if (pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST)
     {
-        Assert(pVCpu->cpum.s.Guest.fUsedFpuGuest);
         cpumRZSaveGuestSseRegisters(&pVCpu->cpum.s);
         Log7(("CPUMRZFpuStateActualizeSseForRead\n"));
     }
@@ -140,7 +137,6 @@ VMMRZ_INT_DECL(void)    CPUMRZFpuStateActualizeAvxForRead(PVMCPUCC pVCpu)
 {
     if (pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST)
     {
-        Assert(pVCpu->cpum.s.Guest.fUsedFpuGuest);
         cpumRZSaveGuestAvxRegisters(&pVCpu->cpum.s);
         Log7(("CPUMRZFpuStateActualizeAvxForRead\n"));
     }

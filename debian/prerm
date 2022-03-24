@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: prerm 82441 2019-12-05 23:16:02Z vboxsync $
+# $Id: prerm $
 ## @file
 # VirtualBox pre-removal.
 #

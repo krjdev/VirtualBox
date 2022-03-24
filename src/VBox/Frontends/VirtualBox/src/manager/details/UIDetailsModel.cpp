@@ -1,10 +1,10 @@
-/* $Id: UIDetailsModel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIDetailsModel.cpp $ */
 /** @file
  * VBox Qt GUI - UIDetailsModel class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,16 +24,15 @@
 #include <QMetaEnum>
 
 /* GUI includes: */
-#include "UICommon.h"
 #include "UIConverter.h"
-#include "UIDesktopWidgetWatchdog.h"
 #include "UIDetails.h"
 #include "UIDetailsContextMenu.h"
-#include "UIDetailsElement.h"
-#include "UIDetailsGroup.h"
 #include "UIDetailsModel.h"
+#include "UIDetailsGroup.h"
+#include "UIDetailsElement.h"
 #include "UIDetailsView.h"
 #include "UIExtraDataManager.h"
+#include "UICommon.h"
 
 
 /*********************************************************************************************************************************
@@ -90,19 +89,16 @@ UIDetailsItem *UIDetailsModel::root() const
 
 void UIDetailsModel::updateLayout()
 {
-    /* Initialize variables: */
-    AssertPtrReturnVoid(view());
-    AssertPtrReturnVoid(root());
-    const QSize viewportSize = view()->size();
-    const int iViewportWidth = viewportSize.width();
-    const int iViewportHeight = root()->minimumSizeHint().toSize().height();
+    /* Prepare variables: */
+    const QSize viewportSize = paintDevice()->viewport()->size();
+    const QSize rootSize = viewportSize.expandedTo(m_pRoot->minimumSizeHint().toSize());
 
     /* Move root: */
-    root()->setPos(0, 0);
+    m_pRoot->setPos(0, 0);
     /* Resize root: */
-    root()->resize(iViewportWidth, iViewportHeight);
+    m_pRoot->resize(rootSize);
     /* Layout root content: */
-    root()->updateLayout();
+    m_pRoot->updateLayout();
 }
 
 void UIDetailsModel::setItems(const QList<UIVirtualMachineItem*> &items)
@@ -115,9 +111,6 @@ void UIDetailsModel::setCategories(const QMap<DetailsElementType, bool> &categor
     m_categories = categories;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateCategoryStates();
-
-    /* Save categories: */
-    gEDataManager->setSelectorWindowDetailsElements(m_categories);
 }
 
 void UIDetailsModel::setOptionsGeneral(UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral fOptionsGeneral)
@@ -125,47 +118,6 @@ void UIDetailsModel::setOptionsGeneral(UIExtraDataMetaDefs::DetailsElementOption
     m_fOptionsGeneral = fOptionsGeneral;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_General);
-
-    /* Save general options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeGeneral");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsGeneral & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_General, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_General, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsSystem(UIExtraDataMetaDefs::DetailsElementOptionTypeSystem fOptionsSystem)
@@ -173,47 +125,6 @@ void UIDetailsModel::setOptionsSystem(UIExtraDataMetaDefs::DetailsElementOptionT
     m_fOptionsSystem = fOptionsSystem;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_System);
-
-    /* Save system options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSystem");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeSystem enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSystem>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsSystem & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_System, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_System, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsDisplay(UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay fOptionsDisplay)
@@ -221,47 +132,6 @@ void UIDetailsModel::setOptionsDisplay(UIExtraDataMetaDefs::DetailsElementOption
     m_fOptionsDisplay = fOptionsDisplay;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Display);
-
-    /* Save display options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeDisplay");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsDisplay & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Display, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Display, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsStorage(UIExtraDataMetaDefs::DetailsElementOptionTypeStorage fOptionsStorage)
@@ -269,47 +139,6 @@ void UIDetailsModel::setOptionsStorage(UIExtraDataMetaDefs::DetailsElementOption
     m_fOptionsStorage = fOptionsStorage;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Storage);
-
-    /* Save storage options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeStorage");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeStorage enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeStorage>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsStorage & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Storage, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Storage, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsAudio(UIExtraDataMetaDefs::DetailsElementOptionTypeAudio fOptionsAudio)
@@ -317,47 +146,6 @@ void UIDetailsModel::setOptionsAudio(UIExtraDataMetaDefs::DetailsElementOptionTy
     m_fOptionsAudio = fOptionsAudio;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Audio);
-
-    /* Save audio options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeAudio");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeAudio enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeAudio>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsAudio & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Audio, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Audio, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsNetwork(UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork fOptionsNetwork)
@@ -365,47 +153,6 @@ void UIDetailsModel::setOptionsNetwork(UIExtraDataMetaDefs::DetailsElementOption
     m_fOptionsNetwork = fOptionsNetwork;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Network);
-
-    /* Save network options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeNetwork");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsNetwork & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Network, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Network, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsSerial(UIExtraDataMetaDefs::DetailsElementOptionTypeSerial fOptionsSerial)
@@ -413,47 +160,6 @@ void UIDetailsModel::setOptionsSerial(UIExtraDataMetaDefs::DetailsElementOptionT
     m_fOptionsSerial = fOptionsSerial;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Serial);
-
-    /* Save serial options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSerial");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeSerial enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSerial>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsSerial & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Serial, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Serial, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsUsb(UIExtraDataMetaDefs::DetailsElementOptionTypeUsb fOptionsUsb)
@@ -461,47 +167,6 @@ void UIDetailsModel::setOptionsUsb(UIExtraDataMetaDefs::DetailsElementOptionType
     m_fOptionsUsb = fOptionsUsb;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_USB);
-
-    /* Save USB options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeUsb");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeUsb enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeUsb>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsUsb & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_USB, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_USB, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsSharedFolders(UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders fOptionsSharedFolders)
@@ -509,47 +174,6 @@ void UIDetailsModel::setOptionsSharedFolders(UIExtraDataMetaDefs::DetailsElement
     m_fOptionsSharedFolders = fOptionsSharedFolders;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_SF);
-
-    /* Save shared folders options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSharedFolders");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsSharedFolders & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_SF, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_SF, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsUserInterface(UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface fOptionsUserInterface)
@@ -557,47 +181,6 @@ void UIDetailsModel::setOptionsUserInterface(UIExtraDataMetaDefs::DetailsElement
     m_fOptionsUserInterface = fOptionsUserInterface;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_UI);
-
-    /* Save user interface options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeUserInterface");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsUserInterface & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_UI, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_UI, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::setOptionsDescription(UIExtraDataMetaDefs::DetailsElementOptionTypeDescription fOptionsDescription)
@@ -605,47 +188,6 @@ void UIDetailsModel::setOptionsDescription(UIExtraDataMetaDefs::DetailsElementOp
     m_fOptionsDescription = fOptionsDescription;
     m_pRoot->rebuildGroup();
     m_pContextMenu->updateOptionStates(DetailsElementType_Description);
-
-    /* Save description options: */
-    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
-    const int iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeDescription");
-    if (iEnumIndex != -1)
-    {
-        bool fDefault = true;
-        QStringList options;
-        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
-        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
-        {
-            /* Prepare current option type: */
-            const UIExtraDataMetaDefs::DetailsElementOptionTypeDescription enmOptionType =
-                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeDescription>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
-            /* Skip invalid and default types: */
-            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Invalid
-                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default)
-                continue;
-            /* If option type enabled: */
-            if (m_fOptionsDescription & enmOptionType)
-            {
-                /* Add it to the list: */
-                options << gpConverter->toInternalString(enmOptionType);
-                /* Make sure item is included by default: */
-                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default & enmOptionType))
-                    fDefault = false;
-            }
-            /* If option type disabled: */
-            else
-            {
-                /* Make sure item is excluded by default: */
-                if (UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default & enmOptionType)
-                    fDefault = false;
-            }
-            /* Save options: */
-            if (!fDefault)
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Description, options);
-            else
-                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Description, QStringList());
-        }
-    }
 }
 
 void UIDetailsModel::sltHandleViewResize()
@@ -746,10 +288,7 @@ void UIDetailsModel::sltToggleAnimationFinished(DetailsElementType enmType, bool
 
     /* Update element open/close status: */
     if (m_categories.contains(enmType))
-    {
         m_categories[enmType] = fToggled;
-        gEDataManager->setSelectorWindowDetailsElements(m_categories);
-    }
 }
 
 void UIDetailsModel::prepare()
@@ -951,6 +490,464 @@ void UIDetailsModel::loadDetailsOptions(DetailsElementType enmType /* = DetailsE
     m_pContextMenu->updateOptionStates();
 }
 
+void UIDetailsModel::saveDetailsOptions()
+{
+    /* We will use that one for all the options fetching: */
+    const QMetaObject &smo = UIExtraDataMetaDefs::staticMetaObject;
+    int iEnumIndex = -1;
+
+    /* General options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeGeneral");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsGeneral & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeGeneral_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_General, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_General, QStringList());
+        }
+    }
+
+    /* System options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSystem");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeSystem enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSystem>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsSystem & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSystem_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_System, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_System, QStringList());
+        }
+    }
+
+    /* Display options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeDisplay");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsDisplay & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeDisplay_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Display, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Display, QStringList());
+        }
+    }
+
+    /* Storage options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeStorage");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeStorage enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeStorage>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsStorage & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeStorage_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Storage, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Storage, QStringList());
+        }
+    }
+
+    /* Audio options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeAudio");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeAudio enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeAudio>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsAudio & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeAudio_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Audio, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Audio, QStringList());
+        }
+    }
+
+    /* Network options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeNetwork");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsNetwork & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeNetwork_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Network, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Network, QStringList());
+        }
+    }
+
+    /* Serial options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSerial");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeSerial enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSerial>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsSerial & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSerial_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Serial, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Serial, QStringList());
+        }
+    }
+
+    /* Usb options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeUsb");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeUsb enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeUsb>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsUsb & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeUsb_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_USB, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_USB, QStringList());
+        }
+    }
+
+    /* SharedFolders options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeSharedFolders");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsSharedFolders & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeSharedFolders_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_SF, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_SF, QStringList());
+        }
+    }
+
+    /* UserInterface options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeUserInterface");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsUserInterface & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeUserInterface_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_UI, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_UI, QStringList());
+        }
+    }
+
+    /* Description options: */
+    iEnumIndex = smo.indexOfEnumerator("DetailsElementOptionTypeDescription");
+    if (iEnumIndex != -1)
+    {
+        bool fDefault = true;
+        QStringList options;
+        const QMetaEnum metaEnum = smo.enumerator(iEnumIndex);
+        for (int iKeyIndex = 0; iKeyIndex < metaEnum.keyCount(); ++iKeyIndex)
+        {
+            /* Prepare current option type: */
+            const UIExtraDataMetaDefs::DetailsElementOptionTypeDescription enmOptionType =
+                static_cast<UIExtraDataMetaDefs::DetailsElementOptionTypeDescription>(metaEnum.keyToValue(metaEnum.key(iKeyIndex)));
+            /* Skip invalid and default types: */
+            if (   enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Invalid
+                || enmOptionType == UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default)
+                continue;
+            /* If option type enabled: */
+            if (m_fOptionsDescription & enmOptionType)
+            {
+                /* Add it to the list: */
+                options << gpConverter->toInternalString(enmOptionType);
+                /* Make sure item is included by default: */
+                if (!(UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default & enmOptionType))
+                    fDefault = false;
+            }
+            /* If option type disabled: */
+            else
+            {
+                /* Make sure item is excluded by default: */
+                if (UIExtraDataMetaDefs::DetailsElementOptionTypeDescription_Default & enmOptionType)
+                    fDefault = false;
+            }
+            /* Save options: */
+            if (!fDefault)
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Description, options);
+            else
+                gEDataManager->setVBoxManagerDetailsPaneElementOptions(DetailsElementType_Description, QStringList());
+        }
+    }
+}
+
+void UIDetailsModel::saveDetailsCategories()
+{
+    gEDataManager->setSelectorWindowDetailsElements(m_categories);
+}
+
+void UIDetailsModel::saveSettings()
+{
+    saveDetailsOptions();
+    saveDetailsCategories();
+}
+
 void UIDetailsModel::cleanupContextMenu()
 {
     delete m_pContextMenu;
@@ -972,6 +969,7 @@ void UIDetailsModel::cleanupScene()
 void UIDetailsModel::cleanup()
 {
     /* Cleanup things: */
+    saveSettings();
     cleanupContextMenu();
     cleanupRoot();
     cleanupScene();
@@ -985,16 +983,8 @@ bool UIDetailsModel::processContextMenuEvent(QGraphicsSceneContextMenuEvent *pEv
             return false;
 
     /* Adjust the menu then show it: */
-    const QRect availableGeo = gpDesktop->availableGeometry(pEvent->screenPos());
-    QRect geo(pEvent->screenPos(), m_pContextMenu->minimumSizeHint());
-    if (geo.topRight().x() > availableGeo.topRight().x())
-        geo.adjust(availableGeo.topRight().x() - geo.topRight().x(), 0,
-                   availableGeo.topRight().x() - geo.topRight().x(), 0);
-    if (geo.bottomLeft().y() > availableGeo.bottomLeft().y())
-        geo.adjust(0, availableGeo.bottomLeft().y() - geo.bottomLeft().y(),
-                   0, availableGeo.bottomLeft().y() - geo.bottomLeft().y());
-    m_pContextMenu->resize(geo.size());
-    m_pContextMenu->move(geo.topLeft());
+    m_pContextMenu->resize(m_pContextMenu->minimumSizeHint());
+    m_pContextMenu->move(pEvent->screenPos());
     m_pContextMenu->show();
 
     /* Filter: */

@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-natnetwork" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-13 21:40:25 +0100 (So, 13. Mär 2022) $</pubdate>
+    <pubdate>September 2019</pubdate>
     <title>VBoxManage natnetwork</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-natnetwork</refname>
     <refpurpose>create, modify, and manage a NAT network</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -178,8 +178,8 @@
         <varlistentry>
           <term><option>--port-forward-4=<replaceable>rule</replaceable></option></term>
           <listitem><para>
-              Enables IPv4 port forwarding by using the rule specified
-              by <replaceable>rule</replaceable>.
+              Enables an IPv4 loopback interface by using the specified
+              rule.
             </para></listitem>
         </varlistentry>
         <varlistentry>
@@ -322,8 +322,8 @@
         <varlistentry>
           <term><option>--port-forward-4=<replaceable>rule</replaceable></option></term>
           <listitem><para>
-              Enables IPv4 port forwarding by using the rule specified
-              by <replaceable>rule</replaceable>.
+              Enables an IPv4 loopback interface by using the specified
+              rule.
             </para></listitem>
         </varlistentry>
         <varlistentry>

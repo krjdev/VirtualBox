@@ -1,10 +1,10 @@
-/* $Id: EventImpl.cpp 93188 2022-01-11 21:28:09Z vboxsync $ */
+/* $Id: EventImpl.cpp $ */
 /** @file
  * VirtualBox COM Event class implementation
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -57,7 +57,6 @@
 #include "EventImpl.h"
 #include "AutoCaller.h"
 #include "LoggingNew.h"
-#include "VBoxEvents.h"
 
 #include <iprt/asm.h>
 #include <iprt/critsect.h>
@@ -214,7 +213,7 @@ HRESULT VBoxEvent::waitProcessed(LONG aTimeout, BOOL *aResult)
     // must drop lock while waiting, because setProcessed() needs synchronization.
     alock.release();
     /** @todo maybe while loop for spurious wakeups? */
-    int vrc = ::RTSemEventWait(m->mWaitEvent, aTimeout < 0 ? RT_INDEFINITE_WAIT : (RTMSINTERVAL)aTimeout);
+    int vrc = ::RTSemEventWait(m->mWaitEvent, aTimeout);
     AssertMsg(RT_SUCCESS(vrc) || vrc == VERR_TIMEOUT || vrc == VERR_INTERRUPTED,
               ("RTSemEventWait returned %Rrc\n", vrc));
     alock.acquire();
@@ -930,7 +929,7 @@ HRESULT ListenerRecord::dequeue(IEvent **aEvent,
             // release lock while waiting, listener will not go away due to above holder
             aAlock.release();
 
-            ::RTSemEventWait(hEvt, aTimeout < 0 ? RT_INDEFINITE_WAIT : (RTMSINTERVAL)aTimeout);
+            ::RTSemEventWait(hEvt, aTimeout);
             ASMAtomicDecS32(&mQEventBusyCnt);
 
             // reacquire lock
@@ -1082,7 +1081,9 @@ HRESULT EventSource::registerListener(const ComPtr<IEventListener> &aListener,
     RecordHolder<ListenerRecord> lrh(new ListenerRecord(aListener, interested, aActive, this));
     m->mListeners.insert(Listeners::value_type((IEventListener *)aListener, lrh));
 
-    ::FireEventSourceChangedEvent(this, (IEventListener *)aListener, TRUE /*add*/);
+    VBoxEventDesc evDesc;
+    evDesc.init(this, VBoxEventType_OnEventSourceChanged, (IEventListener *)aListener, TRUE);
+    evDesc.fire(0);
 
     return S_OK;
 }
@@ -1100,12 +1101,20 @@ HRESULT EventSource::unregisterListener(const ComPtr<IEventListener> &aListener)
         it->second.obj()->shutdown();
         m->mListeners.erase(it);
         // destructor removes refs from the event map
-        ::FireEventSourceChangedEvent(this, (IEventListener *)aListener, FALSE /*add*/);
         rc = S_OK;
     }
     else
+    {
         rc = setError(VBOX_E_OBJECT_NOT_FOUND,
                       tr("Listener was never registered"));
+    }
+
+    if (SUCCEEDED(rc))
+    {
+        VBoxEventDesc evDesc;
+        evDesc.init(this, VBoxEventType_OnEventSourceChanged, (IEventListener *)aListener, FALSE);
+        evDesc.fire(0);
+    }
 
     return rc;
 }
@@ -1338,7 +1347,7 @@ public:
     // IEventListener methods
     STDMETHOD(HandleEvent)(IEvent *)
     {
-        ComAssertMsgRet(false, (tr("HandleEvent() of wrapper shall never be called")),
+        ComAssertMsgRet(false, ("HandleEvent() of wrapper shall never be called"),
                         E_FAIL);
     }
 };
@@ -1482,7 +1491,7 @@ HRESULT EventSource::createListener(ComPtr<IEventListener> &aListener)
     ComObjPtr<PassiveEventListener> listener;
 
     HRESULT rc = listener.createObject();
-    ComAssertMsgRet(SUCCEEDED(rc), (tr("Could not create wrapper object (%Rhrc)"), rc),
+    ComAssertMsgRet(SUCCEEDED(rc), ("Could not create wrapper object (%Rhrc)", rc),
                     E_FAIL);
     listener.queryInterfaceTo(aListener.asOutParam());
     return S_OK;
@@ -1494,7 +1503,7 @@ HRESULT EventSource::createAggregator(const std::vector<ComPtr<IEventSource> > &
     ComObjPtr<EventSourceAggregator> agg;
 
     HRESULT rc = agg.createObject();
-    ComAssertMsgRet(SUCCEEDED(rc), (tr("Could not create aggregator (%Rhrc)"), rc),
+    ComAssertMsgRet(SUCCEEDED(rc), ("Could not create aggregator (%Rhrc)", rc),
                     E_FAIL);
 
     rc = agg->init(aSubordinates);
@@ -1513,10 +1522,10 @@ HRESULT EventSourceAggregator::init(const std::vector<ComPtr<IEventSource> >  aS
     AssertReturn(autoInitSpan.isOk(), E_FAIL);
 
     rc = mSource.createObject();
-    ComAssertMsgRet(SUCCEEDED(rc), (tr("Could not create source (%Rhrc)"), rc),
+    ComAssertMsgRet(SUCCEEDED(rc), ("Could not create source (%Rhrc)", rc),
                     E_FAIL);
     rc = mSource->init();
-    ComAssertMsgRet(SUCCEEDED(rc), (tr("Could not init source (%Rhrc)"), rc),
+    ComAssertMsgRet(SUCCEEDED(rc), ("Could not init source (%Rhrc)", rc),
                     E_FAIL);
 
     for (size_t i = 0; i < aSourcesIn.size(); i++)
@@ -1652,7 +1661,7 @@ HRESULT EventSourceAggregator::createProxyListener(IEventListener *aListener,
     ComObjPtr<ProxyEventListener> proxy;
 
     HRESULT rc = proxy.createObject();
-    ComAssertMsgRet(SUCCEEDED(rc), (tr("Could not create proxy (%Rhrc)"), rc),
+    ComAssertMsgRet(SUCCEEDED(rc), ("Could not create proxy (%Rhrc)", rc),
                     E_FAIL);
 
     rc = proxy->init(mSource);

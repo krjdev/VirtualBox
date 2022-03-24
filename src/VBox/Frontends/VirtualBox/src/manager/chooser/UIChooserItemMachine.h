@@ -1,10 +1,10 @@
-/* $Id: UIChooserItemMachine.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserItemMachine.h $ */
 /** @file
  * VBox Qt GUI - UIChooserItemMachine class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,11 +23,9 @@
 
 /* GUI includes: */
 #include "UIChooserItem.h"
-#include "UIManagerDefs.h"
 
 /* Forward declarations: */
 class UIChooserNodeMachine;
-class UIVirtualMachineItem;
 
 
 /** UIChooserItem extension implementing machine item. */
@@ -38,27 +36,19 @@ class UIChooserItemMachine : public UIChooserItem
 public:
 
     /** RTTI required for qgraphicsitem_cast. */
-    enum { Type = UIChooserNodeType_Machine };
+    enum { Type = UIChooserItemType_Machine };
 
     /** Build item for certain @a pNode, passing @a pParent to the base-class. */
     UIChooserItemMachine(UIChooserItem *pParent, UIChooserNodeMachine *pNode);
     /** Destructs machine item. */
-    virtual ~UIChooserItemMachine() RT_OVERRIDE;
+    virtual ~UIChooserItemMachine() /* override */;
 
     /** @name Item stuff.
       * @{ */
-        /** Returns machine node reference. */
-        UIChooserNodeMachine *nodeToMachineType() const;
         /** Returns item machine id. */
         QUuid id() const;
         /** Returns whether item accessible. */
         bool accessible() const;
-
-        /** Returns virtual machine cache instance. */
-        UIVirtualMachineItem *cache() const;
-        /** Returns virtual machine cache type. */
-        UIVirtualMachineItemType cacheType() const;
-
         /** Recaches item contents. */
         void recache();
 
@@ -85,90 +75,87 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
 
         /** Handles show @a pEvent. */
-        virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+        virtual void showEvent(QShowEvent *pEvent) /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
         /** Handles mouse press @a pEvent. */
-        virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) RT_OVERRIDE;
+        virtual void mousePressEvent(QGraphicsSceneMouseEvent *pEvent) /* override */;
 
         /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
     /** @} */
 
     /** @name Item stuff.
       * @{ */
         /** Returns RTTI item type. */
-        virtual int type() const RT_OVERRIDE { return Type; }
-
-        /** Defines item as @a fSelected. */
-        virtual void setSelected(bool fSelected) RT_OVERRIDE;
+        virtual int type() const /* override */ { return Type; }
 
         /** Starts item editing. */
-        virtual void startEditing() RT_OVERRIDE;
+        virtual void startEditing() /* override */;
 
         /** Updates item. */
-        virtual void updateItem() RT_OVERRIDE;
+        virtual void updateItem() /* override */;
         /** Updates item tool-tip. */
-        virtual void updateToolTip() RT_OVERRIDE;
+        virtual void updateToolTip() /* override */;
     /** @} */
 
     /** @name Children stuff.
       * @{ */
         /** Returns children items of certain @a enmType. */
-        virtual QList<UIChooserItem*> items(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+        virtual QList<UIChooserItem*> items(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
 
         /** Adds possible @a fFavorite child @a pItem to certain @a iPosition. */
-        virtual void addItem(UIChooserItem *pItem, bool fFavorite, int iPosition) RT_OVERRIDE;
+        virtual void addItem(UIChooserItem *pItem, bool fFavorite, int iPosition) /* override */;
         /** Removes child @a pItem. */
-        virtual void removeItem(UIChooserItem *pItem) RT_OVERRIDE;
+        virtual void removeItem(UIChooserItem *pItem) /* override */;
 
-        /** Searches for a first child item answering to specified @a strSearchTag and @a iSearchFlags. */
-        virtual UIChooserItem *searchForItem(const QString &strSearchTag, int iSearchFlags) RT_OVERRIDE;
+        /** Searches for a first child item answering to specified @a strSearchTag and @a iItemSearchFlags. */
+        virtual UIChooserItem *searchForItem(const QString &strSearchTag, int iItemSearchFlags) /* override */;
 
         /** Searches for a first machine child item. */
-        virtual UIChooserItem *firstMachineItem() RT_OVERRIDE;
+        virtual UIChooserItem *firstMachineItem() /* override */;
     /** @} */
 
     /** @name Layout stuff.
       * @{ */
         /** Updates layout. */
-        virtual void updateLayout() RT_OVERRIDE;
+        virtual void updateLayout() /* override */;
 
         /** Returns minimum width-hint. */
-        virtual int minimumWidthHint() const RT_OVERRIDE;
+        virtual int minimumWidthHint() const /* override */;
         /** Returns minimum height-hint. */
-        virtual int minimumHeightHint() const RT_OVERRIDE;
+        virtual int minimumHeightHint() const /* override */;
 
         /** Returns size-hint.
           * @param  enmWhich    Brings size-hint type.
           * @param  constraint  Brings size constraint. */
-        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const RT_OVERRIDE;
+        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const /* override */;
     /** @} */
 
     /** @name Navigation stuff.
       * @{ */
         /** Returns pixmap item representation. */
-        virtual QPixmap toPixmap() RT_OVERRIDE;
+        virtual QPixmap toPixmap() /* override */;
 
         /** Returns whether item drop is allowed.
           * @param  pEvent    Brings information about drop event.
           * @param  enmPlace  Brings the place of drag token to the drop moment. */
-        virtual bool isDropAllowed(QGraphicsSceneDragDropEvent *pEvent, UIChooserItemDragToken where) const RT_OVERRIDE;
+        virtual bool isDropAllowed(QGraphicsSceneDragDropEvent *pEvent, UIChooserItemDragToken where) const /* override */;
         /** Processes item drop.
           * @param  pEvent    Brings information about drop event.
           * @param  pFromWho  Brings the item according to which we choose drop position.
           * @param  enmPlace  Brings the place of drag token to the drop moment (according to item mentioned above). */
-        virtual void processDrop(QGraphicsSceneDragDropEvent *pEvent, UIChooserItem *pFromWho, UIChooserItemDragToken where) RT_OVERRIDE;
+        virtual void processDrop(QGraphicsSceneDragDropEvent *pEvent, UIChooserItem *pFromWho, UIChooserItemDragToken where) /* override */;
         /** Reset drag token. */
-        virtual void resetDragToken() RT_OVERRIDE;
+        virtual void resetDragToken() /* override */;
 
         /** Returns D&D mime data. */
-        virtual QMimeData *createMimeData() RT_OVERRIDE;
+        virtual QMimeData *createMimeData() /* override */;
     /** @} */
 
 private slots:
@@ -242,11 +229,11 @@ private:
     /** @name Painting stuff.
       * @{ */
         /** Paints background using specified @a pPainter and certain @a rectangle. */
-        void paintBackground(QPainter *pPainter, const QRect &rectangle);
+        void paintBackground(QPainter *pPainter, const QRect &rectangle) const;
         /** Paints frame using specified @a pPainter and certain @a rectangle. */
-        void paintFrame(QPainter *pPainter, const QRect &rectangle);
+        void paintFrame(QPainter *pPainter, const QRect &rectangle) const;
         /** Paints machine info using specified @a pPainter and certain @a rectangle. */
-        void paintMachineInfo(QPainter *pPainter, const QRect &rectangle);
+        void paintMachineInfo(QPainter *pPainter, const QRect &rectangle) const;
     /** @} */
 
     /** @name Navigation stuff.
@@ -258,18 +245,18 @@ private:
 
     /** @name Item stuff.
       * @{ */
-        /** Holds item start default lightness. */
-        int  m_iDefaultLightnessStart;
-        /** Holds item final default lightness. */
-        int  m_iDefaultLightnessFinal;
-        /** Holds item start hover lightness. */
-        int  m_iHoverLightnessStart;
-        /** Holds item final hover lightness. */
-        int  m_iHoverLightnessFinal;
-        /** Holds item start highlight lightness. */
-        int  m_iHighlightLightnessStart;
-        /** Holds item final highlight lightness. */
-        int  m_iHighlightLightnessFinal;
+        /** Holds item minimum default lightness. */
+        int  m_iDefaultLightnessMin;
+        /** Holds item maximum default lightness. */
+        int  m_iDefaultLightnessMax;
+        /** Holds item minimum hover lightness. */
+        int  m_iHoverLightnessMin;
+        /** Holds item maximum hover lightness. */
+        int  m_iHoverLightnessMax;
+        /** Holds item minimum highlight lightness. */
+        int  m_iHighlightLightnessMin;
+        /** Holds item maximum highlight lightness. */
+        int  m_iHighlightLightnessMax;
 
         /** Holds item pixmap. */
         QPixmap  m_pixmap;

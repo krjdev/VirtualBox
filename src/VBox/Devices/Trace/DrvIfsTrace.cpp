@@ -1,10 +1,10 @@
-/* $Id: DrvIfsTrace.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvIfsTrace.cpp $ */
 /** @file
  * VBox interface callback tracing driver.
  */
 
 /*
- * Copyright (C) 2020-2022 Oracle Corporation
+ * Copyright (C) 2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,7 +79,7 @@ static DECLCALLBACK(void) drvIfTrace_Destruct(PPDMDRVINS pDrvIns)
 
     if (pThis->pszTraceFilePath)
     {
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszTraceFilePath);
+        MMR3HeapFree(pThis->pszTraceFilePath);
         pThis->pszTraceFilePath = NULL;
     }
 }
@@ -92,10 +92,9 @@ static DECLCALLBACK(void) drvIfTrace_Destruct(PPDMDRVINS pDrvIns)
  */
 static DECLCALLBACK(int) drvIfTrace_Construct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVIFTRACE     pThis = PDMINS_2_DATA(pDrvIns, PDRVIFTRACE);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVIFTRACE   pThis   = PDMINS_2_DATA(pDrvIns, PDRVIFTRACE);
 
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
 
     /*
      * Initialize the instance data.
@@ -111,7 +110,7 @@ static DECLCALLBACK(int) drvIfTrace_Construct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "TraceFilePath|", "");
 
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "TraceFilePath", &pThis->pszTraceFilePath);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "TraceFilePath", &pThis->pszTraceFilePath);
     AssertLogRelRCReturn(rc, rc);
 
     /* Try to create a file based trace log. */

@@ -1,10 +1,10 @@
-/* $Id: UIActionPoolRuntime.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIActionPoolRuntime.h $ */
 /** @file
  * VBox Qt GUI - UIActionPoolRuntime class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,6 +22,7 @@
 #endif
 
 /* Qt includes: */
+#include <QList>
 #include <QMap>
 
 /* GUI includes: */
@@ -30,11 +31,12 @@
 #include "UILibraryDefs.h"
 
 
-/** VirtualBox Runtime action-pool index enum.
+/** Runtime action-pool index enum.
   * Naming convention is following:
   * 1. Every menu index prepended with 'M',
   * 2. Every simple-action index prepended with 'S',
   * 3. Every toggle-action index presended with 'T',
+  * 4. Every polymorphic-action index presended with 'P',
   * 5. Every sub-index contains full parent-index name. */
 enum UIActionIndexRT
 {
@@ -175,61 +177,31 @@ public:
     /** Returns whether the action with passed @a type is allowed in the 'Machine' menu. */
     bool isAllowedInMenuMachine(UIExtraDataMetaDefs::RuntimeMenuMachineActionType type) const;
     /** Defines 'Machine' menu @a restriction for passed @a level. */
-    void setRestrictionForMenuMachine(UIActionRestrictionLevel level,
-                                      UIExtraDataMetaDefs::RuntimeMenuMachineActionType restriction);
+    void setRestrictionForMenuMachine(UIActionRestrictionLevel level, UIExtraDataMetaDefs::RuntimeMenuMachineActionType restriction);
 
     /** Returns whether the action with passed @a type is allowed in the 'View' menu. */
     bool isAllowedInMenuView(UIExtraDataMetaDefs::RuntimeMenuViewActionType type) const;
     /** Defines 'View' menu @a restriction for passed @a level. */
-    void setRestrictionForMenuView(UIActionRestrictionLevel level,
-                                   UIExtraDataMetaDefs::RuntimeMenuViewActionType restriction);
+    void setRestrictionForMenuView(UIActionRestrictionLevel level, UIExtraDataMetaDefs::RuntimeMenuViewActionType restriction);
 
     /** Returns whether the action with passed @a type is allowed in the 'Input' menu. */
     bool isAllowedInMenuInput(UIExtraDataMetaDefs::RuntimeMenuInputActionType type) const;
     /** Defines 'Input' menu @a restriction for passed @a level. */
-    void setRestrictionForMenuInput(UIActionRestrictionLevel level,
-                                    UIExtraDataMetaDefs::RuntimeMenuInputActionType restriction);
+    void setRestrictionForMenuInput(UIActionRestrictionLevel level, UIExtraDataMetaDefs::RuntimeMenuInputActionType restriction);
 
     /** Returns whether the action with passed @a type is allowed in the 'Devices' menu. */
     bool isAllowedInMenuDevices(UIExtraDataMetaDefs::RuntimeMenuDevicesActionType type) const;
     /** Defines 'Devices' menu @a restriction for passed @a level. */
-    void setRestrictionForMenuDevices(UIActionRestrictionLevel level,
-                                      UIExtraDataMetaDefs::RuntimeMenuDevicesActionType restriction);
+    void setRestrictionForMenuDevices(UIActionRestrictionLevel level, UIExtraDataMetaDefs::RuntimeMenuDevicesActionType restriction);
 
 #ifdef VBOX_WITH_DEBUGGER_GUI
     /** Returns whether the action with passed @a type is allowed in the 'Debug' menu. */
     bool isAllowedInMenuDebug(UIExtraDataMetaDefs::RuntimeMenuDebuggerActionType type) const;
     /** Defines 'Debug' menu @a restriction for passed @a level. */
-    void setRestrictionForMenuDebugger(UIActionRestrictionLevel level,
-                                       UIExtraDataMetaDefs::RuntimeMenuDebuggerActionType restriction);
+    void setRestrictionForMenuDebugger(UIActionRestrictionLevel level, UIExtraDataMetaDefs::RuntimeMenuDebuggerActionType restriction);
 #endif
 
-protected:
-
-    /** Constructs action-pool.
-      * @param  fTemporary  Brings whether this action-pool is temporary,
-      *                     used to (re-)initialize shortcuts-pool. */
-    UIActionPoolRuntime(bool fTemporary = false);
-
-    /** Prepares pool. */
-    virtual void preparePool() RT_OVERRIDE;
-    /** Prepares connections. */
-    virtual void prepareConnections() RT_OVERRIDE;
-
-    /** Updates configuration. */
-    virtual void updateConfiguration() RT_OVERRIDE;
-
-    /** Updates menu. */
-    virtual void updateMenu(int iIndex) RT_OVERRIDE;
-    /** Updates menus. */
-    virtual void updateMenus() RT_OVERRIDE;
-
-    /** Returns extra-data ID to save keyboard shortcuts under. */
-    virtual QString shortcutsExtraDataID() const RT_OVERRIDE;
-    /** Updates shortcuts. */
-    virtual void updateShortcuts() RT_OVERRIDE;
-
-private slots:
+protected slots:
 
     /** Handles configuration-change. */
     void sltHandleConfigurationChange(const QUuid &uMachineID);
@@ -246,7 +218,25 @@ private slots:
     /** Handles 'View' : 'Virtual Screen #' menu : 'Rescale' @a pAction trigger. */
     void sltHandleActionTriggerViewScreenRescale(QAction *pAction);
 
-private:
+protected:
+
+    /** Constructs action-pool.
+      * @param  fTemporary  Brings whether this action-pool is temporary,
+      *                     used to (re-)initialize shortcuts-pool. */
+    UIActionPoolRuntime(bool fTemporary = false);
+
+    /** Prepares pool. */
+    virtual void preparePool() /* override */;
+    /** Prepares connections. */
+    virtual void prepareConnections() /* override */;
+
+    /** Updates configuration. */
+    virtual void updateConfiguration() /* override */;
+
+    /** Updates menu. */
+    virtual void updateMenu(int iIndex) /* override */;
+    /** Updates menus. */
+    virtual void updateMenus() /* override */;
 
     /** Updates 'Machine' menu. */
     void updateMenuMachine();
@@ -288,6 +278,14 @@ private:
     /** Updates 'Debug' menu. */
     void updateMenuDebug();
 #endif
+
+    /** Updates shortcuts. */
+    virtual void updateShortcuts() /* override */;
+
+    /** Returns extra-data ID to save keyboard shortcuts under. */
+    virtual QString shortcutsExtraDataID() const /* override */;
+
+private:
 
     /** Holds the host-screen count. */
     int  m_cHostScreens;

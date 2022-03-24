@@ -1,10 +1,10 @@
-/* $Id: DrvRamDisk.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvRamDisk.cpp $ */
 /** @file
  * VBox storage devices: RAM disk driver.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1152,15 +1152,6 @@ static DECLCALLBACK(int) drvramdiskQueryFeatures(PPDMIMEDIAEX pInterface, uint32
 
 
 /**
- * @interface_method_impl{PDMIMEDIAEX,pfnNotifySuspend}
- */
-static DECLCALLBACK(void) drvramdiskNotifySuspend(PPDMIMEDIAEX pInterface)
-{
-    RT_NOREF(pInterface);
-}
-
-
-/**
  * @interface_method_impl{PDMIMEDIAEX,pfnIoReqAllocSizeSet}
  */
 static DECLCALLBACK(int) drvramdiskIoReqAllocSizeSet(PPDMIMEDIAEX pInterface, size_t cbIoReqAlloc)
@@ -1655,11 +1646,40 @@ static DECLCALLBACK(void) drvramdiskDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvramdiskConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     RT_NOREF1(fFlags);
-    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVRAMDISK     pThis = PDMINS_2_DATA(pDrvIns, PDRVRAMDISK);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    int rc = VINF_SUCCESS;
+    uint32_t cbIoBufMax;
+    PDRVRAMDISK pThis = PDMINS_2_DATA(pDrvIns, PDRVRAMDISK);
     LogFlow(("drvdiskintConstruct: iInstance=%d\n", pDrvIns->iInstance));
+    PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
+
+    /*
+     * Validate configuration.
+     */
+    if (!CFGMR3AreValuesValid(pCfg, "Size\0"
+                                    "PreAlloc\0"
+                                    "IoBufMax\0"
+                                    "SectorSize\0"
+                                    "NonRotational\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
+
+    rc = CFGMR3QueryU64(pCfg, "Size", &pThis->cbDisk);
+    if (RT_FAILURE(rc))
+        return PDMDRV_SET_ERROR(pDrvIns, rc,
+                                N_("RamDisk: Error querying the media size"));
+    rc = CFGMR3QueryBoolDef(pCfg, "PreAlloc", &pThis->fPreallocRamDisk, false);
+    if (RT_FAILURE(rc))
+        return PDMDRV_SET_ERROR(pDrvIns, rc,
+                                N_("RamDisk: Error querying \"PreAlloc\""));
+    rc = CFGMR3QueryBoolDef(pCfg, "NonRotational", &pThis->fNonRotational, true);
+    if (RT_FAILURE(rc))
+        return PDMDRV_SET_ERROR(pDrvIns, rc,
+                                N_("RamDisk: Error querying \"NonRotational\""));
+    rc = CFGMR3QueryU32Def(pCfg, "IoBufMax", &cbIoBufMax, 5 * _1M);
+    if (RT_FAILURE(rc))
+        return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"IoBufMax\" from the config"));
+    rc = CFGMR3QueryU32Def(pCfg, "SectorSize", &pThis->cbSector, 512);
+    if (RT_FAILURE(rc))
+        return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"SectorSize\" from the config"));
 
     /*
      * Initialize most of the data members.
@@ -1689,7 +1709,6 @@ static DECLCALLBACK(int) drvramdiskConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
 
     /* IMediaEx */
     pThis->IMediaEx.pfnQueryFeatures            = drvramdiskQueryFeatures;
-    pThis->IMediaEx.pfnNotifySuspend            = drvramdiskNotifySuspend;
     pThis->IMediaEx.pfnIoReqAllocSizeSet        = drvramdiskIoReqAllocSizeSet;
     pThis->IMediaEx.pfnIoReqAlloc               = drvramdiskIoReqAlloc;
     pThis->IMediaEx.pfnIoReqFree                = drvramdiskIoReqFree;
@@ -1707,37 +1726,6 @@ static DECLCALLBACK(int) drvramdiskConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
     pThis->IMediaEx.pfnIoReqQuerySuspendedNext  = drvramdiskIoReqQuerySuspendedNext;
     pThis->IMediaEx.pfnIoReqSuspendedSave       = drvramdiskIoReqSuspendedSave;
     pThis->IMediaEx.pfnIoReqSuspendedLoad       = drvramdiskIoReqSuspendedLoad;
-
-    /*
-     * Validate configuration.
-     */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns,  "Size"
-                                            "|PreAlloc"
-                                            "|IoBufMax"
-                                            "|SectorSize"
-                                            "|NonRotational",
-                                            "");
-
-    int rc = pHlp->pfnCFGMQueryU64(pCfg, "Size", &pThis->cbDisk);
-    if (RT_FAILURE(rc))
-        return PDMDRV_SET_ERROR(pDrvIns, rc,
-                                N_("RamDisk: Error querying the media size"));
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "PreAlloc", &pThis->fPreallocRamDisk, false);
-    if (RT_FAILURE(rc))
-        return PDMDRV_SET_ERROR(pDrvIns, rc,
-                                N_("RamDisk: Error querying \"PreAlloc\""));
-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "NonRotational", &pThis->fNonRotational, true);
-    if (RT_FAILURE(rc))
-        return PDMDRV_SET_ERROR(pDrvIns, rc,
-                                N_("RamDisk: Error querying \"NonRotational\""));
-
-    uint32_t cbIoBufMax;
-    rc = pHlp->pfnCFGMQueryU32Def(pCfg, "IoBufMax", &cbIoBufMax, 5 * _1M);
-    if (RT_FAILURE(rc))
-        return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"IoBufMax\" from the config"));
-    rc = pHlp->pfnCFGMQueryU32Def(pCfg, "SectorSize", &pThis->cbSector, 512);
-    if (RT_FAILURE(rc))
-        return PDMDRV_SET_ERROR(pDrvIns, rc, N_("Failed to query \"SectorSize\" from the config"));
 
     /* Query the media port interface above us. */
     pThis->pDrvMediaPort = PDMIBASE_QUERY_INTERFACE(pDrvIns->pUpBase, PDMIMEDIAPORT);

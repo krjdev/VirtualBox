@@ -1,10 +1,12 @@
-/* $Id: tstCollector.cpp 93310 2022-01-18 11:32:28Z vboxsync $ */
+/* $Id: tstCollector.cpp $ */
+
 /** @file
- * VirtualBox Main - Performance collector classes test cases.
+ *
+ * Collector classes test cases.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -142,7 +144,7 @@ void measurePerformance(pm::CollectorHAL *collector, const char *pszName, int cV
         /* Process RAM usage */
         N_CALLS(cVMs, getProcessMemoryUsage(processes[call], &tmp));
     }
-    RTPrintf("\n%d VMs -- %u%% of CPU time\n", cVMs, (unsigned)((double)(RTTimeNanoTS() - start) / 10000000.0 / times));
+    RTPrintf("\n%d VMs -- %.2f%% of CPU time\n", cVMs, (RTTimeNanoTS() - start) / 10000000. / times);
 
     /* Shut down fake VMs */
     shutdownProcessList(processes);

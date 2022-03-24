@@ -1,10 +1,10 @@
-/* $Id: IoPerf.cpp 93302 2022-01-18 11:25:24Z vboxsync $ */
+/* $Id: IoPerf.cpp $ */
 /** @file
  * IoPerf - Storage I/O Performance Benchmark.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -392,11 +392,11 @@ static RTIOQUEUEOP ioPerfJobTestGetIoQOp(PIOPERFJOB pJob)
     {
         case IOPERFTEST_FIRST_WRITE:
         case IOPERFTEST_SEQ_WRITE:
+        case IOPERFTEST_SEQ_READ:
         case IOPERFTEST_REV_WRITE:
         case IOPERFTEST_RND_WRITE:
             return RTIOQUEUEOP_WRITE;
 
-        case IOPERFTEST_SEQ_READ:
         case IOPERFTEST_RND_READ:
         case IOPERFTEST_REV_READ:
             return RTIOQUEUEOP_READ;
@@ -815,7 +815,7 @@ static void ioPerfJobStats(PIOPERFJOB pJob)
         }
 
         /* Get average bandwidth for the job. */
-        RTTestIValueF((uint64_t)((double)pJob->cbTestSet / ((double)nsJobRuntime / RT_NS_1SEC)),
+        RTTestIValueF((uint64_t)(pJob->cbTestSet / ((double)nsJobRuntime / RT_NS_1SEC)),
                        RTTESTUNIT_BYTES_PER_SEC, "%s/Job/%RU32/AvgBandwidth", pszTest, pJob->idJob);
 
         RTTestIValueF((uint64_t)(pJob->cReqStats / ((double)nsJobRuntime / RT_NS_1SEC)),
@@ -1337,7 +1337,7 @@ int main(int argc, char *argv[])
 
             case 'V':
             {
-                char szRev[] = "$Revision: 93302 $";
+                char szRev[] = "$Revision: 135976 $";
                 szRev[RT_ELEMENTS(szRev) - 2] = '\0';
                 RTPrintf(RTStrStrip(strchr(szRev, ':') + 1));
                 return RTEXITCODE_SUCCESS;

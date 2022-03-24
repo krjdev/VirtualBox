@@ -1,10 +1,10 @@
-# $Id: Config.kmk 93125 2022-01-04 04:30:08Z vboxsync $
+# $Id: Config.kmk $
 ## @file
 # kBuild Configuration file for the installers
 #
 
 #
-# Copyright (C) 2015-2022 Oracle Corporation
+# Copyright (C) 2015-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -66,17 +66,12 @@ ifdef VBOX_WITH_UNATTENDED
  	rhel4_ks.cfg \
  	rhel5_ks.cfg \
  	redhat67_ks.cfg \
-       os2_response_files.rsp \
  	win_nt5_unattended.sif \
  	win_nt6_unattended.xml \
- 	\
+       \
  	debian_postinstall.sh \
  	redhat_postinstall.sh \
- 	ol_postinstall.sh \
- 	os2_cid_install.cmd \
- 	win_postinstall.cmd \
-       \
-       os2_util.exe
+ 	win_postinstall.cmd
  ifndef VBOX_OSE
   VBOX_UNATTENDED_TEMPLATES += \
  	lgw_ks.cfg \

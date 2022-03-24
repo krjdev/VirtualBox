@@ -1,4 +1,4 @@
-/* $Id: GlobalStatusConversion.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GlobalStatusConversion.cpp $ */
 /** @file
  * VirtualBox COM global definitions - status code conversion.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -107,7 +107,6 @@ Global::vboxStatusCodeToCOM(int aVBoxStatus)
         case VERR_UNRESOLVED_ERROR:             return E_FAIL;
         case VERR_NOT_EQUAL:                    return VBOX_E_FILE_ERROR;
         case VERR_FILE_NOT_FOUND:               return VBOX_E_OBJECT_NOT_FOUND;
-        case VERR_IO_NOT_READY:                 return VBOX_E_INVALID_OBJECT_STATE;
 
         /* Guest Control errors. */
         case VERR_GSTCTL_MAX_CID_OBJECTS_REACHED: return VBOX_E_MAXIMUM_REACHED;

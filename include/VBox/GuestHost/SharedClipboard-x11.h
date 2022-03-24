@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,9 +34,6 @@
 #include <iprt/thread.h>
 
 #include <VBox/GuestHost/SharedClipboard.h>
-#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
-# include <VBox/GuestHost/SharedClipboard-transfers.h>
-#endif
 
 /**
  * The maximum number of simultaneous connections to shared clipboard service.
@@ -91,86 +88,77 @@ typedef unsigned SHCLX11FMTIDX;
 typedef struct _SHCLX11CTX
 {
     /** Opaque data structure describing the front-end. */
-    PSHCLCONTEXT     pFrontend;
-    /** Our callback table to use. */
-    SHCLCALLBACKS    Callbacks;
+    PSHCLCONTEXT pFrontend;
     /** Is an X server actually available? */
-    bool             fHaveX11;
+    bool fHaveX11;
     /** The X Toolkit application context structure. */
-    XtAppContext     pAppContext;
+    XtAppContext pAppContext;
+
     /** We have a separate thread to wait for window and clipboard events. */
-    RTTHREAD         Thread;
+    RTTHREAD Thread;
     /** Flag indicating that the thread is in a started state. */
-    bool             fThreadStarted;
+    bool fThreadStarted;
+
     /** The X Toolkit widget which we use as our clipboard client.  It is never made visible. */
-    Widget           pWidget;
+    Widget pWidget;
+
     /** Should we try to grab the clipboard on startup? */
-    bool             fGrabClipboardOnStart;
+    bool fGrabClipboardOnStart;
+
     /** The best text format X11 has to offer, as an index into the formats table. */
-    SHCLX11FMTIDX    idxFmtText;
+    SHCLX11FMTIDX idxFmtText;
     /** The best bitmap format X11 has to offer, as an index into the formats table. */
-    SHCLX11FMTIDX    idxFmtBmp;
+    SHCLX11FMTIDX idxFmtBmp;
     /** The best HTML format X11 has to offer, as an index into the formats table. */
-    SHCLX11FMTIDX    idxFmtHTML;
+    SHCLX11FMTIDX idxFmtHTML;
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
     /** The best HTML format X11 has to offer, as an index into the formats table. */
-    SHCLX11FMTIDX    idxFmtURI;
-# ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
-    /** HTTP transfer context data. */
-    SHCLHTTPCONTEXT  HttpCtx;
-# endif
+    SHCLX11FMTIDX idxFmtURI;
 #endif
     /** What kind of formats does VBox have to offer? */
-    SHCLFORMATS      vboxFormats;
+    SHCLFORMATS vboxFormats;
     /** Cache of the last unicode data that we received. */
-    void            *pvUnicodeCache;
+    void *pvUnicodeCache;
     /** Size of the unicode data in the cache. */
-    uint32_t         cbUnicodeCache;
+    uint32_t cbUnicodeCache;
     /** When we wish the clipboard to exit, we have to wake up the event
      * loop.  We do this by writing into a pipe.  This end of the pipe is
      * the end that another thread can write to. */
-    int              wakeupPipeWrite;
+    int wakeupPipeWrite;
     /** The reader end of the pipe. */
-    int              wakeupPipeRead;
+    int wakeupPipeRead;
     /** A pointer to the XFixesSelectSelectionInput function. */
     void (*fixesSelectInput)(Display *, Window, Atom, unsigned long);
     /** The first XFixes event number. */
-    int              fixesEventBase;
+    int fixesEventBase;
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_XT_BUSY
     /** XtGetSelectionValue on some versions of libXt isn't re-entrant
      * so block overlapping requests on this flag. */
-    bool             fXtBusy;
+    bool fXtBusy;
     /** If a request is blocked on the previous flag, set this flag to request
      * an update later - the first callback should check and clear this flag
      * before processing the callback event. */
-    bool             fXtNeedsUpdate;
+    bool fXtNeedsUpdate;
 #endif
 } SHCLX11CTX, *PSHCLX11CTX;
 
-/**
- * Structure for keeping a X11 read data request.
- */
-typedef struct _SHCLX11READDATAREQ
-{
-    /** Actual read request to handle. */
-    CLIPREADCBREQ *pReq;
-    /** Result code of the operation on completion. */
-    int            rcCompletion;
-} SHCLX11READDATAREQ;
-/** Pointer to a send data request. */
-typedef SHCLX11READDATAREQ *PSHCLX11READDATAREQ;
-
 /** @name Shared Clipboard APIs for X11.
- * @{
+ *  @{
  */
-int ShClX11Init(PSHCLX11CTX pCtx, PSHCLCALLBACKS pCallbacks, PSHCLCONTEXT pParent, bool fHeadless);
+int ShClX11Init(PSHCLX11CTX pCtx, PSHCLCONTEXT pParent, bool fHeadless);
 void ShClX11Destroy(PSHCLX11CTX pCtx);
 int ShClX11ThreadStart(PSHCLX11CTX pCtx, bool grab);
-int ShClX11ThreadStartEx(PSHCLX11CTX pCtx, const char *pszName, bool fGrab);
 int ShClX11ThreadStop(PSHCLX11CTX pCtx);
 int ShClX11ReportFormatsToX11(PSHCLX11CTX pCtx, SHCLFORMATS vboxFormats);
 int ShClX11ReadDataFromX11(PSHCLX11CTX pCtx, SHCLFORMATS vboxFormat, CLIPREADCBREQ *pReq);
-void ShClX11SetCallbacks(PSHCLX11CTX pCtx, PSHCLCALLBACKS pCallbacks);
+/** @} */
+
+/** @name Shared Clipboard callbacks which have to be implemented the X11 backend and host service.
+ *  @{
+ */
+DECLCALLBACK(int)  ShClX11RequestDataForX11Callback(SHCLCONTEXT *pCtx, SHCLFORMAT Format, void **ppv, uint32_t *pcb);
+DECLCALLBACK(void) ShClX11ReportFormatsCallback(SHCLCONTEXT *pCtx, SHCLFORMATS Formats);
+DECLCALLBACK(void) ShClX11RequestFromX11CompleteCallback(SHCLCONTEXT *pCtx, int rc, CLIPREADCBREQ *pReq, void *pv, uint32_t cb);
 /** @} */
 
 #endif /* !VBOX_INCLUDED_GuestHost_SharedClipboard_x11_h */

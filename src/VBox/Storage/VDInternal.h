@@ -1,10 +1,10 @@
-/* $Id: VDInternal.h 93512 2022-01-31 20:48:00Z vboxsync $ */
+/* $Id: VDInternal.h $ */
 /** @file
  * VD - Virtual Disk container implementation, internal header file.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,13 +31,11 @@
 #include <iprt/list.h>
 #include <iprt/memcache.h>
 
-#if 0 /* bird: this is nonsense */
 /** Disable dynamic backends on non x86 architectures. This feature
  * requires the SUPR3 library which is not available there.
  */
 #if !defined(VBOX_HDD_NO_DYNAMIC_BACKENDS) && !defined(RT_ARCH_X86) && !defined(RT_ARCH_AMD64)
 # define VBOX_HDD_NO_DYNAMIC_BACKENDS
-#endif
 #endif
 
 /** Magic number contained in the VDISK instance data, used for checking that the passed

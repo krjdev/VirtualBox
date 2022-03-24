@@ -1,10 +1,10 @@
-/* $Id: Svga.h 93834 2022-02-17 21:11:03Z vboxsync $ */
+/* $Id: Svga.h $ */
 /** @file
  * VirtualBox Windows Guest Mesa3D - Gallium driver VMSVGA.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,11 +30,8 @@
 #include <VBoxGaTypes.h>
 #include <VBoxGaHWSVGA.h>
 
- /* VMSVGA headers. */
-#pragma pack(1) /* VMSVGA structures are '__packed'. */
 #include <svga_reg.h>
 #include <svga3d_reg.h>
-#pragma pack()
 
 #define SVGA_SYNC_GENERIC         1
 #define SVGA_SYNC_FIFOFULL        2
@@ -66,14 +63,6 @@ typedef struct VBOXWDDM_EXT_VMSVGA
     RTIOPORT ioportBase;
     /** Pointer to FIFO MMIO region. */
     volatile uint32_t *pu32FIFO;
-
-    /** Used only with SVGA_CAP_COMMAND_BUFFERS capability. */
-    RTR0MEMOBJ hMemObj;
-    RTR0PTR  pvR0Hdr, pvR0Cmd;
-    RTHCPHYS paHdr, paCmd;
-    uint32_t u32NumCmdBufs;
-
-    RTR0MEMOBJ hMemObjOTables;
 
     /**
      * Hardware capabilities.
@@ -131,7 +120,7 @@ typedef struct VBOXWDDM_EXT_VMSVGA
 typedef struct VBOXWDDM_EXT_VMSVGA *PVBOXWDDM_EXT_VMSVGA;
 
 typedef struct SVGAHOSTOBJECT SVGAHOSTOBJECT;
-typedef DECLCALLBACKTYPE(NTSTATUS, FNHostObjectDestroy,(SVGAHOSTOBJECT *pThis));
+typedef DECLCALLBACK(NTSTATUS) FNHostObjectDestroy(SVGAHOSTOBJECT *pThis);
 typedef FNHostObjectDestroy *PFNHostObjectDestroy;
 
 #define SVGA_HOST_OBJECT_UNDEFINED 0

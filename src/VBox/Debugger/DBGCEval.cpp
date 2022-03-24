@@ -1,10 +1,10 @@
-/* $Id: DBGCEval.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGCEval.cpp $ */
 /** @file
  * DBGC - Debugger Console, command evaluator.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1472,11 +1472,14 @@ int dbgcEvalCommand(PDBGC pDbgc, char *pszCmd, size_t cchCmd, bool fNoExecute)
                 break;
 
             default:
-                if (RTErrIsKnown(rc))
-                    rc = DBGCCmdHlpPrintf(&pDbgc->CmdHlp, "Error: %Rra\n", rc);
+            {
+                PCRTSTATUSMSG pErr = RTErrGet(rc);
+                if (strncmp(pErr->pszDefine, RT_STR_TUPLE("Unknown Status")))
+                    rc = DBGCCmdHlpPrintf(&pDbgc->CmdHlp, "Error: %s (%d) - %s\n", pErr->pszDefine, rc, pErr->pszMsgFull);
                 else
                     rc = DBGCCmdHlpPrintf(&pDbgc->CmdHlp, "Error: Unknown error %d (%#x)!\n", rc, rc);
                 break;
+            }
         }
     }
 

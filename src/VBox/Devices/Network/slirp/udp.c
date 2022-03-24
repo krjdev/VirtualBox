@@ -1,10 +1,10 @@
-/* $Id: udp.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: udp.c $ */
 /** @file
  * NAT - UDP protocol.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -230,14 +230,6 @@ udp_input(PNATState pData, register struct mbuf *m, int iphlen)
         so = NULL;
         goto new_socket;
     }
-
-    /*
-     * Drop UDP packets destind for CTL_ALIAS (i.e. the hosts loopback interface)
-     * if it is disabled.
-     */
-    if (   CTL_CHECK(ip->ip_dst.s_addr, CTL_ALIAS)
-        && !pData->fLocalhostReachable)
-        goto done_free_mbuf;
 
     /*
      * Locate pcb for datagram.

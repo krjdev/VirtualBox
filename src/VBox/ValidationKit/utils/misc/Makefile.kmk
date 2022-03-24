@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93419 2022-01-24 18:13:22Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # VirtualBox Validation Kit - Miscellaneous Utilites.
 #
 
 #
-# Copyright (C) 2010-2022 Oracle Corporation
+# Copyright (C) 2010-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -28,18 +28,12 @@ SUB_DEPTH = ../../../../..
 include $(KBUILD_PATH)/subheader.kmk
 
 PROGRAMS += LoadGenerator
-LoadGenerator_TEMPLATE = VBoxValidationKitR3SupDrv
+LoadGenerator_TEMPLATE = VBoxValidationKitR3Host
 LoadGenerator_SOURCES  = loadgenerator.cpp
 
-ifdef VBOX_WITH_R0_MODULES
- ifdef VBOX_WITH_VBOXR0_AS_DLL
-  DLLS    += loadgeneratorR0
- else
-  SYSMODS += loadgeneratorR0
- endif
- loadgeneratorR0_TEMPLATE = VBoxValidationKitR0
- loadgeneratorR0_SOURCES = loadgeneratorR0.cpp
-endif
+$(if-expr defined(VBOX_WITH_VBOXR0_AS_DLL),DLLS,SYSMODS) += loadgeneratorR0
+loadgeneratorR0_TEMPLATE = VBoxValidationKitR0
+loadgeneratorR0_SOURCES = loadgeneratorR0.cpp
 
 PROGRAMS += vts_rm
 vts_rm_TEMPLATE = VBoxValidationKitR3

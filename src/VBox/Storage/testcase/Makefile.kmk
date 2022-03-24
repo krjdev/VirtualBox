@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the storage device & driver testcases.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -110,8 +110,6 @@ if defined(VBOX_WITH_TESTCASES) || defined(VBOX_WITH_VBOX_IMG)
  #
  vbox-img_TEMPLATE = VBoxR3Static
  vbox-img_DEFS += IN_VBOXDDU IN_VBOXDDU_STATIC VBOX_HDD_NO_DYNAMIC_BACKENDS
- vbox-img_INCS += \
-	../../Main/include
  vbox-img_SOURCES = \
 	vbox-img.cpp \
 	../VD.cpp \
@@ -149,7 +147,7 @@ if defined(VBOX_WITH_TESTCASES) || defined(VBOX_WITH_VBOX_IMG)
    vbox-img_LIBS += xml2
   endif
  else ifeq ($(KBUILD_TARGET),freebsd)
-  vbox-img_LIBS += iconv geom bsdxml sbuf
+  vbox-img_LIBS += iconv
   ifdef SDK_VBOX_LIBXML2_LIBS
    vbox-img_LIBS += xml2 lzma
   endif
@@ -158,10 +156,7 @@ if defined(VBOX_WITH_TESTCASES) || defined(VBOX_WITH_VBOX_IMG)
  else ifeq ($(KBUILD_TARGET),win)
   vbox-img_SDKS.win = VBOX_NTDLL
  else ifeq ($(KBUILD_TARGET),solaris)
-  vbox-img_LIBS += kstat efi
-  ifdef SDK_VBOX_LIBXML2_LIBS
-   vbox-img_LIBS += xml2
-  endif
+  vbox-img_LIBS += kstat
  endif
 
 endif

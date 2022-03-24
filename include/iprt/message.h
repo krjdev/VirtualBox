@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -233,11 +233,11 @@ RTDECL(int)  RTMsgInfoV(const char *pszFormat, va_list va) RT_IPRT_FORMAT_ATTR(1
  *  ORed in. */
 #define RTMSGREFENTRYSTR_SCOPE_SAME     UINT64_C(0)
 /** Global scope. */
-#define RTMSGREFENTRYSTR_SCOPE_GLOBAL   UINT64_C(0x0fffffffffffffff)
+#define RTMSGREFENTRYSTR_SCOPE_GLOBAL   UINT64_C(0x00ffffffffffffff)
 /** Scope mask. */
-#define RTMSGREFENTRYSTR_SCOPE_MASK     UINT64_C(0x0fffffffffffffff)
+#define RTMSGREFENTRYSTR_SCOPE_MASK     UINT64_C(0x00ffffffffffffff)
 /** Flags mask. */
-#define RTMSGREFENTRYSTR_FLAGS_MASK     UINT64_C(0xf000000000000000)
+#define RTMSGREFENTRYSTR_FLAGS_MASK     UINT64_C(0xff00000000000000)
 /** Command synopsis, special hanging indent rules applies. */
 #define RTMSGREFENTRYSTR_FLAGS_SYNOPSIS RT_BIT_64(63)
 /** @} */
@@ -288,9 +288,7 @@ typedef struct RTMSGREFENTRY
 typedef RTMSGREFENTRY const *PCRTMSGREFENTRY;
 
 
-#ifndef IPRT_INCLUDED_stream_h
 typedef struct RTSTREAM *PRTSTREAM;
-#endif
 
 
 /**

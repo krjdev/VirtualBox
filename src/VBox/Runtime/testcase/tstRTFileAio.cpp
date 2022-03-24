@@ -1,10 +1,10 @@
-/* $Id: tstRTFileAio.cpp 93301 2022-01-18 11:24:43Z vboxsync $ */
+/* $Id: tstRTFileAio.cpp $ */
 /** @file
  * IPRT Testcase - File Async I/O.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -156,7 +156,7 @@ void tstFileAioTestReadWriteBasic(RTFILE File, bool fWrite, void *pvTestBuf,
     }
 
     NanoTS = RTTimeNanoTS() - NanoTS;
-    uint64_t SpeedKBs = (uint64_t)((double)cbTestFile / ((double)NanoTS / 1000000000.0) / 1024);
+    uint64_t SpeedKBs = (uint64_t)(cbTestFile / (NanoTS / 1000000000.0) / 1024);
     RTTestValue(g_hTest, "Throughput", SpeedKBs, RTTESTUNIT_KILOBYTES_PER_SEC);
 
     /* cleanup */

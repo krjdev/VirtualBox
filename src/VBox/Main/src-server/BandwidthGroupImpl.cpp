@@ -1,10 +1,10 @@
-/* $Id: BandwidthGroupImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: BandwidthGroupImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -65,7 +65,7 @@ HRESULT BandwidthGroup::init(BandwidthControl *aParent,
     if (   (aType <= BandwidthGroupType_Null)
         || (aType >  BandwidthGroupType_Network))
         return setError(E_INVALIDARG,
-                        tr("Invalid bandwidth group type"));
+                        tr("Invalid bandwidth group type type"));
 
     /* Enclose the state transition NotReady->InInit->Ready */
     AutoInitSpan autoInitSpan(this);
@@ -80,7 +80,7 @@ HRESULT BandwidthGroup::init(BandwidthControl *aParent,
     m->bd->mData.strName = aName;
     m->bd->mData.enmType = aType;
     m->bd->cReferences = 0;
-    m->bd->mData.cMaxBytesPerSec = (uint64_t)aMaxBytesPerSec;
+    m->bd->mData.cMaxBytesPerSec = aMaxBytesPerSec;
 
     /* Confirm a successful initialization */
     autoInitSpan.setSucceeded();
@@ -228,7 +228,7 @@ HRESULT BandwidthGroup::getMaxBytesPerSec(LONG64 *aMaxBytesPerSec)
 {
     AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-    *aMaxBytesPerSec = (LONG64)m->bd->mData.cMaxBytesPerSec;
+    *aMaxBytesPerSec = m->bd->mData.cMaxBytesPerSec;
 
     return S_OK;
 }
@@ -242,7 +242,7 @@ HRESULT BandwidthGroup::setMaxBytesPerSec(LONG64 aMaxBytesPerSec)
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
     m->bd.backup();
-    m->bd->mData.cMaxBytesPerSec = (uint64_t)aMaxBytesPerSec;
+    m->bd->mData.cMaxBytesPerSec = aMaxBytesPerSec;
 
     /* inform direct session if any. */
     ComObjPtr<Machine> pMachine = m->pParent->i_getMachine();

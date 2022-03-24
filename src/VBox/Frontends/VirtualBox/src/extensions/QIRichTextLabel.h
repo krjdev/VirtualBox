@@ -1,10 +1,10 @@
-/* $Id: QIRichTextLabel.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIRichTextLabel.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIRichTextLabel class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,11 +34,6 @@ class SHARED_LIBRARY_STUFF QIRichTextLabel : public QWidget
     Q_OBJECT;
     Q_PROPERTY(QString text READ text WRITE setText);
 
-signals:
-
-    /** Notifies listeners about @a link clicked. */
-    void sigLinkClicked(const QUrl &link);
-
 public:
 
     /** Constructs rich text-label passing @a pParent to the base-class. */
@@ -49,8 +44,6 @@ public:
 
     /** Registers @a image under a passed @a strName. */
     void registerImage(const QImage &image, const QString &strName);
-    /** Registers @a pixmap under a passed @a strName. */
-    void registerPixmap(const QPixmap &pixmap, const QString &strName);
 
     /** Returns word wrapping policy. */
     QTextOption::WrapMode wordWrapMode() const;
@@ -60,15 +53,8 @@ public:
     /** Installs event filter for a passed @ pFilterObj. */
     void installEventFilter(QObject *pFilterObj);
 
-    /** Returns browser font. */
-    QFont browserFont() const;
-    /** Defines @a newFont for browser. */
-    void setBrowserFont(const QFont &newFont);
-
 public slots:
 
-    /** Returns minimum text width. */
-    int minimumTextWidth() const;
     /** Defines @a iMinimumTextWidth. */
     void setMinimumTextWidth(int iMinimumTextWidth);
 

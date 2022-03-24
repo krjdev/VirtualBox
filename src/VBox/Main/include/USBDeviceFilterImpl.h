@@ -1,10 +1,10 @@
-/* $Id: USBDeviceFilterImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBDeviceFilterImpl.h $ */
 /** @file
  * Declaration of USBDeviceFilter and HostUSBDeviceFilter.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,7 +67,7 @@ public:
         settings::USBDeviceFilter mData;
     };
 
-    DECLARE_COMMON_CLASS_METHODS(USBDeviceFilter)
+    DECLARE_EMPTY_CTOR_DTOR(USBDeviceFilter)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -160,7 +160,7 @@ public:
         BackupableUSBDeviceFilterData() {}
     };
 
-    DECLARE_COMMON_CLASS_METHODS (HostUSBDeviceFilter)
+    DECLARE_EMPTY_CTOR_DTOR (HostUSBDeviceFilter)
 
     HRESULT FinalConstruct();
     void FinalRelease();

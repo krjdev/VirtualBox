@@ -1,10 +1,10 @@
-/* $Id: thread-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: thread-posix.cpp $ */
 /** @file
  * IPRT - Threads, POSIX.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -76,10 +76,10 @@
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
-/*#ifndef IN_GUEST - shouldn't need to exclude this now with the non-obtrusive init option. */
+#ifndef IN_GUEST
 /** Includes RTThreadPoke. */
 # define RTTHREAD_POSIX_WITH_POKE
-/*#endif*/
+#endif
 
 
 /*********************************************************************************************************************************
@@ -90,7 +90,7 @@ static pthread_key_t    g_SelfKey;
 #ifdef RTTHREAD_POSIX_WITH_POKE
 /** The signal we use for poking threads.
  * This is set to -1 if no available signal was found. */
-static int volatile     g_iSigPokeThread = -1;
+static int              g_iSigPokeThread = -1;
 #endif
 
 #ifdef IPRT_MAY_HAVE_PTHREAD_SET_NAME_NP
@@ -166,10 +166,7 @@ static void rtThreadPosixSelectPokeSignal(void)
     /*
      * Note! Avoid SIGRTMIN thru SIGRTMIN+2 because of LinuxThreads.
      */
-# if !defined(RT_OS_LINUX) && !defined(RT_OS_SOLARIS) /* glibc defines SIGRTMAX to __libc_current_sigrtmax() and Solaris libc defines it relying on _sysconf(), causing compiler to deploy serialization here. */
-    static
-# endif
-    const int s_aiSigCandidates[] =
+    static const int s_aiSigCandidates[] =
     {
 # ifdef SIGRTMAX
         SIGRTMAX-3,
@@ -237,25 +234,14 @@ DECLHIDDEN(int) rtThreadNativeInit(void)
     return rc;
 }
 
-static void rtThreadPosixBlockSignals(PRTTHREADINT pThread)
+static void rtThreadPosixBlockSignals(void)
 {
-    /*
-     * Mask all signals, including the poke one, if requested.
-     */
-    if (   pThread
-        && (pThread->fFlags & RTTHREADFLAGS_NO_SIGNALS))
-    {
-        sigset_t SigSet;
-        sigfillset(&SigSet);
-        int rc = sigprocmask(SIG_BLOCK, &SigSet, NULL);
-        AssertMsg(rc == 0, ("rc=%Rrc errno=%d\n", RTErrConvertFromErrno(errno), errno)); RT_NOREF(rc);
-    }
     /*
      * Block SIGALRM - required for timer-posix.cpp.
      * This is done to limit harm done by OSes which doesn't do special SIGALRM scheduling.
      * It will not help much if someone creates threads directly using pthread_create. :/
      */
-    else if (!RTR3InitIsUnobtrusive())
+    if (!RTR3InitIsUnobtrusive())
     {
         sigset_t SigSet;
         sigemptyset(&SigSet);
@@ -265,7 +251,7 @@ static void rtThreadPosixBlockSignals(PRTTHREADINT pThread)
 
 #ifdef RTTHREAD_POSIX_WITH_POKE
     /*
-     * bird 2020-10-28: Not entirely sure why we do this, but it makes sure the signal works
+     * bird 2020-10-28: Not entirely sure we do this, but it makes sure the signal works
      *                  on the new thread.  Probably some pre-NPTL linux reasons.
      */
     if (g_iSigPokeThread != -1)
@@ -296,7 +282,7 @@ DECLHIDDEN(void) rtThreadNativeReInitObtrusive(void)
     Assert(!RTR3InitIsUnobtrusive());
     rtThreadPosixSelectPokeSignal();
 #endif
-    rtThreadPosixBlockSignals(NULL);
+    rtThreadPosixBlockSignals();
 }
 
 
@@ -341,7 +327,7 @@ static void rtThreadPosixPokeSignal(int iSignal)
  */
 DECLHIDDEN(int) rtThreadNativeAdopt(PRTTHREADINT pThread)
 {
-    rtThreadPosixBlockSignals(pThread);
+    rtThreadPosixBlockSignals();
 
     int rc = pthread_setspecific(g_SelfKey, pThread);
     if (!rc)
@@ -377,7 +363,7 @@ static void *rtThreadNativeMain(void *pvArgs)
     ASMMemoryFence();
 #endif
 
-    rtThreadPosixBlockSignals(pThread);
+    rtThreadPosixBlockSignals();
 
     /*
      * Set the TLS entry and, if possible, the thread name.
@@ -640,7 +626,6 @@ RTDECL(RTTHREAD) RTThreadSelf(void)
 
 
 #ifdef RTTHREAD_POSIX_WITH_POKE
-
 RTDECL(int) RTThreadPoke(RTTHREAD hThread)
 {
     AssertReturn(hThread != RTThreadSelf(), VERR_INVALID_PARAMETER);
@@ -659,33 +644,6 @@ RTDECL(int) RTThreadPoke(RTTHREAD hThread)
     rtThreadRelease(pThread);
     return rc;
 }
-
-
-RTDECL(int) RTThreadControlPokeSignal(RTTHREAD hThread, bool fEnable)
-{
-    AssertReturn(hThread == RTThreadSelf() && hThread != NIL_RTTHREAD, VERR_INVALID_PARAMETER);
-    int rc;
-    if (g_iSigPokeThread != -1)
-    {
-        sigset_t SigSet;
-        sigemptyset(&SigSet);
-        sigaddset(&SigSet, g_iSigPokeThread);
-
-        int rc2 = sigprocmask(fEnable ? SIG_UNBLOCK : SIG_BLOCK, &SigSet, NULL);
-        if (rc2 == 0)
-            rc = VINF_SUCCESS;
-        else
-        {
-            rc = RTErrConvertFromErrno(errno);
-            AssertMsgFailed(("rc=%Rrc errno=%d (rc2=%d)\n", rc, errno, rc2));
-        }
-    }
-    else
-        rc = VERR_NOT_SUPPORTED;
-    return rc;
-}
-
-
 #endif
 
 /** @todo move this into platform specific files. */

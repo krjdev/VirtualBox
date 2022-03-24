@@ -1,10 +1,10 @@
-/* $Id: QIWithRetranslateUI.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIWithRetranslateUI.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIWithRetranslateUI class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,6 @@
 
 /* Qt includes: */
 #include <QApplication>
-#include <QDialog>
 #include <QEvent>
 #include <QGraphicsWidget>
 #include <QObject>
@@ -67,7 +66,7 @@ protected:
     virtual void retranslateUi() = 0;
 };
 
-/** Explicit QIWithRetranslateUI instantiation for QWidget & QDialog classes.
+/** Explicit QIWithRetranslateUI instantiation for QWidget class.
   * @note  On Windows it's important that all template cases are instantiated just once across
   *        the linking space. In case we have particular template case instantiated from both
   *        library and executable sides, - we have multiple definition case and need to strictly
@@ -75,7 +74,6 @@ protected:
   *        I would also note that it would be incorrect to just make whole the template exported
   *        to library because latter can have lack of required instantiations (current case). */
 template class SHARED_LIBRARY_STUFF QIWithRetranslateUI<QWidget>;
-template class SHARED_LIBRARY_STUFF QIWithRetranslateUI<QDialog>;
 
 
 /** Template for automatic language translations of underlying QWidget with certain flags. */
@@ -84,8 +82,8 @@ class QIWithRetranslateUI2 : public Base
 {
 public:
 
-    /** Constructs translatable widget passing @a pParent and @a enmFlags to the base-class. */
-    QIWithRetranslateUI2(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags()) : Base(pParent, enmFlags)
+    /** Constructs translatable widget passing @a pParent and @a fFlags to the base-class. */
+    QIWithRetranslateUI2(QWidget *pParent = 0, Qt::WindowFlags fFlags = 0) : Base(pParent, fFlags)
     {
         qApp->installEventFilter(this);
     }

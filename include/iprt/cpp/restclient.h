@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -119,8 +119,8 @@ public:
      *          like that, it is just a convenience provided by the caller.  The value
      *          is the sum of the previously returned @a *pcbActual values.
      */
-    typedef DECLCALLBACKTYPE(int, FNPRODUCER,(RTCRestBinaryParameter *a_pThis, void *a_pvDst, size_t a_cbDst,
-                                              uint64_t a_offContent, size_t *a_pcbActual)) /*RT_NOEXCEPT*/;
+    typedef DECLCALLBACK(int) FNPRODUCER(RTCRestBinaryParameter *a_pThis, void *a_pvDst, size_t a_cbDst,
+                                         uint64_t a_offContent, size_t *a_pcbActual) /*RT_NOEXCEPT*/;
     /** Pointer to a byte producer callback. */
     typedef FNPRODUCER *PFNPRODUCER;
 
@@ -257,8 +257,8 @@ public:
      *          like that, it is just a convenience provided by the caller.  The value
      *          is the sum of the previous @a a_cbSrc values.
      */
-    typedef DECLCALLBACKTYPE(int, FNCONSUMER,(RTCRestBinaryResponse *a_pThis, const void *a_pvSrc, size_t a_cbSrc,
-                                              uint32_t a_uHttpStatus, uint64_t a_offContent, uint64_t a_cbContent)) /*RT_NOEXCEPT*/;
+    typedef DECLCALLBACK(int) FNCONSUMER(RTCRestBinaryResponse *a_pThis, const void *a_pvSrc, size_t a_cbSrc,
+                                         uint32_t a_uHttpStatus, uint64_t a_offContent, uint64_t a_cbContent) /*RT_NOEXCEPT*/;
     /** Pointer to a byte consumer callback. */
     typedef FNCONSUMER *PFNCONSUMER;
 
@@ -345,13 +345,6 @@ public:
      * @returns IPRT status code.
      */
     virtual int resetToDefault() RT_NOEXCEPT = 0;
-
-    /**
-     * Getter for the operation name.  Provided by the generated
-     * subclasses so that base class code may use it for more
-     * informative logs.
-     */
-    virtual const char *getOperationName() const RT_NOEXCEPT = 0;
 
     /**
      * Prepares the HTTP handle for transmitting this request.
@@ -477,13 +470,6 @@ public:
      * Resets the object state.
      */
     virtual void reset(void) RT_NOEXCEPT;
-
-    /**
-     * Getter for the operation name.  Provided by the generated
-     * subclasses so that base class code may use it for more
-     * informative logs.
-     */
-    virtual const char *getOperationName() const RT_NOEXCEPT = 0;
 
     /**
      * Prepares the HTTP handle for receiving the response.
@@ -718,13 +704,6 @@ public:
     virtual const char *getDefaultServerBasePath() const RT_NOEXCEPT = 0;
     /** @} */
 
-    /**
-     * Sets the CA file to use for HTTPS.
-     */
-    int setCAFile(const char *pcszCAFile) RT_NOEXCEPT;
-    /** @overload */
-    int setCAFile(const RTCString &strCAFile) RT_NOEXCEPT;
-
     /** Flags to doCall. */
     enum
     {
@@ -737,8 +716,6 @@ protected:
     RTHTTP  m_hHttp;
     /** The server URL to use.  If empty use the default. */
     RTCString m_strServerUrl;
-    /** The CA file to use.  If empty use the default. */
-    RTCString m_strCAFile;
 
     /* Make non-copyable (RTCNonCopyable causes warnings): */
     RTCRestClientApiBase(RTCRestClientApiBase const &);

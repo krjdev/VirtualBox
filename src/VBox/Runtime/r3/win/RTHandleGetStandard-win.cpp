@@ -1,10 +1,10 @@
-/* $Id: RTHandleGetStandard-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTHandleGetStandard-win.cpp $ */
 /** @file
  * IPRT - RTHandleGetStandard, Windows.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,7 +42,7 @@
 #include "internal/socket.h"            /* (Needs Windows.h.) */
 
 
-RTDECL(int) RTHandleGetStandard(RTHANDLESTD enmStdHandle, bool fLeaveOpen, PRTHANDLE ph)
+RTDECL(int) RTHandleGetStandard(RTHANDLESTD enmStdHandle, PRTHANDLE ph)
 {
     /*
      * Validate and convert input.
@@ -101,19 +101,17 @@ RTDECL(int) RTHandleGetStandard(RTHANDLESTD enmStdHandle, bool fLeaveOpen, PRTHA
     switch (h.enmType)
     {
         case RTHANDLETYPE_FILE:
-            /** @todo fLeaveOpen   */
             rc = RTFileFromNative(&h.u.hFile, (RTHCUINTPTR)hNative);
             break;
 
         case RTHANDLETYPE_PIPE:
             rc = RTPipeFromNative(&h.u.hPipe, (RTHCUINTPTR)hNative,
                                     (enmStdHandle == RTHANDLESTD_INPUT ? RTPIPE_N_READ : RTPIPE_N_WRITE)
-                                  | (fInherit ? RTPIPE_N_INHERIT : 0)
-                                  | (fLeaveOpen ? RTPIPE_N_LEAVE_OPEN : 0));
+                                  | (fInherit ? RTPIPE_N_INHERIT : 0));
             break;
 
         case RTHANDLETYPE_SOCKET:
-            rc = rtSocketCreateForNative(&h.u.hSocket, (RTHCUINTPTR)hNative, fLeaveOpen);
+            rc = rtSocketCreateForNative(&h.u.hSocket, (RTHCUINTPTR)hNative);
             break;
 
         default: /* shut up gcc */

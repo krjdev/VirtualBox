@@ -1,10 +1,10 @@
-; $Id: VBoxInstallHelper.def 93242 2022-01-14 22:58:11Z vboxsync $
+; $Id: VBoxInstallHelper.def $
 ;; @file
 ; VBoxInstallHelper - Defines the exports the MSI engine uses.
 ;
 
 ;
-; Copyright (C) 2008-2022 Oracle Corporation
+; Copyright (C) 2008-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -19,8 +19,6 @@ LIBRARY "VBoxInstallHelper"
 EXPORTS
     IsSerialCheckNeeded
     CheckSerial
-    IsPythonInstalled
-    ArePythonAPIDepsInstalled
     InstallPythonAPI
     InstallBranding
     UninstallBranding
@@ -30,10 +28,10 @@ EXPORTS
         InstallNetLwf
     UninstallNetLwf
     UninstallTAPInstances
-    UninstallVBoxDrv
     CreateHostOnlyInterface
     StopHostOnlyInterfaces
     UpdateHostOnlyInterfaces
     RemoveHostOnlyInterfaces
     Ndis6CreateHostOnlyInterface
     Ndis6UpdateHostOnlyInterfaces
+

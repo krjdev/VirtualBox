@@ -1,10 +1,10 @@
-; $Id: ASMAtomicReadU64.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMAtomicReadU64.asm $
 ;; @file
 ; IPRT - ASMAtomicReadU64().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,7 @@ BEGINCODE
 ; @returns The current value. (x86:eax+edx)
 ;
 ;
-RT_BEGINPROC ASMAtomicReadU64
+BEGINPROC_EXPORTED ASMAtomicReadU64
 %ifdef RT_ARCH_AMD64
         mfence                          ; ASSUME its present.
  %ifdef ASM_CALL64_MSC

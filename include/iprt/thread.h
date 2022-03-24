@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -237,7 +237,7 @@ RTDECL(bool) RTThreadYield(void);
  * @param   ThreadSelf  Thread handle to this thread.
  * @param   pvUser      User argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTTHREAD,(RTTHREAD ThreadSelf, void *pvUser));
+typedef DECLCALLBACK(int) FNRTTHREAD(RTTHREAD ThreadSelf, void *pvUser);
 /** Pointer to a FNRTTHREAD(). */
 typedef FNRTTHREAD *PFNRTTHREAD;
 
@@ -261,13 +261,8 @@ typedef enum RTTHREADFLAGS
      *  COINIT_SPEED_OVER_MEMORY.   Ignored on non-windows platforms.  */
     RTTHREADFLAGS_COM_STA = RT_BIT(2),
 
-    /** Mask all signals that we can mask.  Ignored on most non-posix platforms.
-     * @note RTThreadPoke() will not necessarily work for a thread create with
-     *       this flag. */
-    RTTHREADFLAGS_NO_SIGNALS = RT_BIT(3),
-
     /** Mask of valid flags, use for validation. */
-    RTTHREADFLAGS_MASK = UINT32_C(0xf)
+    RTTHREADFLAGS_MASK = UINT32_C(0x7)
 } RTTHREADFLAGS;
 
 
@@ -452,22 +447,12 @@ RTDECL(bool) RTThreadIsSelfKnown(void);
  */
 RTDECL(bool) RTThreadIsSelfAlive(void);
 
-#ifdef IN_RING0
 /**
- * Checks whether the specified thread is terminating.
+ * Checks if the calling thread is known to IPRT.
  *
- * @retval  VINF_SUCCESS if not terminating.
- * @retval  VINF_THREAD_IS_TERMINATING if terminating.
- * @retval  VERR_INVALID_HANDLE if hThread is not NIL_RTTHREAD.
- * @retval  VERR_NOT_SUPPORTED if the OS doesn't provide ways to check.
- *
- * @param   hThread     The thread to query about, NIL_RTTHREAD is an alias for
- *                      the calling thread.  Must be NIL_RTTHREAD for now.
- *
- * @note    Not suppored on all OSes, so check for VERR_NOT_SUPPORTED.
+ * @returns @c true if it is, @c false if it isn't.
  */
-RTDECL(int) RTThreadQueryTerminationStatus(RTTHREAD hThread);
-#endif
+RTDECL(bool) RTThreadIsOperational(void);
 
 /**
  * Signal the user event.
@@ -529,20 +514,6 @@ RTDECL(int) RTThreadUserReset(RTTHREAD Thread);
  *
  */
 RTDECL(int) RTThreadPoke(RTTHREAD hThread);
-
-/**
- * Controls the masking of the signal used by RTThreadPoke on posix systems.
- *
- * This function is not available on non-posix systems.
- *
- * @returns IPRT status code.
- *
- * @param   hThread     The current thread.
- * @param   fEnable     Whether to enable poking (unblock) or to disable it
- *                      (block the signal).
- */
-RTDECL(int) RTThreadControlPokeSignal(RTTHREAD hThread, bool fEnable);
-
 
 # ifdef IN_RING0
 
@@ -680,7 +651,7 @@ typedef enum RTTHREADCTXEVENT
  *                      events, we may add more (thread exit, ++) later.
  * @param   pvUser      User argument.
  */
-typedef DECLCALLBACKTYPE(void, FNRTTHREADCTXHOOK,(RTTHREADCTXEVENT enmEvent, void *pvUser));
+typedef DECLCALLBACK(void) FNRTTHREADCTXHOOK(RTTHREADCTXEVENT enmEvent, void *pvUser);
 /** Pointer to a context switching hook. */
 typedef FNRTTHREADCTXHOOK *PFNRTTHREADCTXHOOK;
 
@@ -908,7 +879,7 @@ RTR3DECL(int) RTThreadGetExecutionTimeMilli(uint64_t *pKernelTime, uint64_t *pUs
  *
  * @param   pvValue     The current value.
  */
-typedef DECLCALLBACKTYPE(void, FNRTTLSDTOR,(void *pvValue));
+typedef DECLCALLBACK(void) FNRTTLSDTOR(void *pvValue);
 /** Pointer to a FNRTTLSDTOR. */
 typedef FNRTTLSDTOR *PFNRTTLSDTOR;
 

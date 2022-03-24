@@ -1,10 +1,10 @@
-/* $Id: VBoxDispIf.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxDispIf.cpp $ */
 /** @file
  * VBoxTray - Display Settings Interface abstraction for XPDM & WDDM
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -19,8 +19,8 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#define _WIN32_WINNT 0x0601
 #include "VBoxTray.h"
+#define _WIN32_WINNT 0x0601
 #include <iprt/log.h>
 #include <iprt/errcore.h>
 #include <iprt/assert.h>
@@ -71,16 +71,12 @@ typedef struct VBOXDISPIF_OP
  */
 typedef struct _VBOXDISPLAYWDDMAPICONTEXT
 {
-    DECLCALLBACKMEMBER_EX(LONG, WINAPI, pfnSetDisplayConfig,(UINT numPathArrayElements, DISPLAYCONFIG_PATH_INFO *pathArray,
-                                                             UINT numModeInfoArrayElements,
-                                                             DISPLAYCONFIG_MODE_INFO *modeInfoArray, UINT Flags));
-    DECLCALLBACKMEMBER_EX(LONG, WINAPI, pfnQueryDisplayConfig,(UINT Flags, UINT *pNumPathArrayElements,
-                                                               DISPLAYCONFIG_PATH_INFO *pPathInfoArray,
-                                                               UINT *pNumModeInfoArrayElements,
-                                                               DISPLAYCONFIG_MODE_INFO *pModeInfoArray,
-                                                               DISPLAYCONFIG_TOPOLOGY_ID *pCurrentTopologyId));
-    DECLCALLBACKMEMBER_EX(LONG, WINAPI, pfnGetDisplayConfigBufferSizes,(UINT Flags, UINT *pNumPathArrayElements,
-                                                                        UINT *pNumModeInfoArrayElements));
+    LONG (WINAPI * pfnSetDisplayConfig)(UINT numPathArrayElements,DISPLAYCONFIG_PATH_INFO *pathArray,UINT numModeInfoArrayElements,
+                                    DISPLAYCONFIG_MODE_INFO *modeInfoArray, UINT Flags);
+    LONG (WINAPI * pfnQueryDisplayConfig)(UINT Flags,UINT *pNumPathArrayElements, DISPLAYCONFIG_PATH_INFO *pPathInfoArray,
+                                      UINT *pNumModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO *pModeInfoArray,
+                                      DISPLAYCONFIG_TOPOLOGY_ID *pCurrentTopologyId);
+    LONG (WINAPI * pfnGetDisplayConfigBufferSizes)(UINT Flags, UINT *pNumPathArrayElements, UINT *pNumModeInfoArrayElements);
 } _VBOXDISPLAYWDDMAPICONTEXT;
 
 static _VBOXDISPLAYWDDMAPICONTEXT gCtx = {0};
@@ -1222,8 +1218,7 @@ HRESULT vboxRrRun()
     return 0;
 }
 
-/** @todo r=bird: Only the CRT uses CreateThread for creating threading!! */
-static DWORD WINAPI vboxRrRunnerThread(void *pvUser) RT_NOTHROW_DEF
+static DWORD WINAPI vboxRrRunnerThread(void *pvUser)
 {
     RT_NOREF(pvUser);
     HRESULT hr = vboxRrWndInit();
@@ -1254,22 +1249,22 @@ HRESULT VBoxRrInit()
           );
     if (pMon->hEvent)
     {
-        /** @todo r=bird: What kind of stupid nonsense is this?!?
-         *  Only the CRT uses CreateThread for creating threading!!
-         */
         pMon->hThread = CreateThread(NULL /* LPSECURITY_ATTRIBUTES lpThreadAttributes */,
                                               0 /* SIZE_T dwStackSize */,
-                                     vboxRrRunnerThread,
-                                     pMon,
-                                     0 /* DWORD dwCreationFlags */,
-                                     &pMon->idThread);
+                                              vboxRrRunnerThread,
+                                              pMon,
+                                              0 /* DWORD dwCreationFlags */,
+                                              &pMon->idThread);
         if (pMon->hThread)
         {
             DWORD dwResult = WaitForSingleObject(pMon->hEvent, INFINITE);
             if (dwResult == WAIT_OBJECT_0)
                 return S_OK;
-            Log(("WaitForSingleObject failed!"));
-            hr = E_FAIL;
+            else
+            {
+                Log(("WaitForSingleObject failed!"));
+                hr = E_FAIL;
+            }
         }
         else
         {
@@ -1422,7 +1417,7 @@ static DWORD vboxDispIfWaitDisplayDataInited(VBOXDISPIF_OP *pOp)
 static DWORD vboxDispIfUpdateModesWDDM(VBOXDISPIF_OP *pOp, uint32_t u32TargetId, const RTRECTSIZE *pSize)
 {
     DWORD winEr = ERROR_SUCCESS;
-    VBOXDISPIFESCAPE_UPDATEMODES EscData = {{0}};
+    VBOXDISPIFESCAPE_UPDATEMODES EscData = {0};
     EscData.EscapeHdr.escapeCode = VBOXESC_UPDATEMODES;
     EscData.u32TargetId = u32TargetId;
     EscData.Size = *pSize;

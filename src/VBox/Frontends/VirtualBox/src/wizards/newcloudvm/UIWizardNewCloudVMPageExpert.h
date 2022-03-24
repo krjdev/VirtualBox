@@ -1,10 +1,10 @@
-/* $Id: UIWizardNewCloudVMPageExpert.h 93226 2022-01-13 13:12:39Z vboxsync $ */
+/* $Id: UIWizardNewCloudVMPageExpert.h $ */
 /** @file
  * VBox Qt GUI - UIWizardNewCloudVMPageExpert class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,84 +22,66 @@
 #endif
 
 /* GUI includes: */
-#include "UIWizardNewCloudVMPageSource.h"
-#include "UIWizardNewCloudVMPageProperties.h"
+#include "UIWizardNewCloudVMPageBasic1.h"
+#include "UIWizardNewCloudVMPageBasic2.h"
 
 /* Forward declarations: */
-class UIToolBox;
-class UIWizardNewCloudVM;
+class QGroupBox;
 
-/** UINativeWizardPage extension for Expert page of the New Cloud VM wizard,
-  * based on UIWizardNewCloudVMPage1 & UIWizardNewCloudVMPage2 namespace functions. */
-class UIWizardNewCloudVMPageExpert : public UINativeWizardPage
+/** UIWizardPage extension for UIWizardNewCloudVMPage1 and UIWizardNewCloudVMPage2. */
+class UIWizardNewCloudVMPageExpert : public UIWizardPage,
+                                     public UIWizardNewCloudVMPage1,
+                                     public UIWizardNewCloudVMPage2
 {
     Q_OBJECT;
 
 public:
 
     /** Constructs expert page. */
-    UIWizardNewCloudVMPageExpert();
+    UIWizardNewCloudVMPageExpert(bool fFullWizard);
 
 protected:
 
-    /** Returns wizard this page belongs to. */
-    UIWizardNewCloudVM *wizard() const;
+    /** Allows access wizard from base part. */
+    virtual UIWizard *wizardImp() const /* override */ { return UIWizardPage::wizard(); }
+
+    /** Handle any Qt @a pEvent. */
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() /* override final */;
+    virtual void retranslateUi() /* override */;
 
     /** Performs page initialization. */
-    virtual void initializePage() /* override final */;
+    virtual void initializePage() /* override */;
 
     /** Returns whether page is complete. */
-    virtual bool isComplete() const /* override final */;
+    virtual bool isComplete() const /* override */;
 
     /** Performs page validation. */
-    virtual bool validatePage() /* override final */;
+    virtual bool validatePage() /* override */;
 
 private slots:
 
-    /** Handles change in provider combo-box. */
-    void sltHandleProviderComboChange();
+    /** Handles change in destination combo-box. */
+    void sltHandleDestinationChange();
 
-    /** Handles change in profile combo-box. */
-    void sltHandleProfileComboChange();
-    /** Handles profile tool-button click. */
-    void sltHandleProfileButtonClick();
-
-    /** Handles change in source tab-bar. */
-    void sltHandleSourceTabBarChange();
+    /** Handles change in account combo-box. */
+    void sltHandleAccountComboChange();
+    /** Handles account tool-button click. */
+    void sltHandleAccountButtonClick();
 
     /** Handles change in instance list. */
-    void sltHandleSourceImageChange();
+    void sltHandleInstanceListChange();
+
+    /** Initializes short wizard form. */
+    void sltInitShortWizardForm();
 
 private:
 
-    /** Updates properties table. */
-    void updatePropertiesTable();
-
-    /** Holds whether we want full wizard form or short one. */
-    bool     m_fFullWizard;
-    /** Holds the image ID. */
-    QString  m_strSourceImageId;
-
-    /** Holds the tool-box instance. */
-    UIToolBox *m_pToolBox;
-
-    /** Holds the location type combo-box instance. */
-    QIComboBox   *m_pProviderComboBox;
-    /** Holds the profile combo-box instance. */
-    QIComboBox   *m_pProfileComboBox;
-    /** Holds the profile management tool-button instance. */
-    QIToolButton *m_pProfileToolButton;
-
-    /** Holds the source tab-bar instance. */
-    QTabBar      *m_pSourceTabBar;
-    /** Holds the source image list instance. */
-    QListWidget  *m_pSourceImageList;
-
-    /** Holds the Form Editor widget instance. */
-    UIFormEditorWidget *m_pFormEditor;
+    /** Holds the destination container instance. */
+    QGroupBox *m_pCntDestination;
+    /** Holds the settings container instance. */
+    QGroupBox *m_pSettingsCnt;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_wizards_newcloudvm_UIWizardNewCloudVMPageExpert_h */

@@ -1,4 +1,4 @@
-# $Id: Makefile-header.gmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile-header.gmk $
 ## @file
 # VirtualBox Guest Additions kernel module Makefile, common parts.
 #
@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -36,100 +36,53 @@
 # VBOXMOD_CFLAGS = <any additional CFLAGS which this module needs>
 # include $(obj)/Makefile-footer.gmk
 #
-# To avoid potential confusion between kmk/kBuild and linux/kbuild,
-# we use VBOX_KBUILD_TARGET_ARCH instead of KBUILD_TARGET_ARCH and
-# VBOX_KBUILD_TYPE instead of KBUILD_TYPE.  The VBOX_KBUILD_ variable
-# variant takes percedence over the kmk/kBuild ones.
+# The kmk kBuild define KBUILD_TARGET_ARCH is available.
 #
 
 
 #
 # First, figure out which architecture we're targeting and the build type.
 # (We have to support basic cross building (ARCH=i386|x86_64).)
-# While at it, warn about *BUILD_* vars found to help with user problems.
+# While at it, warn about BUILD_* vars found to help with user problems.
 #
-
-# VBOX_KBUILD_TARGET_ARCH = amd64|x86
 ifeq ($(filter-out x86_64 amd64 AMD64,$(shell uname -m)),)
- VBOX_KBUILD_TARGET_ARCH_DEFAULT := amd64
+ BUILD_TARGET_ARCH_DEF := amd64
 else
- VBOX_KBUILD_TARGET_ARCH_DEFAULT := x86
+ BUILD_TARGET_ARCH_DEF := x86
 endif
-ifdef VBOX_KBUILD_TARGET_ARCH
- ifneq ($(filter-out amd64 x86,$(VBOX_KBUILD_TARGET_ARCH)),)
-  $(warning Ignoring unknown VBOX_KBUILD_TARGET_ARCH value '$(VBOX_KBUILD_TARGET_ARCH)'.)
-  VBOX_KBUILD_TARGET_ARCH :=
- endif
-else
- ifdef KBUILD_TARGET_ARCH
-  ifneq ($(filter-out amd64 x86,$(KBUILD_TARGET_ARCH)),)
-  $(warning Ignoring unknown KBUILD_TARGET_ARCH value '$(KBUILD_TARGET_ARCH)'.)
-  VBOX_KBUILD_TARGET_ARCH :=
-  endif
-  else
-   ifdef BUILD_TARGET_ARCH
-    $(warning BUILD_TARGET_ARCH is deprecated, use VBOX_KBUILD_TARGET_ARCH instead.)
-    ifneq ($(filter-out amd64 x86,$(BUILD_TARGET_ARCH)),)
-     $(warning Ignoring unknown BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)'.)
-     VBOX_KBUILD_TARGET_ARCH :=
-   endif
-  endif
- endif
+ifneq ($(filter-out amd64 x86,$(BUILD_TARGET_ARCH)),)
+ $(warning Ignoring unknown BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)'.)
+ BUILD_TARGET_ARCH :=
 endif
-ifeq ($(VBOX_KBUILD_TARGET_ARCH),)
+ifeq ($(BUILD_TARGET_ARCH),)
  ifeq ($(ARCH),x86_64)
-  VBOX_KBUILD_TARGET_ARCH := amd64
+  BUILD_TARGET_ARCH := amd64
  else
   ifeq ($(ARCH),i386)
-   VBOX_KBUILD_TARGET_ARCH := x86
+   BUILD_TARGET_ARCH := x86
   else
-   VBOX_KBUILD_TARGET_ARCH := $(VBOX_KBUILD_TARGET_ARCH_DEFAULT)
+   BUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH_DEF)
   endif
  endif
 else
- ifneq ($(VBOX_KBUILD_TARGET_ARCH),$(VBOX_KBUILD_TARGET_ARCH_DEFAULT))
-  $(warning Using VBOX_KBUILD_TARGET_ARCH='$(VBOX_KBUILD_TARGET_ARCH)' from the $(origin VBOX_KBUILD_TARGET_ARCH).)
+ ifneq ($(BUILD_TARGET_ARCH),$(BUILD_TARGET_ARCH_DEF))
+  $(warning Using BUILD_TARGET_ARCH='$(BUILD_TARGET_ARCH)' from the $(origin BUILD_TARGET_ARCH).)
  endif
 endif
 
-# VBOX_KBUILD_TYPE = release|debug|profile|strict|asan
-ifdef VBOX_KBUILD_TYPE
- VBOX_KBUILD_TYPE_VAR := VBOX_KBUILD_TYPE
- ifneq ($(filter-out release profile debug strict asan,$(VBOX_KBUILD_TYPE)),)
-  $(warning Ignoring unknown VBOX_KBUILD_TYPE value '$(VBOX_KBUILD_TYPE)'.)
-  VBOX_KBUILD_TYPE :=
- endif
-else
- ifdef KBUILD_TYPE
-  VBOX_KBUILD_TYPE_VAR := KBUILD_TYPE
-  VBOX_KBUILD_TYPE := $(KBUILD_TYPE)
-  ifneq ($(filter-out release profile debug strict asan,$(KBUILD_TYPE)),)
-   $(warning Ignoring unknown KBUILD_TYPE value '$(KBUILD_TYPE)'.)
-   VBOX_KBUILD_TYPE :=
-  endif
- else
-  ifdef BUILD_TYPE
-   $(warning BUILD_TYPE is deprecated, use VBOX_KBUILD_TYPE instead.)
-   VBOX_KBUILD_TYPE_VAR := BUILD_TYPE
-   VBOX_KBUILD_TYPE := $(BUILD_TYPE)
-   ifneq ($(filter-out release profile debug strict asan,$(BUILD_TYPE)),)
-    $(warning Ignoring unknown BUILD_TYPE value '$(BUILD_TYPE)'.)
-    VBOX_KBUILD_TYPE :=
-   endif
-  endif
- endif
+ifneq ($(filter-out release profile debug strict,$(BUILD_TYPE)),)
+ $(warning Ignoring unknown BUILD_TYPE value '$(BUILD_TYPE)'.)
+ BUILD_TYPE :=
 endif
-ifeq ($(VBOX_KBUILD_TYPE),)
- VBOX_KBUILD_TYPE_VAR = VBOX_KBUILD_TYPE
- VBOX_KBUILD_TYPE := release
+ifeq ($(BUILD_TYPE),)
+ BUILD_TYPE := release
 else
- ifneq ($(VBOX_KBUILD_TYPE),release)
+ ifneq ($(BUILD_TYPE),release)
   ifndef VBOX_KERN_QUIET
-   $(warning Using VBOX_KBUILD_TYPE='$(VBOX_KBUILD_TYPE)' from the $(origin $(VBOX_KBUILD_TYPE_VAR)) ($(VBOX_KBUILD_TYPE_VAR)).)
+   $(warning Using BUILD_TYPE='$(BUILD_TYPE)' from the $(origin BUILD_TYPE).)
   endif
  endif
 endif
-
 ifeq ($(USERNAME),)
  USERNAME := noname
 endif
@@ -267,12 +220,10 @@ VBOX_GCC_CHECK_CC = $(shell \
 # Guess the module directory ASSUMING that this file is located in that directory.
 # Note! The special MAKEFILE_LIST variable was introduced in GNU make 3.80.
 #
-ifndef VBOX_MODULE_SRC_DIR
- ifdef MAKEFILE_LIST
-  VBOX_MODULE_SRC_DIR := $(dir $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
- else
-  VBOX_MODULE_SRC_DIR := $(CURDIR)/
- endif
+ifdef MAKEFILE_LIST
+ VBOX_MODULE_SRC_DIR := $(dir $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
+else
+ VBOX_MODULE_SRC_DIR := $(CURDIR)/
 endif
 
 

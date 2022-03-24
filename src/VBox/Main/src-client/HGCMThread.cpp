@@ -1,10 +1,10 @@
-/* $Id: HGCMThread.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: HGCMThread.cpp $ */
 /** @file
  * HGCMThread - Host-Guest Communication Manager Threads
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 
 #include <VBox/err.h>
 #include <VBox/vmm/stam.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <iprt/semaphore.h>
 #include <iprt/thread.h>
 #include <iprt/string.h>
@@ -142,12 +141,11 @@ class HGCMThread : public HGCMReferencedObject
 
         int WaitForTermination (void);
 
-        int Initialize(const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser,
-                       const char *pszStatsSubDir, PUVM pUVM, PCVMMR3VTABLE pVMM);
+        int Initialize(const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser, const char *pszStatsSubDir, PUVM pUVM);
 
         int MsgAlloc(HGCMMsgCore **pMsg, uint32_t u32MsgId, PFNHGCMNEWMSGALLOC pfnNewMessage);
         int MsgGet(HGCMMsgCore **ppMsg);
-        int MsgPost(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCallback, bool bWait);
+        int MsgPost(HGCMMsgCore *pMsg, PHGCMMSGCALLBACK pfnCallback, bool bWait);
         int MsgComplete(HGCMMsgCore *pMsg, int32_t result);
 };
 
@@ -267,8 +265,7 @@ int HGCMThread::WaitForTermination(void)
     return rc;
 }
 
-int HGCMThread::Initialize(const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser,
-                           const char *pszStatsSubDir, PUVM pUVM, PCVMMR3VTABLE pVMM)
+int HGCMThread::Initialize(const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser, const char *pszStatsSubDir, PUVM pUVM)
 {
     int rc = RTSemEventCreate(&m_eventThread);
 
@@ -298,25 +295,21 @@ int HGCMThread::Initialize(const char *pszThreadName, PFNHGCMTHREAD pfnThread, v
                     /* Register statistics while the thread starts. */
                     if (pUVM)
                     {
-                        pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatPostMsgNoPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS,
-                                                  STAMUNIT_COUNT, "Times a message was appended to an empty input queue.",
-                                                  "/HGCM/%s/PostMsg0Pending", pszStatsSubDir);
-                        pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatPostMsgOnePending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS,
-                                                  STAMUNIT_COUNT,
-                                                  "Times a message was appended to input queue with only one pending message.",
-                                                  "/HGCM/%s/PostMsg1Pending", pszStatsSubDir);
-                        pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatPostMsgTwoPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS,
-                                                  STAMUNIT_COUNT,
-                                                  "Times a message was appended to input queue with only one pending message.",
-                                                  "/HGCM/%s/PostMsg2Pending", pszStatsSubDir);
-                        pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatPostMsgThreePending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS,
-                                                  STAMUNIT_COUNT,
-                                                  "Times a message was appended to input queue with only one pending message.",
-                                                  "/HGCM/%s/PostMsg3Pending", pszStatsSubDir);
-                        pVMM->pfnSTAMR3RegisterFU(pUVM, &m_StatPostMsgManyPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS,
-                                                  STAMUNIT_COUNT,
-                                                  "Times a message was appended to input queue with only one pending message.",
-                                                  "/HGCM/%s/PostMsgManyPending", pszStatsSubDir);
+                        STAMR3RegisterFU(pUVM, &m_StatPostMsgNoPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
+                                         "Times a message was appended to an empty input queue.",
+                                         "/HGCM/%s/PostMsg0Pending", pszStatsSubDir);
+                        STAMR3RegisterFU(pUVM, &m_StatPostMsgOnePending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
+                                         "Times a message was appended to input queue with only one pending message.",
+                                         "/HGCM/%s/PostMsg1Pending", pszStatsSubDir);
+                        STAMR3RegisterFU(pUVM, &m_StatPostMsgTwoPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
+                                         "Times a message was appended to input queue with only one pending message.",
+                                         "/HGCM/%s/PostMsg2Pending", pszStatsSubDir);
+                        STAMR3RegisterFU(pUVM, &m_StatPostMsgThreePending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
+                                         "Times a message was appended to input queue with only one pending message.",
+                                         "/HGCM/%s/PostMsg3Pending", pszStatsSubDir);
+                        STAMR3RegisterFU(pUVM, &m_StatPostMsgManyPending, STAMTYPE_COUNTER, STAMVISIBILITY_ALWAYS, STAMUNIT_COUNT,
+                                         "Times a message was appended to input queue with only one pending message.",
+                                         "/HGCM/%s/PostMsgManyPending", pszStatsSubDir);
                     }
 
 
@@ -406,7 +399,7 @@ int HGCMThread::MsgAlloc(HGCMMsgCore **ppMsg, uint32_t u32MsgId, PFNHGCMNEWMSGAL
     return VINF_SUCCESS;
 }
 
-int HGCMThread::MsgPost(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCallback, bool fWait)
+int HGCMThread::MsgPost(HGCMMsgCore *pMsg, PHGCMMSGCALLBACK pfnCallback, bool fWait)
 {
     LogFlow(("HGCMThread::MsgPost: thread = %p, pMsg = %p, pfnCallback = %p\n", this, pMsg, pfnCallback));
 
@@ -633,7 +626,7 @@ int HGCMThread::MsgComplete(HGCMMsgCore *pMsg, int32_t result)
  */
 
 int hgcmThreadCreate(HGCMThread **ppThread, const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser,
-                     const char *pszStatsSubDir, PUVM pUVM, PCVMMR3VTABLE pVMM)
+                     const char *pszStatsSubDir, PUVM pUVM)
 {
     LogFlow(("MAIN::hgcmThreadCreate\n"));
     int rc;
@@ -646,7 +639,7 @@ int hgcmThreadCreate(HGCMThread **ppThread, const char *pszThreadName, PFNHGCMTH
         pThread->Reference(); /* (it's created with zero references) */
 
         /* Initialize the object. */
-        rc = pThread->Initialize(pszThreadName, pfnThread, pvUser, pszStatsSubDir, pUVM, pVMM);
+        rc = pThread->Initialize(pszThreadName, pfnThread, pvUser, pszStatsSubDir, pUVM);
         if (RT_SUCCESS(rc))
         {
             *ppThread = pThread;
@@ -700,7 +693,7 @@ int hgcmMsgAlloc(HGCMThread *pThread, HGCMMsgCore **ppMsg, uint32_t u32MsgId, PF
     return rc;
 }
 
-DECLINLINE(int) hgcmMsgPostInternal(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCallback, bool fWait)
+DECLINLINE(int) hgcmMsgPostInternal(HGCMMsgCore *pMsg, PHGCMMSGCALLBACK pfnCallback, bool fWait)
 {
     LogFlow(("MAIN::hgcmMsgPostInternal: pMsg = %p, pfnCallback = %p, fWait = %d\n", pMsg, pfnCallback, fWait));
     Assert(pMsg);
@@ -715,7 +708,7 @@ DECLINLINE(int) hgcmMsgPostInternal(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCal
     return rc;
 }
 
-int hgcmMsgPost(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCallback)
+int hgcmMsgPost(HGCMMsgCore *pMsg, PHGCMMSGCALLBACK pfnCallback)
 {
     int rc = hgcmMsgPostInternal(pMsg, pfnCallback, false);
 

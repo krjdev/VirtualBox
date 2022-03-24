@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: testresults.py 94128 2022-03-08 14:50:04Z vboxsync $
+# $Id: testresults.py $
 # pylint: disable=too-many-lines
 
 ## @todo Rename this file to testresult.py!
@@ -10,7 +10,7 @@ Test Manager - Fetch test results.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94128 $"
+__version__ = "$Revision: 135993 $"
 
 
 # Standard python imports.
@@ -1359,9 +1359,7 @@ class TestResultLogic(ModelLogicBase): # pylint: disable=too-few-public-methods
                   '       LEFT OUTER JOIN TestBoxesWithStrings\n' \
                   '                    ON TestSets.idGenTestBox     = TestBoxesWithStrings.idGenTestBox' \
                   '       LEFT OUTER JOIN Builds AS TestSuiteBits\n' \
-                  '                    ON TestSuiteBits.idBuild     =  TestSets.idBuildTestSuite\n' \
-                  '                   AND TestSuiteBits.tsExpire    >  TestSets.tsCreated\n' \
-                  '                   AND TestSuiteBits.tsEffective <= TestSets.tsCreated\n' \
+                  '                    ON TestSets.idBuildTestSuite = TestSuiteBits.idBuild\n' \
                   '       LEFT OUTER JOIN TestResultFailures\n' \
                   '                    ON     TestSets.idTestSet          = TestResultFailures.idTestSet\n' \
                   '                       AND TestResultFailures.tsExpire = \'infinity\'::TIMESTAMP';
@@ -2154,7 +2152,7 @@ class TestResultLogic(ModelLogicBase): # pylint: disable=too-few-public-methods
                                                % (oRoot.idTestResult, oRoot.idTestResultParent));
         self._fetchResultTreeNodeExtras(oRoot, aoRow[-4], aoRow[-3], aoRow[-2], aoRow[-1]);
 
-        # The children (if any).
+        # The chilren (if any).
         dLookup = { oRoot.idTestResult: oRoot };
         oParent = oRoot;
         for iRow in range(1, len(aaoRows)):
@@ -2232,7 +2230,7 @@ class TestResultLogic(ModelLogicBase): # pylint: disable=too-few-public-methods
             for aoRow in self._oDb.fetchAll():
                 oCurNode.aoFiles.append(TestResultFileDataEx().initFromDbRow(aoRow));
 
-        if fHasReasons:
+        if fHasReasons or True:
             if self.oFailureReasonLogic is None:
                 self.oFailureReasonLogic = FailureReasonLogic(self._oDb);
             if self.oUserAccountLogic is None:
@@ -2538,7 +2536,8 @@ class TestResultLogic(ModelLogicBase): # pylint: disable=too-few-public-methods
                           'WHERE    idTestResultParent = %s\n'
                           , ( oTestResult.idTestResult, ));
         cMinErrors = self._oDb.fetchOne()[0] + oTestResult.cErrors;
-        cErrors    = max(cErrors, cMinErrors);
+        if cErrors < cMinErrors:
+            cErrors = cMinErrors;
         if cErrors > 0 and enmStatus == TestResultData.ksTestStatus_Success:
             enmStatus = TestResultData.ksTestStatus_Failure
 

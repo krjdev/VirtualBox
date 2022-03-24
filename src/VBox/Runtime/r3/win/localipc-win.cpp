@@ -1,10 +1,10 @@
-/* $Id: localipc-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: localipc-win.cpp $ */
 /** @file
  * IPRT - Local IPC, Windows Implementation Using Named Pipes.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -566,13 +566,6 @@ RTDECL(int) RTLocalIpcServerDestroy(RTLOCALIPCSERVER hServer)
 }
 
 
-RTDECL(int) RTLocalIpcServerGrantGroupAccess(RTLOCALIPCSERVER hServer, RTGID gid)
-{
-    RT_NOREF_PV(hServer); RT_NOREF(gid);
-    return VERR_NOT_SUPPORTED;
-}
-
-
 RTDECL(int) RTLocalIpcServerListen(RTLOCALIPCSERVER hServer, PRTLOCALIPCSESSION phClientSession)
 {
     /*
@@ -830,14 +823,15 @@ RTDECL(int) RTLocalIpcSessionConnect(PRTLOCALIPCSESSION phSession, const char *p
                     SecAttrs.lpSecurityDescriptor = pSecDesc;
                     SecAttrs.bInheritHandle       = FALSE;
 
-                    /* The SECURITY_XXX flags are needed in order to prevent the server from impersonating with
-                       this thread's security context (supported at least back to NT 3.51). See @bugref{9773}. */
                     HANDLE hPipe = CreateFileW(pwszFullName,
                                                GENERIC_READ | GENERIC_WRITE,
                                                0 /*no sharing*/,
                                                &SecAttrs,
                                                OPEN_EXISTING,
-                                               FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS,
+                                               FILE_FLAG_OVERLAPPED
+                                               /* Needed in order to prevent the server to impersonate with this thread's
+                                                * security context. See #9773. */
+                                               | SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS,
                                                NULL /*no template handle*/);
                     if (hPipe != INVALID_HANDLE_VALUE)
                     {

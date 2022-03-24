@@ -3,7 +3,7 @@
 # Linux kernel module init script
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -57,7 +57,7 @@ setup_log()
 }
 
 [ -f /etc/vbox/vbox.cfg ] && . /etc/vbox/vbox.cfg
-export VBOX_KBUILD_TYPE
+export BUILD_TYPE
 export USERNAME
 export USER=$USERNAME
 
@@ -167,9 +167,9 @@ udev_write_vboxdrv() {
     VBOXDRV_GRP="$1"
     VBOXDRV_MODE="$2"
 
-    echo "KERNEL==\"vboxdrv\", OWNER=\"root\", GROUP=\"$VBOXDRV_GRP\", MODE=\"$VBOXDRV_MODE\""
-    echo "KERNEL==\"vboxdrvu\", OWNER=\"root\", GROUP=\"root\", MODE=\"0666\""
-    echo "KERNEL==\"vboxnetctl\", OWNER=\"root\", GROUP=\"$VBOXDRV_GRP\", MODE=\"$VBOXDRV_MODE\""
+    echo "KERNEL==\"vboxdrv\", NAME=\"vboxdrv\", OWNER=\"root\", GROUP=\"$VBOXDRV_GRP\", MODE=\"$VBOXDRV_MODE\""
+    echo "KERNEL==\"vboxdrvu\", NAME=\"vboxdrvu\", OWNER=\"root\", GROUP=\"root\", MODE=\"0666\""
+    echo "KERNEL==\"vboxnetctl\", NAME=\"vboxnetctl\", OWNER=\"root\", GROUP=\"$VBOXDRV_GRP\", MODE=\"$VBOXDRV_MODE\""
 }
 
 ## Output the USB part of our udev rule.  This is redirected to the right file.

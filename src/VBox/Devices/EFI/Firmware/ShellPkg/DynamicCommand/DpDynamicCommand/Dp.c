@@ -36,7 +36,7 @@ typedef struct {
 
 #pragma pack()
 
-EFI_HII_HANDLE   mDpHiiHandle;
+EFI_HANDLE   mDpHiiHandle;
 
 typedef struct {
   EFI_HANDLE    Handle;
@@ -154,7 +154,7 @@ GetHandleFormModuleGuid (
     *Handle = NULL;
   }
   //
-  // Try to get the Handle from the cached array.
+  // Try to get the Handle form the caached array.
   //
   for (Index = 0; Index < mCachePairCount; Index++) {
     if (CompareGuid (ModuleGuid, &mCacheHandleGuidTable[Index].ModuleGuid)) {
@@ -918,20 +918,20 @@ Done:
 
 
 /**
-  Retrieve HII package list from ImageHandle and publish to HII database.
+  Retrive HII package list from ImageHandle and publish to HII database.
 
   @param ImageHandle            The image handle of the process.
 
   @return HII handle.
 **/
-EFI_HII_HANDLE
+EFI_HANDLE
 InitializeHiiPackage (
   EFI_HANDLE                  ImageHandle
   )
 {
   EFI_STATUS                  Status;
   EFI_HII_PACKAGE_LIST_HEADER *PackageList;
-  EFI_HII_HANDLE              HiiHandle;
+  EFI_HANDLE                  HiiHandle;
 
   //
   // Retrieve HII package list from ImageHandle

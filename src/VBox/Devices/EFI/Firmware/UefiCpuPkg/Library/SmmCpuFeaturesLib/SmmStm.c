@@ -6,7 +6,7 @@
 
 **/
 
-#include <PiMm.h>
+#include <PiSmm.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -21,7 +21,6 @@
 
 #include <Protocol/MpService.h>
 
-#include "CpuFeaturesLib.h"
 #include "SmmStm.h"
 
 #define TXT_EVTYPE_BASE                  0x400
@@ -29,6 +28,22 @@
 
 #define RDWR_ACCS             3
 #define FULL_ACCS             7
+
+/**
+  The constructor function
+
+  @param[in]  ImageHandle  The firmware allocated handle for the EFI image.
+  @param[in]  SystemTable  A pointer to the EFI System Table.
+
+  @retval EFI_SUCCESS      The constructor always returns EFI_SUCCESS.
+
+**/
+EFI_STATUS
+EFIAPI
+SmmCpuFeaturesLibConstructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  );
 
 EFI_HANDLE  mStmSmmCpuHandle = NULL;
 
@@ -96,7 +111,7 @@ UINTN  mMsegSize = 0;
 BOOLEAN  mStmConfigurationTableInitialized = FALSE;
 
 /**
-  The constructor function for the Traditional MM library instance with STM.
+  The constructor function
 
   @param[in]  ImageHandle  The firmware allocated handle for the EFI image.
   @param[in]  SystemTable  A pointer to the EFI System Table.
@@ -122,9 +137,10 @@ SmmCpuFeaturesLibStmConstructor (
   SmmCpuFeaturesLibStmSmiEntryFixupAddress ();
 
   //
-  // Perform library initialization common across all instances
+  // Call the common constructor function
   //
-  CpuFeaturesLibInitialization ();
+  Status = SmmCpuFeaturesLibConstructor (ImageHandle, SystemTable);
+  ASSERT_EFI_ERROR (Status);
 
   //
   // Lookup the MP Services Protocol
@@ -897,7 +913,7 @@ AddPiResource (
     }
 
     //
-    // Copy EndResource for initialization
+    // Copy EndResource for intialization
     //
     mStmResourcesPtr = (UINT8 *)(UINTN)NewResource;
     mStmResourceTotalSize = NewResourceSize;
@@ -1220,7 +1236,7 @@ LoadMonitor (
 /**
   This function return BIOS STM resource.
   Produced by SmmStm.
-  Consumed by SmmMpService when Init.
+  Comsumed by SmmMpService when Init.
 
   @return BIOS STM resource
 

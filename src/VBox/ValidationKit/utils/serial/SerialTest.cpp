@@ -1,10 +1,10 @@
-/* $Id: SerialTest.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SerialTest.cpp $ */
 /** @file
  * SerialTest - Serial port testing utility.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,7 +82,7 @@ typedef struct SERIALTEST *PSERIALTEST;
  * @returns IPRT status code.
  * @param   pSerialTest         The serial test instance data.
  */
-typedef DECLCALLBACKTYPE(int, FNSERIALTESTRUN,(PSERIALTEST pSerialTest));
+typedef DECLCALLBACK(int) FNSERIALTESTRUN(PSERIALTEST pSerialTest);
 /** Pointer to the serial test callback. */
 typedef FNSERIALTESTRUN *PFNSERIALTESTRUN;
 
@@ -164,18 +164,14 @@ static const RTGETOPTDEF g_aCmdOptions[] =
 
 static DECLCALLBACK(int) serialTestRunReadWrite(PSERIALTEST pSerialTest);
 static DECLCALLBACK(int) serialTestRunWrite(PSERIALTEST pSerialTest);
-static DECLCALLBACK(int) serialTestRunReadVerify(PSERIALTEST pSerialTest);
 static DECLCALLBACK(int) serialTestRunStsLines(PSERIALTEST pSerialTest);
-static DECLCALLBACK(int) serialTestRunEcho(PSERIALTEST pSerialTest);
 
 /** Implemented tests. */
 static const SERIALTESTDESC g_aSerialTests[] =
 {
-    {"readwrite",  "Simple Read/Write test on the same serial port",                 serialTestRunReadWrite  },
-    {"write",      "Simple write test (verification done somewhere else)",           serialTestRunWrite      },
-    {"readverify", "Counterpart to write test (reads and verifies data)",            serialTestRunReadVerify },
-    {"stslines",   "Testing the status line setting and receiving",                  serialTestRunStsLines   },
-    {"echo",       "Echoes received data back to the sender (not real test)",        serialTestRunEcho       },
+    {"readwrite", "Simple Read/Write test on the same serial port",       serialTestRunReadWrite },
+    {"write",     "Simple write test (verification done somewhere else)", serialTestRunWrite     },
+    {"stslines",  "Testing the status line setting and receiving",        serialTestRunStsLines  }
 };
 
 /** Verbosity value. */
@@ -348,8 +344,7 @@ static int serialTestRxBufRecv(RTSERIALPORT hSerialPort, PSERIALTESTTXRXBUFCNT p
  * @returns Flag whether verification failed.
  * @param   hTest               The test handle to report errors to.
  * @param   pSerBuf             The RX buffer pointer.
- * @param   iCntTx              The current TX counter value the RX buffer should never get ahead of,
- *                              UINT32_MAX disables this check.
+ * @param   iCntTx              The current TX counter value the RX buffer should never get ahead of.
  */
 static bool serialTestRxBufVerify(RTTEST hTest, PSERIALTESTTXRXBUFCNT pSerBuf, uint32_t iCntTx)
 {
@@ -479,55 +474,6 @@ static DECLCALLBACK(int) serialTestRunWrite(PSERIALTEST pSerialTest)
 
         if (fEvts & RTSERIALPORT_EVT_F_DATA_TX)
             rc = serialTestTxBufSend(pSerialTest->hSerialPort, &SerBufTx);
-    }
-
-    uint64_t tsRuntime = RTTimeNanoTS() - tsStart;
-    size_t cNsPerByte = tsRuntime / g_cbTx;
-    uint64_t cbBytesPerSec = RT_NS_1SEC / cNsPerByte;
-    RTTestValue(pSerialTest->hTest, "Throughput", cbBytesPerSec, RTTESTUNIT_BYTES_PER_SEC);
-
-    return rc;
-}
-
-
-/**
- * Runs the counterpart to the write test, reading and verifying data.
- *
- * @returns IPRT status code.
- * @param   pSerialTest         The serial test configuration.
- */
-static DECLCALLBACK(int) serialTestRunReadVerify(PSERIALTEST pSerialTest)
-{
-    int rc = VINF_SUCCESS;
-    uint64_t tsStart = RTTimeNanoTS();
-    bool fFailed = false;
-    SERIALTESTTXRXBUFCNT SerBufRx;
-
-    serialTestRxBufInit(&SerBufRx, g_cbTx);
-
-    while (   RT_SUCCESS(rc)
-           && SerBufRx.cbTxRxLeft)
-    {
-        uint32_t fEvts = 0;
-        uint32_t fEvtsQuery = RTSERIALPORT_EVT_F_DATA_RX;
-
-        rc = RTSerialPortEvtPoll(pSerialTest->hSerialPort, fEvtsQuery, &fEvts, RT_INDEFINITE_WAIT);
-        if (RT_FAILURE(rc))
-            break;
-
-        if (fEvts & RTSERIALPORT_EVT_F_DATA_RX)
-        {
-            rc = serialTestRxBufRecv(pSerialTest->hSerialPort, &SerBufRx);
-            if (RT_FAILURE(rc))
-                break;
-
-            bool fRes = serialTestRxBufVerify(pSerialTest->hTest, &SerBufRx, UINT32_MAX);
-            if (fRes && !fFailed)
-            {
-                fFailed = true;
-                serialTestFailed(pSerialTest->hTest, "Data corruption/loss detected\n");
-            }
-        }
     }
 
     uint64_t tsRuntime = RTTimeNanoTS() - tsStart;
@@ -683,70 +629,6 @@ static DECLCALLBACK(int) serialTestRunStsLines(PSERIALTEST pSerialTest)
     }
     else
         rc = VERR_NOT_IMPLEMENTED;
-
-    return rc;
-}
-
-
-/**
- * Runs a simple echo service (not a real test on its own).
- *
- * @returns IPRT status code.
- * @param   pSerialTest         The serial test configuration.
- */
-static DECLCALLBACK(int) serialTestRunEcho(PSERIALTEST pSerialTest)
-{
-    int rc = VINF_SUCCESS;
-    uint64_t tsStart = RTTimeNanoTS();
-    uint8_t abBuf[_1K];
-    size_t cbLeft = g_cbTx;
-    size_t cbInBuf = 0;
-
-    while (   RT_SUCCESS(rc)
-           && (   cbLeft
-               || cbInBuf))
-    {
-        uint32_t fEvts = 0;
-        uint32_t fEvtsQuery = 0;
-        if (cbInBuf)
-            fEvtsQuery |= RTSERIALPORT_EVT_F_DATA_TX;
-        if (cbLeft && cbInBuf < sizeof(abBuf))
-            fEvtsQuery |= RTSERIALPORT_EVT_F_DATA_RX;
-
-        rc = RTSerialPortEvtPoll(pSerialTest->hSerialPort, fEvtsQuery, &fEvts, RT_INDEFINITE_WAIT);
-        if (RT_FAILURE(rc))
-            break;
-
-        if (fEvts & RTSERIALPORT_EVT_F_DATA_RX)
-        {
-            size_t cbThisRead = RT_MIN(cbLeft, sizeof(abBuf) - cbInBuf);
-            size_t cbRead = 0;
-            rc = RTSerialPortReadNB(pSerialTest->hSerialPort, &abBuf[cbInBuf], cbThisRead, &cbRead);
-            if (RT_SUCCESS(rc))
-            {
-                cbInBuf += cbRead;
-                cbLeft  -= cbRead;
-            }
-            else if (RT_FAILURE(rc))
-                break;
-        }
-
-        if (fEvts & RTSERIALPORT_EVT_F_DATA_TX)
-        {
-            size_t cbWritten = 0;
-            rc = RTSerialPortWriteNB(pSerialTest->hSerialPort, &abBuf[0], cbInBuf, &cbWritten);
-            if (RT_SUCCESS(rc))
-            {
-                memmove(&abBuf[0], &abBuf[cbWritten], cbInBuf - cbWritten);
-                cbInBuf -= cbWritten;
-            }
-        }
-    }
-
-    uint64_t tsRuntime = RTTimeNanoTS() - tsStart;
-    size_t cNsPerByte = tsRuntime / g_cbTx;
-    uint64_t cbBytesPerSec = RT_NS_1SEC / cNsPerByte;
-    RTTestValue(pSerialTest->hTest, "Throughput", cbBytesPerSec, RTTESTUNIT_BYTES_PER_SEC);
 
     return rc;
 }

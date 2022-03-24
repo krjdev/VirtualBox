@@ -1,10 +1,10 @@
-; $Id: ASMAtomicCmpXchgU8.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMAtomicCmpXchgU8.asm $
 ;; @file
 ; IPRT - ASMAtomicCmpXchgU8().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -41,7 +41,7 @@ BEGINCODE
 ; @returns  bool result: true if successfully exchanged, false if not.
 ;           x86:al
 ;
-RT_BEGINPROC ASMAtomicCmpXchgU8
+BEGINPROC_EXPORTED ASMAtomicCmpXchgU8
 %ifdef RT_ARCH_AMD64
  %ifdef ASM_CALL64_MSC
         mov     al, r8b

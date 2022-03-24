@@ -1,10 +1,10 @@
-# $Id: .scm-settings 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: .scm-settings $
 ## @file
 # Source code massager settings for graphics.
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -63,9 +63,7 @@
 /shaderlib/wine/vbox/VBoxWineEx.h:       --no-external-copyright --no-lgpl-disclaimer --convert-tabs --fix-todos --strip-trailing-blanks
 /shaderlib/winoverride.h:                --no-external-copyright --no-lgpl-disclaimer --convert-tabs --fix-todos --strip-trailing-blanks
 
---filter-out-dirs  "/vmsvga_include/."
---filter-out-dirs  "/svgadump/."
-
+/vmsvga/*.h: --external-copyright --no-convert-tabs
 /vmsvga_glext/*.h: --external-copyright --no-convert-tabs --no-strip-trailing-blanks
 
 /DevVGATmpl.h:                          --no-fix-header-guards

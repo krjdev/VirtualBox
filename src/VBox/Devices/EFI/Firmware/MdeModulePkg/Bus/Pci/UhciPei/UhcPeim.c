@@ -274,8 +274,6 @@ UhcControlTransfer (
 
   PktID       = INPUT_PACKET_ID;
 
-  RequestMap  = NULL;
-
   if (Request == NULL || TransferResult == NULL) {
     return EFI_INVALID_PARAMETER;
   }

@@ -1,10 +1,10 @@
-/* $Id: tracelogwriter.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tracelogwriter.cpp $ */
 /** @file
  * IPRT - Trace log writer.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -858,11 +858,8 @@ RTDECL(int) RTTraceLogWrCreateTcpClient(PRTTRACELOGWR phTraceLogWr, const char *
 
 RTDECL(int) RTTraceLogWrDestroy(RTTRACELOGWR hTraceLogWr)
 {
-    if (hTraceLogWr == NIL_RTTRACELOGWR)
-        return VINF_SUCCESS;
     PRTTRACELOGWRINT pThis = hTraceLogWr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGWR_MAGIC, VERR_INVALID_HANDLE);
 
     pThis->u32Magic = RTTRACELOGWR_MAGIC_DEAD;
     pThis->pfnStreamClose(pThis->pvUser);
@@ -877,7 +874,6 @@ RTDECL(int) RTTraceLogWrAddEvtDesc(RTTRACELOGWR hTraceLogWr, PCRTTRACELOGEVTDESC
 {
     PRTTRACELOGWRINT pThis = hTraceLogWr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGWR_MAGIC, VERR_INVALID_HANDLE);
     AssertPtrReturn(pEvtDesc, VERR_INVALID_POINTER);
 
     return rtTraceLogWrEvtDescAdd(pThis, pEvtDesc, NULL);
@@ -890,7 +886,6 @@ RTDECL(int) RTTraceLogWrEvtAdd(RTTRACELOGWR hTraceLogWr, PCRTTRACELOGEVTDESC pEv
 {
     PRTTRACELOGWRINT pThis = hTraceLogWr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGWR_MAGIC, VERR_INVALID_HANDLE);
 
     int rc = VINF_SUCCESS;
     PRTTRACELOGWREVTDESC pEvtDescInt = rtTraceLogWrEvtDescGetInternal(pThis, pEvtDesc);
@@ -898,7 +893,7 @@ RTDECL(int) RTTraceLogWrEvtAdd(RTTRACELOGWR hTraceLogWr, PCRTTRACELOGEVTDESC pEv
         rc = rtTraceLogWrEvtDescAdd(pThis, pEvtDesc, &pEvtDescInt);
 
     if (   RT_SUCCESS(rc)
-        && RT_VALID_PTR(pEvtDescInt))
+        && VALID_PTR(pEvtDescInt))
     {
         TRACELOGEVT Evt;
         size_t cbEvtData = rtTraceLogWrEvtInit(&Evt, pEvtDescInt, fFlags, uGrpId, uParentGrpId, pacbRawData);
@@ -924,7 +919,6 @@ RTDECL(int) RTTraceLogWrEvtAddLV(RTTRACELOGWR hTraceLogWr, PCRTTRACELOGEVTDESC p
 {
     PRTTRACELOGWRINT pThis = hTraceLogWr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGWR_MAGIC, VERR_INVALID_HANDLE);
 
     int rc = VINF_SUCCESS;
     PRTTRACELOGWREVTDESC pEvtDescInt = rtTraceLogWrEvtDescGetInternal(pThis, pEvtDesc);
@@ -932,7 +926,7 @@ RTDECL(int) RTTraceLogWrEvtAddLV(RTTRACELOGWR hTraceLogWr, PCRTTRACELOGEVTDESC p
         rc = rtTraceLogWrEvtDescAdd(pThis, pEvtDesc, &pEvtDescInt);
 
     if (   RT_SUCCESS(rc)
-        && RT_VALID_PTR(pEvtDescInt))
+        && VALID_PTR(pEvtDescInt))
     {
         TRACELOGEVT Evt;
         size_t cbEvtData = rtTraceLogWrEvtInit(&Evt, pEvtDescInt, fFlags, uGrpId, uParentGrpId, NULL);

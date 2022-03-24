@@ -1,10 +1,10 @@
-/* $Id: QIInputDialog.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: QIInputDialog.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIInputDialog class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@
 #include "QIInputDialog.h"
 
 
-QIInputDialog::QIInputDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = Qt::WindowFlags() */)
+QIInputDialog::QIInputDialog(QWidget *pParent /* = 0 */, Qt::WindowFlags enmFlags /* = 0 */)
     : QDialog(pParent, enmFlags)
     , m_fDefaultLabelTextRedefined(false)
     , m_pLabel(0)

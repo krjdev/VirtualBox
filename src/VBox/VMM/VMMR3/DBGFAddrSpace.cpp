@@ -1,10 +1,10 @@
-/* $Id: DBGFAddrSpace.cpp 93902 2022-02-23 15:42:16Z vboxsync $ */
+/* $Id: DBGFAddrSpace.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Address Space Management.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -592,7 +592,6 @@ static DECLCALLBACK(int) dbgfR3AsLazyPopulateR0Callback(PVM pVM, const char *psz
 }
 
 
-#ifdef VBOX_WITH_RAW_MODE_KEEP
 /**
  * @callback_method_impl{FNPDMR3ENUM}
  */
@@ -619,7 +618,6 @@ static DECLCALLBACK(int) dbgfR3AsLazyPopulateRCCallback(PVM pVM, const char *psz
     }
     return VINF_SUCCESS;
 }
-#endif /* VBOX_WITH_RAW_MODE_KEEP */
 
 
 /**
@@ -637,13 +635,11 @@ static void dbgfR3AsLazyPopulate(PUVM pUVM, RTDBGAS hAlias)
         RTDBGAS hDbgAs = pUVM->dbgf.s.ahAsAliases[iAlias];
         if (hAlias == DBGF_AS_R0 && pUVM->pVM)
             PDMR3LdrEnumModules(pUVM->pVM, dbgfR3AsLazyPopulateR0Callback, hDbgAs);
-#ifdef VBOX_WITH_RAW_MODE_KEEP /* needs fixing */
         else if (hAlias == DBGF_AS_RC && pUVM->pVM && VM_IS_RAW_MODE_ENABLED(pUVM->pVM))
         {
             LogRel(("DBGF: Lazy init of RC address space\n"));
             PDMR3LdrEnumModules(pUVM->pVM, dbgfR3AsLazyPopulateRCCallback, hDbgAs);
         }
-#endif
         else if (hAlias == DBGF_AS_PHYS && pUVM->pVM)
         {
             /** @todo Lazy load pc and vga bios symbols or the EFI stuff. */
@@ -1209,8 +1205,6 @@ VMMR3DECL(int) DBGFR3AsSymbolByAddr(PUVM pUVM, RTDBGAS hDbgAs, PCDBGFADDRESS pAd
         dbgfR3AsSymbolJoinNames(pSymbol, hMod);
         if (!phMod)
             RTDbgModRelease(hMod);
-        else
-            *phMod = hMod;
     }
 
     RTDbgAsRelease(hRealAS);

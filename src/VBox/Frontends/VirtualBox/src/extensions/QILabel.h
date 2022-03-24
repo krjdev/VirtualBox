@@ -1,10 +1,10 @@
-/* $Id: QILabel.h 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: QILabel.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QILabel class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,8 +27,6 @@
 
 /* Qt includes: */
 #include <QLabel>
-#include <QRegularExpression>
-#include <QRegExp>
 
 /* GUI includes: */
 #include "UILibraryDefs.h"
@@ -41,9 +39,9 @@ class SHARED_LIBRARY_STUFF QILabel : public QLabel
 public:
 
     /** Constructs label passing @a pParent and @a enmFlags to the base-class. */
-    QILabel(QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    QILabel(QWidget *pParent = 0, Qt::WindowFlags enmFlags = 0);
     /** Constructs label passing @a strText, @a pParent and @a enmFlags to the base-class. */
-    QILabel(const QString &strText, QWidget *pParent = 0, Qt::WindowFlags enmFlags = Qt::WindowFlags());
+    QILabel(const QString &strText, QWidget *pParent = 0, Qt::WindowFlags enmFlags = 0);
 
     /** Returns whether label full-size focusing selection is enabled. */
     bool fullSizeSelection() const { return m_fFullSizeSelection; }
@@ -129,9 +127,9 @@ private:
     QAction *m_pCopyAction;
 
     /** Holds text-copy reg-exp. */
-    static const QRegularExpression s_regExpCopy;
+    static const QRegExp s_regExpCopy;
     /** Holds text-elide reg-exp. */
-    static QRegExp                  s_regExpElide;
+    static QRegExp       s_regExpElide;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_extensions_QILabel_h */

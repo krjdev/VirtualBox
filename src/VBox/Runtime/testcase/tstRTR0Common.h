@@ -1,10 +1,10 @@
-/* $Id: tstRTR0Common.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTR0Common.h $ */
 /** @file
  * IPRT R0 Testcase - Common header.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -55,7 +55,7 @@ static uint32_t volatile g_cErrors;
 #define RTR0TESTR0_SRV_REQ_PROLOG_RET(pReqHdr) \
     do \
     { \
-        if (!RT_VALID_PTR(pReqHdr)) \
+        if (!VALID_PTR(pReqHdr)) \
             return VERR_INVALID_PARAMETER; \
         \
         PRTTSTR0REQ pReq    = (PRTTSTR0REQ)(pReqHdr); \

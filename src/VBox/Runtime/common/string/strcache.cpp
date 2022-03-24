@@ -1,10 +1,10 @@
-/* $Id: strcache.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: strcache.cpp $ */
 /** @file
  * IPRT - String Cache.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -865,7 +865,7 @@ RTDECL(const char *) RTStrCacheEnterN(RTSTRCACHE hStrCache, const char *pchStrin
         if (cbEntry >= RTSTRCACHE_HEAP_THRESHOLD)
             pEntry = rtStrCacheAllocHeapEntry(pThis, uHash, pchString, cchString32);
 #ifdef RTSTRCACHE_WITH_MERGED_ALLOCATOR
-        else if (cbEntry >= RT_BIT_32(RTSTRCACHE_MERGED_THRESHOLD_BIT))
+        else if (cbEntry >= RTSTRCACHE_MERGED_THRESHOLD_BIT)
             pEntry = rtStrCacheAllocMergedEntry(pThis, uHash, pchString, cchString32, cbEntry);
 #endif
         else

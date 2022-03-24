@@ -1,10 +1,10 @@
-/* $Id: USBProxyBackendUsbIp.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBProxyBackendUsbIp.cpp $ */
 /** @file
  * VirtualBox USB Proxy Backend, USB/IP.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -122,7 +122,7 @@ typedef struct UsbIpReqDevList
     /** Command code. */
     uint16_t     u16Cmd;
     /** Status field, unused. */
-    int32_t      i32Status;
+    int32_t      u32Status;
 } UsbIpReqDevList;
 /** Pointer to a device list request. */
 typedef UsbIpReqDevList *PUsbIpReqDevList;
@@ -143,7 +143,7 @@ typedef struct UsbIpRetDevList
     /** Command code. */
     uint16_t     u16Cmd;
     /** Status field, unused. */
-    int32_t      i32Status;
+    int32_t      u32Status;
     /** Number of exported devices. */
     uint32_t     u32DevicesExported;
 } UsbIpRetDevList;
@@ -781,8 +781,7 @@ int USBProxyBackendUsbIp::startListExportedDevicesReq()
         UsbIpReqDevList ReqDevList;
         ReqDevList.u16Version = RT_H2N_U16(USBIP_VERSION);
         ReqDevList.u16Cmd     = RT_H2N_U16(USBIP_INDICATOR_REQ | USBIP_REQ_RET_DEVLIST);
-        ReqDevList.i32Status  = RT_H2N_S32(0);
-
+        ReqDevList.u32Status  = RT_H2N_U32(0);
         rc = RTTcpWrite(m->hSocket, &ReqDevList, sizeof(ReqDevList));
         if (RT_SUCCESS(rc))
             advanceState(kUsbIpRecvState_Hdr);
@@ -895,8 +894,7 @@ int USBProxyBackendUsbIp::processData()
             /* Check that the reply matches our expectations. */
             if (   RT_N2H_U16(m->Scratch.RetDevList.u16Version) == USBIP_VERSION
                 && RT_N2H_U16(m->Scratch.RetDevList.u16Cmd) == USBIP_REQ_RET_DEVLIST
-                && RT_N2H_S32(m->Scratch.RetDevList.i32Status) == USBIP_STATUS_SUCCESS)
-
+                && RT_N2H_U32(m->Scratch.RetDevList.u32Status) == USBIP_STATUS_SUCCESS)
             {
                 /* Populate the number of exported devices in the list and go to the next state. */
                 m->cDevicesLeft = RT_N2H_U32(m->Scratch.RetDevList.u32DevicesExported);
@@ -909,7 +907,7 @@ int USBProxyBackendUsbIp::processData()
             {
                 LogRelMax(10, ("USB/IP: Host sent an invalid reply to the list exported device request (Version: %#x Cmd: %#x Status: %#x)\n",
                                RT_N2H_U16(m->Scratch.RetDevList.u16Version), RT_N2H_U16(m->Scratch.RetDevList.u16Cmd),
-                               RT_N2H_S32(m->Scratch.RetDevList.i32Status)));
+                               RT_N2H_U32(m->Scratch.RetDevList.u32Status)));
                 /* Disconnect and start over. */
                 advanceState(kUsbIpRecvState_None);
                 disconnect();

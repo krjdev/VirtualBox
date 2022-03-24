@@ -1,10 +1,10 @@
-/* $Id: VBoxVideo.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxVideo.h $ */
 /** @file
  * VirtualBox Video interface.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -858,7 +858,7 @@ typedef struct VBOXVHWACMD_HH_SAVESTATE_LOADPERFORM
     struct SSMHANDLE * pSSM;
 } VBOXVHWACMD_HH_SAVESTATE_LOADPERFORM;
 
-typedef DECLCALLBACKTYPE(void, FNVBOXVHWA_HH_CALLBACK,(void *));
+typedef DECLCALLBACK(void) FNVBOXVHWA_HH_CALLBACK(void*);
 typedef FNVBOXVHWA_HH_CALLBACK *PFNVBOXVHWA_HH_CALLBACK;
 
 #define VBOXVHWA_HH_CALLBACK_SET(_pCmd, _pfn, _parg) \

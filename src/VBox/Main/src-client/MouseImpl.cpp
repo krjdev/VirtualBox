@@ -1,10 +1,10 @@
-/* $Id: MouseImpl.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: MouseImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,7 +24,6 @@
 #include "DisplayImpl.h"
 #include "VMMDev.h"
 #include "MousePointerShapeWrap.h"
-#include "VBoxEvents.h"
 
 #include <VBox/vmm/pdmdrv.h>
 #include <VBox/VMMDev.h>
@@ -36,7 +35,7 @@ class ATL_NO_VTABLE MousePointerShape:
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(MousePointerShape)
+    DECLARE_EMPTY_CTOR_DTOR(MousePointerShape)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -266,12 +265,8 @@ HRESULT Mouse::init (ConsoleMouseInterface *parent)
     unconst(mEventSource).createObject();
     HRESULT rc = mEventSource->init();
     AssertComRCReturnRC(rc);
-
-    ComPtr<IEvent> ptrEvent;
-    rc = ::CreateGuestMouseEvent(ptrEvent.asOutParam(), mEventSource,
-                                 (GuestMouseEventMode_T)0, 0 /*x*/, 0 /*y*/, 0 /*z*/, 0 /*w*/, 0 /*buttons*/);
-    AssertComRCReturnRC(rc);
-    mMouseEvent.init(ptrEvent, mEventSource);
+    mMouseEvent.init(mEventSource, VBoxEventType_OnGuestMouse,
+                     0, 0, 0, 0, 0, 0);
 
     /* Confirm a successful initialization */
     autoInitSpan.setSucceeded();
@@ -692,12 +687,16 @@ void Mouse::i_fireMouseEvent(bool fAbsolute, LONG x, LONG y, LONG dz, LONG dw,
         mode = GuestMouseEventMode_Relative;
 
     if (fButtons != 0)
-        ::FireGuestMouseEvent(mEventSource, mode, x, y, dz, dw, fButtons);
+    {
+        VBoxEventDesc evDesc;
+        evDesc.init(mEventSource, VBoxEventType_OnGuestMouse, mode, x, y,
+                    dz, dw, fButtons);
+        evDesc.fire(0);
+    }
     else
     {
-        ComPtr<IEvent> ptrEvent;
-        mMouseEvent.getEvent(ptrEvent.asOutParam());
-        ReinitGuestMouseEvent(ptrEvent, mode, x, y, dz, dw, fButtons);
+        mMouseEvent.reinit(VBoxEventType_OnGuestMouse, mode, x, y, dz, dw,
+                           fButtons);
         mMouseEvent.fire(0);
     }
 }
@@ -722,8 +721,11 @@ void Mouse::i_fireMultiTouchEvent(uint8_t cContacts,
         contactFlags[i] = RT_BYTE2(u32Hi);
     }
 
-    ::FireGuestMultiTouchEvent(mEventSource, cContacts, ComSafeArrayAsInParam(xPositions), ComSafeArrayAsInParam(yPositions),
-                               ComSafeArrayAsInParam(contactIds), ComSafeArrayAsInParam(contactFlags), u32ScanTime);
+    VBoxEventDesc evDesc;
+    evDesc.init(mEventSource, VBoxEventType_OnGuestMultiTouch,
+                cContacts, ComSafeArrayAsInParam(xPositions), ComSafeArrayAsInParam(yPositions),
+                ComSafeArrayAsInParam(contactIds), ComSafeArrayAsInParam(contactFlags), u32ScanTime);
+    evDesc.fire(0);
 }
 
 /**
@@ -1233,15 +1235,16 @@ DECLCALLBACK(void) Mouse::i_drvDestruct(PPDMDRVINS pDrvIns)
  */
 DECLCALLBACK(int) Mouse::i_drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
+    RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    RT_NOREF(fFlags, pCfg);
     PDRVMAINMOUSE pThis = PDMINS_2_DATA(pDrvIns, PDRVMAINMOUSE);
     LogFlow(("drvMainMouse_Construct: iInstance=%d\n", pDrvIns->iInstance));
 
     /*
      * Validate configuration.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "", "");
+    if (!CFGMR3AreValuesValid(pCfg, "Object\0"))
+        return VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES;
     AssertMsgReturn(PDMDrvHlpNoAttach(pDrvIns) == VERR_PDM_NO_ATTACHED_DRIVER,
                     ("Configuration error: Not possible to attach anything to this driver!\n"),
                     VERR_PDM_DRVINS_NO_ATTACH);
@@ -1266,15 +1269,14 @@ DECLCALLBACK(int) Mouse::i_drvConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint
     /*
      * Get the Mouse object pointer and update the mpDrv member.
      */
-    com::Guid uuid(COM_IIDOF(IMouse));
-    IMouse *pIMouse = (IMouse *)PDMDrvHlpQueryGenericUserObject(pDrvIns, uuid.raw());
-    if (!pIMouse)
+    void *pv;
+    int rc = CFGMR3QueryPtr(pCfg, "Object", &pv);
+    if (RT_FAILURE(rc))
     {
-        AssertMsgFailed(("Configuration error: No/bad Mouse object!\n"));
-        return VERR_NOT_FOUND;
+        AssertMsgFailed(("Configuration error: No/bad \"Object\" value! rc=%Rrc\n", rc));
+        return rc;
     }
-    pThis->pMouse = static_cast<Mouse *>(pIMouse);
-
+    pThis->pMouse = (Mouse *)pv;        /** @todo Check this cast! */
     unsigned cDev;
     {
         AutoWriteLock mouseLock(pThis->pMouse COMMA_LOCKVAL_SRC_POS);

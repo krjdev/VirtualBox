@@ -1,10 +1,10 @@
-/* $Id: UIGuestProcessControlDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGuestProcessControlDialog.h $ */
 /** @file
  * VBox Qt GUI - UIGuestProcessControlDialog class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,7 +48,7 @@ protected:
 
     /** Creates derived @a pDialog instance.
       * @param  pCenterWidget  Passes the widget to center wrt. pCenterWidget. */
-    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) RT_OVERRIDE;
+    virtual void create(QIManagerDialog *&pDialog, QWidget *pCenterWidget) /* override */;
 
     UIActionPool *m_pActionPool;
     CGuest        m_comGuest;
@@ -74,28 +74,28 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
     /** @name Prepare/cleanup cascade.
      * @{ */
         /** Configures all. */
-        virtual void configure() RT_OVERRIDE;
+        virtual void configure() /* override */;
         /** Configures central-widget. */
-        virtual void configureCentralWidget() RT_OVERRIDE;
+        virtual void configureCentralWidget() /* override */;
         /** Perform final preparations. */
-        virtual void finalize() RT_OVERRIDE;
-        /** Loads dialog setting from extradata. */
-        virtual void loadSettings() RT_OVERRIDE;
+        virtual void finalize() /* override */;
+        /** Loads dialog setting such as geometry from extradata. */
+        virtual void loadSettings() /* override */;
 
         /** Saves dialog setting into extradata. */
-        virtual void saveSettings() RT_OVERRIDE;
+        virtual void saveSettings() const /* override */;
     /** @} */
 
     /** @name Functions related to geometry restoration.
      * @{ */
         /** Returns whether the window should be maximized when geometry being restored. */
-        virtual bool shouldBeMaximized() const RT_OVERRIDE;
+        virtual bool shouldBeMaximized() const /* override */;
     /** @} */
 
 private slots:

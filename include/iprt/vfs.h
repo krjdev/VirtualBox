@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,7 +48,7 @@ RT_C_DECLS_BEGIN
  * container files, file system sub-trees, file system overlays and other custom
  * filesystem configurations.  It also makes it possible to create filters, like
  * automatically gunzipping a tar.gz file before feeding it to the RTTar API for
- * unpacking - or vice versa.
+ * unpacking - or wise versa.
  *
  * The virtual filesystem APIs are intended to mirror the RTDir, RTFile, RTPath
  * and RTFs APIs pretty closely so that rewriting a piece of code to work with
@@ -90,14 +90,6 @@ typedef enum RTVFSOBJTYPE
 } RTVFSOBJTYPE;
 /** Pointer to a VFS object type. */
 typedef RTVFSOBJTYPE *PRTVFSOBJTYPE;
-
-/**
- * Translates a RTVFSOBJTYPE value into a string.
- *
- * @returns Pointer to readonly name.
- * @param   enmType             The object type to name.
- */
-RTDECL(const char *) RTVfsTypeName(RTVFSOBJTYPE enmType);
 
 
 
@@ -1214,68 +1206,6 @@ RTDECL(int)        RTVfsIoStrmValidateUtf8Encoding(RTVFSIOSTREAM hVfsIos, uint32
 #define RTVFS_VALIDATE_UTF8_VALID_MASK      UINT32_C(0x00000003)
 /** @}  */
 
-/**
- * Printf-like write function.
- *
- * @returns Number of characters written on success, negative error status on
- *          failure.
- * @param   hVfsIos         The VFS I/O stream handle to write to.
- * @param   pszFormat       The format string.
- * @param   ...             Format arguments.
- */
-RTDECL(ssize_t)     RTVfsIoStrmPrintf(RTVFSIOSTREAM hVfsIos, const char *pszFormat, ...);
-
-/**
- * Printf-like write function.
- *
- * @returns Number of characters written on success, negative error status on
- *          failure.
- * @param   hVfsIos         The VFS I/O stream handle to write to.
- * @param   pszFormat       The format string.
- * @param   va              Format arguments.
- */
-RTDECL(ssize_t)     RTVfsIoStrmPrintfV(RTVFSIOSTREAM hVfsIos, const char *pszFormat, va_list va);
-
-/**
- * VFS I/O stream output buffer structure to use with
- * RTVfsIoStrmStrOutputCallback().
- */
-typedef struct VFSIOSTRMOUTBUF
-{
-    /** The I/O stream handle. */
-    RTVFSIOSTREAM   hVfsIos;
-    /** Size of this structure (for sanity). */
-    size_t          cbSelf;
-    /** Status code of the operation. */
-    int             rc;
-    /** Current offset into szBuf (number of output bytes pending). */
-    size_t          offBuf;
-    /** Modest output buffer. */
-    char            szBuf[256];
-} VFSIOSTRMOUTBUF;
-/** Pointer to an VFS I/O stream output buffer for use with
- *  RTVfsIoStrmStrOutputCallback() */
-typedef VFSIOSTRMOUTBUF *PVFSIOSTRMOUTBUF;
-
-/** Initializer for a VFS I/O stream output buffer. */
-#define VFSIOSTRMOUTBUF_INIT(a_pOutBuf, a_hVfsIos) \
-    do { \
-        (a_pOutBuf)->hVfsIos  = a_hVfsIos; \
-        (a_pOutBuf)->cbSelf   = sizeof(*(a_pOutBuf)); \
-        (a_pOutBuf)->rc       = VINF_SUCCESS; \
-        (a_pOutBuf)->offBuf   = 0; \
-        (a_pOutBuf)->szBuf[0] = '\0'; \
-    } while (0)
-
-/**
- * @callback_method_impl{FNRTSTROUTPUT,
- * For use with VFSIOSTRMOUTBUF.
- *
- * Users must use VFSIOSTRMOUTBUF_INIT to initialize a VFSIOSTRMOUTBUF and pass
- * that as the outputter argument to the function this callback is handed to.}
- */
-RTDECL(size_t) RTVfsIoStrmStrOutputCallback(void *pvArg, const char *pachChars, size_t cbChars);
-
 /** @} */
 
 
@@ -1489,7 +1419,7 @@ RTDECL(RTFOFF)      RTVfsFileTell(RTVFSFILE hVfsFile);
  *
  * @param   hVfsFile        The VFS file handle.
  * @param   offSeek         The seek offset.
- * @param   uMethod         The seek method.
+ * @param   uMethod         The seek emthod.
  * @param   poffActual      Where to optionally return the new file offset.
  *
  * @sa      RTFileSeek
@@ -1524,10 +1454,10 @@ RTDECL(int)         RTVfsFileSetSize(RTVFSFILE hVfsFile, uint64_t cbSize, uint32
  * @{ */
 /** Normal truncate or grow (zero'ed) like RTFileSetSize . */
 #define RTVFSFILE_SIZE_F_NORMAL             UINT32_C(0x00000001)
-/** Only grow the file, ignore call if cbSize would truncate the file.
+/** Only grow the file, ignore call if cbSize would trunacte the file.
  * This is what RTFileSetAllocationSize does by default.  */
 #define RTVFSFILE_SIZE_F_GROW               UINT32_C(0x00000002)
-/** Only grow the file, ignore call if cbSize would truncate the file.
+/** Only grow the file, ignore call if cbSize would trunacte the file.
  * This is what RTFileSetAllocationSize does by default.  */
 #define RTVFSFILE_SIZE_F_GROW_KEEP_SIZE     UINT32_C(0x00000003)
 /** Action mask. */
@@ -1552,28 +1482,6 @@ RTDECL(int)         RTVfsFileQueryMaxSize(RTVFSFILE hVfsFile, uint64_t *pcbMax);
  * @param   hVfsFile        The VFS file handle.
  */
 RTDECL(uint64_t)    RTVfsFileGetOpenFlags(RTVFSFILE hVfsFile);
-
-/**
- * Printf-like write function.
- *
- * @returns Number of characters written on success, negative error status on
- *          failure.
- * @param   hVfsFile        The VFS file handle to write to.
- * @param   pszFormat       The format string.
- * @param   ...             Format arguments.
- */
-RTDECL(ssize_t)     RTVfsFilePrintf(RTVFSFILE hVfsFile, const char *pszFormat, ...);
-
-/**
- * Printf-like write function.
- *
- * @returns Number of characters written on success, negative error status on
- *          failure.
- * @param   hVfsFile        The VFS file handle to write to.
- * @param   pszFormat       The format string.
- * @param   va              Format arguments.
- */
-RTDECL(ssize_t)     RTVfsFilePrintfV(RTVFSFILE hVfsFile, const char *pszFormat, va_list va);
 
 /** @} */
 

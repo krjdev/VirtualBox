@@ -1,10 +1,10 @@
-/* $Id: MsixCommon.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MsixCommon.cpp $ */
 /** @file
  * MSI-X support routines
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,6 @@
 #include <iprt/assert.h>
 
 #include "MsiCommon.h"
-#include "DevPciInternal.h"
 #include "PciInline.h"
 
 typedef struct
@@ -268,16 +267,10 @@ void MsixNotify(PPDMDEVINS pDevIns, PCPDMPCIHLP pPciHlp, PPDMPCIDEV pDev, int iV
     // clear pending bit
     msixClearPending(pDev, iVector);
 
-    MSIMSG Msi;
-    Msi.Addr.u64 = msixGetMsiAddress(pDev, iVector);
-    Msi.Data.u32 = msixGetMsiData(pDev, iVector);
+    RTGCPHYS   GCAddr = msixGetMsiAddress(pDev, iVector);
+    uint32_t   u32Value = msixGetMsiData(pDev, iVector);
 
-    PPDMDEVINS pDevInsBus = pPciHlp->pfnGetBusByNo(pDevIns, pDev->Int.s.idxPdmBus);
-    Assert(pDevInsBus);
-    PDEVPCIBUS pBus = PDMINS_2_DATA(pDevInsBus, PDEVPCIBUS);
-    uint16_t const uBusDevFn = PCIBDF_MAKE(pBus->iBus, pDev->uDevFn);
-
-    pPciHlp->pfnIoApicSendMsi(pDevIns, uBusDevFn, &Msi, uTagSrc);
+    pPciHlp->pfnIoApicSendMsi(pDevIns, GCAddr, u32Value, uTagSrc);
 }
 
 #ifdef IN_RING3

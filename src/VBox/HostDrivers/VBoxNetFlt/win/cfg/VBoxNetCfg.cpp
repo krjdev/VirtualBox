@@ -1,9 +1,9 @@
-/* $Id: VBoxNetCfg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetCfg.cpp $ */
 /** @file
  * VBoxNetCfg.cpp - Network Configuration API.
  */
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@
 #include <string.h>
 
 #include <Wbemidl.h>
-#include <comutil.h>
+#include <comdef.h>
 
 #include <iprt/win/winsock2.h>
 #include <iprt/win/ws2tcpip.h>
@@ -59,9 +59,9 @@
 # define Assert _ASSERT
 # define AssertMsg(expr, msg) do{}while (0)
 #endif
-static PFNVBOXNETCFGLOGGER volatile g_pfnLogger = NULL;
+static LOG_ROUTINE g_Logger = NULL;
 
-static void DoLogging(const char *pszString, ...);
+static VOID DoLogging(LPCSTR szString, ...);
 #define NonStandardLog DoLogging
 #define NonStandardLogFlow(x) DoLogging x
 
@@ -864,24 +864,24 @@ VBOXNETCFGWIN_DECL(HRESULT) VBoxNetCfgWinPropChangeAllNetDevicesOfId(IN LPCWSTR 
 /*
  * logging
  */
-static void DoLogging(const char *pszString, ...)
+static VOID DoLogging(LPCSTR szString, ...)
 {
-    PFNVBOXNETCFGLOGGER pfnLogger = g_pfnLogger;
-    if (pfnLogger)
+    LOG_ROUTINE pfnRoutine = (LOG_ROUTINE)(*((void * volatile *)&g_Logger));
+    if (pfnRoutine)
     {
         char szBuffer[4096] = {0};
         va_list va;
-        va_start(va, pszString);
-        _vsnprintf(szBuffer, RT_ELEMENTS(szBuffer), pszString, va);
+        va_start(va, szString);
+        _vsnprintf(szBuffer, RT_ELEMENTS(szBuffer), szString, va);
         va_end(va);
 
-        pfnLogger(szBuffer);
+        pfnRoutine(szBuffer);
     }
 }
 
-VBOXNETCFGWIN_DECL(void) VBoxNetCfgWinSetLogging(IN PFNVBOXNETCFGLOGGER pfnLogger)
+VBOXNETCFGWIN_DECL(VOID) VBoxNetCfgWinSetLogging(IN LOG_ROUTINE pfnLog)
 {
-    g_pfnLogger = pfnLogger;
+    *((void * volatile *)&g_Logger) = pfnLog;
 }
 
 /*
@@ -913,16 +913,14 @@ public:
     template <class I>
     class NoAddRefRelease : public I
     {
-    public:
-        virtual ~NoAddRefRelease() { /* Make VC++ 19.2 happy. */ }
-    private:
-#ifndef VBOX_WITH_XPCOM
-        STDMETHOD_(ULONG, AddRef)() = 0;
-        STDMETHOD_(ULONG, Release)() = 0;
-#else
-        NS_IMETHOD_(nsrefcnt) AddRef(void) = 0;
-        NS_IMETHOD_(nsrefcnt) Release(void) = 0;
-#endif
+        private:
+#if !defined (VBOX_WITH_XPCOM)
+            STDMETHOD_(ULONG, AddRef)() = 0;
+            STDMETHOD_(ULONG, Release)() = 0;
+#else /* !defined (VBOX_WITH_XPCOM) */
+            NS_IMETHOD_(nsrefcnt) AddRef(void) = 0;
+            NS_IMETHOD_(nsrefcnt) Release(void) = 0;
+#endif /* !defined (VBOX_WITH_XPCOM) */
     };
 
 protected:
@@ -1740,12 +1738,13 @@ static HRESULT netIfWinDhcpRediscover(IWbemServices * pSvc, BSTR ObjPath)
                         hr = netIfExecMethod(pSvc, pClass, ObjPath, bstr_t(L"RenewDHCPLease"), NULL, NULL, 0, pOutParams.asOutParam());
                         if (SUCCEEDED(hr))
                         {
+                            VARIANT varReturnValue;
                             hr = pOutParams->Get(bstr_t(L"ReturnValue"), 0, &varReturnValue, NULL, 0);
                             Assert(SUCCEEDED(hr));
                             if (SUCCEEDED(hr))
                             {
             //                    Assert(varReturnValue.vt == VT_UINT);
-                                winEr = varReturnValue.uintVal;
+                                int winEr = varReturnValue.uintVal;
                                 if (winEr == 0)
                                     hr = S_OK;
                                 else
@@ -2523,7 +2522,7 @@ static HRESULT rename_shellfolder (PCWSTR wGuid, PCWSTR wNewName)
 {
     /* This is the GUID for the network connections folder. It is constant.
      * {7007ACC7-3202-11D1-AAD2-00805FC1270E} */
-    const GUID MY_CLSID_NetworkConnections = {
+    const GUID CLSID_NetworkConnections = {
         0x7007ACC7, 0x3202, 0x11D1, {
             0xAA, 0xD2, 0x00, 0x80, 0x5F, 0xC1, 0x27, 0x0E
         }
@@ -2540,7 +2539,7 @@ static HRESULT rename_shellfolder (PCWSTR wGuid, PCWSTR wNewName)
     swprintf(szAdapterGuid, L"::%ls", wGuid);
 
     /* Create an instance of the network connections folder. */
-    hr = CoCreateInstance(MY_CLSID_NetworkConnections, NULL,
+    hr = CoCreateInstance(CLSID_NetworkConnections, NULL,
                           CLSCTX_INPROC_SERVER, IID_IShellFolder,
                           reinterpret_cast<LPVOID *>(&pShellFolder));
     /* Parse the display name. */
@@ -3139,18 +3138,24 @@ static HRESULT vboxNetCfgWinCreateHostOnlyNetworkInterface(IN LPCWSTR pInfPath, 
         /* enumerate the driver info list */
         while (TRUE)
         {
-            BOOL fRet = SetupDiEnumDriverInfo(hDeviceInfo, &DeviceInfoData, SPDIT_CLASSDRIVER, index, &DriverInfoData);
+            BOOL ret;
 
-            /* if the function failed and GetLastError() returns
+            ret = SetupDiEnumDriverInfo (hDeviceInfo, &DeviceInfoData,
+                                         SPDIT_CLASSDRIVER, index, &DriverInfoData);
+
+            /* if the function failed and GetLastError() returned
              * ERROR_NO_MORE_ITEMS, then we have reached the end of the
              * list.  Otherwise there was something wrong with this
              * particular driver. */
-            if (!fRet)
+            if (!ret)
             {
                 if (GetLastError() == ERROR_NO_MORE_ITEMS)
                     break;
-                index++;
-                continue;
+                else
+                {
+                    index++;
+                    continue;
+                }
             }
 
             pDriverInfoDetail = (PSP_DRVINFO_DETAIL_DATA) detailBuf;

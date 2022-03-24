@@ -1,10 +1,10 @@
-/* $Id: USBProxyDevice.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBProxyDevice.cpp $ */
 /** @file
  * USBProxy - USB device proxy.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,7 +58,7 @@ static void *GetStdDescSync(PUSBPROXYDEV pProxyDev, uint8_t iDescType, uint8_t i
     int cRetries = 0;
     uint16_t cbInitialHint = cbHint;
 
-    LogFlow(("GetStdDescSync: pProxyDev=%s, iDescType=%d, iIdx=%d, LangId=%04X, cbHint=%u\n", pProxyDev->pUsbIns->pszName, iDescType, iIdx, LangId, cbHint));
+    LogFlow(("GetStdDescSync: pProxyDev=%s\n", pProxyDev->pUsbIns->pszName));
     for (;;)
     {
         /*
@@ -67,16 +67,20 @@ static void *GetStdDescSync(PUSBPROXYDEV pProxyDev, uint8_t iDescType, uint8_t i
         int rc = VINF_SUCCESS;
         VUSBURB Urb;
         AssertCompile(RT_SIZEOFMEMB(VUSBURB, abData) >= _4K);
-        RT_ZERO(Urb);
         Urb.u32Magic      = VUSBURB_MAGIC;
         Urb.enmState      = VUSBURBSTATE_IN_FLIGHT;
         Urb.pszDesc       = (char*)"URB sync";
+        Urb.pHci          = NULL;
+        Urb.paTds         = NULL;
+        Urb.Dev.pvPrivate = NULL;
+        Urb.Dev.pNext     = NULL;
         Urb.DstAddress    = 0;
         Urb.EndPt         = 0;
         Urb.enmType       = VUSBXFERTYPE_MSG;
         Urb.enmDir        = VUSBDIRECTION_IN;
         Urb.fShortNotOk   = false;
         Urb.enmStatus     = VUSBSTATUS_INVALID;
+        Urb.pVUsb         = NULL;
         cbHint = RT_MIN(cbHint, sizeof(Urb.abData) - sizeof(VUSBSETUP));
         Urb.cbData = cbHint + sizeof(VUSBSETUP);
 
@@ -94,7 +98,7 @@ static void *GetStdDescSync(PUSBPROXYDEV pProxyDev, uint8_t iDescType, uint8_t i
         rc = pProxyDev->pOps->pfnUrbQueue(pProxyDev, &Urb);
         if (RT_FAILURE(rc))
         {
-            Log(("GetStdDescSync: pfnUrbQueue failed, rc=%d\n", rc));
+            Log(("GetStdDescSync: pfnUrbReap failed, rc=%d\n", rc));
             goto err;
         }
 
@@ -105,7 +109,6 @@ static void *GetStdDescSync(PUSBPROXYDEV pProxyDev, uint8_t iDescType, uint8_t i
         pUrbReaped = pProxyDev->pOps->pfnUrbReap(pProxyDev, 5000 /* ms */);
         if (!pUrbReaped)
         {
-            Log(("GetStdDescSync: pfnUrbReap returned NULL, cancel and re-reap\n"));
             rc = pProxyDev->pOps->pfnUrbCancel(pProxyDev, &Urb);
             AssertRC(rc);
             /** @todo This breaks the comment above... */
@@ -154,11 +157,7 @@ static void *GetStdDescSync(PUSBPROXYDEV pProxyDev, uint8_t iDescType, uint8_t i
             Log(("GetStdDescSync: Part descriptor, Urb.cbData=%u, cbDesc=%u cbHint=%u\n", Urb.cbData, cbDesc, cbHint));
 
             if (cbHint > sizeof(Urb.abData))
-            {
-                Log(("GetStdDescSync: cbHint=%u, Urb.abData=%u, retrying immediately\n", cbHint, sizeof(Urb.abData)));
-                /* Not an error, go again without incrementing retry count or delaying. */
-                continue;
-            }
+                Log(("GetStdDescSync: cbHint=%u, Urb.abData=%u\n", cbHint, sizeof(Urb.abData)));
 
             goto err;
         }
@@ -815,31 +814,28 @@ static DECLCALLBACK(void) usbProxyDestruct(PPDMUSBINS pUsbIns)
  * @returns VBox status code.
  * @param   pFilter         The filter.
  * @param   enmFieldIdx     The filter field indext.
- * @param   pHlp            The USB helper callback table.
  * @param   pNode           The CFGM node.
  * @param   pszExact        The exact value name.
  * @param   pszExpr         The expression value name.
  */
-static int usbProxyQueryNum(PUSBFILTER pFilter, USBFILTERIDX enmFieldIdx,
-                            PCPDMUSBHLP pHlp, PCFGMNODE pNode,
-                            const char *pszExact, const char *pszExpr)
+static int usbProxyQueryNum(PUSBFILTER pFilter, USBFILTERIDX enmFieldIdx, PCFGMNODE pNode, const char *pszExact, const char *pszExpr)
 {
     char szTmp[256];
 
     /* try exact first */
     uint16_t u16;
-    int rc = pHlp->pfnCFGMQueryU16(pNode, pszExact, &u16);
+    int rc = CFGMR3QueryU16(pNode, pszExact, &u16);
     if (RT_SUCCESS(rc))
     {
         rc = USBFilterSetNumExact(pFilter, enmFieldIdx, u16, true);
         AssertRCReturn(rc, rc);
 
         /* make sure only the exact attribute is present. */
-        rc = pHlp->pfnCFGMQueryString(pNode, pszExpr, szTmp, sizeof(szTmp));
+        rc = CFGMR3QueryString(pNode, pszExpr, szTmp, sizeof(szTmp));
         if (RT_UNLIKELY(rc != VERR_CFGM_VALUE_NOT_FOUND))
         {
             szTmp[0] = '\0';
-            pHlp->pfnCFGMGetName(pNode, szTmp, sizeof(szTmp));
+            CFGMR3GetName(pNode, szTmp, sizeof(szTmp));
             LogRel(("usbProxyConstruct: %s: Both %s and %s are present!\n", szTmp, pszExact, pszExpr));
             return VERR_INVALID_PARAMETER;
         }
@@ -848,13 +844,13 @@ static int usbProxyQueryNum(PUSBFILTER pFilter, USBFILTERIDX enmFieldIdx,
     if (RT_UNLIKELY(rc != VERR_CFGM_VALUE_NOT_FOUND))
     {
         szTmp[0] = '\0';
-        pHlp->pfnCFGMGetName(pNode, szTmp, sizeof(szTmp));
+        CFGMR3GetName(pNode, szTmp, sizeof(szTmp));
         LogRel(("usbProxyConstruct: %s: %s query failed, rc=%Rrc\n", szTmp, pszExact, rc));
         return rc;
     }
 
     /* expression? */
-    rc = pHlp->pfnCFGMQueryString(pNode, pszExpr, szTmp, sizeof(szTmp));
+    rc = CFGMR3QueryString(pNode, pszExpr, szTmp, sizeof(szTmp));
     if (RT_SUCCESS(rc))
     {
         rc = USBFilterSetNumExpression(pFilter, enmFieldIdx, szTmp, true);
@@ -864,7 +860,7 @@ static int usbProxyQueryNum(PUSBFILTER pFilter, USBFILTERIDX enmFieldIdx,
     if (RT_UNLIKELY(rc != VERR_CFGM_VALUE_NOT_FOUND))
     {
         szTmp[0] = '\0';
-        pHlp->pfnCFGMGetName(pNode, szTmp, sizeof(szTmp));
+        CFGMR3GetName(pNode, szTmp, sizeof(szTmp));
         LogRel(("usbProxyConstruct: %s: %s query failed, rc=%Rrc\n", szTmp, pszExpr, rc));
         return rc;
     }
@@ -878,9 +874,7 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
 {
     PDMUSB_CHECK_VERSIONS_RETURN(pUsbIns);
     RT_NOREF(iInstance);
-    PUSBPROXYDEV    pThis = PDMINS_2_DATA(pUsbIns, PUSBPROXYDEV);
-    PCPDMUSBHLP     pHlp  = pUsbIns->pHlpR3;
-
+    PUSBPROXYDEV pThis = PDMINS_2_DATA(pUsbIns, PUSBPROXYDEV);
     LogFlow(("usbProxyConstruct: pUsbIns=%p iInstance=%d\n", pUsbIns, iInstance));
 
     /*
@@ -897,15 +891,15 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
      * Read the basic configuration.
      */
     char szAddress[1024];
-    int rc = pHlp->pfnCFGMQueryString(pCfg, "Address", szAddress, sizeof(szAddress));
+    int rc = CFGMR3QueryString(pCfg, "Address", szAddress, sizeof(szAddress));
     AssertRCReturn(rc, rc);
 
     char szBackend[64];
-    rc = pHlp->pfnCFGMQueryString(pCfg, "Backend", szBackend, sizeof(szBackend));
+    rc = CFGMR3QueryString(pCfg, "Backend", szBackend, sizeof(szBackend));
     AssertRCReturn(rc, rc);
 
     void *pvBackend;
-    rc = pHlp->pfnCFGMQueryPtr(pCfg, "pvBackend", &pvBackend);
+    rc = CFGMR3QueryPtr(pCfg, "pvBackend", &pvBackend);
     AssertRCReturn(rc, rc);
 
     /*
@@ -981,7 +975,7 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
      * be useful).
      */
     PCFGMNODE pCfgGlobalDev = pCfgGlobal;
-    PCFGMNODE pCur = pHlp->pfnCFGMGetFirstChild(pCfgGlobal);
+    PCFGMNODE pCur = CFGMR3GetFirstChild(pCfgGlobal);
     if (pCur)
     {
         /*
@@ -1000,7 +994,7 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
 
         int iBestMatchRate = -1;
         PCFGMNODE pBestMatch = NULL;
-        for (pCur = pHlp->pfnCFGMGetFirstChild(pCfgGlobal); pCur; pCur = pHlp->pfnCFGMGetNextChild(pCur))
+        for (pCur = CFGMR3GetFirstChild(pCfgGlobal); pCur; pCur = CFGMR3GetNextChild(pCur))
         {
             /*
              * Construct a filter from the attributes in the node.
@@ -1009,25 +1003,25 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
             USBFilterInit(&Filter, USBFILTERTYPE_CAPTURE);
 
             /* numeric */
-            if (    RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_VENDOR_ID,        pHlp, pCur, "idVendor",        "idVendorExpr"))
-                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_PRODUCT_ID,       pHlp, pCur, "idProduct",       "idProcutExpr"))
-                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_REV,       pHlp, pCur, "bcdDevice",       "bcdDeviceExpr"))
-                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_CLASS,     pHlp, pCur, "bDeviceClass",    "bDeviceClassExpr"))
-                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_SUB_CLASS, pHlp, pCur, "bDeviceSubClass", "bDeviceSubClassExpr"))
-                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_PROTOCOL,  pHlp, pCur, "bDeviceProtocol", "bDeviceProtocolExpr")))
+            if (    RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_VENDOR_ID,        pCur, "idVendor",        "idVendorExpr"))
+                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_PRODUCT_ID,       pCur, "idProduct",       "idProcutExpr"))
+                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_REV,       pCur, "bcdDevice",       "bcdDeviceExpr"))
+                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_CLASS,     pCur, "bDeviceClass",    "bDeviceClassExpr"))
+                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_SUB_CLASS, pCur, "bDeviceSubClass", "bDeviceSubClassExpr"))
+                ||  RT_FAILURE(usbProxyQueryNum(&Filter, USBFILTERIDX_DEVICE_PROTOCOL,  pCur, "bDeviceProtocol", "bDeviceProtocolExpr")))
                 continue; /* skip it */
 
             /* strings */
             /** @todo manufacturer, product and serial strings */
 
             /* ignore unknown config values, but not without bitching. */
-            if (!pHlp->pfnCFGMAreValuesValid(pCur,
-                                             "idVendor\0idVendorExpr\0"
-                                             "idProduct\0idProductExpr\0"
-                                             "bcdDevice\0bcdDeviceExpr\0"
-                                             "bDeviceClass\0bDeviceClassExpr\0"
-                                             "bDeviceSubClass\0bDeviceSubClassExpr\0"
-                                             "bDeviceProtocol\0bDeviceProtocolExpr\0"))
+            if (!CFGMR3AreValuesValid(pCur,
+                                      "idVendor\0idVendorExpr\0"
+                                      "idProduct\0idProductExpr\0"
+                                      "bcdDevice\0bcdDeviceExpr\0"
+                                      "bDeviceClass\0bDeviceClassExpr\0"
+                                      "bDeviceSubClass\0bDeviceSubClassExpr\0"
+                                      "bDeviceProtocol\0bDeviceProtocolExpr\0"))
                 LogRel(("usbProxyConstruct: Unknown value(s) in config filter (ignored)!\n"));
 
             /*
@@ -1044,7 +1038,7 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
             }
         }
         if (pBestMatch)
-            pCfgGlobalDev = pHlp->pfnCFGMGetChild(pBestMatch, "Config");
+            pCfgGlobalDev = CFGMR3GetChild(pBestMatch, "Config");
         if (pCfgGlobalDev)
             pCfgGlobalDev = pCfgGlobal;
     }
@@ -1052,45 +1046,45 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
     /*
      * Query the rest of the configuration using the global as fallback.
      */
-    rc = pHlp->pfnCFGMQueryU32(pCfg, "MaskedIfs", &pThis->fMaskedIfs);
+    rc = CFGMR3QueryU32(pCfg, "MaskedIfs", &pThis->fMaskedIfs);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
-        rc = pHlp->pfnCFGMQueryU32(pCfgGlobalDev, "MaskedIfs", &pThis->fMaskedIfs);
+        rc = CFGMR3QueryU32(pCfgGlobalDev, "MaskedIfs", &pThis->fMaskedIfs);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         pThis->fMaskedIfs = 0;
     else
         AssertRCReturn(rc, rc);
 
     bool fForce11Device;
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "Force11Device", &fForce11Device);
+    rc = CFGMR3QueryBool(pCfg, "Force11Device", &fForce11Device);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
-        rc = pHlp->pfnCFGMQueryBool(pCfgGlobalDev, "Force11Device", &fForce11Device);
+        rc = CFGMR3QueryBool(pCfgGlobalDev, "Force11Device", &fForce11Device);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         fForce11Device = false;
     else
         AssertRCReturn(rc, rc);
 
     bool fForce11PacketSize;
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "Force11PacketSize", &fForce11PacketSize);
+    rc = CFGMR3QueryBool(pCfg, "Force11PacketSize", &fForce11PacketSize);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
-        rc = pHlp->pfnCFGMQueryBool(pCfgGlobalDev, "Force11PacketSize", &fForce11PacketSize);
+        rc = CFGMR3QueryBool(pCfgGlobalDev, "Force11PacketSize", &fForce11PacketSize);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         fForce11PacketSize = false;
     else
         AssertRCReturn(rc, rc);
 
     bool fEditAudioSyncEp;
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "EditAudioSyncEp", &fEditAudioSyncEp);
+    rc = CFGMR3QueryBool(pCfg, "EditAudioSyncEp", &fEditAudioSyncEp);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
-        rc = pHlp->pfnCFGMQueryBool(pCfgGlobalDev, "EditAudioSyncEp", &fEditAudioSyncEp);
+        rc = CFGMR3QueryBool(pCfgGlobalDev, "EditAudioSyncEp", &fEditAudioSyncEp);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         fEditAudioSyncEp = true;    /* NB: On by default! */
     else
         AssertRCReturn(rc, rc);
 
     bool fEditRemoteWake;
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "EditRemoteWake", &fEditRemoteWake);
+    rc = CFGMR3QueryBool(pCfg, "EditRemoteWake", &fEditRemoteWake);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
-        rc = pHlp->pfnCFGMQueryBool(pCfgGlobalDev, "EditRemoteWake", &fEditRemoteWake);
+        rc = CFGMR3QueryBool(pCfgGlobalDev, "EditRemoteWake", &fEditRemoteWake);
     if (rc == VERR_CFGM_VALUE_NOT_FOUND)
         fEditRemoteWake = true;    /* NB: On by default! */
     else
@@ -1199,10 +1193,10 @@ static DECLCALLBACK(int) usbProxyConstruct(PPDMUSBINS pUsbIns, int iInstance, PC
     }
 
     /*
-     * Disable remote wakeup capability, see @bugref{9839}. This is done on
-     * a device/configuration level, no need to dig too deep through the descriptors.
-     * On most backends, we can't perform a real selective suspend, and more importantly
-     * can't receive a remote wake notification. If a guest suspends the device and waits
+     * Disable remote wakeup capability, see @bugref{9839}. This is done on 
+     * a device/configuration level, no need to dig too deep through the descriptors. 
+     * On most backends, we can't perform a real selective suspend, and more importantly 
+     * can't receive a remote wake notification. If a guest suspends the device and waits 
      * for a remote wake, the device is effectively dead.
      */
     if (fEditRemoteWake)

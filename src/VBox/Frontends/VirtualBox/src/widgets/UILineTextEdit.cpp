@@ -1,10 +1,10 @@
-/* $Id: UILineTextEdit.cpp 93995 2022-02-28 21:31:59Z vboxsync $ */
+/* $Id: UILineTextEdit.cpp $ */
 /** @file
  * VBox Qt GUI - UILineTextEdit class definitions.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ UITextEditor::UITextEditor(QWidget *pParent /* = NULL */)
   : QIWithRetranslateUI<QIDialog>(pParent)
 {
     QVBoxLayout *pMainLayout = new QVBoxLayout(this);
-    pMainLayout->setContentsMargins(12, 12, 12, 12);
+    pMainLayout->setMargin(12);
 
     /* We need a text editor */
     m_pTextEdit = new QTextEdit(this);

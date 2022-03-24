@@ -1,10 +1,10 @@
-/* $Id: DBGFDisas.cpp 93931 2022-02-24 16:02:00Z vboxsync $ */
+/* $Id: DBGFDisas.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Disassembler.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -215,12 +215,12 @@ static DECLCALLBACK(int) dbgfR3DisasInstrRead(PDISCPUSTATE pDis, uint8_t offInst
          * Need to update the page translation?
          */
         if (    !pState->pvPageR3
-            ||  (GCPtr >> GUEST_PAGE_SHIFT) != (pState->GCPtrPage >> GUEST_PAGE_SHIFT))
+            ||  (GCPtr >> PAGE_SHIFT) != (pState->GCPtrPage >> PAGE_SHIFT))
         {
             int rc = VINF_SUCCESS;
 
             /* translate the address */
-            pState->GCPtrPage = GCPtr & ~(RTGCPTR)GUEST_PAGE_OFFSET_MASK;
+            pState->GCPtrPage = GCPtr & PAGE_BASE_GC_MASK;
             if (pState->fLocked)
                 PGMPhysReleasePageMappingLock(pState->pVM, &pState->PageMapLock);
             if (pState->enmMode <= PGMMODE_PROTECTED)
@@ -246,7 +246,7 @@ static DECLCALLBACK(int) dbgfR3DisasInstrRead(PDISCPUSTATE pDis, uint8_t offInst
         /*
          * Calc how much we can read, maxing out the read.
          */
-        uint32_t cb = GUEST_PAGE_SIZE - (GCPtr & GUEST_PAGE_OFFSET_MASK);
+        uint32_t cb = PAGE_SIZE - (GCPtr & PAGE_OFFSET_MASK);
         if (!pState->f64Bits)
         {
             RTGCUINTPTR cbSeg = pState->GCPtrSegEnd - GCPtr;
@@ -259,7 +259,7 @@ static DECLCALLBACK(int) dbgfR3DisasInstrRead(PDISCPUSTATE pDis, uint8_t offInst
         /*
          * Read and advance,
          */
-        memcpy(&pDis->abInstr[offInstr], (char *)pState->pvPageR3 + (GCPtr & GUEST_PAGE_OFFSET_MASK), cb);
+        memcpy(&pDis->abInstr[offInstr], (char *)pState->pvPageR3 + (GCPtr & PAGE_OFFSET_MASK), cb);
         offInstr  += (uint8_t)cb;
         if (cb >= cbMinRead)
         {

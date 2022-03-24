@@ -2,8 +2,7 @@
 
   XHCI transfer scheduling routines.
 
-Copyright (c) 2011 - 2020, Intel Corporation. All rights reserved.<BR>
-Copyright (c) Microsoft Corporation.<BR>
+Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -1052,7 +1051,7 @@ IsAsyncIntTrb (
   LIST_ENTRY              *Next;
   URB                     *CheckedUrb;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
     CheckedUrb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
     if (IsTransferRingTrb (Xhc, Trb, CheckedUrb)) {
       *Urb = CheckedUrb;
@@ -1254,15 +1253,14 @@ EXIT:
 /**
   Execute the transfer by polling the URB. This is a synchronous operation.
 
-  @param  Xhc                    The XHCI Instance.
-  @param  CmdTransfer            The executed URB is for cmd transfer or not.
-  @param  Urb                    The URB to execute.
-  @param  Timeout                The time to wait before abort, in millisecond.
+  @param  Xhc               The XHCI Instance.
+  @param  CmdTransfer       The executed URB is for cmd transfer or not.
+  @param  Urb               The URB to execute.
+  @param  Timeout           The time to wait before abort, in millisecond.
 
-  @return EFI_DEVICE_ERROR       The transfer failed due to transfer error.
-  @return EFI_TIMEOUT            The transfer failed due to time out.
-  @return EFI_SUCCESS            The transfer finished OK.
-  @retval EFI_OUT_OF_RESOURCES   Memory for the timer event could not be allocated.
+  @return EFI_DEVICE_ERROR  The transfer failed due to transfer error.
+  @return EFI_TIMEOUT       The transfer failed due to time out.
+  @return EFI_SUCCESS       The transfer finished OK.
 
 **/
 EFI_STATUS
@@ -1274,16 +1272,11 @@ XhcExecTransfer (
   )
 {
   EFI_STATUS              Status;
+  UINTN                   Index;
+  UINT64                  Loop;
   UINT8                   SlotId;
   UINT8                   Dci;
   BOOLEAN                 Finished;
-  EFI_EVENT               TimeoutEvent;
-  BOOLEAN                 IndefiniteTimeout;
-
-  Status            = EFI_SUCCESS;
-  Finished          = FALSE;
-  TimeoutEvent      = NULL;
-  IndefiniteTimeout = FALSE;
 
   if (CmdTransfer) {
     SlotId = 0;
@@ -1297,54 +1290,27 @@ XhcExecTransfer (
     ASSERT (Dci < 32);
   }
 
+  Status = EFI_SUCCESS;
+  Loop   = Timeout * XHC_1_MILLISECOND;
   if (Timeout == 0) {
-    IndefiniteTimeout = TRUE;
-    goto RINGDOORBELL;
+    Loop = 0xFFFFFFFF;
   }
 
-  Status = gBS->CreateEvent (
-                  EVT_TIMER,
-                  TPL_CALLBACK,
-                  NULL,
-                  NULL,
-                  &TimeoutEvent
-                  );
-
-  if (EFI_ERROR (Status)) {
-    goto DONE;
-  }
-
-  Status = gBS->SetTimer (TimeoutEvent,
-                          TimerRelative,
-                          EFI_TIMER_PERIOD_MILLISECONDS(Timeout));
-
-  if (EFI_ERROR (Status)) {
-    goto DONE;
-  }
-
-RINGDOORBELL:
   XhcRingDoorBell (Xhc, SlotId, Dci);
 
-  do {
+  for (Index = 0; Index < Loop; Index++) {
     Finished = XhcCheckUrbResult (Xhc, Urb);
     if (Finished) {
       break;
     }
     gBS->Stall (XHC_1_MICROSECOND);
-  } while (IndefiniteTimeout || EFI_ERROR(gBS->CheckEvent (TimeoutEvent)));
+  }
 
-DONE:
-  if (EFI_ERROR(Status)) {
-    Urb->Result = EFI_USB_ERR_NOTEXECUTE;
-  } else if (!Finished) {
+  if (Index == Loop) {
     Urb->Result = EFI_USB_ERR_TIMEOUT;
     Status      = EFI_TIMEOUT;
   } else if (Urb->Result != EFI_USB_NOERROR) {
     Status      = EFI_DEVICE_ERROR;
-  }
-
-  if (TimeoutEvent != NULL) {
-    gBS->CloseEvent (TimeoutEvent);
   }
 
   return Status;
@@ -1380,7 +1346,7 @@ XhciDelAsyncIntTransfer (
 
   Urb = NULL;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
     if ((Urb->Ep.BusAddr == BusAddr) &&
         (Urb->Ep.EpAddr == EpNum) &&
@@ -1420,7 +1386,7 @@ XhciDelAllAsyncIntTransfers (
   URB                     *Urb;
   EFI_STATUS              Status;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
 
     //
@@ -1612,7 +1578,7 @@ XhcMonitorAsyncRequests (
 
   Xhc    = (USB_XHCI_INSTANCE*) Context;
 
-  BASE_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
+  EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
 
     //
@@ -1717,11 +1683,9 @@ XhcPollPortStatusChange (
   EFI_STATUS        Status;
   UINT8             Speed;
   UINT8             SlotId;
-  UINT8             Retries;
   USB_DEV_ROUTE     RouteChart;
 
   Status = EFI_SUCCESS;
-  Retries = XHC_INIT_DEVICE_SLOT_RETRIES;
 
   if ((PortState->PortChangeStatus & (USB_PORT_STAT_C_CONNECTION | USB_PORT_STAT_C_ENABLE | USB_PORT_STAT_C_OVERCURRENT | USB_PORT_STAT_C_RESET)) == 0) {
     return EFI_SUCCESS;
@@ -1763,29 +1727,17 @@ XhcPollPortStatusChange (
     } else if ((PortState->PortStatus & USB_PORT_STAT_SUPER_SPEED) != 0) {
       Speed = EFI_USB_SPEED_SUPER;
     }
-
-    do {
-      //
-      // Execute Enable_Slot cmd for attached device, initialize device context and assign device address.
-      //
-      SlotId = XhcRouteStringToSlotId (Xhc, RouteChart);
-      if ((SlotId == 0) && ((PortState->PortChangeStatus & USB_PORT_STAT_C_RESET) != 0)) {
-        if (Xhc->HcCParams.Data.Csz == 0) {
-          Status = XhcInitializeDeviceSlot (Xhc, ParentRouteChart, Port, RouteChart, Speed);
-        } else {
-          Status = XhcInitializeDeviceSlot64 (Xhc, ParentRouteChart, Port, RouteChart, Speed);
-        }
+    //
+    // Execute Enable_Slot cmd for attached device, initialize device context and assign device address.
+    //
+    SlotId = XhcRouteStringToSlotId (Xhc, RouteChart);
+    if ((SlotId == 0) && ((PortState->PortChangeStatus & USB_PORT_STAT_C_RESET) != 0)) {
+      if (Xhc->HcCParams.Data.Csz == 0) {
+        Status = XhcInitializeDeviceSlot (Xhc, ParentRouteChart, Port, RouteChart, Speed);
+      } else {
+        Status = XhcInitializeDeviceSlot64 (Xhc, ParentRouteChart, Port, RouteChart, Speed);
       }
-
-      //
-      // According to the xHCI specification (section 4.6.5), "a USB Transaction
-      // Error Completion Code for an Address Device Command may be due to a Stall
-      // response from a device. Software should issue a Disable Slot Command for
-      // the Device Slot then an Enable Slot Command to recover from this error."
-      // Therefore, retry the device slot initialization if it fails due to a
-      // device error.
-      //
-    } while ((Status == EFI_DEVICE_ERROR) && (Retries-- != 0));
+    }
   }
 
   return Status;
@@ -2293,9 +2245,6 @@ XhcInitializeDeviceSlot (
     DeviceAddress = (UINT8) ((DEVICE_CONTEXT *) OutputContext)->Slot.DeviceAddress;
     DEBUG ((EFI_D_INFO, "    Address %d assigned successfully\n", DeviceAddress));
     Xhc->UsbDevContext[SlotId].XhciDevAddr = DeviceAddress;
-  } else {
-    DEBUG ((DEBUG_INFO, "    Address %d assigned unsuccessfully\n"));
-    XhcDisableSlotCmd (Xhc, SlotId);
   }
 
   return Status;
@@ -2506,11 +2455,7 @@ XhcInitializeDeviceSlot64 (
     DeviceAddress = (UINT8) ((DEVICE_CONTEXT_64 *) OutputContext)->Slot.DeviceAddress;
     DEBUG ((EFI_D_INFO, "    Address %d assigned successfully\n", DeviceAddress));
     Xhc->UsbDevContext[SlotId].XhciDevAddr = DeviceAddress;
-  } else {
-    DEBUG ((DEBUG_INFO, "    Address %d assigned unsuccessfully\n"));
-    XhcDisableSlotCmd64 (Xhc, SlotId);
   }
-
   return Status;
 }
 

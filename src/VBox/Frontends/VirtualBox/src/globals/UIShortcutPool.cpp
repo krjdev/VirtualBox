@@ -1,10 +1,10 @@
-/* $Id: UIShortcutPool.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIShortcutPool.cpp $ */
 /** @file
  * VBox Qt GUI - UIShortcutPool class implementation.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -236,8 +236,8 @@ void UIShortcutPool::sltReloadSelectorShortcuts()
     /* Load selector overrides: */
     loadOverridesFor(GUI_Input_SelectorShortcuts);
 
-    /* Notify manager shortcuts reloaded: */
-    emit sigManagerShortcutsReloaded();
+    /* Notify selector shortcuts reloaded: */
+    emit sigSelectorShortcutsReloaded();
 }
 
 void UIShortcutPool::sltReloadMachineShortcuts()
@@ -253,8 +253,8 @@ void UIShortcutPool::sltReloadMachineShortcuts()
     /* Load machine overrides: */
     loadOverridesFor(GUI_Input_MachineShortcuts);
 
-    /* Notify runtime shortcuts reloaded: */
-    emit sigRuntimeShortcutsReloaded();
+    /* Notify machine shortcuts reloaded: */
+    emit sigMachineShortcutsReloaded();
 }
 
 UIShortcutPool::UIShortcutPool()

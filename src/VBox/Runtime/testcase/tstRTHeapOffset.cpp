@@ -1,10 +1,10 @@
-/* $Id: tstRTHeapOffset.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTHeapOffset.cpp $ */
 /** @file
  * IPRT Testcase - Offset Based Heap.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -303,7 +303,6 @@ int main(int argc, char **argv)
     size_t cbAfterRand = RTHeapOffsetGetFreeSize(Heap);
     RTTESTI_CHECK_MSG(cbAfterRand == cbAfter, ("cbAfterRand=%zu cbAfter=%zu\n", cbAfterRand, cbAfter));
 
-    RTTESTI_CHECK_RC(rc = RTRandAdvDestroy(hRand), VINF_SUCCESS);
     return RTTestSummaryAndDestroy(hTest);
 }
 

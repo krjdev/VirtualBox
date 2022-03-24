@@ -2,7 +2,6 @@
 #  Set up the git configuration for contributing to TianoCore projects
 #
 #  Copyright (c) 2019, Linaro Ltd. All rights reserved.<BR>
-#  Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -54,31 +53,29 @@ MIN_GIT_VERSION = (1, 9, 0)
 
 # Set of options to be set identically for all repositories
 OPTIONS = [
-    {'section': 'am',          'option': 'keepcr',            'value': True},
-    {'section': 'am',          'option': 'signoff',           'value': True},
-    {'section': 'cherry-pick', 'option': 'signoff',           'value': True},
-    {'section': 'color',       'option': 'diff',              'value': True},
-    {'section': 'color',       'option': 'grep',              'value': 'auto'},
-    {'section': 'commit',      'option': 'signoff',           'value': True},
-    {'section': 'core',        'option': 'abbrev',            'value': 12},
+    {'section': 'am',          'option': 'keepcr',         'value': True},
+    {'section': 'am',          'option': 'signoff',        'value': True},
+    {'section': 'cherry-pick', 'option': 'signoff',        'value': True},
+    {'section': 'color',       'option': 'diff',           'value': True},
+    {'section': 'color',       'option': 'grep',           'value': 'auto'},
+    {'section': 'commit',      'option': 'signoff',        'value': True},
+    {'section': 'core',        'option': 'abbrev',         'value': 12},
     {'section': 'core',        'option': 'attributesFile',
      'value': os.path.join(CONFDIR, 'gitattributes').replace('\\', '/')},
-    {'section': 'core',        'option': 'whitespace',        'value': 'cr-at-eol'},
-    {'section': 'diff',        'option': 'algorithm',         'value': 'patience'},
+    {'section': 'core',        'option': 'whitespace',     'value': 'cr-at-eol'},
+    {'section': 'diff',        'option': 'algorithm',      'value': 'patience'},
     {'section': 'diff',        'option': 'orderFile',
      'value': os.path.join(CONFDIR, 'diff.order').replace('\\', '/')},
-    {'section': 'diff',        'option': 'renames',           'value': 'copies'},
-    {'section': 'diff',        'option': 'statGraphWidth',    'value': '20'},
-    {'section': 'diff "ini"',  'option': 'xfuncname',
+    {'section': 'diff',        'option': 'renames',        'value': 'copies'},
+    {'section': 'diff',        'option': 'statGraphWidth', 'value': '20'},
+    {'section': 'diff "ini"',    'option': 'xfuncname',
      'value': '^\\\\[[A-Za-z0-9_., ]+]'},
-    {'section': 'format',      'option': 'coverLetter',       'value': True},
-    {'section': 'format',      'option': 'numbered',          'value': True},
-    {'section': 'format',      'option': 'signoff',           'value': False},
-    {'section': 'log',         'option': 'mailmap',           'value': True},
-    {'section': 'notes',       'option': 'rewriteRef',        'value': 'refs/notes/commits'},
-    {'section': 'sendemail',   'option': 'chainreplyto',      'value': False},
-    {'section': 'sendemail',   'option': 'thread',            'value': True},
-    {'section': 'sendemail',   'option': 'transferEncoding',  'value': '8bit'},
+    {'section': 'format',      'option': 'coverLetter',    'value': True},
+    {'section': 'format',      'option': 'numbered',       'value': True},
+    {'section': 'format',      'option': 'signoff',        'value': False},
+    {'section': 'notes',       'option': 'rewriteRef',     'value': 'refs/notes/commits'},
+    {'section': 'sendemail',   'option': 'chainreplyto',   'value': False},
+    {'section': 'sendemail',   'option': 'thread',         'value': True},
     ]
 
 
@@ -106,11 +103,10 @@ def fuzzy_match_repo_url(one, other):
     return False
 
 
-def get_upstream(url, name):
+def get_upstream(url):
     """Extracts the dict for the current repo origin."""
     for upstream in UPSTREAMS:
-        if (fuzzy_match_repo_url(upstream['repo'], url) or
-                upstream['name'] == name):
+        if fuzzy_match_repo_url(upstream['repo'], url):
             return upstream
     print("Unknown upstream '%s' - aborting!" % url)
     sys.exit(3)
@@ -144,11 +140,6 @@ if __name__ == '__main__':
                         help='overwrite existing settings conflicting with program defaults',
                         action='store_true',
                         required=False)
-    PARSER.add_argument('-n', '--name', type=str, metavar='repo',
-                        choices=['edk2', 'edk2-platforms', 'edk2-non-osi'],
-                        help='set the repo name to configure for, if not '
-                             'detected automatically',
-                        required=False)
     PARSER.add_argument('-v', '--verbose',
                         help='enable more detailed output',
                         action='store_true',
@@ -162,7 +153,7 @@ if __name__ == '__main__':
 
     URL = REPO.remotes.origin.url
 
-    UPSTREAM = get_upstream(URL, ARGS.name)
+    UPSTREAM = get_upstream(URL)
     if not UPSTREAM:
         print("Upstream '%s' unknown, aborting!" % URL)
         sys.exit(7)

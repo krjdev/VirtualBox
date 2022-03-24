@@ -1,10 +1,10 @@
-/* $Id: tstVMM-HM.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstVMM-HM.cpp $ */
 /** @file
  * VMM Testcase.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,7 +66,7 @@ static DECLCALLBACK(int) tstVmmHmConfigConstructor(PUVM pUVM, PVM pVM, void *pvU
 
 int main(int argc, char **argv)
 {
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
 
     /*
      * Doesn't work and I'm sick of rebooting the machine to try figure out

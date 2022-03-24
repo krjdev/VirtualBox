@@ -1,10 +1,10 @@
-/* $Id: QIMessageBox.cpp 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: QIMessageBox.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIMessageBox class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,8 +22,6 @@
 #include <QLabel>
 #include <QMimeData>
 #include <QPushButton>
-#include <QRegExp>
-#include <QRegularExpression>
 #include <QStyle>
 #include <QVBoxLayout>
 
@@ -32,17 +30,14 @@
 #include "QIDialogButtonBox.h"
 #include "QIMessageBox.h"
 #include "QIRichTextLabel.h"
-#include "UICommon.h"
 #include "UIIconPool.h"
-#include "UIMessageCenter.h"
 
 /* Other VBox includes: */
 #include <iprt/assert.h>
 
 
 QIMessageBox::QIMessageBox(const QString &strTitle, const QString &strMessage, AlertIconType iconType,
-                           int iButton1 /* = 0*/, int iButton2 /* = 0*/, int iButton3 /* = 0*/, QWidget *pParent /* = 0*/,
-                           const QString &strHelpKeyword /* = QString() */)
+                           int iButton1 /* = 0*/, int iButton2 /* = 0*/, int iButton3 /* = 0*/, QWidget *pParent /* = 0*/)
     : QIDialog(pParent)
     , m_strTitle(strTitle)
     , m_iconType(iconType)
@@ -58,9 +53,7 @@ QIMessageBox::QIMessageBox(const QString &strTitle, const QString &strMessage, A
     , m_pButton1(0)
     , m_pButton2(0)
     , m_pButton3(0)
-    , m_pButtonHelp(0)
     , m_pButtonBox(0)
-    , m_strHelpKeyword(strHelpKeyword)
     , m_fDone(false)
 {
     /* Prepare: */
@@ -73,11 +66,7 @@ void QIMessageBox::setDetailsText(const QString &strText)
     AssertReturnVoid(!strText.isEmpty());
 
     /* Split details into paragraphs: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    QStringList paragraphs(strText.split("<!--EOP-->", Qt::SkipEmptyParts));
-#else
     QStringList paragraphs(strText.split("<!--EOP-->", QString::SkipEmptyParts));
-#endif
     /* Make sure details-text has at least one paragraph: */
     AssertReturnVoid(!paragraphs.isEmpty());
 
@@ -86,11 +75,7 @@ void QIMessageBox::setDetailsText(const QString &strText)
     foreach (const QString &strParagraph, paragraphs)
     {
         /* Split each paragraph into pairs: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        QStringList parts(strParagraph.split("<!--EOM-->", Qt::KeepEmptyParts));
-#else
         QStringList parts(strParagraph.split("<!--EOM-->", QString::KeepEmptyParts));
-#endif
         /* Make sure each paragraph consist of 2 parts: */
         AssertReturnVoid(parts.size() == 2);
         /* Append each pair into details-list: */
@@ -165,15 +150,15 @@ void QIMessageBox::sltCopy() const
     foreach (const QStringPair &pair, m_pDetailsContainer->details())
         strError += pair.first + pair.second + "<br>";
     strError += "</body></html>";
-    strError.remove(QRegularExpression("</+qt>"));
-    strError = strError.replace(QRegularExpression("&nbsp;"), " ");
+    strError.remove(QRegExp("</+qt>"));
+    strError = strError.replace(QRegExp("&nbsp;"), " ");
     /* Create a new mime data object holding both the html and the plain text version. */
     QMimeData *pMimeData = new QMimeData();
     pMimeData->setHtml(strError);
     /* Replace all the html entities. */
-    strError = strError.replace(QRegularExpression("<br>|</tr>"), "\n");
-    strError = strError.replace(QRegularExpression("</p>"), "\n\n");
-    strError = strError.remove(QRegularExpression("<[^>]*>"));
+    strError = strError.replace(QRegExp("<br>|</tr>"), "\n");
+    strError = strError.replace(QRegExp("</p>"), "\n\n");
+    strError = strError.remove(QRegExp("<[^>]*>"));
     pMimeData->setText(strError);
     /* Add the mime data to the global clipboard. */
     QClipboard *pClipboard = QApplication::clipboard();
@@ -272,17 +257,6 @@ void QIMessageBox::prepare()
             m_pButton3 = createButton(m_iButton3);
             if (m_pButton3)
                 connect(m_pButton3, &QPushButton::clicked, this, &QIMessageBox::sltDone3);
-            /* Create the help button and connect it to relevant slot in case a help word is supplied: */
-            if (!m_strHelpKeyword.isEmpty())
-            {
-                m_pButtonHelp = createButton(AlertButton_Help);
-                if (m_pButtonHelp)
-                {
-                    uiCommon().setHelpKeyword(m_pButtonHelp, m_strHelpKeyword);
-                    connect(m_pButtonHelp, &QPushButton::clicked, &msgCenter(), &UIMessageCenter::sltHandleHelpRequest);
-                }
-            }
-
             /* Make sure Escape button always set: */
             Assert(m_iButtonEsc);
             /* If this is a critical message add a "Copy to clipboard" button: */
@@ -338,7 +312,6 @@ QPushButton *QIMessageBox::createButton(int iButton)
         case AlertButton_Choice1: strText = tr("Yes");    role = QDialogButtonBox::YesRole; break;
         case AlertButton_Choice2: strText = tr("No");     role = QDialogButtonBox::NoRole; break;
         case AlertButton_Copy:    strText = tr("Copy");   role = QDialogButtonBox::ActionRole; break;
-        case AlertButton_Help:    strText = tr("Help");   role = QDialogButtonBox::HelpRole; break;
         default:
             AssertMsgFailed(("Type %d is not supported!", iButton));
             return 0;

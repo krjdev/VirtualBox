@@ -1,10 +1,10 @@
-/* $Id: VBoxLicenseViewer.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: VBoxLicenseViewer.h $ */
 /** @file
  * VBox Qt GUI - VBoxLicenseViewer class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,13 +50,13 @@ public:
 protected:
 
     /** Preprocesses Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles Qt show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

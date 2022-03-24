@@ -1,10 +1,10 @@
-/* $Id: alloc-r0drv-linux.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: alloc-r0drv-linux.c $ */
 /** @file
  * IPRT - Memory Allocation, Ring-0 Driver, Linux.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -401,7 +401,7 @@ RTR0DECL(void *) RTMemContAlloc(PRTCCPHYS pPhys, size_t cb)
     /*
      * validate input.
      */
-    AssertPtr(pPhys);
+    Assert(VALID_PTR(pPhys));
     Assert(cb > 0);
 
     /*

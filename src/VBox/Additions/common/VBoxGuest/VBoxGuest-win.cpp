@@ -1,10 +1,10 @@
-/* $Id: VBoxGuest-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuest-win.cpp $ */
 /** @file
  * VBoxGuest - Windows specifics.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -411,7 +411,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDrvObj, PUNICODE_STRING pRegPath)
          * Dynamically resolve symbols not present in NT4.
          */
         RTDBGKRNLINFO hKrnlInfo;
-        rc = RTR0DbgKrnlInfoOpen(&hKrnlInfo, 0 /*fFlags*/);
+        int rc = RTR0DbgKrnlInfoOpen(&hKrnlInfo, 0 /*fFlags*/);
         if (RT_SUCCESS(rc))
         {
             g_pfnKeRegisterBugCheckCallback   = (decltype(KeRegisterBugCheckCallback) *)  RTR0DbgKrnlInfoGetSymbol(hKrnlInfo, NULL, "KeRegisterBugCheckCallback");
@@ -3090,6 +3090,11 @@ static BOOLEAN NTAPI vgdrvNtIsrHandler(PKINTERRUPT pInterrupt, PVOID pServiceCon
 }
 
 
+/**
+ * Overridden routine for mouse polling events.
+ *
+ * @param pDevExt     Device extension structure.
+ */
 void VGDrvNativeISRMousePollEvent(PVBOXGUESTDEVEXT pDevExt)
 {
     NOREF(pDevExt);

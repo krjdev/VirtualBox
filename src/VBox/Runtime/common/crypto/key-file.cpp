@@ -1,10 +1,10 @@
-/* $Id: key-file.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: key-file.cpp $ */
 /** @file
  * IPRT - Crypto - Cryptographic Keys, File I/O.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,9 +49,7 @@
 
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
-# include <openssl/evp.h>
-# include "internal/openssl-post.h"
+# include "openssl/evp.h"
 # ifndef OPENSSL_VERSION_NUMBER
 #  error "Missing OPENSSL_VERSION_NUMBER!"
 # endif

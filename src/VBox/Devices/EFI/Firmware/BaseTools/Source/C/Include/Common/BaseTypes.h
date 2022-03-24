@@ -57,16 +57,6 @@
 #define NULL  ((VOID *) 0)
 #endif
 
-#ifdef __CC_ARM
-  //
-  // Older RVCT ARM compilers don't fully support #pragma pack and require __packed
-  // as a prefix for the structure.
-  //
-  #define PACKED  __packed
-#else
-  #define PACKED
-#endif
-
 //
 //  Support for variable length argument lists using the ANSI standard.
 //

@@ -1,10 +1,10 @@
-/* $Id: ProgressProxyImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ProgressProxyImpl.cpp $ */
 /** @file
  * IProgress implementation for Machine::openRemoteSession in VBoxSVC.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -337,11 +337,11 @@ void ProgressProxy::copyProgressInfo(IProgress *pOtherProgress, bool fEarly)
             if (fCompleted)
             {
                 /* Check the result. */
-                LONG lResult;
-                hrc = pOtherProgress->COMGETTER(ResultCode)(&lResult);
+                LONG hrcResult;
+                hrc = pOtherProgress->COMGETTER(ResultCode)(&hrcResult);
                 if (FAILED(hrc))
-                    lResult = (LONG)hrc;
-                if (SUCCEEDED((HRESULT)lResult))
+                    hrcResult = hrc;
+                if (SUCCEEDED((HRESULT)hrcResult))
                     LogFlowThisFunc(("Succeeded\n"));
                 else
                 {
@@ -366,16 +366,16 @@ void ProgressProxy::copyProgressInfo(IProgress *pOtherProgress, bool fEarly)
                             bstrText = "<failed>";
 
                         Utf8Str strText(bstrText);
-                        LogFlowThisFunc(("Got ErrorInfo(%s); hrcResult=%Rhrc\n", strText.c_str(), (HRESULT)lResult));
-                        Progress::i_notifyComplete((HRESULT)lResult,
+                        LogFlowThisFunc(("Got ErrorInfo(%s); hrcResult=%Rhrc\n", strText.c_str(), hrcResult));
+                        Progress::i_notifyComplete((HRESULT)hrcResult,
                                                    Guid(bstrIID).ref(),
                                                    Utf8Str(bstrComponent).c_str(),
                                                    "%s", strText.c_str());
                     }
                     else
                     {
-                        LogFlowThisFunc(("ErrorInfo failed with hrc=%Rhrc; hrcResult=%Rhrc\n", hrc, (HRESULT)lResult));
-                        Progress::i_notifyComplete((HRESULT)lResult,
+                        LogFlowThisFunc(("ErrorInfo failed with hrc=%Rhrc; hrcResult=%Rhrc\n", hrc, hrcResult));
+                        Progress::i_notifyComplete((HRESULT)hrcResult,
                                                    COM_IIDOF(IProgress),
                                                    "ProgressProxy",
                                                    tr("No error info"));

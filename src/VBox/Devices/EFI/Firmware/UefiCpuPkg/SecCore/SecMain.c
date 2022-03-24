@@ -35,43 +35,6 @@ EFI_PEI_PPI_DESCRIPTOR            mPeiSecPlatformInformationPpi[] = {
   }
 };
 
-/**
-  Migrates the Global Descriptor Table (GDT) to permanent memory.
-
-  @retval   EFI_SUCCESS           The GDT was migrated successfully.
-  @retval   EFI_OUT_OF_RESOURCES  The GDT could not be migrated due to lack of available memory.
-
-**/
-EFI_STATUS
-MigrateGdt (
-  VOID
-  )
-{
-  EFI_STATUS          Status;
-  UINTN               GdtBufferSize;
-  IA32_DESCRIPTOR     Gdtr;
-  VOID                *GdtBuffer;
-
-  AsmReadGdtr ((IA32_DESCRIPTOR *) &Gdtr);
-  GdtBufferSize = sizeof (IA32_SEGMENT_DESCRIPTOR) -1 + Gdtr.Limit + 1;
-
-  Status =  PeiServicesAllocatePool (
-              GdtBufferSize,
-              &GdtBuffer
-              );
-  ASSERT (GdtBuffer != NULL);
-  if (EFI_ERROR (Status)) {
-    return EFI_OUT_OF_RESOURCES;
-  }
-
-  GdtBuffer = ALIGN_POINTER (GdtBuffer, sizeof (IA32_SEGMENT_DESCRIPTOR));
-  CopyMem (GdtBuffer, (VOID *) Gdtr.Base, Gdtr.Limit + 1);
-  Gdtr.Base = (UINTN) GdtBuffer;
-  AsmWriteGdtr (&Gdtr);
-
-  return EFI_SUCCESS;
-}
-
 //
 // These are IDT entries pointing to 10:FFFFFFE4h.
 //
@@ -265,6 +228,7 @@ SecStartupPhase2(
 
   PeiCoreEntryPoint = NULL;
   SecCoreData   = (EFI_SEC_PEI_HAND_OFF *) Context;
+  AllSecPpiList = (EFI_PEI_PPI_DESCRIPTOR *) SecCoreData->PeiTemporaryRamBase;
 
   //
   // Perform platform specific initialization before entering PeiCore.
@@ -275,8 +239,9 @@ SecStartupPhase2(
   // is enabled.
   //
   if (PpiList != NULL) {
-    Index = 0;
-    do {
+    for (Index = 0;
+      (PpiList[Index].Flags & EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST) != EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST;
+      Index++) {
       if (CompareGuid (PpiList[Index].Guid, &gEfiPeiCoreFvLocationPpiGuid) &&
           (((EFI_PEI_CORE_FV_LOCATION_PPI *) PpiList[Index].Ppi)->PeiCoreFvLocation != 0)
          ) {
@@ -292,12 +257,12 @@ SecStartupPhase2(
           break;
         } else {
           //
-          // Invalid PeiCore FV provided by platform
+          // PeiCore not found
           //
           CpuDeadLoop ();
         }
       }
-    } while ((PpiList[Index++].Flags & EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST) != EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST);
+    }
   }
   //
   // If EFI_PEI_CORE_FV_LOCATION_PPI not found, try to locate PeiCore from BFV.
@@ -317,8 +282,6 @@ SecStartupPhase2(
   }
 
   if (PpiList != NULL) {
-    AllSecPpiList = (EFI_PEI_PPI_DESCRIPTOR *) SecCoreData->PeiTemporaryRamBase;
-
     //
     // Remove the terminal flag from the terminal PPI
     //
@@ -407,34 +370,12 @@ SecTemporaryRamDone (
   VOID
   )
 {
-  EFI_STATUS                    Status;
-  EFI_STATUS                    Status2;
-  UINTN                         Index;
-  BOOLEAN                       State;
-  EFI_PEI_PPI_DESCRIPTOR        *PeiPpiDescriptor;
-  REPUBLISH_SEC_PPI_PPI         *RepublishSecPpiPpi;
+  BOOLEAN  State;
 
   //
   // Republish Sec Platform Information(2) PPI
   //
   RepublishSecPlatformInformationPpi ();
-
-  //
-  // Re-install SEC PPIs using a PEIM produced service if published
-  //
-  for (Index = 0, Status = EFI_SUCCESS; Status == EFI_SUCCESS; Index++) {
-    Status = PeiServicesLocatePpi (
-               &gRepublishSecPpiPpiGuid,
-               Index,
-               &PeiPpiDescriptor,
-               (VOID **) &RepublishSecPpiPpi
-               );
-    if (!EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_INFO, "Calling RepublishSecPpi instance %d.\n", Index));
-      Status2 = RepublishSecPpiPpi->RepublishSecPpis ();
-      ASSERT_EFI_ERROR (Status2);
-    }
-  }
 
   //
   // Migrate DebugAgentContext.
@@ -444,15 +385,7 @@ SecTemporaryRamDone (
   //
   // Disable interrupts and save current interrupt state
   //
-  State = SaveAndDisableInterrupts ();
-
-  //
-  // Migrate GDT before NEM near down
-  //
-  if (PcdGetBool (PcdMigrateTemporaryRamFirmwareVolumes)) {
-    Status = MigrateGdt ();
-    ASSERT_EFI_ERROR (Status);
-  }
+  State = SaveAndDisableInterrupts();
 
   //
   // Disable Temporary RAM after Stack and Heap have been migrated at this point.

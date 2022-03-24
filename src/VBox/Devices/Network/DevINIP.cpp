@@ -1,10 +1,10 @@
-/* $Id: DevINIP.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevINIP.cpp $ */
 /** @file
  * DevINIP - Internal Network IP stack device/service.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -130,14 +130,14 @@ static PDEVINTNETIP g_pDevINIPData = NULL;
  * really ugly hack to avoid linking problems on unix style platforms
  * using .a libraries for now.
  */
-static const struct CLANG11WEIRDNESS { PFNRT pfn; } g_pDevINILinkHack[] =
+static const PFNRT g_pDevINILinkHack[] =
 {
-    { (PFNRT)lwip_socket },
-    { (PFNRT)lwip_close },
-    { (PFNRT)lwip_setsockopt },
-    { (PFNRT)lwip_recv },
-    { (PFNRT)lwip_send },
-    { (PFNRT)lwip_select },
+    (PFNRT)lwip_socket,
+    (PFNRT)lwip_close,
+    (PFNRT)lwip_setsockopt,
+    (PFNRT)lwip_recv,
+    (PFNRT)lwip_send,
+    (PFNRT)lwip_select
 };
 
 
@@ -244,7 +244,7 @@ static err_t devINIPOutputRaw(struct netif *netif, struct pbuf *p)
  * @returns lwIP error code
  * @param   netif   Interface to configure.
  */
-static err_t devINIPInterface(struct netif *netif) RT_NOTHROW_DEF
+static err_t devINIPInterface(struct netif *netif)
 {
     LogFlow(("%s: netif=%p\n", __FUNCTION__, netif));
     Assert(g_pDevINIPData != NULL);
@@ -555,11 +555,11 @@ static DECLCALLBACK(int) devINIPDestruct(PPDMDEVINS pDevIns)
     if (g_pDevINIPData != NULL)
         vboxLwipCoreFinalize(devINIPTcpipFiniDone, pThis);
 
-    PDMDevHlpMMHeapFree(pDevIns, pThis->pszIP);
+    MMR3HeapFree(pThis->pszIP);
     pThis->pszIP = NULL;
-    PDMDevHlpMMHeapFree(pDevIns, pThis->pszNetmask);
+    MMR3HeapFree(pThis->pszNetmask);
     pThis->pszNetmask = NULL;
-    PDMDevHlpMMHeapFree(pDevIns, pThis->pszGateway);
+    MMR3HeapFree(pThis->pszGateway);
     pThis->pszGateway = NULL;
 
     LogFlow(("%s: success\n", __FUNCTION__));

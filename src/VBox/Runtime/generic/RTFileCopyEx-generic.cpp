@@ -1,10 +1,10 @@
-/* $Id: RTFileCopyEx-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTFileCopyEx-generic.cpp $ */
 /** @file
  * IPRT - RTFileCopyEx, generic implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,11 +40,11 @@ RTDECL(int) RTFileCopyEx(const char *pszSrc, const char *pszDst, uint32_t fFlags
     /*
      * Validate input.
      */
-    AssertPtrReturn(pszSrc, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszSrc), ("pszSrc=%p\n", pszSrc), VERR_INVALID_PARAMETER);
     AssertMsgReturn(*pszSrc, ("pszSrc=%p\n", pszSrc), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszDst, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszDst), ("pszDst=%p\n", pszDst), VERR_INVALID_PARAMETER);
     AssertMsgReturn(*pszDst, ("pszDst=%p\n", pszDst), VERR_INVALID_PARAMETER);
-    AssertPtrNullReturn(pfnProgress, VERR_INVALID_POINTER);
+    AssertMsgReturn(!pfnProgress || VALID_PTR(pfnProgress), ("pfnProgress=%p\n", pfnProgress), VERR_INVALID_PARAMETER);
     AssertMsgReturn(!(fFlags & ~RTFILECOPY_FLAGS_MASK), ("%#x\n", fFlags), VERR_INVALID_PARAMETER);
 
     /*

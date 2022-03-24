@@ -1,10 +1,10 @@
-/* $Id: PDMAll.cpp 93635 2022-02-07 10:43:45Z vboxsync $ */
+/* $Id: PDMAll.cpp $ */
 /** @file
  * PDM Critical Sections
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -155,7 +155,7 @@ VMMDECL(int) PDMIsaSetIrq(PVMCC pVM, uint8_t u8Irq, uint8_t u8Level, uint32_t uT
         if (u8Irq == 0)
             u8Irq = 2;
 
-        pVM->pdm.s.IoApic.CTX_SUFF(pfnSetIrq)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), NIL_PCIBDF, u8Irq, u8Level, uTagSrc);
+        pVM->pdm.s.IoApic.CTX_SUFF(pfnSetIrq)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), u8Irq, u8Level, uTagSrc);
         rc = VINF_SUCCESS;
     }
 
@@ -172,17 +172,15 @@ VMMDECL(int) PDMIsaSetIrq(PVMCC pVM, uint8_t u8Irq, uint8_t u8Level, uint32_t uT
  * @returns VBox status code.
  * @param   pVM         The cross context VM structure.
  * @param   u8Irq       The IRQ line.
- * @param   uBusDevFn   The bus:device:function of the device initiating the IRQ.
- *                      Pass NIL_PCIBDF when it's not a PCI device or interrupt.
  * @param   u8Level     The new level.
  * @param   uTagSrc     The IRQ tag and source tracer ID.
  */
-VMM_INT_DECL(int) PDMIoApicSetIrq(PVM pVM, PCIBDF uBusDevFn, uint8_t u8Irq, uint8_t u8Level, uint32_t uTagSrc)
+VMM_INT_DECL(int) PDMIoApicSetIrq(PVM pVM, uint8_t u8Irq, uint8_t u8Level, uint32_t uTagSrc)
 {
     if (pVM->pdm.s.IoApic.CTX_SUFF(pDevIns))
     {
         Assert(pVM->pdm.s.IoApic.CTX_SUFF(pfnSetIrq));
-        pVM->pdm.s.IoApic.CTX_SUFF(pfnSetIrq)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), uBusDevFn, u8Irq, u8Level, uTagSrc);
+        pVM->pdm.s.IoApic.CTX_SUFF(pfnSetIrq)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), u8Irq, u8Level, uTagSrc);
         return VINF_SUCCESS;
     }
     return VERR_PDM_NO_PIC_INSTANCE;
@@ -190,85 +188,48 @@ VMM_INT_DECL(int) PDMIoApicSetIrq(PVM pVM, PCIBDF uBusDevFn, uint8_t u8Irq, uint
 
 
 /**
- * Broadcasts an EOI to the I/O APIC(s).
+ * Broadcasts an EOI to the I/O APICs.
  *
- * @param   pVM         The cross context VM structure.
- * @param   uVector     The interrupt vector corresponding to the EOI.
+ * @returns Strict VBox status code - only the following informational status codes:
+ * @retval  VINF_IOM_R3_MMIO_WRITE if the I/O APIC lock is contenteded and we're in R0 or RC.
+ * @retval  VINF_SUCCESS
+ *
+ * @param   pVM             The cross context VM structure.
+ * @param   uVector         The interrupt vector corresponding to the EOI.
  */
-VMM_INT_DECL(void) PDMIoApicBroadcastEoi(PVMCC pVM, uint8_t uVector)
+VMM_INT_DECL(VBOXSTRICTRC) PDMIoApicBroadcastEoi(PVM pVM, uint8_t uVector)
 {
-    /*
-     * At present, we support only a maximum of one I/O APIC per-VM. If we ever implement having
-     * multiple I/O APICs per-VM, we'll have to broadcast this EOI to all of the I/O APICs.
-     */
-    PCPDMIOAPIC pIoApic = &pVM->pdm.s.IoApic;
-#ifdef IN_RING0
-    if (pIoApic->pDevInsR0)
+    /* At present, we support only a maximum of one I/O APIC per-VM. If we ever implement having
+       multiple I/O APICs per-VM, we'll have to broadcast this EOI to all of the I/O APICs. */
+    if (pVM->pdm.s.IoApic.CTX_SUFF(pDevIns))
     {
-        Assert(pIoApic->pfnSetEoiR0);
-        pIoApic->pfnSetEoiR0(pIoApic->pDevInsR0, uVector);
+        Assert(pVM->pdm.s.IoApic.CTX_SUFF(pfnSetEoi));
+        return pVM->pdm.s.IoApic.CTX_SUFF(pfnSetEoi)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), uVector);
     }
-    else if (pIoApic->pDevInsR3)
-    {
-        /* Queue for ring-3 execution. */
-        PPDMDEVHLPTASK pTask = (PPDMDEVHLPTASK)PDMQueueAlloc(pVM, pVM->pdm.s.hDevHlpQueue, pVM);
-        if (pTask)
-        {
-            pTask->enmOp = PDMDEVHLPTASKOP_IOAPIC_SET_EOI;
-            pTask->pDevInsR3 = NIL_RTR3PTR; /* not required */
-            pTask->u.IoApicSetEoi.uVector = uVector;
-            PDMQueueInsert(pVM, pVM->pdm.s.hDevHlpQueue, pVM, &pTask->Core);
-        }
-        else
-            AssertMsgFailed(("We're out of devhlp queue items!!!\n"));
-    }
-#else
-    if (pIoApic->pDevInsR3)
-    {
-        Assert(pIoApic->pfnSetEoiR3);
-        pIoApic->pfnSetEoiR3(pIoApic->pDevInsR3, uVector);
-    }
-#endif
+
+    /* We shouldn't return failure if no I/O APIC is present. */
+    return VINF_SUCCESS;
 }
 
 
 /**
  * Send a MSI to an I/O APIC.
  *
+ * @returns VBox status code.
  * @param   pVM         The cross context VM structure.
- * @param   uBusDevFn   The bus:device:function of the device initiating the MSI.
- * @param   pMsi        The MSI to send.
+ * @param   GCAddr      Request address.
+ * @param   uValue      Request value.
  * @param   uTagSrc     The IRQ tag and source tracer ID.
  */
-VMM_INT_DECL(void) PDMIoApicSendMsi(PVMCC pVM, PCIBDF uBusDevFn, PCMSIMSG pMsi, uint32_t uTagSrc)
+VMM_INT_DECL(int) PDMIoApicSendMsi(PVM pVM, RTGCPHYS GCAddr, uint32_t uValue, uint32_t uTagSrc)
 {
-    PCPDMIOAPIC pIoApic = &pVM->pdm.s.IoApic;
-#ifdef IN_RING0
-    if (pIoApic->pDevInsR0)
-        pIoApic->pfnSendMsiR0(pIoApic->pDevInsR0, uBusDevFn, pMsi, uTagSrc);
-    else if (pIoApic->pDevInsR3)
+    if (pVM->pdm.s.IoApic.CTX_SUFF(pDevIns))
     {
-        /* Queue for ring-3 execution. */
-        PPDMDEVHLPTASK pTask = (PPDMDEVHLPTASK)PDMQueueAlloc(pVM, pVM->pdm.s.hDevHlpQueue, pVM);
-        if (pTask)
-        {
-            pTask->enmOp = PDMDEVHLPTASKOP_IOAPIC_SEND_MSI;
-            pTask->pDevInsR3 = NIL_RTR3PTR; /* not required */
-            pTask->u.IoApicSendMsi.uBusDevFn = uBusDevFn;
-            pTask->u.IoApicSendMsi.Msi       = *pMsi;
-            pTask->u.IoApicSendMsi.uTagSrc   = uTagSrc;
-            PDMQueueInsert(pVM, pVM->pdm.s.hDevHlpQueue, pVM, &pTask->Core);
-        }
-        else
-            AssertMsgFailed(("We're out of devhlp queue items!!!\n"));
+        Assert(pVM->pdm.s.IoApic.CTX_SUFF(pfnSendMsi));
+        pVM->pdm.s.IoApic.CTX_SUFF(pfnSendMsi)(pVM->pdm.s.IoApic.CTX_SUFF(pDevIns), GCAddr, uValue, uTagSrc);
+        return VINF_SUCCESS;
     }
-#else
-    if (pIoApic->pDevInsR3)
-    {
-        Assert(pIoApic->pfnSendMsiR3);
-        pIoApic->pfnSendMsiR3(pIoApic->pDevInsR3, uBusDevFn, pMsi, uTagSrc);
-    }
-#endif
+    return VERR_PDM_NO_PIC_INSTANCE;
 }
 
 
@@ -298,41 +259,21 @@ VMM_INT_DECL(bool) PDMHasApic(PVM pVM)
 
 
 /**
- * Translates a ring-0 device instance index to a pointer.
- *
- * This is used by PGM for device access handlers.
- *
- * @returns Device instance pointer if valid index, otherwise NULL (asserted).
- * @param   pVM         The cross context VM structure.
- * @param   idxR0Device The ring-0 device instance index.
- */
-VMM_INT_DECL(PPDMDEVINS) PDMDeviceRing0IdxToInstance(PVMCC pVM, uint64_t idxR0Device)
-{
-#ifdef IN_RING0
-    AssertMsgReturn(idxR0Device < RT_ELEMENTS(pVM->pdmr0.s.apDevInstances), ("%#RX64\n", idxR0Device), NULL);
-    PPDMDEVINS pDevIns = pVM->pdmr0.s.apDevInstances[idxR0Device];
-#elif defined(IN_RING3)
-    AssertMsgReturn(idxR0Device < RT_ELEMENTS(pVM->pdm.s.apDevRing0Instances), ("%#RX64\n", idxR0Device), NULL);
-    PPDMDEVINS pDevIns = pVM->pdm.s.apDevRing0Instances[idxR0Device];
-#else
-# error "Unsupported context"
-#endif
-    AssertMsg(pDevIns, ("%#RX64\n", idxR0Device));
-    return pDevIns;
-}
-
-
-/**
  * Locks PDM.
- *
- * This might block.
+ * This might call back to Ring-3 in order to deal with lock contention in GC and R3.
  *
  * @param   pVM     The cross context VM structure.
  */
 void pdmLock(PVMCC pVM)
 {
-    int rc = PDMCritSectEnter(pVM, &pVM->pdm.s.CritSect, VINF_SUCCESS);
-    PDM_CRITSECT_RELEASE_ASSERT_RC(pVM, &pVM->pdm.s.CritSect, rc);
+#ifdef IN_RING3
+    int rc = PDMCritSectEnter(&pVM->pdm.s.CritSect, VERR_IGNORED);
+#else
+    int rc = PDMCritSectEnter(&pVM->pdm.s.CritSect, VERR_GENERAL_FAILURE);
+    if (rc == VERR_GENERAL_FAILURE)
+        rc = VMMRZCallRing3NoCpu(pVM, VMMCALLRING3_PDM_LOCK, 0);
+#endif
+    AssertRC(rc);
 }
 
 
@@ -342,11 +283,11 @@ void pdmLock(PVMCC pVM)
  * @returns VINF_SUCCESS on success.
  * @returns rc if we're in GC or R0 and can't get the lock.
  * @param   pVM     The cross context VM structure.
- * @param   rcBusy  The RC to return in GC or R0 when we can't get the lock.
+ * @param   rc      The RC to return in GC or R0 when we can't get the lock.
  */
-int pdmLockEx(PVMCC pVM, int rcBusy)
+int pdmLockEx(PVMCC pVM, int rc)
 {
-    return PDMCritSectEnter(pVM, &pVM->pdm.s.CritSect, rcBusy);
+    return PDMCritSectEnter(&pVM->pdm.s.CritSect, rc);
 }
 
 
@@ -357,19 +298,7 @@ int pdmLockEx(PVMCC pVM, int rcBusy)
  */
 void pdmUnlock(PVMCC pVM)
 {
-    PDMCritSectLeave(pVM, &pVM->pdm.s.CritSect);
-}
-
-
-/**
- * Checks if this thread is owning the PDM lock.
- *
- * @returns @c true if the lock is taken, @c false otherwise.
- * @param   pVM     The cross context VM structure.
- */
-bool pdmLockIsOwner(PVMCC pVM)
-{
-    return PDMCritSectIsOwner(pVM, &pVM->pdm.s.CritSect);
+    PDMCritSectLeave(&pVM->pdm.s.CritSect);
 }
 
 

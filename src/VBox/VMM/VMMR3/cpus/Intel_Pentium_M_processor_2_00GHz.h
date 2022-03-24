@@ -1,11 +1,11 @@
-/* $Id: Intel_Pentium_M_processor_2_00GHz.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Intel_Pentium_M_processor_2_00GHz.h $ */
 /** @file
  * CPU database entry "Intel Pentium M processor 2.00GHz".
  * Generated at 2013-12-09T14:18:00Z by VBoxCpuReport v4.3.51r91027 on win.x86.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

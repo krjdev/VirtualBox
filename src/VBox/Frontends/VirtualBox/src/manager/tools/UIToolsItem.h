@@ -1,10 +1,10 @@
-/* $Id: UIToolsItem.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolsItem.h $ */
 /** @file
  * VBox Qt GUI - UIToolsItem class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -85,7 +85,7 @@ public:
                 UIToolClass enmClass, UIToolType enmType,
                 const QString &strName, const QIcon &icon);
     /** Destructs item. */
-    virtual ~UIToolsItem() RT_OVERRIDE;
+    virtual ~UIToolsItem() /* override */;
 
     /** @name Item stuff.
       * @{ */
@@ -119,7 +119,7 @@ public:
     /** @name Layout stuff.
       * @{ */
         /** Updates geometry. */
-        virtual void updateGeometry() RT_OVERRIDE;
+        virtual void updateGeometry() /* override */;
 
         /** Returns minimum width-hint. */
         int minimumWidthHint() const;
@@ -129,7 +129,7 @@ public:
         /** Returns size-hint.
           * @param  enmWhich    Brings size-hint type.
           * @param  constraint  Brings size constraint. */
-        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const RT_OVERRIDE;
+        virtual QSizeF sizeHint(Qt::SizeHint enmWhich, const QSizeF &constraint = QSizeF()) const /* override */;
     /** @} */
 
 protected:
@@ -137,18 +137,18 @@ protected:
     /** @name Event-handling stuff.
       * @{ */
         /** Handles show @a pEvent. */
-        virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+        virtual void showEvent(QShowEvent *pEvent) /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
         /** Handles hover enter @a event. */
-        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
         /** Handles hover leave @a event. */
-        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) RT_OVERRIDE;
+        virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent *pEvent) /* override */;
 
         /** Performs painting using passed @a pPainter, @a pOptions and optionally specified @a pWidget. */
-        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) RT_OVERRIDE;
+        virtual void paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *pWidget = 0) /* override */;
     /** @} */
 
 private slots:
@@ -288,18 +288,18 @@ private:
         /** Holds the animated value. */
         int                 m_iAnimatedValue;
 
-        /** Holds start default lightness tone. */
-        int  m_iDefaultLightnessStart;
-        /** Holds final default lightness tone. */
-        int  m_iDefaultLightnessFinal;
-        /** Holds start hover lightness tone. */
-        int  m_iHoverLightnessStart;
-        /** Holds final hover lightness tone. */
-        int  m_iHoverLightnessFinal;
-        /** Holds start highlight lightness tone. */
-        int  m_iHighlightLightnessStart;
-        /** Holds final highlight lightness tone. */
-        int  m_iHighlightLightnessFinal;
+        /** Holds minimum default lightness tone. */
+        int  m_iDefaultLightnessMin;
+        /** Holds maximum default lightness tone. */
+        int  m_iDefaultLightnessMax;
+        /** Holds minimum hover lightness tone. */
+        int  m_iHoverLightnessMin;
+        /** Holds maximum hover lightness tone. */
+        int  m_iHoverLightnessMax;
+        /** Holds minimum highlight lightness tone. */
+        int  m_iHighlightLightnessMin;
+        /** Holds maximum highlight lightness tone. */
+        int  m_iHighlightLightnessMax;
     /** @} */
 
     /** @name Layout stuff.

@@ -1,10 +1,10 @@
-/* $Id: MachineDebuggerImpl.h 93460 2022-01-27 16:50:15Z vboxsync $ */
+/* $Id: MachineDebuggerImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 #include <VBox/vmm/em.h>
 
 class Console;
-class Progress;
 
 class ATL_NO_VTABLE MachineDebugger :
     public MachineDebuggerWrap
@@ -34,7 +33,7 @@ class ATL_NO_VTABLE MachineDebugger :
 
 public:
 
-    DECLARE_COMMON_CLASS_METHODS (MachineDebugger)
+    DECLARE_EMPTY_CTOR_DTOR (MachineDebugger)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -51,8 +50,16 @@ private:
     // wrapped IMachineDeugger properties
     HRESULT getSingleStep(BOOL *aSingleStep);
     HRESULT setSingleStep(BOOL aSingleStep);
+    HRESULT getRecompileUser(BOOL *aRecompileUser);
+    HRESULT setRecompileUser(BOOL aRecompileUser);
+    HRESULT getRecompileSupervisor(BOOL *aRecompileSupervisor);
+    HRESULT setRecompileSupervisor(BOOL aRecompileSupervisor);
     HRESULT getExecuteAllInIEM(BOOL *aExecuteAllInIEM);
     HRESULT setExecuteAllInIEM(BOOL aExecuteAllInIEM);
+    HRESULT getPATMEnabled(BOOL *aPATMEnabled);
+    HRESULT setPATMEnabled(BOOL aPATMEnabled);
+    HRESULT getCSAMEnabled(BOOL *aCSAMEnabled);
+    HRESULT setCSAMEnabled(BOOL aCSAMEnabled);
     HRESULT getLogEnabled(BOOL *aLogEnabled);
     HRESULT setLogEnabled(BOOL aLogEnabled);
     HRESULT getLogDbgFlags(com::Utf8Str &aLogDbgFlags);
@@ -62,6 +69,7 @@ private:
     HRESULT getLogRelGroups(com::Utf8Str &aLogRelGroups);
     HRESULT getLogRelDestinations(com::Utf8Str &aLogRelDestinations);
     HRESULT getExecutionEngine(VMExecutionEngine_T *apenmEngine);
+    HRESULT getHWVirtExEnabled(BOOL *aHWVirtExEnabled);
     HRESULT getHWVirtExNestedPagingEnabled(BOOL *aHWVirtExNestedPagingEnabled);
     HRESULT getHWVirtExVPIDEnabled(BOOL *aHWVirtExVPIDEnabled);
     HRESULT getHWVirtExUXEnabled(BOOL *aHWVirtExUXEnabled);
@@ -70,9 +78,10 @@ private:
     HRESULT getPAEEnabled(BOOL *aPAEEnabled);
     HRESULT getVirtualTimeRate(ULONG *aVirtualTimeRate);
     HRESULT setVirtualTimeRate(ULONG aVirtualTimeRate);
+    HRESULT getVM(LONG64 *aVM);
     HRESULT getUptime(LONG64 *aUptime);
 
-    // wrapped IMachineDeugger methods
+    // wrapped IMachineDeugger properties
     HRESULT dumpGuestCore(const com::Utf8Str &aFilename,
                           const com::Utf8Str &aCompression);
     HRESULT dumpHostProcessCore(const com::Utf8Str &aFilename,
@@ -124,8 +133,6 @@ private:
                      BOOL aWithDescriptions,
                      com::Utf8Str &aStats);
     HRESULT getCPULoad(ULONG aCpuId, ULONG *aPctExecuting, ULONG *aPctHalted, ULONG *aPctOther, LONG64 *aMsInterval) RT_OVERRIDE;
-    HRESULT takeGuestSample(const com::Utf8Str &aFilename, ULONG aUsInterval, LONG64 aUsSampleTime, ComPtr<IProgress> &pProgress);
-    HRESULT getUVMAndVMMFunctionTable(LONG64 aMagicVersion, LONG64 *aVMMFunctionTable, LONG64 *aUVM);
 
     // private methods
     bool i_queueSettings() const;
@@ -133,12 +140,10 @@ private:
     HRESULT i_setEmExecPolicyProperty(EMEXECPOLICY enmPolicy, BOOL fEnforce);
 
     /** RTLogGetFlags, RTLogGetGroupSettings and RTLogGetDestinations function. */
-    typedef DECLCALLBACKTYPE(int, FNLOGGETSTR,(PRTLOGGER, char *, size_t));
+    typedef DECLCALLBACK(int) FNLOGGETSTR(PRTLOGGER, char *, size_t);
     /** Function pointer.  */
     typedef FNLOGGETSTR *PFNLOGGETSTR;
     HRESULT i_logStringProps(PRTLOGGER pLogger, PFNLOGGETSTR pfnLogGetStr, const char *pszLogGetStr, Utf8Str *pstrSettings);
-
-    static DECLCALLBACK(int) i_dbgfProgressCallback(void *pvUser, unsigned uPercentage);
 
     Console * const mParent;
     /** @name Flags whether settings have been queued because they could not be sent
@@ -146,20 +151,14 @@ private:
      * @{ */
     uint8_t maiQueuedEmExecPolicyParams[EMEXECPOLICY_END];
     int mSingleStepQueued;
+    int mRecompileUserQueued;
+    int mRecompileSupervisorQueued;
+    int mPatmEnabledQueued;
+    int mCsamEnabledQueued;
     int mLogEnabledQueued;
     uint32_t mVirtualTimeRateQueued;
     bool mFlushMode;
     /** @}  */
-
-    /** @name Sample report related things.
-     * @{ */
-    /** Sample report handle. */
-    DBGFSAMPLEREPORT        m_hSampleReport;
-    /** Progress object for the currently taken guest sample. */
-    ComObjPtr<Progress>     m_Progress;
-    /** Filename to dump the report to. */
-    com::Utf8Str            m_strFilename;
-    /** @} */
 };
 
 #endif /* !MAIN_INCLUDED_MachineDebuggerImpl_h */

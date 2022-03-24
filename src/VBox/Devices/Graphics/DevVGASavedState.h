@@ -1,4 +1,4 @@
-/* $Id: DevVGASavedState.h 94205 2022-03-12 20:12:21Z vboxsync $ */
+/* $Id: DevVGASavedState.h $ */
 /** @file
  * DevVGA - Saved state versions.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,10 +46,7 @@
         } \
     } while (0)
 
-#define VGA_SAVEDSTATE_VERSION                   24
-#define VGA_SAVEDSTATE_VERSION_VMSVGA_DX         24 /* VGPU10. */
-#define VGA_SAVEDSTATE_VERSION_VMSVGA_MIPLEVELS  23 /* Surface struct with number of miplevels. */
-#define VGA_SAVEDSTATE_VERSION_VMSVGA_CURSOR     22 /* Legacy cursor registers. */
+#define VGA_SAVEDSTATE_VERSION                   21
 #define VGA_SAVEDSTATE_VERSION_VMSVGA_SCREENS    21 /* Screen objects. */
 #define VGA_SAVEDSTATE_VERSION_VMSVGA            20 /* Multiple updates and fixes for VMSVGA saved state. */
 #define VGA_SAVEDSTATE_VERSION_VMSVGA_TEX_STAGES 19

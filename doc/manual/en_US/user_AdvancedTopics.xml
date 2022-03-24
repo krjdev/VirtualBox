@@ -818,7 +818,7 @@ EndSection</screen>
       for a virtual machine:
     </para>
 
-<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --cpu-hotplug on</screen>
+<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --cpuhotplug on</screen>
 
     <para>
       The <option>--cpus</option> option is used to specify the maximum
@@ -829,13 +829,13 @@ EndSection</screen>
 
     <para>
       When the VM is off, you can then add and remove virtual CPUs with
-      the <command>VBoxManage modifyvm --plug-cpu</command> and
-      <command>VBoxManage modifyvm --unplug-cpu</command> commands, which
+      the <command>VBoxManage modifyvm --plugcpu</command> and
+      <command>VBoxManage modifyvm --unplugcpu</command> commands, which
       take the number of the virtual CPU as a parameter, as follows:
     </para>
 
-<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --plug-cpu 3
-$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --unplug-cpu 3</screen>
+<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --plugcpu 3
+$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --unplugcpu 3</screen>
 
     <para>
       Note that CPU 0 can never be removed.
@@ -1420,12 +1420,12 @@ vga = 864</screen>
           following command:
         </para>
 
-<screen>$ VBoxManage createmedium disk --filename <replaceable>path-to-file</replaceable>.vmdk --format=VMDK
- --variant RawDisk --property RawDrive=/dev/sda</screen>
+<screen>$ VBoxManage internalcommands createrawvmdk -filename \
+<replaceable>path-to-file</replaceable>.vmdk -rawdisk /dev/sda</screen>
 
         <para>
           This creates the
-          <filename><replaceable>path-to-file</replaceable>.vmdk</filename>
+          <filename>/<replaceable>path-to-file</replaceable>.vmdk</filename>
           file image that must be an absolute path. All data is read and
           written from <filename>/dev/sda</filename>.
         </para>
@@ -1434,7 +1434,7 @@ vga = 864</screen>
           On a Windows host, instead of the above device specification,
           for example use <filename>\\.\PhysicalDrive0</filename>. On a
           Mac OS X host, instead of the above device specification use
-          for example <filename>/dev/rdisk1</filename>. Note that on Mac
+          for example <filename>/dev/disk1</filename>. Note that on Mac
           OS X you can only get access to an entire disk if no volume is
           mounted from it.
         </para>
@@ -1487,15 +1487,14 @@ vga = 864</screen>
           command:
         </para>
 
-<screen>$ VBoxManage createmedium disk --filename <replaceable>path-to-file</replaceable>.vmdk --format=VMDK
---variant RawDisk --property RawDrive=/dev/sda --property Partitions=1,5</screen>
+<screen>$ VBoxManage internalcommands createrawvmdk -filename \
+<replaceable>path-to-file</replaceable>.vmdk -rawdisk /dev/sda -partitions 1,5</screen>
 
         <para>
           The command is identical to the one for full hard disk access,
-          except for the additional
-          <option>--property Partitions=1,5</option>
+          except for the additional <option>-partitions</option>
           parameter. This example would create the image
-          <filename><replaceable>path-to-file</replaceable>.vmdk</filename>,
+          <filename>/<replaceable>path-to-file</replaceable>.vmdk</filename>,
           which must be absolute, and partitions 1 and 5 of
           <filename>/dev/sda</filename> would be made accessible to the
           guest.
@@ -1512,11 +1511,10 @@ vga = 864</screen>
           On a Windows host, instead of the above device specification,
           use for example <filename>\\.\PhysicalDrive0</filename>. On a
           Mac OS X host, instead of the above device specification use
-          <filename>/dev/rdisk1</filename>, for example. Note that on OS
-          X you can only use partitions which are not mounted. Unmount
-          the respective disk first using
-          <emphasis>diskutil unmountDisk <filename>/dev/diskX</filename></emphasis>.
-          Partition numbers are the same on Linux, Windows, and Mac OS X hosts.
+          <filename>/dev/disk1</filename>, for example. Note that on OS
+          X you can only use partitions which are not mounted. Eject the
+          respective volume first. Partition numbers are the same on
+          Linux, Windows, and Mac OS X hosts.
         </para>
 
         <para>
@@ -1524,12 +1522,12 @@ vga = 864</screen>
           output of the following command:
         </para>
 
-<screen>$ VBoxManage list hostdrives</screen>
+<screen>$ VBoxManage internalcommands listpartitions -rawdisk /dev/sda</screen>
 
         <para>
-          The output lists available drives and their partitions with
-          the partition types and sizes to give the user enough information
-          to identify the partitions necessary for the guest.
+          The output lists the partition types and sizes to give the
+          user enough information to identify the partitions necessary
+          for the guest.
         </para>
 
         <para>
@@ -1549,9 +1547,8 @@ vga = 864</screen>
           image, use:
         </para>
 
-<screen>$ VBoxManage createmedium disk --filename <replaceable>path-to-file</replaceable>.vmdk --format=VMDK
---variant RawDisk --property RawDrive=/dev/sda --property Partitions=1,5
---property Relative=1</screen>
+<screen>$ VBoxManage internalcommands createrawvmdk -filename \
+<replaceable>path-to-file</replaceable>.vmdk -rawdisk /dev/sda -partitions 1,5 -relative</screen>
 
         <para>
           When used from a virtual machine, the image will then refer
@@ -1570,17 +1567,15 @@ vga = 864</screen>
           boot loader that is used on the host by another boot loader.
           This enables for example the guest to boot directly to
           Windows, while the host boots Linux from the "same" disk. For
-          this purpose the <option>--property-file
-          BootSector=<replaceable>path-to-file-with-boot-sector</replaceable></option>
-          parameter is provided. It specifies a file name from which to
-          take the MBR code. The partition table is not modified at all,
-          so a MBR file from a system with totally different
-          partitioning can be used. An example of this is:
+          this purpose the <option>-mbr</option> option is provided. It
+          specifies a file name from which to take the MBR code. The
+          partition table is not modified at all, so a MBR file from a
+          system with totally different partitioning can be used. An
+          example of this is:
         </para>
 
-<screen>$ VBoxManage createmedium disk --filename <replaceable>path-to-file</replaceable>.vmdk --format=VMDK
---variant RawDisk --property RawDrive=/dev/sda --property Partitions=1,5
---property-file BootSector=winxp.mbr</screen>
+<screen>$ VBoxManage internalcommands createrawvmdk -filename
+<replaceable>path-to-file</replaceable>.vmdk -rawdisk /dev/sda -partitions 1,5 -mbr winxp.mbr</screen>
 
         <para>
           The modified MBR will be stored inside the image, not on the
@@ -5933,7 +5928,7 @@ config/balloon_safetymargin=134217728</screen>
       configuration, which can be set with the following command:
     </para>
 
-<screen>VBoxManage modifyvm <replaceable>VM-name</replaceable> --vrde-property VNCPassword=secret</screen>
+<screen>VBoxManage modifyvm <replaceable>VM-name</replaceable> --vrdeproperty VNCPassword=secret</screen>
 
     <para>
       The user is responsible for keeping this password secret, and it
@@ -6873,7 +6868,7 @@ VBoxInternal/Devices/VMMDev/0/Config/HeartbeatTimeout 4000000000</screen>
               <command>VBoxManage</command> command:
             </para>
 
-<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --paravirt-debug "enabled=1"</screen>
+<screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> --paravirtdebug "enabled=1"</screen>
 
             <para>
               The above command assumes your debugger will connect to
@@ -6883,7 +6878,7 @@ VBoxInternal/Devices/VMMDev/0/Config/HeartbeatTimeout 4000000000</screen>
             </para>
 
 <screen>$ VBoxManage modifyvm <replaceable>VM-name</replaceable> \
---paravirt-debug "enabled=1,address=192.168.32.1,port=55000"</screen>
+--paravirtdebug "enabled=1,address=192.168.32.1,port=55000"</screen>
 
             <para>
               See <xref linkend="gimdebughyperv" /> for the complete set
@@ -7229,7 +7224,7 @@ VBoxInternal/Devices/VMMDev/0/Config/HeartbeatTimeout 4000000000</screen>
       devices:
     </para>
 
-<screen>VBoxManage usbdevsource add <replaceable>unique-name</replaceable> --backend <replaceable>USBIP</replaceable> --address <replaceable>device-server</replaceable>[:<replaceable>port</replaceable>]</screen>
+<screen>VBoxManage usbdevsource add <replaceable>unique-name</replaceable> --backend <replaceable>USB-IP</replaceable> --address <replaceable>device-server</replaceable>[:<replaceable>port</replaceable>]</screen>
 
     <para>
       USB devices exported on the device server are then accessible

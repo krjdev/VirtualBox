@@ -1,10 +1,10 @@
-/* $Id: DBGFInfo.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGFInfo.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Info.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,7 +59,7 @@ static const DBGFINFOHLP g_dbgfR3InfoLogHlp =
 {
     dbgfR3InfoLog_Printf,
     dbgfR3InfoLog_PrintfV,
-    DBGFR3InfoGenericGetOptError,
+    DBGFR3InfoGenricGetOptError,
 };
 
 /** Release logger output. */
@@ -67,7 +67,7 @@ static const DBGFINFOHLP g_dbgfR3InfoLogRelHlp =
 {
     dbgfR3InfoLogRel_Printf,
     dbgfR3InfoLogRel_PrintfV,
-    DBGFR3InfoGenericGetOptError
+    DBGFR3InfoGenricGetOptError
 };
 
 /** Standard error output. */
@@ -75,7 +75,7 @@ static const DBGFINFOHLP g_dbgfR3InfoStdErrHlp =
 {
     dbgfR3InfoStdErr_Printf,
     dbgfR3InfoStdErr_PrintfV,
-    DBGFR3InfoGenericGetOptError
+    DBGFR3InfoGenricGetOptError
 };
 
 
@@ -132,7 +132,7 @@ int dbgfR3InfoTerm(PUVM pUVM)
 /**
  * @interface_method_impl{DBGFINFOHLP,pfnGetOptError}
  */
-VMMR3DECL(void) DBGFR3InfoGenericGetOptError(PCDBGFINFOHLP pHlp, int rc, PRTGETOPTUNION pValueUnion, PRTGETOPTSTATE pState)
+VMMR3DECL(void) DBGFR3InfoGenricGetOptError(PCDBGFINFOHLP pHlp, int rc, PRTGETOPTUNION pValueUnion, PRTGETOPTSTATE pState)
 {
     RT_NOREF(pState);
     char szMsg[1024];

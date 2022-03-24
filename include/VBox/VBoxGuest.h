@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -542,7 +542,7 @@ AssertCompileSize(VBGLIOCCHANGEFILTERMASK, 24 + 8);
 /** @} */
 
 
-/** @name VBGL_IOCTL_ACQUIRE_GUEST_CAPABILITIES
+/** @name VBGL_IOCTL_GUEST_CAPS_ACQUIRE
  * IOCTL to for acquiring and releasing guest capabilities.
  *
  * This is used for multiple purposes:
@@ -560,7 +560,6 @@ AssertCompileSize(VBGLIOCCHANGEFILTERMASK, 24 + 8);
  * VERR_RESOURCE_BUSY is returned if any capabilities in the fOrMask are
  * currently acquired by some other VBoxGuest session.
  *
- * @todo Rename to VBGL_IOCTL_ACQUIRE_GUEST_CAPS
  * @{
  */
 #define VBGL_IOCTL_ACQUIRE_GUEST_CAPABILITIES           VBGL_IOCTL_CODE_SIZE(13, VBGL_IOCTL_ACQUIRE_GUEST_CAPABILITIES_SIZE)
@@ -818,7 +817,7 @@ typedef struct VBGLOS2ATTACHDD
      * @param   cbReq               The size of the data buffer.
      */
 # if ARCH_BITS == 32 || defined(DOXYGEN_RUNNING)
-    DECLCALLBACKMEMBER(int, pfnServiceEP,(uint32_t u32Session, unsigned iFunction, PVBGLREQHDR pReqHdr, size_t cbReq));
+    DECLCALLBACKMEMBER(int, pfnServiceEP)(uint32_t u32Session, unsigned iFunction, PVBGLREQHDR pReqHdr, size_t cbReq);
 # else
     uint32_t pfnServiceEP;
 #endif
@@ -835,7 +834,7 @@ typedef struct VBGLOS2ATTACHDD
      * @endcode
      */
 # if ARCH_BITS == 16 || defined(DOXYGEN_RUNNING)
-    DECLCALLBACKMEMBER(int, fpfnServiceEP,(uint32_t u32Session, uint16_t iFunction, PVBGLREQHDR fpvData, uint16_t cbData));
+    DECLCALLBACKMEMBER(int, fpfnServiceEP)(uint32_t u32Session, uint16_t iFunction, PVBGLREQHDR fpvData, uint16_t cbData);
 # else
     RTFAR16 fpfnServiceEP;
 # endif

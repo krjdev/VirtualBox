@@ -1,10 +1,10 @@
-/* $Id: asm-fake.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: asm-fake.cpp $ */
 /** @file
  * IPRT - Fake asm.h routines for use early in a new port.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -208,6 +208,33 @@ RTDECL(uint64_t) ASMAtomicUoReadU64(volatile uint64_t *pu64)
     return *pu64;
 }
 
+RTDECL(void) ASMMemZeroPage(volatile void *pv)
+{
+    uintptr_t volatile *puPtr = (uintptr_t volatile *)pv;
+    uint32_t            cbLeft = PAGE_SIZE / sizeof(uintptr_t);
+    while (cbLeft-- > 0)
+        *puPtr++ = 0;
+}
+
+RTDECL(void) ASMMemZero32(volatile void *pv, size_t cb)
+{
+    uint32_t volatile *pu32   = (uint32_t volatile *)pv;
+    uint32_t           cbLeft = cb / sizeof(uint32_t);
+    while (cbLeft-- > 0)
+        *pu32++ = 0;
+}
+
+RTDECL(void) ASMMemFill32(volatile void *pv, size_t cb, uint32_t u32)
+{
+    uint32_t volatile *pu32 = (uint32_t volatile *)pv;
+    while (cb > 0)
+    {
+        *pu32 = u32;
+        cb -= sizeof(uint32_t);
+        pu32++;
+    }
+}
+
 RTDECL(uint8_t) ASMProbeReadByte(const void *pvByte)
 {
     return *(volatile uint8_t *)pvByte;
@@ -294,6 +321,135 @@ RTDECL(bool) ASMBitTest(const volatile void *pvBitmap, int32_t iBit)
 {
     uint8_t volatile *pau8Bitmap = (uint8_t volatile *)pvBitmap;
     return  pau8Bitmap[iBit / 8] & (uint8_t)RT_BIT_32(iBit & 7) ? true : false;
+}
+
+RTDECL(int) ASMBitFirstClear(const volatile void *pvBitmap, uint32_t cBits)
+{
+    uint32_t           iBit = 0;
+    uint8_t volatile *pu8 = (uint8_t volatile *)pvBitmap;
+
+    while (iBit < cBits)
+    {
+        uint8_t u8 = *pu8;
+        if (u8 != UINT8_MAX)
+        {
+            while (u8 & 1)
+            {
+                u8 >>= 1;
+                iBit++;
+            }
+            if (iBit >= cBits)
+                return -1;
+            return iBit;
+        }
+
+        iBit += 8;
+        pu8++;
+    }
+    return -1;
+}
+
+RTDECL(int) ASMBitNextClear(const volatile void *pvBitmap, uint32_t cBits, uint32_t iBitPrev)
+{
+    const volatile uint8_t *pau8Bitmap = (const volatile uint8_t *)pvBitmap;
+    int                      iBit = ++iBitPrev & 7;
+    if (iBit)
+    {
+        /*
+         * Inspect the byte containing the unaligned bit.
+         */
+        uint8_t u8 = ~pau8Bitmap[iBitPrev / 8] >> iBit;
+        if (u8)
+        {
+            iBit = 0;
+            while (!(u8 & 1))
+            {
+                u8 >>= 1;
+                iBit++;
+            }
+            return iBitPrev + iBit;
+        }
+
+        /*
+         * Skip ahead and see if there is anything left to search.
+         */
+        iBitPrev |= 7;
+        iBitPrev++;
+        if (cBits <= iBitPrev)
+            return -1;
+    }
+
+    /*
+     * Byte search, let ASMBitFirstClear do the dirty work.
+     */
+    iBit = ASMBitFirstClear(&pau8Bitmap[iBitPrev / 8], cBits - iBitPrev);
+    if (iBit >= 0)
+        iBit += iBitPrev;
+    return iBit;
+}
+
+RTDECL(int) ASMBitFirstSet(const volatile void *pvBitmap, uint32_t cBits)
+{
+    uint32_t           iBit = 0;
+    uint8_t volatile *pu8 = (uint8_t volatile *)pvBitmap;
+    while (iBit < cBits)
+    {
+        uint8_t u8 = *pu8;
+        if (u8 != 0)
+        {
+            while (!(u8 & 1))
+            {
+                u8 >>= 1;
+                iBit++;
+            }
+            if (iBit >= cBits)
+                return -1;
+            return iBit;
+        }
+
+        iBit += 8;
+        pu8++;
+    }
+    return -1;
+}
+
+RTDECL(int) ASMBitNextSet(const volatile void *pvBitmap, uint32_t cBits, uint32_t iBitPrev)
+{
+    const volatile uint8_t *pau8Bitmap = (const volatile uint8_t *)pvBitmap;
+    int                      iBit = ++iBitPrev & 7;
+    if (iBit)
+    {
+        /*
+         * Inspect the byte containing the unaligned bit.
+         */
+        uint8_t u8 = pau8Bitmap[iBitPrev / 8] >> iBit;
+        if (u8)
+        {
+            iBit = 0;
+            while (!(u8 & 1))
+            {
+                u8 >>= 1;
+                iBit++;
+            }
+            return iBitPrev + iBit;
+        }
+
+        /*
+         * Skip ahead and see if there is anything left to search.
+         */
+        iBitPrev |= 7;
+        iBitPrev++;
+        if (cBits <= iBitPrev)
+            return -1;
+    }
+
+    /*
+     * Byte search, let ASMBitFirstSet do the dirty work.
+     */
+    iBit = ASMBitFirstSet(&pau8Bitmap[iBitPrev / 8], cBits - iBitPrev);
+    if (iBit >= 0)
+        iBit += iBitPrev;
+    return iBit;
 }
 
 RTDECL(unsigned) ASMBitFirstSetU32(uint32_t u32)

@@ -1,10 +1,10 @@
-/* $Id: DBGFAddr.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGFAddr.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Mixed Address Methods.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -209,7 +209,7 @@ VMMR3_INT_DECL(PDBGFADDRESS) DBGFR3AddrFromHostR0(PDBGFADDRESS pAddress, RTR0UIN
 VMMR3DECL(bool) DBGFR3AddrIsValid(PUVM pUVM, PCDBGFADDRESS pAddress)
 {
     UVM_ASSERT_VALID_EXT_RETURN(pUVM, false);
-    if (!RT_VALID_PTR(pAddress))
+    if (!VALID_PTR(pAddress))
         return false;
     if (!DBGFADDRESS_IS_VALID(pAddress))
         return false;
@@ -230,10 +230,7 @@ static DECLCALLBACK(int) dbgfR3AddrToPhysOnVCpu(PVMCPU pVCpu, PCDBGFADDRESS pAdd
 {
     VMCPU_ASSERT_EMT(pVCpu);
     /* This is just a wrapper because we cannot pass FlatPtr thru VMR3ReqCall directly. */
-    PGMPTWALK Walk;
-    int const rc = PGMGstGetPage(pVCpu, pAddress->FlatPtr, &Walk);
-    *pGCPhys = Walk.GCPhys;
-    return rc;
+    return PGMGstGetPage(pVCpu, pAddress->FlatPtr, NULL, pGCPhys);
 }
 
 

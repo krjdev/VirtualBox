@@ -1,10 +1,10 @@
-/* $Id: SystemPropertiesImpl.cpp 93513 2022-01-31 20:48:37Z vboxsync $ */
+/* $Id: SystemPropertiesImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,19 +22,16 @@
 #ifdef VBOX_WITH_EXTPACK
 # include "ExtPackManagerImpl.h"
 #endif
-#include "CPUProfileImpl.h"
 #include "AutoCaller.h"
 #include "Global.h"
 #include "LoggingNew.h"
 #include "AutostartDb.h"
-#include "VirtualBoxTranslator.h"
 
 // generated header
 #include "SchemaDefs.h"
 
 #include <iprt/dir.h>
 #include <iprt/ldr.h>
-#include <iprt/locale.h>
 #include <iprt/path.h>
 #include <iprt/string.h>
 #include <iprt/uri.h>
@@ -44,7 +41,6 @@
 #include <VBox/param.h>
 #include <VBox/settings.h>
 #include <VBox/vd.h>
-#include <VBox/vmm/cpum.h>
 
 // defines
 /////////////////////////////////////////////////////////////////////////////
@@ -53,9 +49,8 @@
 /////////////////////////////////////////////////////////////////////////////
 
 SystemProperties::SystemProperties()
-    : mParent(NULL)
-    , m(new settings::SystemProperties)
-    , m_fLoadedX86CPUProfiles(false)
+    : mParent(NULL),
+      m(new settings::SystemProperties)
 {
 }
 
@@ -116,11 +111,6 @@ HRESULT SystemProperties::init(VirtualBox *aParent)
 #else
     m->fExclusiveHwVirt = true;
 #endif
-
-    m->fVBoxUpdateEnabled = true;
-    m->uVBoxUpdateCount = 0;
-    m->uVBoxUpdateFrequency = 1; // daily is the default
-    m->uVBoxUpdateTarget = VBoxUpdateTarget_Stable;
 
     HRESULT rc = S_OK;
 
@@ -720,190 +710,6 @@ HRESULT SystemProperties::getMaxInstancesOfUSBControllerType(ChipsetType_T aChip
     return S_OK;
 }
 
-HRESULT SystemProperties::getCPUProfiles(CPUArchitecture_T aArchitecture, const com::Utf8Str &aNamePattern,
-                                         std::vector<ComPtr<ICPUProfile> > &aProfiles)
-{
-    /*
-     * Validate and adjust the architecture.
-     */
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-    CPUArchitecture_T enmSecondaryArch = aArchitecture;
-    bool fLoaded;
-    switch (aArchitecture)
-    {
-        case CPUArchitecture_Any:
-            aArchitecture = CPUArchitecture_AMD64;
-            RT_FALL_THROUGH();
-        case CPUArchitecture_AMD64:
-            enmSecondaryArch = CPUArchitecture_x86;
-            RT_FALL_THROUGH();
-        case CPUArchitecture_x86:
-            fLoaded = m_fLoadedX86CPUProfiles;
-            break;
-        default:
-            return setError(E_INVALIDARG, tr("Invalid or unsupported architecture value: %d"), aArchitecture);
-    }
-
-    /*
-     * Do we need to load the profiles?
-     */
-    HRESULT hrc;
-    if (fLoaded)
-        hrc = S_OK;
-    else
-    {
-        alock.release();
-        AutoWriteLock alockWrite(this COMMA_LOCKVAL_SRC_POS);
-
-        /*
-         * Translate the architecture to a VMM module handle.
-         */
-        const char *pszVMM;
-        switch (aArchitecture)
-        {
-            case CPUArchitecture_AMD64:
-            case CPUArchitecture_x86:
-                pszVMM = "VBoxVMM";
-                fLoaded = m_fLoadedX86CPUProfiles;
-                break;
-            default:
-                AssertFailedReturn(E_INVALIDARG);
-        }
-        if (fLoaded)
-            hrc = S_OK;
-        else
-        {
-            char szPath[RTPATH_MAX];
-            int vrc = RTPathAppPrivateArch(szPath, sizeof(szPath));
-            if (RT_SUCCESS(vrc))
-                vrc = RTPathAppend(szPath, sizeof(szPath), pszVMM);
-            if (RT_SUCCESS(vrc))
-                vrc = RTStrCat(szPath, sizeof(szPath), RTLdrGetSuff());
-            if (RT_SUCCESS(vrc))
-            {
-                RTLDRMOD hMod = NIL_RTLDRMOD;
-                vrc = RTLdrLoad(szPath, &hMod);
-                if (RT_SUCCESS(vrc))
-                {
-                    /*
-                     * Resolve the CPUMDb APIs we need.
-                     */
-                    PFNCPUMDBGETENTRIES      pfnGetEntries
-                        = (PFNCPUMDBGETENTRIES)RTLdrGetFunction(hMod, "CPUMR3DbGetEntries");
-                    PFNCPUMDBGETENTRYBYINDEX pfnGetEntryByIndex
-                        = (PFNCPUMDBGETENTRYBYINDEX)RTLdrGetFunction(hMod, "CPUMR3DbGetEntryByIndex");
-                    if (pfnGetEntries && pfnGetEntryByIndex)
-                    {
-                        size_t const cExistingProfiles = m_llCPUProfiles.size();
-
-                        /*
-                         * Instantate the profiles.
-                         */
-                        hrc = S_OK;
-                        uint32_t const cEntries = pfnGetEntries();
-                        for (uint32_t i = 0; i < cEntries; i++)
-                        {
-                            PCCPUMDBENTRY pDbEntry = pfnGetEntryByIndex(i);
-                            AssertBreakStmt(pDbEntry, hrc = setError(E_UNEXPECTED, "CPUMR3DbGetEntryByIndex failed for %i", i));
-
-                            ComObjPtr<CPUProfile> ptrProfile;
-                            hrc = ptrProfile.createObject();
-                            if (SUCCEEDED(hrc))
-                            {
-                                hrc = ptrProfile->initFromDbEntry(pDbEntry);
-                                if (SUCCEEDED(hrc))
-                                {
-                                    try
-                                    {
-                                        m_llCPUProfiles.push_back(ptrProfile);
-                                        continue;
-                                    }
-                                    catch (std::bad_alloc &)
-                                    {
-                                        hrc = E_OUTOFMEMORY;
-                                    }
-                                }
-                            }
-                            break;
-                        }
-
-                        /*
-                         * On success update the flag and retake the read lock.
-                         * If we fail, drop the profiles we added to the list.
-                         */
-                        if (SUCCEEDED(hrc))
-                        {
-                            switch (aArchitecture)
-                            {
-                                case CPUArchitecture_AMD64:
-                                case CPUArchitecture_x86:
-                                    m_fLoadedX86CPUProfiles = true;
-                                    break;
-                                default:
-                                    AssertFailedStmt(hrc = E_INVALIDARG);
-                            }
-
-                            alockWrite.release();
-                            alock.acquire();
-                        }
-                        else
-                            m_llCPUProfiles.resize(cExistingProfiles);
-                    }
-                    else
-                        hrc = setErrorVrc(VERR_SYMBOL_NOT_FOUND,
-                                          tr("'%s' is missing symbols: CPUMR3DbGetEntries, CPUMR3DbGetEntryByIndex"), szPath);
-                    RTLdrClose(hMod);
-                }
-                else
-                    hrc = setErrorVrc(vrc, tr("Failed to construct load '%s': %Rrc"), szPath, vrc);
-            }
-            else
-                hrc = setErrorVrc(vrc, tr("Failed to construct path to the VMM DLL/Dylib/SharedObject: %Rrc"), vrc);
-        }
-    }
-    if (SUCCEEDED(hrc))
-    {
-        /*
-         * Return the matching profiles.
-         */
-        /* Count matches: */
-        size_t cMatches = 0;
-        for (CPUProfileList_T::const_iterator it = m_llCPUProfiles.begin(); it != m_llCPUProfiles.end(); ++it)
-            if ((*it)->i_match(aArchitecture, enmSecondaryArch, aNamePattern))
-                cMatches++;
-
-        /* Resize the output array. */
-        try
-        {
-            aProfiles.resize(cMatches);
-        }
-        catch (std::bad_alloc &)
-        {
-            aProfiles.resize(0);
-            hrc = E_OUTOFMEMORY;
-        }
-
-        /* Get the return objects: */
-        if (SUCCEEDED(hrc) && cMatches > 0)
-        {
-            size_t iMatch = 0;
-            for (CPUProfileList_T::const_iterator it = m_llCPUProfiles.begin(); it != m_llCPUProfiles.end(); ++it)
-                if ((*it)->i_match(aArchitecture, enmSecondaryArch, aNamePattern))
-                {
-                    AssertBreakStmt(iMatch < cMatches, hrc = E_UNEXPECTED);
-                    hrc = (*it).queryInterfaceTo(aProfiles[iMatch].asOutParam());
-                    if (SUCCEEDED(hrc))
-                        iMatch++;
-                    else
-                        break;
-                }
-            AssertStmt(iMatch == cMatches || FAILED(hrc), hrc = E_UNEXPECTED);
-        }
-    }
-    return hrc;
-}
-
-
 HRESULT SystemProperties::getDefaultMachineFolder(com::Utf8Str &aDefaultMachineFolder)
 {
     AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
@@ -1254,7 +1060,7 @@ HRESULT SystemProperties::getDefaultFrontend(com::Utf8Str &aDefaultFrontend)
 HRESULT SystemProperties::setDefaultFrontend(const com::Utf8Str &aDefaultFrontend)
 {
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-    if (m->strDefaultFrontend == aDefaultFrontend)
+    if (m->strDefaultFrontend == Utf8Str(aDefaultFrontend))
         return S_OK;
     HRESULT rc = i_setDefaultFrontend(aDefaultFrontend);
     alock.release();
@@ -1624,9 +1430,6 @@ HRESULT SystemProperties::getSupportedNetworkAttachmentTypes(std::vector<Network
         NetworkAttachmentType_Bridged,
         NetworkAttachmentType_Internal,
         NetworkAttachmentType_HostOnly,
-#ifdef VBOX_WITH_VMNET
-        NetworkAttachmentType_HostOnlyNetwork,
-#endif /* VBOX_WITH_VMNET */
         NetworkAttachmentType_Generic,
         NetworkAttachmentType_NATNetwork,
 #ifdef VBOX_WITH_CLOUD_NET
@@ -1649,6 +1452,9 @@ HRESULT SystemProperties::getSupportedNetworkAdapterTypes(std::vector<NetworkAda
         NetworkAdapterType_I82543GC,
         NetworkAdapterType_I82545EM,
         NetworkAdapterType_Virtio,
+#ifdef VBOX_WITH_VIRTIO_NET_1_0
+        NetworkAdapterType_Virtio_1_0,
+#endif
     };
     aSupportedNetworkAdapterTypes.assign(aNetworkAdapterTypes,
                                          aNetworkAdapterTypes + RT_ELEMENTS(aNetworkAdapterTypes));
@@ -1814,33 +1620,6 @@ HRESULT SystemProperties::getSupportedChipsetTypes(std::vector<ChipsetType_T> &a
     return S_OK;
 }
 
-HRESULT SystemProperties::getSupportedIommuTypes(std::vector<IommuType_T> &aSupportedIommuTypes)
-{
-    static const IommuType_T aIommuTypes[] =
-    {
-        IommuType_None,
-        IommuType_Automatic,
-        IommuType_AMD,
-        /** @todo Add Intel when it's supported. */
-    };
-    aSupportedIommuTypes.assign(aIommuTypes,
-                                aIommuTypes + RT_ELEMENTS(aIommuTypes));
-    return S_OK;
-}
-
-HRESULT SystemProperties::getSupportedVBoxUpdateTargetTypes(std::vector<VBoxUpdateTarget_T> &aSupportedVBoxUpdateTargetTypes)
-{
-    static const VBoxUpdateTarget_T aVBoxUpdateTargetTypes[] =
-    {
-        VBoxUpdateTarget_Stable,
-        VBoxUpdateTarget_AllReleases,
-        VBoxUpdateTarget_WithBetas
-    };
-    aSupportedVBoxUpdateTargetTypes.assign(aVBoxUpdateTargetTypes,
-                                           aVBoxUpdateTargetTypes + RT_ELEMENTS(aVBoxUpdateTargetTypes));
-    return S_OK;
-}
-
 
 // public methods only for internal purposes
 /////////////////////////////////////////////////////////////////////////////
@@ -1874,14 +1653,6 @@ HRESULT SystemProperties::i_loadSettings(const settings::SystemProperties &data)
     m->fExclusiveHwVirt  = data.fExclusiveHwVirt;
     m->uProxyMode        = data.uProxyMode;
     m->strProxyUrl       = data.strProxyUrl;
-
-    m->strLanguageId     = data.strLanguageId;
-
-    m->fVBoxUpdateEnabled               = data.fVBoxUpdateEnabled;
-    m->uVBoxUpdateFrequency             = data.uVBoxUpdateFrequency;
-    m->strVBoxUpdateLastCheckDate       = data.strVBoxUpdateLastCheckDate;
-    m->uVBoxUpdateTarget                = data.uVBoxUpdateTarget;
-    m->uVBoxUpdateCount                 = data.uVBoxUpdateCount;
 
     rc = i_setAutostartDatabasePath(data.strAutostartDatabasePath);
     if (FAILED(rc)) return rc;
@@ -1990,9 +1761,7 @@ ComObjPtr<MediumFormat> SystemProperties::i_mediumFormatFromExtension(const Utf8
  */
 int SystemProperties::i_loadVDPlugin(const char *pszPluginLibrary)
 {
-    int vrc = VDPluginLoadFromFilename(pszPluginLibrary);
-    LogFlowFunc(("pszPluginLibrary='%s' -> %Rrc\n", pszPluginLibrary, vrc));
-    return vrc;
+    return VDPluginLoadFromFilename(pszPluginLibrary);
 }
 
 /**
@@ -2000,9 +1769,7 @@ int SystemProperties::i_loadVDPlugin(const char *pszPluginLibrary)
  */
 int SystemProperties::i_unloadVDPlugin(const char *pszPluginLibrary)
 {
-    int vrc = VDPluginUnloadFromFilename(pszPluginLibrary);
-    LogFlowFunc(("pszPluginLibrary='%s' -> %Rrc\n", pszPluginLibrary, vrc));
-    return vrc;
+    return VDPluginUnloadFromFilename(pszPluginLibrary);
 }
 
 /**
@@ -2227,200 +1994,3 @@ HRESULT SystemProperties::i_setDefaultFrontend(const com::Utf8Str &aDefaultFront
     return S_OK;
 }
 
-HRESULT SystemProperties::i_setVBoxUpdateLastCheckDate(const com::Utf8Str &aVBoxUpdateLastCheckDate)
-{
-    m->strVBoxUpdateLastCheckDate = aVBoxUpdateLastCheckDate;
-
-    return S_OK;
-}
-
-HRESULT SystemProperties::getVBoxUpdateEnabled(BOOL *aVBoxUpdateEnabled)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    *aVBoxUpdateEnabled = m->fVBoxUpdateEnabled;
-
-    return S_OK;
-}
-
-HRESULT SystemProperties::setVBoxUpdateEnabled(BOOL aVBoxUpdateEnabled)
-{
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-    m->fVBoxUpdateEnabled = !!aVBoxUpdateEnabled;
-    alock.release();
-
-    // VirtualBox::i_saveSettings() needs vbox write lock
-    AutoWriteLock vboxLock(mParent COMMA_LOCKVAL_SRC_POS);
-    HRESULT rc = mParent->i_saveSettings();
-
-    return rc;
-}
-
-HRESULT SystemProperties::getVBoxUpdateCount(ULONG *VBoxUpdateCount)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    *VBoxUpdateCount = m->uVBoxUpdateCount;
-
-    return S_OK;
-}
-
-HRESULT SystemProperties::setVBoxUpdateCount(ULONG VBoxUpdateCount)
-{
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-    m->uVBoxUpdateCount = VBoxUpdateCount;
-    alock.release();
-
-    // VirtualBox::i_saveSettings() needs vbox write lock
-    AutoWriteLock vboxLock(mParent COMMA_LOCKVAL_SRC_POS);
-    HRESULT rc = mParent->i_saveSettings();
-
-    return rc;
-}
-
-HRESULT SystemProperties::getLanguageId(com::Utf8Str &aLanguageId)
-{
-#ifdef VBOX_WITH_MAIN_NLS
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-    aLanguageId = m->strLanguageId;
-    alock.release();
-
-    HRESULT hrc = S_OK;
-    if (aLanguageId.isEmpty())
-    {
-        char szLocale[256];
-        memset(szLocale, 0, sizeof(szLocale));
-        int vrc = RTLocaleQueryNormalizedBaseLocaleName(szLocale, sizeof(szLocale));
-        if (RT_SUCCESS(vrc))
-            aLanguageId = szLocale;
-        else
-            hrc = Global::vboxStatusCodeToCOM(vrc);
-    }
-    return hrc;
-#else
-    aLanguageId = "C";
-    return S_OK;
-#endif
-}
-
-HRESULT SystemProperties::setLanguageId(const com::Utf8Str &aLanguageId)
-{
-#ifdef VBOX_WITH_MAIN_NLS
-    VirtualBoxTranslator *pTranslator = VirtualBoxTranslator::instance();
-    if (!pTranslator)
-        return E_FAIL;
-
-    HRESULT hrc = S_OK;
-    int vrc = pTranslator->i_loadLanguage(aLanguageId.c_str());
-    if (RT_SUCCESS(vrc))
-    {
-        AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-        m->strLanguageId = aLanguageId;
-        alock.release();
-
-        // VirtualBox::i_saveSettings() needs vbox write lock
-        AutoWriteLock vboxLock(mParent COMMA_LOCKVAL_SRC_POS);
-        hrc = mParent->i_saveSettings();
-    }
-    else
-        hrc = Global::vboxStatusCodeToCOM(vrc);
-
-    pTranslator->release();
-
-    if (SUCCEEDED(hrc))
-        mParent->i_onLanguageChanged(aLanguageId);
-
-    return hrc;
-#else
-    NOREF(aLanguageId);
-    return E_NOTIMPL;
-#endif
-}
-
-HRESULT SystemProperties::getVBoxUpdateFrequency(ULONG *aVBoxUpdateFrequency)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    *aVBoxUpdateFrequency = m->uVBoxUpdateFrequency;
-
-    return S_OK;
-}
-
-HRESULT SystemProperties::setVBoxUpdateFrequency(ULONG aVBoxUpdateFrequency)
-{
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-    m->uVBoxUpdateFrequency = aVBoxUpdateFrequency;
-    alock.release();
-
-    // VirtualBox::i_saveSettings() needs vbox write lock
-    AutoWriteLock vboxLock(mParent COMMA_LOCKVAL_SRC_POS);
-    HRESULT rc = mParent->i_saveSettings();
-
-    return rc;
-}
-
-HRESULT SystemProperties::getVBoxUpdateTarget(VBoxUpdateTarget_T *aVBoxUpdateTarget)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-    VBoxUpdateTarget_T enmTarget = *aVBoxUpdateTarget = (VBoxUpdateTarget_T)m->uVBoxUpdateTarget;
-    AssertMsgReturn(enmTarget == VBoxUpdateTarget_Stable ||
-                    enmTarget == VBoxUpdateTarget_AllReleases ||
-                    enmTarget == VBoxUpdateTarget_WithBetas,
-                    ("enmTarget=%d\n", enmTarget), E_UNEXPECTED);
-    return S_OK;
-}
-
-HRESULT SystemProperties::setVBoxUpdateTarget(VBoxUpdateTarget_T aVBoxUpdateTarget)
-{
-    /* Validate input. */
-    switch (aVBoxUpdateTarget)
-    {
-        case VBoxUpdateTarget_Stable:
-        case VBoxUpdateTarget_AllReleases:
-        case VBoxUpdateTarget_WithBetas:
-            break;
-        default:
-            return setError(E_INVALIDARG, tr("Invalid Target value: %d"), (int)aVBoxUpdateTarget);
-    }
-
-    /* Set and write out settings. */
-    {
-        AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-        m->uVBoxUpdateTarget = aVBoxUpdateTarget;
-    }
-    AutoWriteLock alock(mParent COMMA_LOCKVAL_SRC_POS); /* required for saving. */
-    return mParent->i_saveSettings();
-}
-
-HRESULT SystemProperties::getVBoxUpdateLastCheckDate(com::Utf8Str &aVBoxUpdateLastCheckDate)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-    aVBoxUpdateLastCheckDate = m->strVBoxUpdateLastCheckDate;
-    return S_OK;
-}
-
-HRESULT SystemProperties::setVBoxUpdateLastCheckDate(const com::Utf8Str &aVBoxUpdateLastCheckDate)
-{
-    /*
-     * Validate input.
-     */
-    Utf8Str const *pLastCheckDate = &aVBoxUpdateLastCheckDate;
-    RTTIMESPEC TimeSpec;
-
-    if (pLastCheckDate->isEmpty() || !RTTimeSpecFromString(&TimeSpec, pLastCheckDate->c_str()))
-        return setErrorBoth(E_INVALIDARG, VERR_INVALID_PARAMETER,
-                            tr("Invalid LastCheckDate value: '%s'. "
-                               "Must be in ISO 8601 format (e.g. 2020-05-11T21:13:39.348416000Z)"), pLastCheckDate->c_str());
-
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-    HRESULT rc = i_setVBoxUpdateLastCheckDate(aVBoxUpdateLastCheckDate);
-    alock.release();
-    if (SUCCEEDED(rc))
-    {
-        // VirtualBox::i_saveSettings() needs vbox write lock
-        AutoWriteLock vboxLock(mParent COMMA_LOCKVAL_SRC_POS);
-        rc = mParent->i_saveSettings();
-    }
-
-    return rc;
-}

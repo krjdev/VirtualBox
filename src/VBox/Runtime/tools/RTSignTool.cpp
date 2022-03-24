@@ -1,10 +1,10 @@
-/* $Id: RTSignTool.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTSignTool.cpp $ */
 /** @file
  * IPRT - Signing Tool.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1276,7 +1276,7 @@ static DECLCALLBACK(int) VerifyExecCertVerifyCallback(PCRTCRX509CERTIFICATE pCer
                                                       void *pvUser, PRTERRINFO pErrInfo)
 {
     VERIFYEXESTATE *pState = (VERIFYEXESTATE *)pvUser;
-    uint32_t        cPaths = RTCrX509CertPathsGetPathCount(hCertPaths);
+    uint32_t        cPaths = hCertPaths != NIL_RTCRX509CERTPATHS ? RTCrX509CertPathsGetPathCount(hCertPaths) : 0;
 
     /*
      * Dump all the paths.
@@ -1371,9 +1371,8 @@ static DECLCALLBACK(int) VerifyExecCertVerifyCallback(PCRTCRX509CERTIFICATE pCer
          */
         else if (pState->enmSignType == VERIFYEXESTATE::kSignType_OSX)
         {
-            uint32_t cDevIdApp    = 0;
-            uint32_t cDevIdKext   = 0;
-            uint32_t cDevIdMacDev = 0;
+            uint32_t cDevIdApp  = 0;
+            uint32_t cDevIdKext = 0;
             for (uint32_t i = 0; i < pCert->TbsCertificate.T3.Extensions.cItems; i++)
             {
                 PCRTCRX509EXTENSION pExt = pCert->TbsCertificate.T3.Extensions.papItems[i];
@@ -1391,30 +1390,13 @@ static DECLCALLBACK(int) VerifyExecCertVerifyCallback(PCRTCRX509CERTIFICATE pCer
                         rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
                                            "Dev ID kext certificate extension is not flagged critical");
                 }
-                else if (RTAsn1ObjId_CompareWithString(&pExt->ExtnId, RTCR_APPLE_CS_DEVID_MAC_SW_DEV_OID) == 0)
-                {
-                    cDevIdMacDev++;
-                    if (!pExt->Critical.fValue)
-                        rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
-                                           "Dev ID Mac SW dev certificate extension is not flagged critical");
-                }
             }
             if (cDevIdApp == 0)
-            {
-                if (cDevIdMacDev == 0)
-                    rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
-                                       "Certificate is missing the 'Dev ID Application' extension");
-                else
-                    RTMsgWarning("Mac SW dev certificate used to sign code.");
-            }
+                rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
+                                   "Certificate is missing the 'Dev ID Application' extension");
             if (cDevIdKext == 0 && pState->fKernel)
-            {
-                if (cDevIdMacDev == 0)
-                    rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
-                                       "Certificate is missing the 'Dev ID kext' extension");
-                else
-                    RTMsgWarning("Mac SW dev certificate used to sign kernel code.");
-            }
+                rc = RTErrInfoSetF(pErrInfo, VERR_GENERAL_FAILURE,
+                                   "Certificate is missing the 'Dev ID kext' extension");
         }
     }
 
@@ -1473,7 +1455,7 @@ static DECLCALLBACK(int) VerifyExeCallback(RTLDRMOD hLdrMod, PCRTLDRSIGNATUREINF
                                                                    RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
                                                                    | RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_SIGNING_TIME_IF_PRESENT
                                                                    | RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_MS_TIMESTAMP_IF_PRESENT
-                                                                   | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS,
+                                                                   /*| RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS - r138075 */,
                                                                    pState->hAdditionalStore, pState->hRootStore,
                                                                    &aTimes[iTime].TimeSpec,
                                                                    VerifyExecCertVerifyCallback, pState,
@@ -1483,19 +1465,18 @@ static DECLCALLBACK(int) VerifyExeCallback(RTLDRMOD hLdrMod, PCRTLDRSIGNATUREINF
                                                    RTCRPKCS7VERIFY_SD_F_COUNTER_SIGNATURE_SIGNING_TIME_ONLY
                                                    | RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_SIGNING_TIME_IF_PRESENT
                                                    | RTCRPKCS7VERIFY_SD_F_ALWAYS_USE_MS_TIMESTAMP_IF_PRESENT
-                                                   | RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS,
+                                                   /*| RTCRPKCS7VERIFY_SD_F_CHECK_TRUST_ANCHORS - r138075 */,
                                                    pState->hAdditionalStore, pState->hRootStore,
                                                    &aTimes[iTime].TimeSpec,
                                                    VerifyExecCertVerifyCallback, pState, pErrInfo);
                 if (RT_SUCCESS(rc))
                 {
-                    Assert(rc == VINF_SUCCESS || rc == VINF_CR_DIGEST_DEPRECATED);
-                    const char *pszNote = rc == VINF_CR_DIGEST_DEPRECATED ? " (deprecated digest)" : "";
+                    Assert(rc == VINF_SUCCESS);
                     if (pInfo->cSignatures == 1)
-                        RTMsgInfo("'%s' is valid %s%s.\n", pState->pszFilename, aTimes[iTime].pszDesc, pszNote);
+                        RTMsgInfo("'%s' is valid %s.\n", pState->pszFilename, aTimes[iTime].pszDesc);
                     else
-                        RTMsgInfo("'%s' signature #%u is valid %s%s.\n",
-                                  pState->pszFilename, pInfo->iSignature + 1, aTimes[iTime].pszDesc, pszNote);
+                        RTMsgInfo("'%s' signature #%u is valid %s.\n",
+                                  pState->pszFilename, pInfo->iSignature + 1, aTimes[iTime].pszDesc);
                     pState->cOkay++;
                     return VINF_SUCCESS;
                 }

@@ -1,10 +1,10 @@
-/* $Id: ClipboardStreamImpl-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ClipboardStreamImpl-win.cpp $ */
 /** @file
  * ClipboardStreamImpl-win.cpp - Shared Clipboard IStream object implementation (guest and host side).
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,8 +50,8 @@ SharedClipboardWinStreamImpl::SharedClipboardWinStreamImpl(SharedClipboardWinDat
     : m_pParent(pParent)
     , m_lRefCount(1) /* Our IDataObjct *always* holds the last reference to this object; needed for the callbacks. */
     , m_pTransfer(pTransfer)
-    , m_hObj(SHCLOBJHANDLE_INVALID)
     , m_strPath(strPath)
+    , m_hObj(SHCLOBJHANDLE_INVALID)
     , m_objInfo(*pObjInfo)
     , m_cbProcessed(0)
     , m_fIsComplete(false)

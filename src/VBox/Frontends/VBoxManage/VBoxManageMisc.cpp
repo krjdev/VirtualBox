@@ -1,10 +1,10 @@
-/* $Id: VBoxManageMisc.cpp 94234 2022-03-15 09:19:29Z vboxsync $ */
+/* $Id: VBoxManageMisc.cpp $ */
 /** @file
  * VBoxManage - VirtualBox's command-line interface.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -19,14 +19,15 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#include <VBox/com/com.h>
-#include <VBox/com/string.h>
-#include <VBox/com/Guid.h>
-#include <VBox/com/array.h>
-#include <VBox/com/ErrorInfo.h>
-#include <VBox/com/errorprint.h>
-#include <VBox/com/VirtualBox.h>
-#include <VBox/com/NativeEventQueue.h>
+#ifndef VBOX_ONLY_DOCS
+# include <VBox/com/com.h>
+# include <VBox/com/string.h>
+# include <VBox/com/Guid.h>
+# include <VBox/com/array.h>
+# include <VBox/com/ErrorInfo.h>
+# include <VBox/com/errorprint.h>
+# include <VBox/com/VirtualBox.h>
+#endif /* !VBOX_ONLY_DOCS */
 
 #include <iprt/asm.h>
 #include <iprt/buildconfig.h>
@@ -56,14 +57,14 @@
 
 using namespace com;
 
-DECLARE_TRANSLATION_CONTEXT(Misc);
+
 
 RTEXITCODE handleRegisterVM(HandlerArg *a)
 {
     HRESULT rc;
 
     if (a->argc != 1)
-        return errorSyntax(Misc::tr("Incorrect number of parameters"));
+        return errorSyntax(USAGE_REGISTERVM, "Incorrect number of parameters");
 
     ComPtr<IMachine> machine;
     /** @todo Ugly hack to get both the API interpretation of relative paths
@@ -76,8 +77,7 @@ RTEXITCODE handleRegisterVM(HandlerArg *a)
         char szVMFileAbs[RTPATH_MAX] = "";
         int vrc = RTPathAbs(a->argv[0], szVMFileAbs, sizeof(szVMFileAbs));
         if (RT_FAILURE(vrc))
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("Cannot convert filename \"%s\" to absolute path: %Rrc"),
-                                  a->argv[0], vrc);
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "Cannot convert filename \"%s\" to absolute path: %Rrc", a->argv[0], vrc);
         CHECK_ERROR(a->virtualBox, OpenMachine(Bstr(szVMFileAbs).raw(),
                                                machine.asOutParam()));
     }
@@ -122,27 +122,27 @@ RTEXITCODE handleUnregisterVM(HandlerArg *a)
                 if (!VMName)
                     VMName = ValueUnion.psz;
                 else
-                    return errorSyntax(Misc::tr("Invalid parameter '%s'"), ValueUnion.psz);
+                    return errorSyntax(USAGE_UNREGISTERVM, "Invalid parameter '%s'", ValueUnion.psz);
                 break;
 
             default:
                 if (c > 0)
                 {
                     if (RT_C_IS_PRINT(c))
-                        return errorSyntax(Misc::tr("Invalid option -%c"), c);
-                    return errorSyntax(Misc::tr("Invalid option case %i"), c);
+                        return errorSyntax(USAGE_UNREGISTERVM, "Invalid option -%c", c);
+                    return errorSyntax(USAGE_UNREGISTERVM, "Invalid option case %i", c);
                 }
                 if (c == VERR_GETOPT_UNKNOWN_OPTION)
-                    return errorSyntax(Misc::tr("unknown option: %s\n"), ValueUnion.psz);
+                    return errorSyntax(USAGE_UNREGISTERVM, "unknown option: %s\n", ValueUnion.psz);
                 if (ValueUnion.pDef)
-                    return errorSyntax("%s: %Rrs", ValueUnion.pDef->pszLong, c);
-                return errorSyntax(Misc::tr("error: %Rrs"), c);
+                    return errorSyntax(USAGE_UNREGISTERVM, "%s: %Rrs", ValueUnion.pDef->pszLong, c);
+                return errorSyntax(USAGE_UNREGISTERVM, "error: %Rrs", c);
         }
     }
 
     /* check for required options */
     if (!VMName)
-        return errorSyntax(Misc::tr("VM name required"));
+        return errorSyntax(USAGE_UNREGISTERVM, "VM name required");
 
     ComPtr<IMachine> machine;
     CHECK_ERROR_RET(a->virtualBox, FindMachine(Bstr(VMName).raw(),
@@ -159,7 +159,7 @@ RTEXITCODE handleUnregisterVM(HandlerArg *a)
                         RTEXITCODE_FAILURE);
 
         rc = showProgress(pProgress);
-        CHECK_PROGRESS_ERROR_RET(pProgress, (Misc::tr("Machine delete failed")), RTEXITCODE_FAILURE);
+        CHECK_PROGRESS_ERROR_RET(pProgress, ("Machine delete failed"), RTEXITCODE_FAILURE);
     }
     else
     {
@@ -247,13 +247,13 @@ RTEXITCODE handleCreateVM(HandlerArg *a)
                 break;
 
             default:
-                return errorGetOpt(c, &ValueUnion);
+                return errorGetOpt(USAGE_CREATEVM, c, &ValueUnion);
         }
     }
 
     /* check for required options */
     if (bstrName.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --name is required"));
+        return errorSyntax(USAGE_CREATEVM, "Parameter --name is required");
 
     do
     {
@@ -295,10 +295,10 @@ RTEXITCODE handleCreateVM(HandlerArg *a)
         CHECK_ERROR_BREAK(machine, COMGETTER(Id)(uuid.asOutParam()));
         Bstr settingsFile;
         CHECK_ERROR_BREAK(machine, COMGETTER(SettingsFilePath)(settingsFile.asOutParam()));
-        RTPrintf(Misc::tr("Virtual machine '%ls' is created%s.\n"
-                          "UUID: %s\n"
-                          "Settings file: '%ls'\n"),
-                 bstrName.raw(), fRegister ? Misc::tr(" and registered") : "",
+        RTPrintf("Virtual machine '%ls' is created%s.\n"
+                 "UUID: %s\n"
+                 "Settings file: '%ls'\n",
+                 bstrName.raw(), fRegister ? " and registered" : "",
                  Utf8Str(uuid).c_str(), settingsFile.raw());
     }
     while (0);
@@ -316,8 +316,8 @@ RTEXITCODE handleMoveVM(HandlerArg *a)
 {
     HRESULT                        rc;
     const char                    *pszSrcName      = NULL;
+    const char                    *pszTargetFolder = NULL;
     const char                    *pszType         = NULL;
-    char                          szTargetFolder[RTPATH_MAX];
 
     int c;
     int vrc = VINF_SUCCESS;
@@ -336,26 +336,24 @@ RTEXITCODE handleMoveVM(HandlerArg *a)
                 break;
 
             case 'f':   // --target folder
-                if (ValueUnion.psz && ValueUnion.psz[0] != '\0')
-                {
-                    vrc = RTPathAbs(ValueUnion.psz, szTargetFolder, sizeof(szTargetFolder));
-                    if (RT_FAILURE(vrc))
-                        return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("RTPathAbs(%s,,) failed with rc=%Rrc"),
-                                              ValueUnion.psz, vrc);
-                } else {
-                    szTargetFolder[0] = '\0';
-                }
+
+                char szPath[RTPATH_MAX];
+                pszTargetFolder = ValueUnion.psz;
+
+                vrc = RTPathAbs(pszTargetFolder, szPath, sizeof(szPath));
+                if (RT_FAILURE(vrc))
+                    return RTMsgErrorExit(RTEXITCODE_FAILURE, "RTPathAbs(%s,,) failed with rc=%Rrc", pszTargetFolder, vrc);
                 break;
 
             case VINF_GETOPT_NOT_OPTION:
                 if (!pszSrcName)
                     pszSrcName = ValueUnion.psz;
                 else
-                    return errorSyntax(Misc::tr("Invalid parameter '%s'"), ValueUnion.psz);
+                    return errorSyntax(USAGE_MOVEVM, "Invalid parameter '%s'", ValueUnion.psz);
                 break;
 
             default:
-                return errorGetOpt(c, &ValueUnion);
+                return errorGetOpt(USAGE_MOVEVM, c, &ValueUnion);
         }
     }
 
@@ -367,7 +365,7 @@ RTEXITCODE handleMoveVM(HandlerArg *a)
 
     /* Check for required options */
     if (!pszSrcName)
-        return errorSyntax(Misc::tr("VM name required"));
+        return errorSyntax(USAGE_MOVEVM, "VM name required");
 
     /* Get the machine object */
     ComPtr<IMachine> srcMachine;
@@ -385,19 +383,35 @@ RTEXITCODE handleMoveVM(HandlerArg *a)
         ComPtr<IMachine> sessionMachine;
 
         CHECK_ERROR_RET(a->session, COMGETTER(Machine)(sessionMachine.asOutParam()), RTEXITCODE_FAILURE);
-        CHECK_ERROR_RET(sessionMachine,
-                        MoveTo(Bstr(szTargetFolder).raw(),
+        CHECK_ERROR_RET(sessionMachine, MoveTo(Bstr(pszTargetFolder).raw(),
                                Bstr(pszType).raw(),
-                               progress.asOutParam()),
-                        RTEXITCODE_FAILURE);
+                               progress.asOutParam()), RTEXITCODE_FAILURE);
         rc = showProgress(progress);
-        CHECK_PROGRESS_ERROR_RET(progress, (Misc::tr("Move VM failed")), RTEXITCODE_FAILURE);
+        CHECK_PROGRESS_ERROR_RET(progress, ("Move VM failed"), RTEXITCODE_FAILURE);
 
         sessionMachine.setNull();
         CHECK_ERROR_RET(a->session, UnlockMachine(), RTEXITCODE_FAILURE);
 
-        RTPrintf(Misc::tr("Machine has been successfully moved into %s\n"),
-                 szTargetFolder[0] != '\0' ? szTargetFolder : Misc::tr("the same location"));
+//        do
+//        {
+//            /* we have to open a session for this task */
+//            CHECK_ERROR_BREAK(srcMachine, LockMachine(a->session, LockType_Write));
+//            ComPtr<IMachine> sessionMachine;
+//            do
+//            {
+//                CHECK_ERROR_BREAK(a->session, COMGETTER(Machine)(sessionMachine.asOutParam()));
+//                CHECK_ERROR_BREAK(sessionMachine, MoveTo(Bstr(pszTargetFolder).raw(),
+//                                       Bstr(pszType).raw(),
+//                                       progress.asOutParam()));
+//                rc = showProgress(progress);
+//                CHECK_PROGRESS_ERROR_RET(progress, ("Move VM failed"), RTEXITCODE_FAILURE);
+////              CHECK_ERROR_BREAK(sessionMachine, SaveSettings());
+//            } while (0);
+//
+//            sessionMachine.setNull();
+//            CHECK_ERROR_BREAK(a->session, UnlockMachine());
+//        } while (0);
+        RTPrintf("Machine has been successfully moved into %s\n", pszTargetFolder);
     }
 
     return RTEXITCODE_SUCCESS;
@@ -507,12 +521,12 @@ RTEXITCODE handleCloneVM(HandlerArg *a)
 
             case 'm':   // --mode
                 if (RT_FAILURE(parseCloneMode(ValueUnion.psz, &mode)))
-                    return errorArgument(Misc::tr("Invalid clone mode '%s'\n"), ValueUnion.psz);
+                    return errorArgument("Invalid clone mode '%s'\n", ValueUnion.psz);
                 break;
 
             case 'o':   // --options
                 if (RT_FAILURE(parseCloneOptions(ValueUnion.psz, &options)))
-                    return errorArgument(Misc::tr("Invalid clone options '%s'\n"), ValueUnion.psz);
+                    return errorArgument("Invalid clone options '%s'\n", ValueUnion.psz);
                 break;
 
             case 'u':   // --uuid
@@ -527,7 +541,7 @@ RTEXITCODE handleCloneVM(HandlerArg *a)
                 if (!pszSrcName)
                     pszSrcName = ValueUnion.psz;
                 else
-                    return errorSyntax(Misc::tr("Invalid parameter '%s'"), ValueUnion.psz);
+                    return errorSyntax("Invalid parameter '%s'", ValueUnion.psz);
                 break;
 
             default:
@@ -537,7 +551,7 @@ RTEXITCODE handleCloneVM(HandlerArg *a)
 
     /* Check for required options */
     if (!pszSrcName)
-        return errorSyntax(Misc::tr("VM name required"));
+        return errorSyntax("VM name required");
 
     /* Get the machine object */
     ComPtr<IMachine> srcMachine;
@@ -559,7 +573,7 @@ RTEXITCODE handleCloneVM(HandlerArg *a)
 
     /* Default name necessary? */
     if (!pszTrgName)
-        pszTrgName = RTStrAPrintf2(Misc::tr("%s Clone"), pszSrcName);
+        pszTrgName = RTStrAPrintf2("%s Clone", pszSrcName);
 
     Bstr createFlags;
     if (!bstrUuid.isEmpty())
@@ -593,14 +607,14 @@ RTEXITCODE handleCloneVM(HandlerArg *a)
                                         progress.asOutParam()),
                     RTEXITCODE_FAILURE);
     rc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Misc::tr("Clone VM failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Clone VM failed"), RTEXITCODE_FAILURE);
 
     if (fRegister)
         CHECK_ERROR_RET(a->virtualBox, RegisterMachine(trgMachine), RTEXITCODE_FAILURE);
 
     Bstr bstrNewName;
     CHECK_ERROR_RET(trgMachine, COMGETTER(Name)(bstrNewName.asOutParam()), RTEXITCODE_FAILURE);
-    RTPrintf(Misc::tr("Machine has been successfully cloned as \"%ls\"\n"), bstrNewName.raw());
+    RTPrintf("Machine has been successfully cloned as \"%ls\"\n", bstrNewName.raw());
 
     return RTEXITCODE_SUCCESS;
 }
@@ -669,7 +683,7 @@ RTEXITCODE handleStartVM(HandlerArg *a)
                 if (!RTStrStr(ValueUnion.psz, "\n"))
                     aBstrEnv.push_back(Bstr(ValueUnion.psz).raw());
                 else
-                    return errorSyntax(Misc::tr("Parameter to option --putenv must not contain any newline character"));
+                    return errorSyntax(USAGE_STARTVM, "Parameter to option --putenv must not contain any newline character");
                 break;
 
             case VINF_GETOPT_NOT_OPTION:
@@ -680,22 +694,22 @@ RTEXITCODE handleStartVM(HandlerArg *a)
                 if (c > 0)
                 {
                     if (RT_C_IS_PRINT(c))
-                        return errorSyntax(Misc::tr("Invalid option -%c"), c);
+                        return errorSyntax(USAGE_STARTVM, "Invalid option -%c", c);
                     else
-                        return errorSyntax(Misc::tr("Invalid option case %i"), c);
+                        return errorSyntax(USAGE_STARTVM, "Invalid option case %i", c);
                 }
                 else if (c == VERR_GETOPT_UNKNOWN_OPTION)
-                    return errorSyntax(Misc::tr("unknown option: %s\n"), ValueUnion.psz);
+                    return errorSyntax(USAGE_STARTVM, "unknown option: %s\n", ValueUnion.psz);
                 else if (ValueUnion.pDef)
-                    return errorSyntax("%s: %Rrs", ValueUnion.pDef->pszLong, c);
+                    return errorSyntax(USAGE_STARTVM, "%s: %Rrs", ValueUnion.pDef->pszLong, c);
                 else
-                    return errorSyntax(Misc::tr("error: %Rrs"), c);
+                    return errorSyntax(USAGE_STARTVM, "error: %Rrs", c);
         }
     }
 
     /* check for required options */
     if (VMs.empty())
-        return errorSyntax(Misc::tr("at least one VM name or uuid required"));
+        return errorSyntax(USAGE_STARTVM, "at least one VM name or uuid required");
 
     for (std::list<const char *>::const_iterator it = VMs.begin();
          it != VMs.end();
@@ -713,7 +727,7 @@ RTEXITCODE handleStartVM(HandlerArg *a)
                                                  ComSafeArrayAsInParam(aBstrEnv), progress.asOutParam()));
             if (SUCCEEDED(rc) && !progress.isNull())
             {
-                RTPrintf(Misc::tr("Waiting for VM \"%s\" to power on...\n"), pszVM);
+                RTPrintf("Waiting for VM \"%s\" to power on...\n", pszVM);
                 CHECK_ERROR(progress, WaitForCompletion(-1));
                 if (SUCCEEDED(rc))
                 {
@@ -728,7 +742,7 @@ RTEXITCODE handleStartVM(HandlerArg *a)
                         if (SUCCEEDED(rc))
                         {
                             if (SUCCEEDED(iRc))
-                                RTPrintf(Misc::tr("VM \"%s\" has been successfully started.\n"), pszVM);
+                                RTPrintf("VM \"%s\" has been successfully started.\n", pszVM);
                             else
                             {
                                 ProgressErrorInfo info(progress);
@@ -757,7 +771,7 @@ RTEXITCODE handleDiscardState(HandlerArg *a)
     HRESULT rc;
 
     if (a->argc != 1)
-        return errorSyntax(Misc::tr("Incorrect number of parameters"));
+        return errorSyntax(USAGE_DISCARDSTATE, "Incorrect number of parameters");
 
     ComPtr<IMachine> machine;
     CHECK_ERROR(a->virtualBox, FindMachine(Bstr(a->argv[0]).raw(),
@@ -786,7 +800,7 @@ RTEXITCODE handleAdoptState(HandlerArg *a)
     HRESULT rc;
 
     if (a->argc != 2)
-        return errorSyntax(Misc::tr("Incorrect number of parameters"));
+        return errorSyntax(USAGE_ADOPTSTATE, "Incorrect number of parameters");
 
     ComPtr<IMachine> machine;
     CHECK_ERROR(a->virtualBox, FindMachine(Bstr(a->argv[0]).raw(),
@@ -796,8 +810,7 @@ RTEXITCODE handleAdoptState(HandlerArg *a)
         char szStateFileAbs[RTPATH_MAX] = "";
         int vrc = RTPathAbs(a->argv[1], szStateFileAbs, sizeof(szStateFileAbs));
         if (RT_FAILURE(vrc))
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("Cannot convert filename \"%s\" to absolute path: %Rrc"),
-                                  a->argv[0], vrc);
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "Cannot convert filename \"%s\" to absolute path: %Rrc", a->argv[0], vrc);
 
         do
         {
@@ -821,7 +834,7 @@ RTEXITCODE handleGetExtraData(HandlerArg *a)
     HRESULT rc = S_OK;
 
     if (a->argc > 2 || a->argc < 1)
-        return errorSyntax(Misc::tr("Incorrect number of parameters"));
+        return errorSyntax(USAGE_GETEXTRADATA, "Incorrect number of parameters");
 
     /* global data? */
     if (!strcmp(a->argv[0], "global"))
@@ -841,7 +854,7 @@ RTEXITCODE handleGetExtraData(HandlerArg *a)
                 CHECK_ERROR(a->virtualBox, GetExtraData(bstrKey.raw(),
                                                         bstrValue.asOutParam()));
 
-                RTPrintf(Misc::tr("Key: %ls, Value: %ls\n"), bstrKey.raw(), bstrValue.raw());
+                RTPrintf("Key: %ls, Value: %ls\n", bstrKey.raw(), bstrValue.raw());
             }
         }
         else
@@ -850,9 +863,9 @@ RTEXITCODE handleGetExtraData(HandlerArg *a)
             CHECK_ERROR(a->virtualBox, GetExtraData(Bstr(a->argv[1]).raw(),
                                                     value.asOutParam()));
             if (!value.isEmpty())
-                RTPrintf(Misc::tr("Value: %ls\n"), value.raw());
+                RTPrintf("Value: %ls\n", value.raw());
             else
-                RTPrintf(Misc::tr("No value set!\n"));
+                RTPrintf("No value set!\n");
         }
     }
     else
@@ -877,7 +890,7 @@ RTEXITCODE handleGetExtraData(HandlerArg *a)
                     CHECK_ERROR(machine, GetExtraData(bstrKey.raw(),
                                                       bstrValue.asOutParam()));
 
-                    RTPrintf(Misc::tr("Key: %ls, Value: %ls\n"), bstrKey.raw(), bstrValue.raw());
+                    RTPrintf("Key: %ls, Value: %ls\n", bstrKey.raw(), bstrValue.raw());
                 }
             }
             else
@@ -886,9 +899,9 @@ RTEXITCODE handleGetExtraData(HandlerArg *a)
                 CHECK_ERROR(machine, GetExtraData(Bstr(a->argv[1]).raw(),
                                                   value.asOutParam()));
                 if (!value.isEmpty())
-                    RTPrintf(Misc::tr("Value: %ls\n"), value.raw());
+                    RTPrintf("Value: %ls\n", value.raw());
                 else
-                    RTPrintf(Misc::tr("No value set!\n"));
+                    RTPrintf("No value set!\n");
             }
         }
     }
@@ -900,7 +913,7 @@ RTEXITCODE handleSetExtraData(HandlerArg *a)
     HRESULT rc = S_OK;
 
     if (a->argc < 2)
-        return errorSyntax(Misc::tr("Not enough parameters"));
+        return errorSyntax(USAGE_SETEXTRADATA, "Not enough parameters");
 
     /* global data? */
     if (!strcmp(a->argv[0], "global"))
@@ -913,7 +926,7 @@ RTEXITCODE handleSetExtraData(HandlerArg *a)
             CHECK_ERROR(a->virtualBox, SetExtraData(Bstr(a->argv[1]).raw(),
                                                     Bstr(a->argv[2]).raw()));
         else
-            return errorSyntax(Misc::tr("Too many parameters"));
+            return errorSyntax(USAGE_SETEXTRADATA, "Too many parameters");
     }
     else
     {
@@ -935,7 +948,7 @@ RTEXITCODE handleSetExtraData(HandlerArg *a)
                 CHECK_ERROR(sessionMachine, SetExtraData(Bstr(a->argv[1]).raw(),
                                                          Bstr(a->argv[2]).raw()));
             else
-                return errorSyntax(Misc::tr("Too many parameters"));
+                return errorSyntax(USAGE_SETEXTRADATA, "Too many parameters");
         }
     }
     return SUCCEEDED(rc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
@@ -947,7 +960,7 @@ RTEXITCODE handleSetProperty(HandlerArg *a)
 
     /* there must be two arguments: property name and value */
     if (a->argc != 2)
-        return errorSyntax(Misc::tr("Incorrect number of parameters"));
+        return errorSyntax(USAGE_SETPROPERTY, "Incorrect number of parameters");
 
     ComPtr<ISystemProperties> systemProperties;
     a->virtualBox->COMGETTER(SystemProperties)(systemProperties.asOutParam());
@@ -969,14 +982,14 @@ RTEXITCODE handleSetProperty(HandlerArg *a)
         else if (!strcmp(a->argv[1], "off"))
             fHwVirtExclusive = false;
         else
-            return errorArgument(Misc::tr("Invalid hwvirtexclusive argument '%s'"), a->argv[1]);
+            return errorArgument("Invalid hwvirtexclusive argument '%s'", a->argv[1]);
         CHECK_ERROR(systemProperties, COMSETTER(ExclusiveHwVirt)(fHwVirtExclusive));
     }
     else if (   !strcmp(a->argv[0], "vrdeauthlibrary")
              || !strcmp(a->argv[0], "vrdpauthlibrary"))
     {
         if (!strcmp(a->argv[0], "vrdpauthlibrary"))
-            RTStrmPrintf(g_pStdErr, Misc::tr("Warning: 'vrdpauthlibrary' is deprecated. Use 'vrdeauthlibrary'.\n"));
+            RTStrmPrintf(g_pStdErr, "Warning: 'vrdpauthlibrary' is deprecated. Use 'vrdeauthlibrary'.\n");
 
         /* reset to default? */
         if (!strcmp(a->argv[1], "default"))
@@ -1006,7 +1019,7 @@ RTEXITCODE handleSetProperty(HandlerArg *a)
         int vrc;
         vrc = RTStrToUInt32Ex(a->argv[1], NULL, 0, &uVal);
         if (vrc != VINF_SUCCESS)
-            return errorArgument(Misc::tr("Error parsing Log history count '%s'"), a->argv[1]);
+            return errorArgument("Error parsing Log history count '%s'", a->argv[1]);
         CHECK_ERROR(systemProperties, COMSETTER(LogHistoryCount)(uVal));
     }
     else if (!strcmp(a->argv[0], "autostartdbpath"))
@@ -1041,7 +1054,7 @@ RTEXITCODE handleSetProperty(HandlerArg *a)
         else if (!RTStrICmpAscii(a->argv[1], "manual"))
             enmProxyMode = ProxyMode_Manual;
         else
-            return errorArgument(Misc::tr("Unknown proxy mode: '%s'"), a->argv[1]);
+            return errorArgument("Unknown proxy mode: '%s'", a->argv[1]);
         CHECK_ERROR(systemProperties, COMSETTER(ProxyMode)(enmProxyMode));
     }
     else if (!strcmp(a->argv[0], "proxyurl"))
@@ -1049,30 +1062,8 @@ RTEXITCODE handleSetProperty(HandlerArg *a)
         Bstr bstrProxyUrl(a->argv[1]);
         CHECK_ERROR(systemProperties, COMSETTER(ProxyURL)(bstrProxyUrl.raw()));
     }
-#ifdef VBOX_WITH_MAIN_NLS
-    else if (!strcmp(a->argv[0], "language"))
-    {
-        Bstr bstrLanguage(a->argv[1]);
-        CHECK_ERROR(systemProperties, COMSETTER(LanguageId)(bstrLanguage.raw()));
-
-        /* Kudge alert! Make sure the language change notification is processed,
-                        otherwise it may arrive as (XP)COM shuts down and cause
-                        trouble in debug builds. */
-# ifdef DEBUG
-        uint64_t const tsStart = RTTimeNanoTS();
-# endif
-        unsigned cMsgs = 0;
-        int vrc;
-        while (   RT_SUCCESS(vrc = NativeEventQueue::getMainEventQueue()->processEventQueue(32 /*ms*/))
-               || vrc == VERR_INTERRUPTED)
-            cMsgs++;
-# ifdef DEBUG
-        RTPrintf("vrc=%Rrc cMsgs=%u nsElapsed=%'RU64\n", vrc, cMsgs, RTTimeNanoTS() - tsStart);
-# endif
-    }
-#endif
     else
-        return errorSyntax(Misc::tr("Invalid parameter '%s'"), a->argv[0]);
+        return errorSyntax(USAGE_SETPROPERTY, "Invalid parameter '%s'", a->argv[0]);
 
     return SUCCEEDED(rc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -1135,7 +1126,7 @@ static RTEXITCODE handleSharedFolderAdd(HandlerArg *a)
                 break;
             case VINF_GETOPT_NOT_OPTION:
                 if (pszMachineName)
-                    return errorArgument(Misc::tr("Machine name is given more than once: first '%s', then '%s'"),
+                    return errorArgument("Machine name is given more than once: first '%s', then '%s'",
                                          pszMachineName, ValueUnion.psz);
                 pszMachineName = ValueUnion.psz;
                 break;
@@ -1145,23 +1136,23 @@ static RTEXITCODE handleSharedFolderAdd(HandlerArg *a)
     }
 
     if (!pszMachineName)
-        return errorSyntax(Misc::tr("No machine was specified"));
+        return errorSyntax("No machine was specified");
 
     if (!pszName)
-        return errorSyntax(Misc::tr("No shared folder name (--name) was given"));
+        return errorSyntax("No shared folder name (--name) was given");
     if (strchr(pszName, ' '))
-        return errorSyntax(Misc::tr("Invalid shared folder name '%s': contains space"), pszName);
+        return errorSyntax("Invalid shared folder name '%s': contains space", pszName);
     if (strchr(pszName, '\t'))
-        return errorSyntax(Misc::tr("Invalid shared folder name '%s': contains tabs"), pszName);
+        return errorSyntax("Invalid shared folder name '%s': contains tabs", pszName);
     if (strchr(pszName, '\n') || strchr(pszName, '\r'))
-        return errorSyntax(Misc::tr("Invalid shared folder name '%s': contains newline"), pszName);
+        return errorSyntax("Invalid shared folder name '%s': contains newline", pszName);
 
     if (!pszHostPath)
-        return errorSyntax(Misc::tr("No host path (--hostpath) was given"));
+        return errorSyntax("No host path (--hostpath) was given");
     char szAbsHostPath[RTPATH_MAX];
     int vrc = RTPathAbs(pszHostPath, szAbsHostPath, sizeof(szAbsHostPath));
     if (RT_FAILURE(vrc))
-        return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("RTAbsPath failed on '%s': %Rrc"), pszHostPath, vrc);
+        return RTMsgErrorExit(RTEXITCODE_FAILURE, "RTAbsPath failed on '%s': %Rrc", pszHostPath, vrc);
 
     /*
      * Done parsing, do some work.
@@ -1184,7 +1175,7 @@ static RTEXITCODE handleSharedFolderAdd(HandlerArg *a)
         ComPtr<IConsole> ptrConsole;
         CHECK_ERROR2I_RET(a->session, COMGETTER(Console)(ptrConsole.asOutParam()), RTEXITCODE_FAILURE);
         if (ptrConsole.isNull())
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("Machine '%s' is not currently running."), pszMachineName);
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "Machine '%s' is not currently running.", pszMachineName);
 
         CHECK_ERROR2(hrc, ptrConsole, CreateSharedFolder(Bstr(pszName).raw(), Bstr(szAbsHostPath).raw(),
                                                          fWritable, fAutoMount, Bstr(pszAutoMountPoint).raw()));
@@ -1247,7 +1238,7 @@ static RTEXITCODE handleSharedFolderRemove(HandlerArg *a)
                 break;
             case VINF_GETOPT_NOT_OPTION:
                 if (pszMachineName)
-                    return errorArgument(Misc::tr("Machine name is given more than once: first '%s', then '%s'"),
+                    return errorArgument("Machine name is given more than once: first '%s', then '%s'",
                                          pszMachineName, ValueUnion.psz);
                 pszMachineName = ValueUnion.psz;
                 break;
@@ -1257,9 +1248,9 @@ static RTEXITCODE handleSharedFolderRemove(HandlerArg *a)
     }
 
     if (!pszMachineName)
-        return errorSyntax(Misc::tr("No machine was specified"));
+        return errorSyntax("No machine was specified");
     if (!pszName)
-        return errorSyntax(Misc::tr("No shared folder name (--name) was given"));
+        return errorSyntax("No shared folder name (--name) was given");
 
     /*
      * Done parsing, do some real work.
@@ -1280,7 +1271,7 @@ static RTEXITCODE handleSharedFolderRemove(HandlerArg *a)
         ComPtr<IConsole> ptrConsole;
         CHECK_ERROR2I_RET(a->session, COMGETTER(Console)(ptrConsole.asOutParam()), RTEXITCODE_FAILURE);
         if (ptrConsole.isNull())
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("Machine '%s' is not currently running.\n"), pszMachineName);
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "Machine '%s' is not currently running.\n", pszMachineName);
 
         CHECK_ERROR2(hrc, ptrConsole, RemoveSharedFolder(Bstr(pszName).raw()));
 
@@ -1312,7 +1303,7 @@ static RTEXITCODE handleSharedFolderRemove(HandlerArg *a)
 RTEXITCODE handleSharedFolder(HandlerArg *a)
 {
     if (a->argc < 1)
-        return errorSyntax(Misc::tr("Not enough parameters"));
+        return errorSyntax("Not enough parameters");
 
     if (!strcmp(a->argv[0], "add"))
     {
@@ -1371,7 +1362,7 @@ RTEXITCODE handleExtPack(HandlerArg *a)
 
                 case VINF_GETOPT_NOT_OPTION:
                     if (pszName)
-                        return errorSyntax(Misc::tr("Too many extension pack names given to \"extpack uninstall\""));
+                        return errorSyntax("Too many extension pack names given to \"extpack uninstall\"");
                     pszName = ValueUnion.psz;
                     break;
 
@@ -1380,12 +1371,12 @@ RTEXITCODE handleExtPack(HandlerArg *a)
             }
         }
         if (!pszName)
-            return errorSyntax(Misc::tr("No extension pack name was given to \"extpack install\""));
+            return errorSyntax("No extension pack name was given to \"extpack install\"");
 
         char szPath[RTPATH_MAX];
         int vrc = RTPathAbs(pszName, szPath, sizeof(szPath));
         if (RT_FAILURE(vrc))
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("RTPathAbs(%s,,) failed with rc=%Rrc"), pszName, vrc);
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "RTPathAbs(%s,,) failed with rc=%Rrc", pszName, vrc);
 
         Bstr bstrTarball(szPath);
         Bstr bstrName;
@@ -1409,30 +1400,30 @@ RTEXITCODE handleExtPack(HandlerArg *a)
             vrc = RTSha256ToString(abHash, szDigest, sizeof(szDigest));
             AssertRCStmt(vrc, szDigest[0] = '\0');
             if (lstLicenseHashes.contains(szDigest))
-                RTPrintf(Misc::tr("License accepted.\n"));
+                RTPrintf("License accepted.\n");
             else
             {
                 RTPrintf("%s\n", strLicense.c_str());
-                RTPrintf(Misc::tr("Do you agree to these license terms and conditions (y/n)? "));
+                RTPrintf("Do you agree to these license terms and conditions (y/n)? " );
                 ch = RTStrmGetCh(g_pStdIn);
                 RTPrintf("\n");
                 if (ch != 'y' && ch != 'Y')
                 {
-                    RTPrintf(Misc::tr("Installation of \"%ls\" aborted.\n"), bstrName.raw());
+                    RTPrintf("Installation of \"%ls\" aborted.\n", bstrName.raw());
                     return RTEXITCODE_FAILURE;
                 }
                 if (szDigest[0])
-                    RTPrintf(Misc::tr("License accepted. For batch installation add\n"
-                                      "--accept-license=%s\n"
-                                      "to the VBoxManage command line.\n\n"), szDigest);
+                    RTPrintf("License accepted. For batch installation add\n"
+                             "--accept-license=%s\n"
+                             "to the VBoxManage command line.\n\n", szDigest);
             }
         }
         ComPtr<IProgress> ptrProgress;
         CHECK_ERROR2I_RET(ptrExtPackFile, Install(fReplace, NULL, ptrProgress.asOutParam()), RTEXITCODE_FAILURE);
         hrc = showProgress(ptrProgress);
-        CHECK_PROGRESS_ERROR_RET(ptrProgress, (Misc::tr("Failed to install \"%s\""), szPath), RTEXITCODE_FAILURE);
+        CHECK_PROGRESS_ERROR_RET(ptrProgress, ("Failed to install \"%s\"", szPath), RTEXITCODE_FAILURE);
 
-        RTPrintf(Misc::tr("Successfully installed \"%ls\".\n"), bstrName.raw());
+        RTPrintf("Successfully installed \"%ls\".\n", bstrName.raw());
     }
     else if (!strcmp(a->argv[0], "uninstall"))
     {
@@ -1456,7 +1447,7 @@ RTEXITCODE handleExtPack(HandlerArg *a)
 
                 case VINF_GETOPT_NOT_OPTION:
                     if (pszName)
-                        return errorSyntax(Misc::tr("Too many extension pack names given to \"extpack uninstall\""));
+                        return errorSyntax("Too many extension pack names given to \"extpack uninstall\"");
                     pszName = ValueUnion.psz;
                     break;
 
@@ -1465,15 +1456,15 @@ RTEXITCODE handleExtPack(HandlerArg *a)
             }
         }
         if (!pszName)
-            return errorSyntax(Misc::tr("No extension pack name was given to \"extpack uninstall\""));
+            return errorSyntax("No extension pack name was given to \"extpack uninstall\"");
 
         Bstr bstrName(pszName);
         ComPtr<IProgress> ptrProgress;
         CHECK_ERROR2I_RET(ptrExtPackMgr, Uninstall(bstrName.raw(), fForced, NULL, ptrProgress.asOutParam()), RTEXITCODE_FAILURE);
         hrc = showProgress(ptrProgress);
-        CHECK_PROGRESS_ERROR_RET(ptrProgress, (Misc::tr("Failed to uninstall \"%s\""), pszName), RTEXITCODE_FAILURE);
+        CHECK_PROGRESS_ERROR_RET(ptrProgress, ("Failed to uninstall \"%s\"", pszName), RTEXITCODE_FAILURE);
 
-        RTPrintf(Misc::tr("Successfully uninstalled \"%s\".\n"), pszName);
+        RTPrintf("Successfully uninstalled \"%s\".\n", pszName);
     }
     else if (!strcmp(a->argv[0], "cleanup"))
     {
@@ -1481,7 +1472,7 @@ RTEXITCODE handleExtPack(HandlerArg *a)
         if (a->argc > 1)
             return errorTooManyParameters(&a->argv[1]);
         CHECK_ERROR2I_RET(ptrExtPackMgr, Cleanup(), RTEXITCODE_FAILURE);
-        RTPrintf(Misc::tr("Successfully performed extension pack cleanup\n"));
+        RTPrintf("Successfully performed extension pack cleanup\n");
     }
     else
         return errorUnknownSubcommand(a->argv[0]);
@@ -1523,7 +1514,7 @@ RTEXITCODE handleUnattendedDetect(HandlerArg *a)
             case 'i': // --iso
                 vrc = RTPathAbs(ValueUnion.psz, szIsoPath, sizeof(szIsoPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 break;
 
             case 'M': // --machine-readable.
@@ -1539,7 +1530,7 @@ RTEXITCODE handleUnattendedDetect(HandlerArg *a)
      * Check for required stuff.
      */
     if (szIsoPath[0] == '\0')
-        return errorSyntax(Misc::tr("No ISO specified"));
+        return errorSyntax("No ISO specified");
 
     /*
      * Do the job.
@@ -1563,40 +1554,30 @@ RTEXITCODE handleUnattendedDetect(HandlerArg *a)
     CHECK_ERROR2_RET(hrc, ptrUnattended, COMGETTER(DetectedOSLanguages)(bstrDetectedLanguages.asOutParam()), RTEXITCODE_FAILURE);
     Bstr bstrDetectedHints;
     CHECK_ERROR2_RET(hrc, ptrUnattended, COMGETTER(DetectedOSHints)(bstrDetectedHints.asOutParam()), RTEXITCODE_FAILURE);
-    SafeArray<BSTR> aImageNames;
-    CHECK_ERROR2_RET(hrc, ptrUnattended, COMGETTER(DetectedImageNames)(ComSafeArrayAsOutParam(aImageNames)), RTEXITCODE_FAILURE);
-    SafeArray<ULONG> aImageIndices;
-    CHECK_ERROR2_RET(hrc, ptrUnattended, COMGETTER(DetectedImageIndices)(ComSafeArrayAsOutParam(aImageIndices)), RTEXITCODE_FAILURE);
-    Assert(aImageNames.size() == aImageIndices.size());
-
     if (fMachineReadable)
-    {
-        outputMachineReadableString("OSTypeId", &bstrDetectedOSTypeId);
-        outputMachineReadableString("OSVersion", &bstrDetectedVersion);
-        outputMachineReadableString("OSFlavor", &bstrDetectedFlavor);
-        outputMachineReadableString("OSLanguages", &bstrDetectedLanguages);
-        outputMachineReadableString("OSHints", &bstrDetectedHints);
-        for (size_t i = 0; i < aImageNames.size(); i++)
-        {
-            Bstr const bstrName = aImageNames[i];
-            outputMachineReadableStringWithFmtName(&bstrName, false, "ImageIndex%u", aImageIndices[i]);
-        }
-    }
-    else
-    {
-        RTMsgInfo(Misc::tr("Detected '%s' to be:\n"), szIsoPath);
-        RTPrintf(Misc::tr("    OS TypeId    = %ls\n"
-                          "    OS Version   = %ls\n"
-                          "    OS Flavor    = %ls\n"
-                          "    OS Languages = %ls\n"
-                          "    OS Hints     = %ls\n"),
+        RTPrintf("OSTypeId=\"%ls\"\n"
+                 "OSVersion=\"%ls\"\n"
+                 "OSFlavor=\"%ls\"\n"
+                 "OSLanguages=\"%ls\"\n"
+                 "OSHints=\"%ls\"\n",
                  bstrDetectedOSTypeId.raw(),
                  bstrDetectedVersion.raw(),
                  bstrDetectedFlavor.raw(),
                  bstrDetectedLanguages.raw(),
                  bstrDetectedHints.raw());
-        for (size_t i = 0; i < aImageNames.size(); i++)
-            RTPrintf("    Image #%-3u   = %ls\n", aImageIndices[i], aImageNames[i]);
+    else
+    {
+        RTMsgInfo("Detected '%s' to be:\n", szIsoPath);
+        RTPrintf("    OS TypeId    = %ls\n"
+                 "    OS Version   = %ls\n"
+                 "    OS Flavor    = %ls\n"
+                 "    OS Languages = %ls\n"
+                 "    OS Hints     = %ls\n",
+                 bstrDetectedOSTypeId.raw(),
+                 bstrDetectedVersion.raw(),
+                 bstrDetectedFlavor.raw(),
+                 bstrDetectedLanguages.raw(),
+                 bstrDetectedHints.raw());
     }
 
     return rcExit;
@@ -1668,7 +1649,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
         {
             case VINF_GETOPT_NOT_OPTION:
                 if (ptrMachine.isNotNull())
-                    return errorSyntax(Misc::tr("VM name/UUID given more than once!"));
+                    return errorSyntax("VM name/UUID given more than once!");
                 CHECK_ERROR2_RET(hrc, a->virtualBox, FindMachine(Bstr(ValueUnion.psz).raw(), ptrMachine.asOutParam()), RTEXITCODE_FAILURE);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(Machine)(ptrMachine), RTEXITCODE_FAILURE);
                 break;
@@ -1676,7 +1657,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             case 'i':   // --iso
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(IsoPath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
@@ -1715,7 +1696,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             case 'a':   // --additions-iso
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(AdditionsIsoPath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
@@ -1728,7 +1709,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             case 'K':   // --valiation-kit-iso
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(ValidationKitIsoPath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
@@ -1763,7 +1744,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             case 'x':   // --auxiliary-base-path
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(AuxiliaryBasePath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
@@ -1774,14 +1755,14 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             case 'c':   // --script-template
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(ScriptTemplatePath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
             case 'C':   // --post-install-script-template
                 vrc = RTPathAbs(ValueUnion.psz, szAbsPath, sizeof(szAbsPath));
                 if (RT_FAILURE(vrc))
-                    return errorSyntax(Misc::tr("RTPathAbs failed on '%s': %Rrc"), ValueUnion.psz, vrc);
+                    return errorSyntax("RTPathAbs failed on '%s': %Rrc", ValueUnion.psz, vrc);
                 CHECK_ERROR2_RET(hrc, ptrUnattended, COMSETTER(PostInstallScriptTemplatePath)(Bstr(szAbsPath).raw()), RTEXITCODE_FAILURE);
                 break;
 
@@ -1810,7 +1791,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
      * Check for required stuff.
      */
     if (ptrMachine.isNull())
-        return errorSyntax(Misc::tr("Missing VM name/UUID"));
+        return errorSyntax("Missing VM name/UUID");
 
     /*
      * Set accumulative attributes.
@@ -1862,14 +1843,14 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
         if (FAILED(hrc))
             return RTEXITCODE_FAILURE;
         if (ptrConsole.isNotNull())
-            return RTMsgErrorExit(RTEXITCODE_FAILURE, Misc::tr("Machine '%ls' is currently running"), bstrMachineName.raw());
+            return RTMsgErrorExit(RTEXITCODE_FAILURE, "Machine '%ls' is currently running", bstrMachineName.raw());
     }
 
     /*
      * Do the work.
      */
-    RTMsgInfo(Misc::tr("%s unattended installation of %s in machine '%ls' (%ls).\n"),
-              RTStrICmp(pszSessionType, "none") == 0 ? Misc::tr("Preparing") : Misc::tr("Starting"),
+    RTMsgInfo("%s unattended installation of %s in machine '%ls' (%ls).\n",
+              RTStrICmp(pszSessionType, "none") == 0 ? "Preparing" : "Starting",
               strInstalledOS.c_str(), bstrMachineName.raw(), bstrUuid.raw());
 
     CHECK_ERROR2_RET(hrc, ptrUnattended,Prepare(), RTEXITCODE_FAILURE);
@@ -1882,14 +1863,14 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
     /*
      * Retrieve and display the parameters actually used.
      */
-    RTMsgInfo(Misc::tr("Using values:\n"));
+    RTMsgInfo("Using values:\n");
 #define SHOW_ATTR(a_Attr, a_szText, a_Type, a_szFmt) do { \
             a_Type Value; \
             HRESULT hrc2 = ptrUnattended->COMGETTER(a_Attr)(&Value); \
             if (SUCCEEDED(hrc2)) \
                 RTPrintf("  %32s = " a_szFmt "\n", a_szText, Value); \
             else \
-                RTPrintf(Misc::tr("  %32s = failed: %Rhrc\n"), a_szText, hrc2); \
+                RTPrintf("  %32s = failed: %Rhrc\n", a_szText, hrc2); \
         } while (0)
 #define SHOW_STR_ATTR(a_Attr, a_szText) do { \
             Bstr bstrString; \
@@ -1897,7 +1878,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
             if (SUCCEEDED(hrc2)) \
                 RTPrintf("  %32s = %ls\n", a_szText, bstrString.raw()); \
             else \
-                RTPrintf(Misc::tr("  %32s = failed: %Rhrc\n"), a_szText, hrc2); \
+                RTPrintf("  %32s = failed: %Rhrc\n", a_szText, hrc2); \
         } while (0)
 
     SHOW_STR_ATTR(IsoPath,                       "isoPath");
@@ -1927,33 +1908,6 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
     SHOW_STR_ATTR(DetectedOSFlavor,              "detectedOSFlavor");
     SHOW_STR_ATTR(DetectedOSLanguages,           "detectedOSLanguages");
     SHOW_STR_ATTR(DetectedOSHints,               "detectedOSHints");
-    {
-        ULONG idxImage = 0;
-        HRESULT hrc2 = ptrUnattended->COMGETTER(ImageIndex)(&idxImage);
-        if (FAILED(hrc2))
-            idxImage = 0;
-        SafeArray<BSTR> aImageNames;
-        hrc2 = ptrUnattended->COMGETTER(DetectedImageNames)(ComSafeArrayAsOutParam(aImageNames));
-        if (SUCCEEDED(hrc2))
-        {
-            SafeArray<ULONG> aImageIndices;
-            hrc2 = ptrUnattended->COMGETTER(DetectedImageIndices)(ComSafeArrayAsOutParam(aImageIndices));
-            if (SUCCEEDED(hrc2))
-            {
-                Assert(aImageNames.size() == aImageIndices.size());
-                for (size_t i = 0; i < aImageNames.size(); i++)
-                {
-                    char szTmp[64];
-                    RTStrPrintf(szTmp, sizeof(szTmp), "detectedImage[%u]%s", i, idxImage != aImageIndices[i] ? "" : "*");
-                    RTPrintf("  %32s = #%u: %ls\n", szTmp, aImageIndices[i], aImageNames[i]);
-                }
-            }
-            else
-                RTPrintf(Misc::tr("  %32s = failed: %Rhrc\n"), "detectedImageIndices", hrc2);
-        }
-        else
-            RTPrintf(Misc::tr("  %32 = failed: %Rhrc\n"), "detectedImageNames", hrc2);
-    }
 
 #undef SHOW_STR_ATTR
 #undef SHOW_ATTR
@@ -1968,7 +1922,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
         || RTStrICmp(pszSessionType, "none") == 0)
     {
         if (!fDryRun)
-            RTMsgInfo(Misc::tr("VM '%ls' (%ls) is ready to be started (e.g. VBoxManage startvm).\n"), bstrMachineName.raw(), bstrUuid.raw());
+            RTMsgInfo("VM '%ls' (%ls) is ready to be started (e.g. VBoxManage startvm).\n", bstrMachineName.raw(), bstrUuid.raw());
         hrc = S_OK;
     }
     else
@@ -1987,7 +1941,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
         CHECK_ERROR2(hrc, ptrMachine, LaunchVMProcess(a->session, Bstr(pszSessionType).raw(), ComSafeArrayAsInParam(aBstrEnv), ptrProgress.asOutParam()));
         if (SUCCEEDED(hrc) && !ptrProgress.isNull())
         {
-            RTMsgInfo(Misc::tr("Waiting for VM '%ls' to power on...\n"), bstrMachineName.raw());
+            RTMsgInfo("Waiting for VM '%ls' to power on...\n", bstrMachineName.raw());
             CHECK_ERROR2(hrc, ptrProgress, WaitForCompletion(-1));
             if (SUCCEEDED(hrc))
             {
@@ -2002,8 +1956,7 @@ RTEXITCODE handleUnattendedInstall(HandlerArg *a)
                     if (SUCCEEDED(hrc))
                     {
                         if (SUCCEEDED(iRc))
-                            RTMsgInfo(Misc::tr("VM '%ls' (%ls) has been successfully started.\n"),
-                                      bstrMachineName.raw(), bstrUuid.raw());
+                            RTMsgInfo("VM '%ls' (%ls) has been successfully started.\n", bstrMachineName.raw(), bstrUuid.raw());
                         else
                         {
                             ProgressErrorInfo info(ptrProgress);
@@ -2128,15 +2081,15 @@ static RTEXITCODE setCloudProfileProperties(HandlerArg *a, int iFirst, PCLOUDPRO
                 Bstr(ValueUnion.psz).detachTo(values.appendedRaw());
                 break;
             default:
-                return errorGetOpt(c, &ValueUnion);
+                return errorGetOpt(USAGE_CLOUDPROFILE, c, &ValueUnion);
         }
     }
 
     /* check for required options */
     if (bstrProvider.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --provider is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --provider is required");
     if (bstrProfile.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --profile is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --profile is required");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
 
@@ -2165,7 +2118,7 @@ static RTEXITCODE setCloudProfileProperties(HandlerArg *a, int iFirst, PCLOUDPRO
 
     CHECK_ERROR2(hrc, pCloudProvider, SaveProfiles());
 
-    RTPrintf(Misc::tr("Provider %ls: profile '%ls' was updated.\n"),bstrProvider.raw(), bstrProfile.raw());
+    RTPrintf("Provider %ls: profile '%ls' was updated.\n",bstrProvider.raw(), bstrProfile.raw());
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -2184,9 +2137,9 @@ static RTEXITCODE showCloudProfileProperties(HandlerArg *a, PCLOUDPROFILECOMMONO
 
     /* check for required options */
     if (bstrProvider.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --provider is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --provider is required");
     if (bstrProfile.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --profile is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --profile is required");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
     ComPtr<ICloudProviderManager> pCloudProviderManager;
@@ -2207,7 +2160,7 @@ static RTEXITCODE showCloudProfileProperties(HandlerArg *a, PCLOUDPROFILECOMMONO
 
         Bstr bstrProviderID;
         pCloudProfile->COMGETTER(ProviderId)(bstrProviderID.asOutParam());
-        RTPrintf(Misc::tr("Provider GUID: %ls\n"), bstrProviderID.raw());
+        RTPrintf("Provider GUID: %ls\n", bstrProviderID.raw());
 
         com::SafeArray<BSTR> names;
         com::SafeArray<BSTR> values;
@@ -2223,7 +2176,7 @@ static RTEXITCODE showCloudProfileProperties(HandlerArg *a, PCLOUDPROFILECOMMONO
             if (k < cValues)
                 value = values[k];
             RTPrintf("%s%ls=%ls\n",
-                     fFirst ? Misc::tr("Property:      ") : "               ",
+                     fFirst ? "Property:      " : "               ",
                      names[k], value.raw());
             fFirst = false;
         }
@@ -2244,9 +2197,9 @@ static RTEXITCODE addCloudProfile(HandlerArg *a, int iFirst, PCLOUDPROFILECOMMON
 
     /* check for required options */
     if (bstrProvider.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --provider is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --provider is required");
     if (bstrProfile.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --profile is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --profile is required");
 
     /*
      * Parse options.
@@ -2304,7 +2257,7 @@ static RTEXITCODE addCloudProfile(HandlerArg *a, int iFirst, PCLOUDPROFILECOMMON
                 Bstr(ValueUnion.psz).detachTo(values.appendedRaw());
                 break;
             default:
-                return errorGetOpt(c, &ValueUnion);
+                return errorGetOpt(USAGE_CLOUDPROFILE, c, &ValueUnion);
         }
     }
 
@@ -2328,7 +2281,7 @@ static RTEXITCODE addCloudProfile(HandlerArg *a, int iFirst, PCLOUDPROFILECOMMON
 
     CHECK_ERROR2(hrc, pCloudProvider, SaveProfiles());
 
-    RTPrintf(Misc::tr("Provider %ls: profile '%ls' was added.\n"),bstrProvider.raw(), bstrProfile.raw());
+    RTPrintf("Provider %ls: profile '%ls' was added.\n",bstrProvider.raw(), bstrProfile.raw());
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -2342,9 +2295,9 @@ static RTEXITCODE deleteCloudProfile(HandlerArg *a, PCLOUDPROFILECOMMONOPT pComm
 
     /* check for required options */
     if (bstrProvider.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --provider is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --provider is required");
     if (bstrProfile.isEmpty())
-        return errorSyntax(Misc::tr("Parameter --profile is required"));
+        return errorSyntax(USAGE_CLOUDPROFILE, "Parameter --profile is required");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
     ComPtr<ICloudProviderManager> pCloudProviderManager;
@@ -2371,7 +2324,7 @@ static RTEXITCODE deleteCloudProfile(HandlerArg *a, PCLOUDPROFILECOMMONOPT pComm
                          SaveProfiles(),
                          RTEXITCODE_FAILURE);
 
-        RTPrintf(Misc::tr("Provider %ls: profile '%ls' was deleted.\n"), bstrProvider.raw(), bstrProfile.raw());
+        RTPrintf("Provider %ls: profile '%ls' was deleted.\n",bstrProvider.raw(), bstrProfile.raw());
     }
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
@@ -2434,3 +2387,4 @@ RTEXITCODE handleCloudProfile(HandlerArg *a)
 
     return errorNoSubcommand();
 }
+

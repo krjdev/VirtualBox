@@ -1,10 +1,10 @@
-/* $Id: UIToolsHandlerKeyboard.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIToolsHandlerKeyboard.cpp $ */
 /** @file
  * VBox Qt GUI - UIToolsHandlerKeyboard class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,15 +64,7 @@ bool UIToolsHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
             if (iPosition > 0)
             {
                 if (pEvent->key() == Qt::Key_Up)
-                    for (int i = iPosition - 1; i >= 0; --i)
-                    {
-                        UIToolsItem *pIteratedItem = model()->navigationList().at(i);
-                        if (pIteratedItem->isEnabled())
-                        {
-                            pPreviousItem = pIteratedItem;
-                            break;
-                        }
-                    }
+                    pPreviousItem = model()->navigationList().at(iPosition - 1);
                 else if (pEvent->key() == Qt::Key_Home)
                     pPreviousItem = model()->navigationList().first();
             }
@@ -98,15 +90,7 @@ bool UIToolsHandlerKeyboard::handleKeyPress(QKeyEvent *pEvent) const
             if (iPosition < model()->navigationList().size() - 1)
             {
                 if (pEvent->key() == Qt::Key_Down)
-                    for (int i = iPosition + 1; i < model()->navigationList().size(); ++i)
-                    {
-                        UIToolsItem *pIteratedItem = model()->navigationList().at(i);
-                        if (pIteratedItem->isEnabled())
-                        {
-                            pNextItem = pIteratedItem;
-                            break;
-                        }
-                    }
+                    pNextItem = model()->navigationList().at(iPosition + 1);
                 else if (pEvent->key() == Qt::Key_End)
                     pNextItem = model()->navigationList().last();
             }

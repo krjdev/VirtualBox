@@ -1,10 +1,10 @@
-; $Id: ASMWrMsrEx.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMWrMsrEx.asm $
 ;; @file
 ; IPRT - ASMWrMsrEx().
 ;
 
 ;
-; Copyright (C) 2013-2022 Oracle Corporation
+; Copyright (C) 2013-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ BEGINCODE
 ; @param    uXDI    msc=rdx, gcc=rsi, x86=[ebp+12]  The EDI/RDI value.
 ; @param    uValue  msc=r8,  gcc=rdx, x86=[ebp+16]  The 64-bit value to write.
 ;
-RT_BEGINPROC ASMWrMsrEx
+BEGINPROC_EXPORTED ASMWrMsrEx
 %ifdef ASM_CALL64_MSC
 proc_frame ASMWrMsrEx_DupWarningHack
         push    rdi
@@ -65,9 +65,9 @@ endproc_frame
         mov     ebp, esp
         push    edi
         mov     ecx, [ebp + 8]
-        mov     edi, [ebp + 12]
-        mov     eax, [ebp + 16]
-        mov     edx, [ebp + 20]
+        mov     edi, [esp + 12]
+        mov     eax, [esp + 16]
+        mov     edx, [esp + 20]
         wrmsr
         pop     edi
         leave

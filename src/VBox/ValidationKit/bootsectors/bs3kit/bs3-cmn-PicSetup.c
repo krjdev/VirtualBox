@@ -1,10 +1,10 @@
-/* $Id: bs3-cmn-PicSetup.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-cmn-PicSetup.c $ */
 /** @file
  * BS3Kit - PIC Setup.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,14 +45,14 @@
  * installed.
  */
 #undef Bs3PicSetup
-BS3_CMN_DEF(void, Bs3PicSetup,(bool fForcedReInit))
+BS3_CMN_DEF(void, Bs3PicSetup,(void))
 {
     /*
      * The first call configures the PIC to send interrupts to vectors 0x70 thru 0x7f,
      * masking all of them.  Things producing IRQs is responsible for configure their
      * handlers and then(!) use Bs3PicUpdateMask to unmask the IRQ.
      */
-    if (!g_fBs3PicConfigured || fForcedReInit)
+    if (!g_fBs3PicConfigured)
     {
         g_fBs3PicConfigured = true;
 

@@ -1,10 +1,10 @@
-/* $Id: QIMessageBox.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QIMessageBox.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIMessageBox class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,7 +46,6 @@ enum AlertButton
     AlertButton_Choice1       =  0x4,  /* 00000000 00000100 */
     AlertButton_Choice2       =  0x8,  /* 00000000 00001000 */
     AlertButton_Copy          = 0x10,  /* 00000000 00010000 */
-    AlertButton_Help          = 0x11,  /* 00000000 00010001 */
     AlertButtonMask           = 0xFF   /* 00000000 11111111 */
 };
 
@@ -91,14 +90,12 @@ public:
     /** Constructs message-box passing @a pParent to the base-class.
       * @param  strTitle    Brings the title.
       * @param  strMessage  Brings the message.
-      * @param  strMessage  Brings the help keyword for context sensitive help
       * @param  iconType    Brings the icon-type.
       * @param  iButton1    Brings the integer-code for the 1st button.
       * @param  iButton2    Brings the integer-code for the 2nd button.
       * @param  iButton3    Brings the integer-code for the 3rd button. */
     QIMessageBox(const QString &strTitle, const QString &strMessage, AlertIconType iconType,
-                 int iButton1 = 0, int iButton2 = 0, int iButton3 = 0, QWidget *pParent = 0,
-                 const QString &strHelpKeyword = QString());
+                 int iButton1 = 0, int iButton2 = 0, int iButton3 = 0, QWidget *pParent = 0);
 
     /** Defines details-text. */
     void setDetailsText(const QString &strText);
@@ -116,10 +113,10 @@ public:
 protected:
 
     /** Handles polish @a pEvent. */
-    virtual void polishEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void polishEvent(QShowEvent *pEvent) /* override */;
 
     /** Handles close @a pEvent. */
-    virtual void closeEvent(QCloseEvent *pEvent) RT_OVERRIDE;
+    virtual void closeEvent(QCloseEvent *pEvent) /* override */;
 
 private slots:
 
@@ -130,7 +127,7 @@ private slots:
     void sltCopy() const;
 
     /** Closes dialog like user would press the Cancel button. */
-    virtual void reject() RT_OVERRIDE;
+    virtual void reject() /* override */;
 
     /** Closes dialog like user would press the 1st button. */
     void sltDone1() { m_fDone = true; done(m_iButton1 & AlertButtonMask); }
@@ -194,14 +191,8 @@ private:
     QPushButton *m_pButton2;
     /** Holds the 3rd button instance. */
     QPushButton *m_pButton3;
-    /** Holds the help-button instance. */
-    QPushButton  *m_pButtonHelp;
-
     /** Holds the button-box instance. */
     QIDialogButtonBox *m_pButtonBox;
-
-    /** Holds the help keyword string. */
-    QString m_strHelpKeyword;
 
     /** Defines whether message was accepted. */
     bool m_fDone : 1;

@@ -1,10 +1,10 @@
-/* $Id: UISoftKeyboard.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISoftKeyboard.h $ */
 /** @file
  * VBox Qt GUI - UISoftKeyboard class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,11 +53,6 @@ class UISoftKeyboard : public QMainWindowWithRestorableGeometryAndRetranslateUi
 {
     Q_OBJECT;
 
-signals:
-
-    void sigHelpRequested(const QString &strHelpKeyword);
-    void sigClose();
-
 public:
 
     UISoftKeyboard(QWidget *pParent, UISession *pSession, QWidget *pCenterWidget,
@@ -66,10 +61,10 @@ public:
 
 protected:
 
-    virtual void retranslateUi() RT_OVERRIDE;
-    virtual bool shouldBeMaximized() const RT_OVERRIDE;
-    virtual void closeEvent(QCloseEvent *event) RT_OVERRIDE;
-    bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+    virtual bool shouldBeMaximized() const /* override */;
+    virtual void closeEvent(QCloseEvent *event) /* override */;
+    bool event(QEvent *pEvent) /* override */;
 
 private slots:
 
@@ -102,19 +97,13 @@ private slots:
     void sltShowHideMultimediaKeys(bool fHide);
     void sltHandleColorCellClick(int iColorRow);
     void sltResetKeyboard();
-    void sltHandleHelpRequest();
-    void sltSaveSettings();
-    void sltReleaseKeys();
 
 private:
 
     void prepareObjects();
     void prepareConnections();
+    void saveSettings();
     void loadSettings();
-    void saveCustomColorTheme();
-    void saveSelectedColorThemeName();
-    void saveCurrentLayout();
-    void saveDialogGeometry();
     void configure();
     void updateStatusBarMessage(const QString &strLayoutName);
     void updateLayoutSelectorList();
@@ -132,7 +121,6 @@ private:
 
     UISoftKeyboardSettingsWidget  *m_pSettingsWidget;
     UISoftKeyboardStatusBarWidget *m_pStatusBarWidget;
-    int m_iGeometrySaveTimerId;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_softkeyboard_UISoftKeyboard_h */

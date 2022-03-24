@@ -1,11 +1,11 @@
-/* $Id: display-svga-x11.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: display-svga-x11.cpp $ */
 /** @file
  * X11 guest client - VMSVGA emulation resize event pass-through to X.Org
  * guest driver.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,11 +66,6 @@
 
 #define MILLIS_PER_INCH (25.4)
 #define DEFAULT_DPI (96.0)
-
-/* Time in milliseconds to relax if no X11 events available. */
-#define VBOX_SVGA_X11_RELAX_TIME_MS  (500)
-/* Time in milliseconds to wait for host events. */
-#define VBOX_SVGA_HOST_EVENT_RX_TIMEOUT_MS  (500)
 
 /** Maximum number of supported screens.  DRM and X11 both limit this to 32. */
 /** @todo if this ever changes, dynamically allocate resizeable arrays in the
@@ -159,7 +154,6 @@ struct X11CONTEXT
     XRRCrtcInfo* (*pXRRGetCrtcInfo) (Display *, XRRScreenResources *, RRCrtc crtc);
     void (*pXRRFreeCrtcInfo)(XRRCrtcInfo *);
     void (*pXRRAddOutputMode)(Display *, RROutput, RRMode);
-    void (*pXRRSetOutputPrimary)(Display *, Window, RROutput);
 };
 
 static X11CONTEXT x11Context;
@@ -171,7 +165,6 @@ struct RANDROUTPUT
     uint32_t width;
     uint32_t height;
     bool fEnabled;
-    bool fPrimary;
 };
 
 struct DisplayModeR {
@@ -559,11 +552,12 @@ static void queryMonitorPositions()
             if (iMonitorID >= x11Context.hOutputCount || iMonitorID == -1)
             {
                 VBClLogInfo("queryMonitorPositions: skip monitor %d (id %d) (w,h)=(%d,%d) (x,y)=(%d,%d)\n",
-                            i, iMonitorID,
-                            pMonitorInfo[i].width, pMonitorInfo[i].height,
-                            pMonitorInfo[i].x, pMonitorInfo[i].y);
+                        i, iMonitorID,
+                        pMonitorInfo[i].width, pMonitorInfo[i].height,
+                        pMonitorInfo[i].x, pMonitorInfo[i].y);
                 continue;
             }
+
             VBClLogInfo("Monitor %d (w,h)=(%d,%d) (x,y)=(%d,%d)\n",
                         i,
                         pMonitorInfo[i].width, pMonitorInfo[i].height,
@@ -585,24 +579,16 @@ static void queryMonitorPositions()
 static void monitorRandREvents()
 {
     XEvent event;
-
-    if (XPending(x11Context.pDisplayRandRMonitoring) > 0)
+    XNextEvent(x11Context.pDisplayRandRMonitoring, &event);
+    int eventTypeOffset = event.type - x11Context.hRandREventBase;
+    switch (eventTypeOffset)
     {
-        XNextEvent(x11Context.pDisplayRandRMonitoring, &event);
-        int eventTypeOffset = event.type - x11Context.hRandREventBase;
-        VBClLogInfo("received X11 event (%d)\n", event.type);
-        switch (eventTypeOffset)
-        {
-            case RRScreenChangeNotify:
-                VBClLogInfo("RRScreenChangeNotify event received\n");
-                queryMonitorPositions();
-                break;
-            default:
-                break;
-        }
-    } else
-    {
-        RTThreadSleep(VBOX_SVGA_X11_RELAX_TIME_MS);
+        case RRScreenChangeNotify:
+            VBClLogInfo("RRScreenChangeNotify event received\n");
+            queryMonitorPositions();
+            break;
+        default:
+            break;
     }
 }
 
@@ -616,9 +602,6 @@ static DECLCALLBACK(int) x11MonitorThreadFunction(RTTHREAD ThreadSelf, void *pvU
     {
         monitorRandREvents();
     }
-
-    VBClLogInfo("X11 thread gracefully terminated\n");
-
     return 0;
 }
 
@@ -640,7 +623,7 @@ static int startX11MonitorThread()
 
 static int stopX11MonitorThread(void)
 {
-    int rc = VINF_SUCCESS;
+    int rc;
     if (mX11MonitorThread != NIL_RTTHREAD)
     {
         ASMAtomicWriteBool(&g_fMonitorThreadShutdown, true);
@@ -686,11 +669,10 @@ static bool callVMWCTRL(struct RANDROUTPUT *paOutputs)
         extents[i].height = hHeight;
         hRunningOffset += hWidth;
     }
-    bool fResult = VMwareCtrlSetTopology(x11Context.pDisplay, x11Context.hVMWCtrlMajorOpCode,
-                                         DefaultScreen(x11Context.pDisplay),
-                                         extents, x11Context.hOutputCount);
+    return VMwareCtrlSetTopology(x11Context.pDisplay, x11Context.hVMWCtrlMajorOpCode,
+                                 DefaultScreen(x11Context.pDisplay),
+                                 extents, x11Context.hOutputCount);
     free(extents);
-    return fResult;
 }
 
 /**
@@ -704,116 +686,141 @@ static bool isXwayland(void)
     const char *const pDisplayType = getenv("WAYLAND_DISPLAY");
     const char *pSessionType;
 
-    if (pDisplayType != NULL)
+    if (pDisplayType != NULL) {
         return true;
-
-    pSessionType = getenv("XDG_SESSION_TYPE"); /** @todo r=andy Use RTEnv API. */
-    if ((pSessionType != NULL) && (RTStrIStartsWith(pSessionType, "wayland")))
+    }
+    pSessionType = getenv("XDG_SESSION_TYPE");
+    if ((pSessionType != NULL) && (RTStrIStartsWith(pSessionType, "wayland"))) {
         return true;
-
+    }
     return false;
 }
 
 /**
- * @interface_method_impl{VBCLSERVICE,pfnInit}
+ * An abbreviated copy of the VGSvcReadProp from VBoxServiceUtils.cpp
  */
-static DECLCALLBACK(int) vbclSVGAInit(void)
+static int readGuestProperty(uint32_t u32ClientId, const char *pszPropName)
 {
-    int rc;
+    AssertPtrReturn(pszPropName, VERR_INVALID_POINTER);
 
-    /* In 32-bit guests GAs build on our release machines causes an xserver hang.
-     * So for 32-bit GAs we use our DRM client. */
-#if ARCH_BITS == 32
-    rc = VbglR3DrmClientStart();
-    if (RT_FAILURE(rc))
-        VBClLogError("Starting DRM resizing client (32-bit) failed with %Rrc\n", rc);
-    return VERR_NOT_AVAILABLE; /** @todo r=andy Why ignoring rc here? */
-#endif
+    uint32_t    cbBuf = _1K;
+    void       *pvBuf = NULL;
+    int         rc    = VINF_SUCCESS;  /* MSC can't figure out the loop */
 
-    /* If DRM client is already running don't start this service. */
-    if (VbglR3DrmClientIsRunning())
+    for (unsigned cTries = 0; cTries < 10; cTries++)
     {
-        VBClLogInfo("DRM resizing is already running. Exiting this service\n");
-        return VERR_NOT_AVAILABLE;
-    }
-
-    if (isXwayland())
-    {
-        rc = VbglR3DrmClientStart();
-        if (RT_SUCCESS(rc))
+        /*
+         * (Re-)Allocate the buffer and try read the property.
+         */
+        RTMemFree(pvBuf);
+        pvBuf = RTMemAlloc(cbBuf);
+        if (!pvBuf)
         {
-            VBClLogInfo("VBoxDrmClient has been successfully started, exitting parent process\n");
-            exit(0);
+            VBClLogError("Guest Property: Failed to allocate %zu bytes\n", cbBuf);
+            rc = VERR_NO_MEMORY;
+            break;
+        }
+        char    *pszValue;
+        char    *pszFlags;
+        uint64_t uTimestamp;
+        rc = VbglR3GuestPropRead(u32ClientId, pszPropName, pvBuf, cbBuf, &pszValue, &uTimestamp, &pszFlags, NULL);
+        if (RT_FAILURE(rc))
+        {
+            if (rc == VERR_BUFFER_OVERFLOW)
+            {
+                /* try again with a bigger buffer. */
+                cbBuf *= 2;
+                continue;
+            }
+            else
+                break;
         }
         else
-        {
-            VBClLogError("Starting DRM resizing client failed with %Rrc\n", rc);
-        }
-        return rc;
+            break;
     }
 
-    x11Connect();
-
-    if (x11Context.pDisplay == NULL)
-        return VERR_NOT_AVAILABLE;
-
-    /* don't start the monitoring thread if related randr functionality is not available. */
-    if (x11Context.fMonitorInfoAvailable)
-    {
-        if (RT_FAILURE(startX11MonitorThread()))
-            return VERR_NOT_AVAILABLE;
-    }
-
-    return VINF_SUCCESS;
+    if (pvBuf)
+        RTMemFree(pvBuf);
+    return rc;
 }
 
 /**
- * @interface_method_impl{VBCLSERVICE,pfnStop}
+ * We start VBoxDRMClient from VBoxService in case  some guest property is set.
+ * We check the same guest property here and dont start this service in case
+ * it (guest property) is set.
  */
-static DECLCALLBACK(void) vbclSVGAStop(void)
+static bool checkDRMClient()
 {
-    int rc;
+   uint32_t uGuestPropSvcClientID;
+   int rc = VbglR3GuestPropConnect(&uGuestPropSvcClientID);
+   if (RT_FAILURE(rc))
+       return false;
+   rc = readGuestProperty(uGuestPropSvcClientID, "/VirtualBox/GuestAdd/DRMResize" /*pszPropName*/);
+   if (RT_FAILURE(rc))
+       return false;
+   return true;
+}
 
-    rc = stopX11MonitorThread();
-    if (RT_FAILURE(rc))
+static bool startDRMClient()
+{
+    char* argv[] = {NULL};
+    char* env[] = {NULL};
+    char szDRMClientPath[RTPATH_MAX];
+    RTPathExecDir(szDRMClientPath, RTPATH_MAX);
+    RTPathAppend(szDRMClientPath, RTPATH_MAX, "VBoxDRMClient");
+    VBClLogInfo("Starting DRM client.\n");
+    int rc = execve(szDRMClientPath, argv, env);
+    if (rc == -1)
+        VBClLogFatalError("execve for % returns the following error %d %s\n", szDRMClientPath, errno, strerror(errno));
+    /* This is reached only when execve fails. */
+    return false;
+}
+
+static bool init()
+{
+    /* If DRM client is already running don't start this service. */
+    if (checkDRMClient())
     {
-        VBClLogError("cannot stop X11 monitor thread (%Rrc)\n", rc);
-        return;
+        VBClLogFatalError("DRM resizing is already running. Exiting this service\n");
+        return false;
     }
+    if (isXwayland())
+        return startDRMClient();
 
+    x11Connect();
+    if (x11Context.pDisplay == NULL)
+        return false;
+    /* don't start the monitoring thread if related randr functionality is not available. */
+    if (x11Context.fMonitorInfoAvailable)
+        if (RT_FAILURE(startX11MonitorThread()))
+            return false;
+    return true;
+}
+
+static void cleanup()
+{
     if (mpMonitorPositions)
     {
         free(mpMonitorPositions);
         mpMonitorPositions = NULL;
     }
-
-    if (x11Context.pDisplayRandRMonitoring)
-    {
-#ifdef WITH_DISTRO_XRAND_XINERAMA
-        XRRSelectInput(x11Context.pDisplayRandRMonitoring, x11Context.rootWindow, 0);
-#else
-        if (x11Context.pXRRSelectInput)
-            x11Context.pXRRSelectInput(x11Context.pDisplayRandRMonitoring, x11Context.rootWindow, 0);
-#endif
-    }
-
-    if (x11Context.pDisplay)
-    {
-        XCloseDisplay(x11Context.pDisplay);
-        x11Context.pDisplay = NULL;
-    }
-
-    if (x11Context.pDisplayRandRMonitoring)
-    {
-        XCloseDisplay(x11Context.pDisplayRandRMonitoring);
-        x11Context.pDisplayRandRMonitoring = NULL;
-    }
-
+    stopX11MonitorThread();
     if (x11Context.pRandLibraryHandle)
     {
         dlclose(x11Context.pRandLibraryHandle);
         x11Context.pRandLibraryHandle = NULL;
     }
+#ifdef WITH_DISTRO_XRAND_XINERAMA
+    XRRSelectInput(x11Context.pDisplayRandRMonitoring, x11Context.rootWindow, 0);
+    XRRFreeScreenResources(x11Context.pScreenResources);
+#else
+    if (x11Context.pXRRSelectInput)
+        x11Context.pXRRSelectInput(x11Context.pDisplayRandRMonitoring, x11Context.rootWindow, 0);
+    if (x11Context.pXRRFreeScreenResources)
+        x11Context.pXRRFreeScreenResources(x11Context.pScreenResources);
+#endif
+    XCloseDisplay(x11Context.pDisplay);
+    XCloseDisplay(x11Context.pDisplayRandRMonitoring);
 }
 
 #ifndef WITH_DISTRO_XRAND_XINERAMA
@@ -888,9 +895,6 @@ static int openLibRandR()
     *(void **)(&x11Context.pXRRAddOutputMode) = dlsym(x11Context.pRandLibraryHandle, "XRRAddOutputMode");
     checkFunctionPtrReturn(x11Context.pXRRAddOutputMode);
 
-    *(void **)(&x11Context.pXRRSetOutputPrimary) = dlsym(x11Context.pRandLibraryHandle, "XRRSetOutputPrimary");
-    checkFunctionPtrReturn(x11Context.pXRRSetOutputPrimary);
-
     return VINF_SUCCESS;
 }
 #endif
@@ -917,7 +921,6 @@ static void x11Connect()
     x11Context.pXRRGetCrtcInfo = NULL;
     x11Context.pXRRFreeCrtcInfo = NULL;
     x11Context.pXRRAddOutputMode = NULL;
-    x11Context.pXRRSetOutputPrimary = NULL;
     x11Context.fWmwareCtrlExtention = false;
     x11Context.fMonitorInfoAvailable = false;
     x11Context.hRandRMajor = 0;
@@ -1137,7 +1140,7 @@ static bool resizeFrameBuffer(struct RANDROUTPUT *paOutputs)
     if (!event || newSize.width != (int)iXRes || newSize.height != (int)iYRes)
     {
         VBClLogError("Resizing frame buffer to %d %d has failed, current mode %d %d\n",
-                     iXRes, iYRes, newSize.width, newSize.height);
+            iXRes, iYRes, newSize.width, newSize.height);
         return false;
     }
     return true;
@@ -1231,17 +1234,6 @@ static bool configureOutput(int iOutputIndex, struct RANDROUTPUT *paOutputs)
     if (x11Context.pXRRAddOutputMode)
         x11Context.pXRRAddOutputMode(x11Context.pDisplay, outputId, pModeInfo->id);
 #endif
-
-    if (paOutputs[iOutputIndex].fPrimary)
-    {
-#ifdef WITH_DISTRO_XRAND_XINERAMA
-        XRRSetOutputPrimary(x11Context.pDisplay, x11Context.rootWindow, outputId);
-#else
-        if (x11Context.pXRRSetOutputPrimary)
-            x11Context.pXRRSetOutputPrimary(x11Context.pDisplay, x11Context.rootWindow, outputId);
-#endif
-    }
-
     /* Make sure outputs crtc is set. */
     pOutputInfo->crtc = pOutputInfo->crtcs[0];
 
@@ -1379,11 +1371,30 @@ static void setXrandrTopology(struct RANDROUTPUT *paOutputs)
     XFlush(x11Context.pDisplay);
 }
 
-/**
- * @interface_method_impl{VBCLSERVICE,pfnWorker}
- */
-static DECLCALLBACK(int) vbclSVGAWorker(bool volatile *pfShutdown)
+static const char *getName()
 {
+    return "Display SVGA X11";
+}
+
+static const char *getPidFilePath()
+{
+    return ".vboxclient-display-svga-x11.pid";
+}
+
+static int run(struct VBCLSERVICE **ppInterface, bool fDaemonised)
+{
+    RT_NOREF(ppInterface, fDaemonised);
+
+    /* In 32-bit guests GAs build on our release machines causes an xserver hang.
+     * So for 32-bit GAs we use our DRM client. */
+#if ARCH_BITS == 32
+    startDRMClient();
+    return VERR_NOT_AVAILABLE;
+#endif
+
+    if (!init())
+        return VERR_NOT_AVAILABLE;
+
     /* Do not acknowledge the first event we query for to pick up old events,
      * e.g. from before a guest reboot. */
     bool fAck = false;
@@ -1398,10 +1409,6 @@ static DECLCALLBACK(int) vbclSVGAWorker(bool volatile *pfShutdown)
         VBClLogFatalError("Failed to register resizing support, rc=%Rrc\n", rc);
     if (rc == VERR_RESOURCE_BUSY)  /* Someone else has already acquired it. */
         return VERR_RESOURCE_BUSY;
-
-    /* Let the main thread know that it can continue spawning services. */
-    RTThreadUserSignal(RTThreadSelf());
-
     for (;;)
     {
         struct VMMDevDisplayDef aDisplays[VMW_MAX_HEADS];
@@ -1446,7 +1453,6 @@ static DECLCALLBACK(int) vbclSVGAWorker(bool volatile *pfShutdown)
                 aOutputs[j].width = aMonitors[j].cx;
                 aOutputs[j].height = aMonitors[j].cy;
                 aOutputs[j].fEnabled = !(aMonitors[j].fDisplayFlags & VMMDEV_DISPLAY_DISABLED);
-                aOutputs[j].fPrimary = (aMonitors[j].fDisplayFlags & VMMDEV_DISPLAY_PRIMARY);
                 if (aOutputs[j].fEnabled)
                     iRunningX += aOutputs[j].width;
             }
@@ -1471,35 +1477,24 @@ static DECLCALLBACK(int) vbclSVGAWorker(bool volatile *pfShutdown)
         uint32_t events;
         do
         {
-            rc = VbglR3WaitEvent(VMMDEV_EVENT_DISPLAY_CHANGE_REQUEST, VBOX_SVGA_HOST_EVENT_RX_TIMEOUT_MS, &events);
-        } while (rc == VERR_TIMEOUT && !ASMAtomicReadBool(pfShutdown));
-
-        if (ASMAtomicReadBool(pfShutdown))
-        {
-            /* Shutdown requested. */
-            break;
-        }
-        else if (RT_FAILURE(rc))
-        {
+            rc = VbglR3WaitEvent(VMMDEV_EVENT_DISPLAY_CHANGE_REQUEST, RT_INDEFINITE_WAIT, &events);
+        } while (rc == VERR_INTERRUPTED);
+        if (RT_FAILURE(rc))
             VBClLogFatalError("Failure waiting for event, rc=%Rrc\n", rc);
-        }
-
-    };
-
-    return VINF_SUCCESS;
+    }
+    cleanup();
 }
 
-VBCLSERVICE g_SvcDisplaySVGA =
+static struct VBCLSERVICE interface =
 {
-    "dp-svga-x11",                      /* szName */
-    "SVGA X11 display",                 /* pszDescription */
-    ".vboxclient-display-svga-x11.pid", /* pszPidFilePath */
-    NULL,                               /* pszUsage */
-    NULL,                               /* pszOptions */
-    NULL,                               /* pfnOption */
-    vbclSVGAInit,                       /* pfnInit */
-    vbclSVGAWorker,                     /* pfnWorker */
-    vbclSVGAStop,                       /* pfnStop*/
-    NULL                                /* pfnTerm */
-};
+    getName,
+    getPidFilePath,
+    VBClServiceDefaultHandler, /* Init */
+    run,
+    VBClServiceDefaultCleanup
+}, *pInterface = &interface;
 
+struct VBCLSERVICE **VBClDisplaySVGAX11Service()
+{
+    return &pInterface;
+}

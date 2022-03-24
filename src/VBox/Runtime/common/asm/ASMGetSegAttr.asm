@@ -1,10 +1,10 @@
-; $Id: ASMGetSegAttr.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMGetSegAttr.asm $
 ;; @file
 ; IPRT - ASMGetSegAttr().
 ;
 
 ;
-; Copyright (C) 2013-2022 Oracle Corporation
+; Copyright (C) 2013-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ BEGINCODE
 ; @remarks Using ~0U for failure is chosen because valid access rights always
 ;          have bits 0:7 as 0 (on both Intel & AMD).
 ;
-RT_BEGINPROC ASMGetSegAttr
+BEGINPROC_EXPORTED ASMGetSegAttr
 %ifdef ASM_CALL64_MSC
     and     ecx, 0ffffh
     lar     eax, ecx

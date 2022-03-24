@@ -123,7 +123,7 @@ Create4GPageTablesIa32Pae (
         //
         // Need to split this 2M page that covers stack range.
         //
-        Split2MPageTo4K (PhysicalAddress, (UINT64 *) PageDirectoryEntry, StackBase, StackSize, 0, 0);
+        Split2MPageTo4K (PhysicalAddress, (UINT64 *) PageDirectoryEntry, StackBase, StackSize);
       } else {
         //
         // Fill in the Page Directory entries
@@ -246,12 +246,8 @@ HandOffToDxeCore (
   EFI_PEI_VECTOR_HANDOFF_INFO_PPI *VectorHandoffInfoPpi;
   BOOLEAN                   BuildPageTablesIa32Pae;
 
-  //
-  // Clear page 0 and mark it as allocated if NULL pointer detection is enabled.
-  //
   if (IsNullDetectionEnabled ()) {
     ClearFirst4KPage (HobList.Raw);
-    BuildMemoryAllocationHob (0, EFI_PAGES_TO_SIZE (1), EfiBootServicesData);
   }
 
   Status = PeiServicesAllocatePages (EfiBootServicesData, EFI_SIZE_TO_PAGES (STACK_SIZE), &BaseOfStack);
@@ -282,7 +278,7 @@ HandOffToDxeCore (
     //
     // Create page table and save PageMapLevel4 to CR3
     //
-    PageTables = CreateIdentityMappingPageTables (BaseOfStack, STACK_SIZE, 0, 0);
+    PageTables = CreateIdentityMappingPageTables (BaseOfStack, STACK_SIZE);
 
     //
     // End of PEI phase signal

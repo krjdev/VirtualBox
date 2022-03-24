@@ -1,10 +1,10 @@
-/* $Id: CFGMInternal.h 93392 2022-01-21 11:07:13Z vboxsync $ */
+/* $Id: CFGMInternal.h $ */
 /** @file
  * CFGM - Internal header file.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,7 +43,7 @@ typedef union CFGMVALUE
         uint64_t        u64;
     } Integer;
 
-    /** String or password value. (UTF-8 of course) */
+    /** String value. (UTF-8 of course) */
     struct CFGMVALUE_STRING
     {
         /** Length of string. (In bytes, including the terminator.) */

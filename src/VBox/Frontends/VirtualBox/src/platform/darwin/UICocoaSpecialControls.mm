@@ -1,10 +1,10 @@
-/* $Id: UICocoaSpecialControls.mm 94067 2022-03-02 21:04:24Z vboxsync $ */
+/* $Id: UICocoaSpecialControls.mm $ */
 /** @file
  * VBox Qt GUI - UICocoaSpecialControls implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -14,8 +14,6 @@
  * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
-
-#ifdef VBOX_DARWIN_USE_NATIVE_CONTROLS
 
 /* Qt includes: */
 #include <QMacCocoaViewContainer>
@@ -164,6 +162,4 @@ void UICocoaButton::onClicked()
 {
     emit clicked(false);
 }
-
-#endif /* VBOX_DARWIN_USE_NATIVE_CONTROLS */
 

@@ -20,17 +20,17 @@ typedef struct {
 } SHELL_LINE_LOG;
 
 ///
-/// FILE styte interfaces for StdIn.
+/// FILE sytle interfaces for StdIn.
 ///
 extern EFI_FILE_PROTOCOL FileInterfaceStdIn;
 
 ///
-/// FILE styte interfaces for StdOut.
+/// FILE sytle interfaces for StdOut.
 ///
 extern EFI_FILE_PROTOCOL FileInterfaceStdOut;
 
 ///
-/// FILE styte interfaces for StdErr.
+/// FILE sytle interfaces for StdErr.
 ///
 extern EFI_FILE_PROTOCOL FileInterfaceStdErr;
 

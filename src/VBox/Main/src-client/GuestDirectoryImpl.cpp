@@ -1,10 +1,10 @@
-/* $Id: GuestDirectoryImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDirectoryImpl.cpp $ */
 /** @file
  * VirtualBox Main - Guest directory handling.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -82,7 +82,7 @@ int GuestDirectory::init(Console *pConsole, GuestSession *pSession, ULONG aObjec
     {
         /* Start the directory process on the guest. */
         GuestProcessStartupInfo procInfo;
-        procInfo.mName.printf(tr("Opening directory \"%s\""), openInfo.mPath.c_str());
+        procInfo.mName      = Utf8StrFmt(tr("Opening directory \"%s\""), openInfo.mPath.c_str());
         procInfo.mTimeoutMS = 5 * 60 * 1000; /* 5 minutes timeout. */
         procInfo.mFlags     = ProcessCreateFlag_WaitForStdOut;
         procInfo.mExecutable= Utf8Str(VBOXSERVICE_TOOL_LS);
@@ -180,13 +180,6 @@ HRESULT GuestDirectory::getFilter(com::Utf8Str &aFilter)
 // private methods
 /////////////////////////////////////////////////////////////////////////////
 
-/**
- * Entry point for guest side directory callbacks.
- *
- * @returns VBox status code.
- * @param   pCbCtx              Host callback context.
- * @param   pSvcCb              Host callback data.
- */
 int GuestDirectory::i_callbackDispatcher(PVBOXGUESTCTRLHOSTCBCTX pCbCtx, PVBOXGUESTCTRLHOSTCALLBACK pSvcCb)
 {
     AssertPtrReturn(pCbCtx, VERR_INVALID_POINTER);
@@ -242,15 +235,21 @@ Utf8Str GuestDirectory::i_guestErrorToString(int rcGuest, const char *pcszWhat)
     AssertPtrReturn(pcszWhat, "");
 
     Utf8Str strErr;
+
+#define CASE_MSG(a_iRc, ...) \
+    case a_iRc: strErr = Utf8StrFmt(__VA_ARGS__); break;
+
+    /** @todo pData->u32Flags: int vs. uint32 -- IPRT errors are *negative* !!! */
     switch (rcGuest)
     {
-#define CASE_MSG(a_iRc, ...) \
-        case a_iRc: strErr.printf(__VA_ARGS__); break;
         CASE_MSG(VERR_CANT_CREATE  , tr("Access to guest directory \"%s\" is denied"), pcszWhat);
         CASE_MSG(VERR_DIR_NOT_EMPTY, tr("Guest directory \"%s\" is not empty"), pcszWhat);
         default:
-            strErr.printf(tr("Error %Rrc for guest directory \"%s\" occurred\n"), rcGuest, pcszWhat);
+        {
+            strErr = Utf8StrFmt("Error \"%s\" (%Rrc) for guest directory \"%s\" occurred\n",
+                                RTErrGetFull(rcGuest), rcGuest, pcszWhat);
             break;
+        }
     }
 
 #undef CASE_MSG
@@ -413,12 +412,10 @@ HRESULT GuestDirectory::close()
         switch (vrc)
         {
             case VERR_GSTCTL_GUEST_ERROR:
-            {
-                GuestErrorInfo ge(GuestErrorInfo::Type_Directory, rcGuest, mData.mOpenInfo.mPath.c_str());
-                hr = setErrorBoth(VBOX_E_IPRT_ERROR, rcGuest, tr("Closing guest directory failed: %s"),
-                                  GuestBase::getErrorAsString(ge).c_str());
+                hr = setErrorExternal(this, tr("Closing guest directory failed"),
+                                      GuestErrorInfo(GuestErrorInfo::Type_Directory, rcGuest, mData.mOpenInfo.mPath.c_str()));
                 break;
-            }
+
             case VERR_NOT_SUPPORTED:
                 /* Silently skip old Guest Additions which do not support killing the
                  * the guest directory handling process. */
@@ -456,12 +453,10 @@ HRESULT GuestDirectory::read(ComPtr<IFsObjInfo> &aObjInfo)
         switch (vrc)
         {
             case VERR_GSTCTL_GUEST_ERROR:
-            {
-                GuestErrorInfo ge(GuestErrorInfo::Type_ToolLs, rcGuest, mData.mOpenInfo.mPath.c_str());
-                hr = setErrorBoth(VBOX_E_IPRT_ERROR, rcGuest, tr("Reading guest directory failed: %s"),
-                                  GuestBase::getErrorAsString(ge).c_str());
+                hr = setErrorExternal(this, tr("Reading guest directory failed"),
+                                      GuestErrorInfo(GuestErrorInfo::Type_ToolLs, rcGuest, mData.mOpenInfo.mPath.c_str()));
                 break;
-            }
+
             case VERR_GSTCTL_PROCESS_EXIT_CODE:
                 hr = setErrorBoth(VBOX_E_IPRT_ERROR, vrc, tr("Reading guest directory \"%s\" failed: %Rrc"),
                                   mData.mOpenInfo.mPath.c_str(), mData.mProcessTool.getRc());

@@ -1,10 +1,10 @@
-/* $Id: VBoxNetFlt.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetFlt.c $ */
 /** @file
  * VBoxNetFlt - Network Filter Driver (Host), Common Code.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -770,7 +770,7 @@ static DECLCALLBACK(void) vboxNetFltPortRelease(PINTNETTRUNKIFPORT pIfPort)
 /**
  * @callback_method_impl{FNINTNETTRUNKIFPORTRELEASEBUSY}
  */
-DECL_HIDDEN_CALLBACK(void) vboxNetFltPortReleaseBusy(PINTNETTRUNKIFPORT pIfPort)
+DECLHIDDEN(DECLCALLBACK(void)) vboxNetFltPortReleaseBusy(PINTNETTRUNKIFPORT pIfPort)
 {
     PVBOXNETFLTINS pThis = IFPORT_2_VBOXNETFLTINS(pIfPort);
     vboxNetFltRelease(pThis, true /*fBusy*/);

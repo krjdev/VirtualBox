@@ -1,4 +1,4 @@
-/* $Id: DevEFI.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevEFI.h $ */
 /** @file
  * EFI for VirtualBox Common Definitions.
  *
@@ -8,7 +8,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -71,16 +71,8 @@ typedef enum
     EFI_INFO_INDEX_VERTICAL_RESOLUTION,
     EFI_INFO_INDEX_MCFG_BASE,
     EFI_INFO_INDEX_MCFG_SIZE,
-    EFI_INFO_INDEX_APIC_MODE,
     EFI_INFO_INDEX_END
 } EfiInfoIndex;
-
-/** @name APIC mode defines as returned by EFI_INFO_INDEX_APIC_MODE
- * @{ */
-#define EFI_APIC_MODE_DISABLED          0
-#define EFI_APIC_MODE_APIC              1
-#define EFI_APIC_MODE_X2APIC            2
-/** @} */
 
 /** Panic port.
  * Write causes action to be taken according to the value written,

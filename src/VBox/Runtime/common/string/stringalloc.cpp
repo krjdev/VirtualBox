@@ -1,10 +1,10 @@
-/* $Id: stringalloc.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: stringalloc.cpp $ */
 /** @file
  * IPRT - String Manipulation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -115,24 +115,22 @@ RTDECL(char *) RTStrDupTag(const char *pszString, const char *pszTag)
 RT_EXPORT_SYMBOL(RTStrDupTag);
 
 
-RTDECL(int)  RTStrDupExTag(char **ppszCopy, const char *pszString, const char *pszTag)
+RTDECL(int)  RTStrDupExTag(char **ppszString, const char *pszString, const char *pszTag)
 {
 #if defined(__cplusplus)
-    AssertPtr(ppszCopy);
+    AssertPtr(ppszString);
     AssertPtr(pszString);
 #endif
 
-    size_t cch = strlen(pszString);
-    char *pszDst = (char *)RTMemAllocTag(cch + 1, pszTag);
-    if (pszDst)
+    size_t cch = strlen(pszString) + 1;
+    char *psz = (char *)RTMemAllocTag(cch, pszTag);
+    if (psz)
     {
-        memcpy(pszDst, pszString, cch);
-        pszDst[cch] = '\0';
-        *ppszCopy = pszDst;
+        memcpy(psz, pszString, cch);
+        *ppszString = psz;
         return VINF_SUCCESS;
     }
-    *ppszCopy = NULL;
-    return VERR_NO_STR_MEMORY;
+    return VERR_NO_MEMORY;
 }
 RT_EXPORT_SYMBOL(RTStrDupExTag);
 
@@ -153,27 +151,6 @@ RTDECL(char *) RTStrDupNTag(const char *pszString, size_t cchMax, const char *ps
     return pszDst;
 }
 RT_EXPORT_SYMBOL(RTStrDupNTag);
-
-
-RTDECL(int) RTStrDupNExTag(char **ppszCopy, const char *pszString, size_t cchMax, const char *pszTag)
-{
-#if defined(__cplusplus)
-    AssertPtr(pszString);
-#endif
-    char const *pszEnd = RTStrEnd(pszString, cchMax);
-    size_t      cch    = pszEnd ? (uintptr_t)pszEnd - (uintptr_t)pszString : cchMax;
-    char       *pszDst = (char *)RTMemAllocTag(cch + 1, pszTag);
-    if (pszDst)
-    {
-        memcpy(pszDst, pszString, cch);
-        pszDst[cch] = '\0';
-        *ppszCopy = pszDst;
-        return VINF_SUCCESS;
-    }
-    *ppszCopy = NULL;
-    return VERR_NO_STR_MEMORY;
-}
-RT_EXPORT_SYMBOL(RTStrDupNExTag);
 
 
 RTDECL(int) RTStrAAppendTag(char **ppsz, const char *pszAppend, const char *pszTag)
@@ -209,7 +186,7 @@ RTDECL(int) RTStrAAppendNTag(char **ppsz, const char *pszAppend, size_t cchAppen
 }
 
 
-#if !defined(IN_RING0) && !defined(IPRT_NO_ALLOCA_TROUBLE)
+#ifndef IN_RING0
 
 /* XXX Currently not needed anywhere. alloca() induces some linker problems for ring 0 code
  * with newer versions of VCC */

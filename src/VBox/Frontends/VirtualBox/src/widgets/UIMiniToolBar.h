@@ -1,10 +1,10 @@
-/* $Id: UIMiniToolBar.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMiniToolBar.h $ */
 /** @file
  * VBox Qt GUI - UIMiniToolBar class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #endif
 
 /* GUI includes: */
-#include "QIToolBar.h"
+#include "UIToolBar.h"
 
 /* Forward declarations: */
 class QMenu;
@@ -64,10 +64,6 @@ signals:
 
     /** Notifies listeners about we stole window activation. */
     void sigNotifyAboutWindowActivationStolen();
-
-    /** Notifies listeners about auto-hide toggled.
-      * @param  fEnabled  Brings whether auto-hide is enabled. */
-    void sigAutoHideToggled(bool fEnabled);
 
 public:
 

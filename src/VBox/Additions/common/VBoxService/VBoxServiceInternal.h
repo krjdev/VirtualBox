@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxServiceInternal.h $ */
 /** @file
  * VBoxService - Guest Additions Services.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -75,7 +75,7 @@ typedef struct
      * Called before parsing arguments.
      * @returns VBox status code.
      */
-    DECLCALLBACKMEMBER(int, pfnPreInit,(void));
+    DECLCALLBACKMEMBER(int, pfnPreInit)(void);
 
     /**
      * Tries to parse the given command line option.
@@ -87,13 +87,13 @@ typedef struct
      * @param   argv        The argument vector.
      * @param   pi          The argument vector index. Update if any value(s) are eaten.
      */
-    DECLCALLBACKMEMBER(int, pfnOption,(const char **ppszShort, int argc, char **argv, int *pi));
+    DECLCALLBACKMEMBER(int, pfnOption)(const char **ppszShort, int argc, char **argv, int *pi);
 
     /**
      * Called before parsing arguments.
      * @returns VBox status code.
      */
-    DECLCALLBACKMEMBER(int, pfnInit,(void));
+    DECLCALLBACKMEMBER(int, pfnInit)(void);
 
     /** Called from the worker thread.
      *
@@ -102,19 +102,19 @@ typedef struct
      * @param   pfShutdown      Pointer to a per service termination flag to check
      *                          before and after blocking.
      */
-    DECLCALLBACKMEMBER(int, pfnWorker,(bool volatile *pfShutdown));
+    DECLCALLBACKMEMBER(int, pfnWorker)(bool volatile *pfShutdown);
 
     /**
      * Stops a service.
      */
-    DECLCALLBACKMEMBER(void, pfnStop,(void));
+    DECLCALLBACKMEMBER(void, pfnStop)(void);
 
     /**
      * Does termination cleanups.
      *
      * @remarks This may be called even if pfnInit hasn't been called!
      */
-    DECLCALLBACKMEMBER(void, pfnTerm,(void));
+    DECLCALLBACKMEMBER(void, pfnTerm)(void);
 } VBOXSERVICE;
 /** Pointer to a VBOXSERVICE. */
 typedef VBOXSERVICE *PVBOXSERVICE;
@@ -262,7 +262,7 @@ extern int                      VGSvcVMInfoWinGetComponentVersions(uint32_t uCli
 
 #endif /* RT_OS_WINDOWS */
 
-#ifdef VBOX_WITH_MEMBALLOON
+#ifdef VBOX_WITH_VBOXSERVICE_MANAGEMENT
 extern uint32_t                 VGSvcBalloonQueryPages(uint32_t cbPage);
 #endif
 #if defined(VBOX_WITH_VBOXSERVICE_PAGE_SHARING)

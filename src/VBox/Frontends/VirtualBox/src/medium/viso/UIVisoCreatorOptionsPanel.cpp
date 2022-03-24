@@ -1,10 +1,10 @@
-/* $Id: UIVisoCreatorOptionsPanel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVisoCreatorOptionsPanel.cpp $ */
 /** @file
  * VBox Qt GUI - UIVisoCreatorOptionsPanel class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,7 +50,7 @@ void UIVisoCreatorOptionsPanel::setShowHiddenbjects(bool fShow)
 void UIVisoCreatorOptionsPanel::retranslateUi()
 {
     if (m_pShowHiddenObjectsLabel)
-        m_pShowHiddenObjectsLabel->setText(QApplication::translate("UIVisoCreatorWidget", "Show Hidden Objects"));
+        m_pShowHiddenObjectsLabel->setText(QApplication::translate("UIVisoCreator", "Show Hidden Objects"));
 }
 
 void UIVisoCreatorOptionsPanel::sltHandlShowHiddenObjectsChange(int iState)
@@ -67,7 +67,7 @@ void UIVisoCreatorOptionsPanel::prepareObjects()
         return;
 
     m_pShowHiddenObjectsCheckBox = new QCheckBox;
-    m_pShowHiddenObjectsLabel = new QILabel(QApplication::translate("UIVisoCreatorWidget", "Show Hidden Objects"));
+    m_pShowHiddenObjectsLabel = new QILabel(QApplication::translate("UIVisoCreator", "Show Hidden Objects"));
     m_pShowHiddenObjectsLabel->setBuddy(m_pShowHiddenObjectsCheckBox);
     mainLayout()->addWidget(m_pShowHiddenObjectsCheckBox, 0, Qt::AlignLeft);
     mainLayout()->addWidget(m_pShowHiddenObjectsLabel, 0, Qt::AlignLeft);

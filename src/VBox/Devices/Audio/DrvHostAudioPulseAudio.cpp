@@ -1,10 +1,10 @@
-/* $Id: DrvHostAudioPulseAudio.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostAudioPulseAudio.cpp $ */
 /** @file
  * Host audio driver - Pulse Audio.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -457,7 +457,7 @@ static void drvHstAudPaEnumSourceCallback(pa_context *pCtx, const pa_source_info
 
     if (eol == 0 && pInfo != NULL)
     {
-        LogRel2(("PulseAudio: Source #%u: %u Hz %uch format=%u name='%s' desc='%s' driver='%s' flags=%#x\n",
+        LogRel2(("Pulse Audio: Source #%u: %u Hz %uch format=%u name='%s' desc='%s' driver='%s' flags=%#x\n",
                  pInfo->index, pInfo->sample_spec.rate, pInfo->sample_spec.channels, pInfo->sample_spec.format,
                  pInfo->name, pInfo->description, pInfo->driver, pInfo->flags));
         drvHstAudPaEnumAddDevice(pCbCtx, PDMAUDIODIR_IN, pInfo->name, pInfo->description,
@@ -493,7 +493,7 @@ static void drvHstAudPaEnumSinkCallback(pa_context *pCtx, const pa_sink_info *pI
 
     if (eol == 0 && pInfo != NULL)
     {
-        LogRel2(("PulseAudio: Sink #%u: %u Hz %uch format=%u name='%s' desc='%s' driver='%s' flags=%#x\n",
+        LogRel2(("Pulse Audio: Sink #%u: %u Hz %uch format=%u name='%s' desc='%s' driver='%s' flags=%#x\n",
                  pInfo->index, pInfo->sample_spec.rate, pInfo->sample_spec.channels, pInfo->sample_spec.format,
                  pInfo->name, pInfo->description, pInfo->driver, pInfo->flags));
         drvHstAudPaEnumAddDevice(pCbCtx, PDMAUDIODIR_OUT, pInfo->name, pInfo->description,
@@ -829,20 +829,18 @@ static void drvHstAudPaStreamUnderflowStatsCallback(pa_stream *pStream, void *pv
         pa_stream_get_latency(pStream, &cUsLatency, &fNegative);
         LogRel2(("PulseAudio: Latency now is %'RU64 us\n", cUsLatency));
 
-        if (LogRelIs2Enabled())
+# ifdef LOG_ENABLED
+        if (LogIs2Enabled())
         {
             const pa_timing_info *pTInfo = pa_stream_get_timing_info(pStream);
             AssertReturnVoid(pTInfo);
             const pa_sample_spec *pSpec  = pa_stream_get_sample_spec(pStream);
             AssertReturnVoid(pSpec);
-            LogRel2(("PulseAudio: Timing info: writepos=%'RU64 us, readpost=%'RU64 us, latency=%'RU64 us (%RU32Hz %RU8ch)\n",
-                     pa_bytes_to_usec(pTInfo->write_index, pSpec), pa_bytes_to_usec(pTInfo->read_index, pSpec),
-                     cUsLatency, pSpec->rate, pSpec->channels));
+            Log2Func(("writepos=%'RU64 us, readpost=%'RU64 us, age=%'RU64 us, latency=%'RU64 us (%RU32Hz %RU8ch)\n",
+                      pa_bytes_to_usec(pTInfo->write_index, pSpec), pa_bytes_to_usec(pTInfo->read_index, pSpec),
+                      pa_rtclock_now() - pStreamPA->tsStartUs, cUsLatency, pSpec->rate, pSpec->channels));
         }
-
-#ifdef LOG_ENABLED
-        Log2Func(("age=%'RU64 us\n", pa_rtclock_now() - pStreamPA->tsStartUs));
-#endif
+# endif
     }
 }
 
@@ -1823,8 +1821,7 @@ static DECLCALLBACK(uint32_t) drvHstAudPaHA_StreamGetWritable(PPDMIHOSTAUDIO pIn
                 drvHstAudPaError(pThis, "pa_stream_writable_size failed on '%s'", pStreamPA->Cfg.szName);
         }
         else
-            drvHstAudPaError(pThis, "Non-good %s stream state for '%s' (%#x)\n",
-                             PDMAudioDirGetName(pStreamPA->Cfg.enmDir), pStreamPA->Cfg.szName, enmState);
+            LogFunc(("non-good stream state: %d\n", enmState));
 
         pa_threaded_mainloop_unlock(pThis->pMainLoop);
     }
@@ -1933,7 +1930,7 @@ static DECLCALLBACK(uint32_t) drvHstAudPaHA_StreamGetReadable(PPDMIHOSTAUDIO pIn
             size_t cbReadablePa = pa_stream_readable_size(pStreamPA->pStream);
             if (cbReadablePa != (size_t)-1)
             {
-                /* As with WASAPI on Windows, the peek buffer must be subtracted.*/
+                /* As with WASAPI on windows, the peek buffer must be subtracked.*/
                 if (cbReadablePa >= pStreamPA->cbPeekBuf)
                     cbReadable = (uint32_t)(cbReadablePa - pStreamPA->cbPeekBuf);
                 else
@@ -1946,8 +1943,7 @@ static DECLCALLBACK(uint32_t) drvHstAudPaHA_StreamGetReadable(PPDMIHOSTAUDIO pIn
                 drvHstAudPaError(pThis, "pa_stream_readable_size failed on '%s'", pStreamPA->Cfg.szName);
         }
         else
-            drvHstAudPaError(pThis, "Non-good %s stream state for '%s' (%#x)\n",
-                             PDMAudioDirGetName(pStreamPA->Cfg.enmDir), pStreamPA->Cfg.szName, enmState);
+            LogFunc(("non-good stream state: %d\n", enmState));
 
         pa_threaded_mainloop_unlock(pThis->pMainLoop);
     }
@@ -2207,9 +2203,7 @@ static DECLCALLBACK(int) drvHstAudPaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
 {
     RT_NOREF(pCfg, fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHSTAUDPA    pThis = PDMINS_2_DATA(pDrvIns, PDRVHSTAUDPA);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    PDRVHSTAUDPA pThis = PDMINS_2_DATA(pDrvIns, PDRVHSTAUDPA);
     LogRel(("Audio: Initializing PulseAudio driver\n"));
 
     /*
@@ -2245,11 +2239,11 @@ static DECLCALLBACK(int) drvHstAudPaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
      * Read configuration.
      */
     PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "VmName|InputDeviceID|OutputDeviceID", "");
-    int rc = pHlp->pfnCFGMQueryString(pCfg, "VmName", pThis->szStreamName, sizeof(pThis->szStreamName));
+    int rc = CFGMR3QueryString(pCfg, "VmName", pThis->szStreamName, sizeof(pThis->szStreamName));
     AssertMsgRCReturn(rc, ("Confguration error: No/bad \"VmName\" value, rc=%Rrc\n", rc), rc);
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "InputDeviceID", pThis->szInputDev, sizeof(pThis->szInputDev), "");
+    rc = CFGMR3QueryStringDef(pCfg, "InputDeviceID", pThis->szInputDev, sizeof(pThis->szInputDev), "");
     AssertMsgRCReturn(rc, ("Confguration error: Failed to read \"InputDeviceID\" as string: rc=%Rrc\n", rc), rc);
-    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "OutputDeviceID", pThis->szOutputDev, sizeof(pThis->szOutputDev), "");
+    rc = CFGMR3QueryStringDef(pCfg, "OutputDeviceID", pThis->szOutputDev, sizeof(pThis->szOutputDev), "");
     AssertMsgRCReturn(rc, ("Confguration error: Failed to read \"OutputDeviceID\" as string: rc=%Rrc\n", rc), rc);
 
     /*
@@ -2261,20 +2255,14 @@ static DECLCALLBACK(int) drvHstAudPaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
     /*
      * Load the pulse audio library.
      */
-    LogRel2(("PulseAudio: Loading PulseAudio shared library ...\n"));
     rc = audioLoadPulseLib();
     if (RT_SUCCESS(rc))
-    {
-        LogRel2(("PulseAudio: PulseAudio shared library loaded\n"));
         LogRel(("PulseAudio: Using version %s\n", pa_get_library_version()));
-    }
     else
     {
         LogRel(("PulseAudio: Failed to load the PulseAudio shared library! Error %Rrc\n", rc));
         return rc;
     }
-
-    LogRel2(("PulseAudio: Starting PulseAudio main loop ...\n"));
 
     /*
      * Set up the basic pulse audio bits (remember the destructore is always called).
@@ -2299,8 +2287,6 @@ static DECLCALLBACK(int) drvHstAudPaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
         LogRel(("PulseAudio: Failed to start threaded mainloop: %s\n", pa_strerror(pa_context_errno(pThis->pContext))));
         return VERR_AUDIO_BACKEND_INIT_FAILED;
     }
-
-    LogRel2(("PulseAudio: Started PulseAudio main loop, connecting to server ...\n"));
 
     /*
      * Connect to the pulse audio server.
@@ -2356,15 +2342,12 @@ static DECLCALLBACK(int) drvHstAudPaConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg
      */
     if (RT_SUCCESS(rc))
     {
-        LogRel2(("PulseAudio: Connected to PulseAudio server\n"));
-
         PDMDrvHlpSTAMRegister(pDrvIns, &pThis->StatOverruns, STAMTYPE_COUNTER, "Overruns", STAMUNIT_OCCURENCES,
                               "Pulse-server side buffer overruns (all streams)");
         PDMDrvHlpSTAMRegister(pDrvIns, &pThis->StatUnderruns, STAMTYPE_COUNTER, "Underruns", STAMUNIT_OCCURENCES,
                               "Pulse-server side buffer underruns (all streams)");
     }
 
-    LogRel2(("PulseAudio: Initialization ended with %Rrc\n", rc));
     return rc;
 }
 

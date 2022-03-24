@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -118,9 +118,7 @@
 # endif
 
     /* x-bit types */
-#  if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) \
-   || defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64) \
-   || defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64)
+#  if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) || defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64)
 #   if !defined(_INT8_T_DECLARED)   && !defined(_INT8_T)
 typedef signed char         int8_t;
 #   endif
@@ -192,7 +190,7 @@ typedef uint64_t            uintmax_t;
 # endif /* !linux kernel or stuff */
 
     /* pointer <-> integer types */
-# if (!defined(_MSC_VER) && !defined(__WATCOMC__)) || defined(DOXYGEN_RUNNING)
+# if !defined(_MSC_VER) || defined(DOXYGEN_RUNNING)
 #  if ARCH_BITS == 32 \
    || defined(RT_OS_LINUX) \
    || defined(RT_OS_FREEBSD)

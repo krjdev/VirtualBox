@@ -1,4 +1,4 @@
-/* $Id: DrvVDE.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvVDE.cpp $ */
 /** @file
  * VDE network transport driver.
  */
@@ -6,7 +6,7 @@
 /*
  * Contributed by Renzo Davoli. VirtualSquare. University of Bologna, 2010
  *
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -501,7 +501,7 @@ static DECLCALLBACK(void) drvVDEDestruct(PPDMDRVINS pDrvIns)
         pThis->hPipeRead = NIL_RTPIPE;
     }
 
-    PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDeviceName);
+    MMR3HeapFree(pThis->pszDeviceName);
     pThis->pszDeviceName = NULL;
 
     /*
@@ -539,8 +539,7 @@ static DECLCALLBACK(int) drvVDEConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVVDE         pThis = PDMINS_2_DATA(pDrvIns, PDRVVDE);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVVDE pThis = PDMINS_2_DATA(pDrvIns, PDRVVDE);
 
     /*
      * Init the static parts.
@@ -576,7 +575,8 @@ static DECLCALLBACK(int) drvVDEConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "network", "");
+    if (!CFGMR3AreValuesValid(pCfg, "network"))
+        return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES, "");
 
     /*
      * Check that no-one is attached to us.
@@ -598,7 +598,7 @@ static DECLCALLBACK(int) drvVDEConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uin
      */
     int rc;
     char szNetwork[RTPATH_MAX];
-    rc = pHlp->pfnCFGMQueryString(pCfg, "network", szNetwork, sizeof(szNetwork));
+    rc = CFGMR3QueryString(pCfg, "network", szNetwork, sizeof(szNetwork));
     if (RT_FAILURE(rc))
         *szNetwork=0;
 

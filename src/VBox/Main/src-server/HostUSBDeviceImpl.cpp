@@ -1,10 +1,10 @@
-/* $Id: HostUSBDeviceImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HostUSBDeviceImpl.cpp $ */
 /** @file
  * VirtualBox IHostUSBDevice COM interface implementation.
  */
 
 /*
- * Copyright (C) 2005-2022 Oracle Corporation
+ * Copyright (C) 2005-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1205,7 +1205,7 @@ bool HostUSBDevice::i_updateState(PCUSBDEVICE aDev, bool *aRunFilters, SessionMa
 /*
  * Defined on hosts where we have a driver that keeps proper device states.
  */
-# if defined(RT_OS_LINUX) || defined(RT_OS_DARWIN)
+# if defined(RT_OS_LINUX)
 #  define HOSTUSBDEVICE_FUZZY_STATE 1
 # else
 #  undef  HOSTUSBDEVICE_FUZZY_STATE

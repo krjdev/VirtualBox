@@ -1,10 +1,10 @@
-/* $Id: string.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: string.cpp $ */
 /** @file
  * MS COM / XPCOM Abstraction Layer - UTF-8 and UTF-16 string classes.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -18,8 +18,8 @@
 #include "VBox/com/string.h"
 
 #include <iprt/err.h>
-#include <iprt/log.h>
 #include <iprt/path.h>
+#include <iprt/log.h>
 #include <iprt/string.h>
 #include <iprt/uni.h>
 
@@ -185,50 +185,6 @@ void Bstr::copyFromN(const char *a_pszSrc, size_t a_cchMax)
     throw std::bad_alloc();
 }
 
-HRESULT Bstr::cleanupAndCopyFromNoThrow(const char *a_pszSrc, size_t a_cchMax) RT_NOEXCEPT
-{
-    /*
-     * Check for empty input (m_bstr == NULL means empty, there are no NULL strings).
-     */
-    cleanup();
-    if (!a_cchMax || !a_pszSrc || !*a_pszSrc)
-        return S_OK;
-
-    /*
-     * Calculate the length and allocate a BSTR string buffer of the right
-     * size, i.e. optimize heap usage.
-     */
-    HRESULT hrc;
-    size_t cwc;
-    int vrc = ::RTStrCalcUtf16LenEx(a_pszSrc, a_cchMax, &cwc);
-    if (RT_SUCCESS(vrc))
-    {
-        m_bstr = ::SysAllocStringByteLen(NULL, (unsigned)(cwc * sizeof(OLECHAR)));
-        if (RT_LIKELY(m_bstr))
-        {
-            PRTUTF16 pwsz = (PRTUTF16)m_bstr;
-            vrc = ::RTStrToUtf16Ex(a_pszSrc, a_cchMax, &pwsz, cwc + 1, NULL);
-            if (RT_SUCCESS(vrc))
-                return S_OK;
-
-            /* This should not happen! */
-            AssertRC(vrc);
-            cleanup();
-            hrc = E_UNEXPECTED;
-        }
-        else
-            hrc = E_OUTOFMEMORY;
-    }
-    else
-    {
-        /* Unexpected: Invalid UTF-8 input. */
-        AssertLogRelMsgFailed(("%Rrc %.*Rhxs\n", vrc, RTStrNLen(a_pszSrc, a_cchMax), a_pszSrc));
-        hrc = E_UNEXPECTED;
-    }
-    return hrc;
-}
-
-
 int Bstr::compareUtf8(const char *a_pszRight, CaseSensitivity a_enmCase /*= CaseSensitive*/) const
 {
     PCRTUTF16 pwszLeft = m_bstr;
@@ -274,27 +230,9 @@ int Bstr::compareUtf8(const char *a_pszRight, CaseSensitivity a_enmCase /*= Case
 }
 
 
-bool Bstr::startsWith(Bstr const &a_rStart) const
-{
-    return RTUtf16NCmp(m_bstr, a_rStart.m_bstr, a_rStart.length()) == 0;
-}
-
-
-bool Bstr::startsWith(RTCString const &a_rStart) const
-{
-    return RTUtf16NCmpUtf8(m_bstr, a_rStart.c_str(), RTSTR_MAX, a_rStart.length()) == 0;
-}
-
-
-bool Bstr::startsWith(const char *a_pszStart) const
-{
-    return RTUtf16NCmpUtf8(m_bstr, a_pszStart, RTSTR_MAX, strlen(a_pszStart)) == 0;
-}
-
-
 #ifndef VBOX_WITH_XPCOM
 
-HRESULT Bstr::joltNoThrow(ssize_t cwcNew /* = -1*/) RT_NOEXCEPT
+HRESULT Bstr::joltNoThrow(ssize_t cwcNew /* = -1*/)
 {
     if (m_bstr)
     {
@@ -681,9 +619,7 @@ void Bstr::copyFrom(const OLECHAR *a_bstrSrc)
     if (a_bstrSrc && *a_bstrSrc)
     {
         m_bstr = ::SysAllocString(a_bstrSrc);
-        if (RT_LIKELY(m_bstr))
-        { /* likely */ }
-        else
+        if (!m_bstr)
             throw std::bad_alloc();
     }
     else
@@ -695,24 +631,6 @@ void Bstr::cleanupAndCopyFrom(const OLECHAR *a_bstrSrc)
 {
     cleanup();
     copyFrom(a_bstrSrc);
-}
-
-
-HRESULT Bstr::cleanupAndCopyFromEx(const OLECHAR *a_bstrSrc) RT_NOEXCEPT
-{
-    cleanup();
-
-    if (a_bstrSrc && *a_bstrSrc)
-    {
-        m_bstr = ::SysAllocString(a_bstrSrc);
-        if (RT_LIKELY(m_bstr))
-        { /* likely */ }
-        else
-            return E_OUTOFMEMORY;
-    }
-    else
-        m_bstr = NULL;
-    return S_OK;
 }
 
 
@@ -747,17 +665,6 @@ HRESULT Utf8Str::cloneToEx(char **pstr) const
     return E_OUTOFMEMORY;
 }
 #endif
-
-HRESULT Utf8Str::cloneToEx(BSTR *pbstr) const RT_NOEXCEPT
-{
-    if (!pbstr)
-        return S_OK;
-    Bstr bstr;
-    HRESULT hrc = bstr.assignEx(*this);
-    if (SUCCEEDED(hrc))
-        hrc = bstr.detachToEx(pbstr);
-    return hrc;
-}
 
 Utf8Str& Utf8Str::stripTrailingSlash()
 {

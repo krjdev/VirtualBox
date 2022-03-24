@@ -1,10 +1,10 @@
-/* $Id: VBoxManageCloud.cpp 94238 2022-03-15 09:44:00Z vboxsync $ */
+/* $Id: VBoxManageCloud.cpp $ */
 /** @file
  * VBoxManageCloud - The cloud related commands.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,9 +41,6 @@
 
 using namespace com;//at least for Bstr
 
-DECLARE_TRANSLATION_CONTEXT(Cloud);
-
-
 /**
  * Common Cloud options.
  */
@@ -71,12 +68,12 @@ static HRESULT checkAndSetCommonOptions(HandlerArg *a, PCLOUDCOMMONOPT pCommonOp
     /* check for required options */
     if (bstrProvider.isEmpty())
     {
-        errorSyntax(Cloud::tr("Parameter --provider is required"));
+        errorSyntax(USAGE_S_NEWCMD, "Parameter --provider is required");
         return E_FAIL;
     }
     if (bstrProfile.isEmpty())
     {
-        errorSyntax(Cloud::tr("Parameter --profile is required"));
+        errorSyntax(USAGE_S_NEWCMD, "Parameter --profile is required");
         return E_FAIL;
     }
 
@@ -117,9 +114,7 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     static const RTGETOPTDEF s_aOptions[] =
     {
         { "--compartment-id", 'c', RTGETOPT_REQ_STRING },
-        { "--state",          's', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
+        { "--state",          's', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
@@ -161,12 +156,10 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
                 else if (RTStrICmp(pszState, "terminating") == 0)
                     machineStates.push_back(CloudMachineState_Terminating);
                 else
-                    return errorArgument(Cloud::tr("Unknown cloud instance state \"%s\""), pszState);
+                    return errorArgument("Unknown cloud instance state \"%s\"", pszState);
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -176,12 +169,6 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     }
 
     HRESULT hrc = S_OK;
-
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
 
     ComPtr<ICloudProviderManager> pCloudProviderManager;
@@ -207,18 +194,17 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     }
     else
     {
-        RTPrintf(Cloud::tr("Parameter \'compartment\' is empty or absent.\n"
-                           "Trying to get the compartment from the passed cloud profile \'%s\'\n"),
-                 pCommonOpts->profile.pszProfileName);
+        RTPrintf("Parameter \'compartment\' is empty or absent.\n"
+                 "Trying to get the compartment from the passed cloud profile \'%s\'\n", pCommonOpts->profile.pszProfileName);
         Bstr bStrCompartmentId;
         CHECK_ERROR2_RET(hrc, pCloudProfile,
                          GetProperty(Bstr("compartment").raw(), bStrCompartmentId.asOutParam()),
                          RTEXITCODE_FAILURE);
         strCompartmentId = bStrCompartmentId;
         if (strCompartmentId.isNotEmpty())
-            RTPrintf(Cloud::tr("Found the compartment \'%s\':\n"), strCompartmentId.c_str());
+            RTPrintf("Found the compartment \'%s\':\n", strCompartmentId.c_str());
         else
-            return errorSyntax(Cloud::tr("Parameter --compartment-id is required"));
+            return errorSyntax(USAGE_S_NEWCMD, "Parameter --compartment-id is required");
     }
 
     Bstr bstrProfileName;
@@ -235,7 +221,7 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     com::SafeArray<BSTR> arrayVMIds;
     ComPtr<IProgress> pProgress;
 
-    RTPrintf(Cloud::tr("Reply is in the form \'instance name\' = \'instance id\'\n"));
+    RTPrintf("Reply is in the form \'instance name\' = \'instance id\'\n");
 
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      ListInstances(ComSafeArrayAsInParam(machineStates),
@@ -244,7 +230,7 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
                                    pProgress.asOutParam()),
                      RTEXITCODE_FAILURE);
     showProgress(pProgress);
-    CHECK_PROGRESS_ERROR_RET(pProgress, (Cloud::tr("Failed to list instances")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(pProgress, ("Failed to list instances"), RTEXITCODE_FAILURE);
 
     CHECK_ERROR2_RET(hrc,
         pVMNamesHolder, COMGETTER(Values)(ComSafeArrayAsOutParam(arrayVMNames)),
@@ -253,7 +239,7 @@ static RTEXITCODE listCloudInstances(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
         pVMIdsHolder, COMGETTER(Values)(ComSafeArrayAsOutParam(arrayVMIds)),
             RTEXITCODE_FAILURE);
 
-    RTPrintf(Cloud::tr("The list of the instances for the cloud profile \'%ls\'\nand compartment \'%s\':\n"),
+    RTPrintf("The list of the instances for the cloud profile \'%ls\' \nand compartment \'%s\':\n",
              bstrProfileName.raw(), strCompartmentId.c_str());
     size_t cIds = arrayVMIds.size();
     size_t cNames = arrayVMNames.size();
@@ -283,9 +269,7 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
     static const RTGETOPTDEF s_aOptions[] =
     {
         { "--compartment-id", 'c', RTGETOPT_REQ_STRING },
-        { "--state",          's', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
+        { "--state",          's', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
@@ -321,12 +305,10 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
                 else if (RTStrICmp(pszState, "provisioning") == 0)
                     imageStates.push_back(CloudImageState_Provisioning);
                 else
-                    return errorArgument(Cloud::tr("Unknown cloud image state \"%s\""), pszState);
+                    return errorArgument("Unknown cloud image state \"%s\"", pszState);
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -337,12 +319,6 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
 
 
     HRESULT hrc = S_OK;
-
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
 
     ComPtr<ICloudProviderManager> pCloudProviderManager;
@@ -368,18 +344,17 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
     }
     else
     {
-        RTPrintf(Cloud::tr("Parameter \'compartment\' is empty or absent.\n"
-                           "Trying to get the compartment from the passed cloud profile \'%s\'\n"),
-                 pCommonOpts->profile.pszProfileName);
+        RTPrintf("Parameter \'compartment\' is empty or absent.\n"
+                 "Trying to get the compartment from the passed cloud profile \'%s\'\n", pCommonOpts->profile.pszProfileName);
         Bstr bStrCompartmentId;
         CHECK_ERROR2_RET(hrc, pCloudProfile,
                          GetProperty(Bstr("compartment").raw(), bStrCompartmentId.asOutParam()),
                          RTEXITCODE_FAILURE);
         strCompartmentId = bStrCompartmentId;
         if (strCompartmentId.isNotEmpty())
-            RTPrintf(Cloud::tr("Found the compartment \'%s\':\n"), strCompartmentId.c_str());
+            RTPrintf("Found the compartment \'%s\':\n", strCompartmentId.c_str());
         else
-            return errorSyntax(Cloud::tr("Parameter --compartment-id is required"));
+            return errorSyntax(USAGE_S_NEWCMD, "Parameter --compartment-id is required");
     }
 
     Bstr bstrProfileName;
@@ -396,7 +371,7 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
     com::SafeArray<BSTR> arrayVMIds;
     ComPtr<IProgress> pProgress;
 
-    RTPrintf(Cloud::tr("Reply is in the form \'image name\' = \'image id\'\n"));
+    RTPrintf("Reply is in the form \'image name\' = \'image id\'\n");
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      ListImages(ComSafeArrayAsInParam(imageStates),
                                 pVMNamesHolder.asOutParam(),
@@ -404,7 +379,7 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
                                 pProgress.asOutParam()),
                      RTEXITCODE_FAILURE);
     showProgress(pProgress);
-    CHECK_PROGRESS_ERROR_RET(pProgress, (Cloud::tr("Failed to list images")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(pProgress, ("Failed to list images"), RTEXITCODE_FAILURE);
 
     CHECK_ERROR2_RET(hrc,
         pVMNamesHolder, COMGETTER(Values)(ComSafeArrayAsOutParam(arrayVMNames)),
@@ -413,7 +388,7 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
         pVMIdsHolder, COMGETTER(Values)(ComSafeArrayAsOutParam(arrayVMIds)),
             RTEXITCODE_FAILURE);
 
-    RTPrintf(Cloud::tr("The list of the images for the cloud profile \'%ls\'\nand compartment \'%s\':\n"),
+    RTPrintf("The list of the images for the cloud profile \'%ls\' \nand compartment \'%s\':\n",
              bstrProfileName.raw(), strCompartmentId.c_str());
     size_t cNames = arrayVMNames.size();
     size_t cIds = arrayVMIds.size();
@@ -439,41 +414,27 @@ static RTEXITCODE listCloudImages(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCo
  */
 static RTEXITCODE handleCloudLists(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
-    enum
-    {
-        kCloudListIota = 1000,
-        kCloudList_Images,
-        kCloudList_Instances,
-        kCloudList_Machines,
-        kCloudList_Networks,
-        kCloudList_Objects,
-        kCloudList_Subnets,
-        kCloudList_Vcns,
-    };
+    if (a->argc < 1)
+        return errorNoSubcommand();
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "images",              kCloudList_Images,    RTGETOPT_REQ_NOTHING },
-        { "instances",           kCloudList_Instances, RTGETOPT_REQ_NOTHING },
-        { "machines",            kCloudList_Machines,  RTGETOPT_REQ_NOTHING },
-        { "networks",            kCloudList_Networks,  RTGETOPT_REQ_NOTHING },
-        { "objects",             kCloudList_Objects,   RTGETOPT_REQ_NOTHING },
-        { "subnets",             kCloudList_Subnets,   RTGETOPT_REQ_NOTHING },
-        { "vcns",                kCloudList_Vcns,      RTGETOPT_REQ_NOTHING },
-        { "vms",                 kCloudList_Machines,  RTGETOPT_REQ_NOTHING },
-
-        { "help",                'h',                  RTGETOPT_REQ_NOTHING },
-        { "-?",                  'h',                  RTGETOPT_REQ_NOTHING },
-        { "-help",               'h',                  RTGETOPT_REQ_NOTHING },
-        { "--help",              'h',                  RTGETOPT_REQ_NOTHING },
+        { "images",              1000, RTGETOPT_REQ_NOTHING },
+        { "instances",           1001, RTGETOPT_REQ_NOTHING },
+        { "networks",            1002, RTGETOPT_REQ_NOTHING },
+        { "subnets",             1003, RTGETOPT_REQ_NOTHING },
+        { "vcns",                1004, RTGETOPT_REQ_NOTHING },
+        { "objects",             1005, RTGETOPT_REQ_NOTHING }
     };
 
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
+    Bstr bstrProvider(pCommonOpts->provider.pszProviderName);
+    Bstr bstrProfile(pCommonOpts->profile.pszProfileName);
+
+    /* check for required options */
+    if (bstrProvider.isEmpty())
+        return errorSyntax("Parameter --provider is required");
+    if (bstrProfile.isEmpty())
+        return errorSyntax("Parameter --profile is required");
 
     RTGETOPTSTATE GetState;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
@@ -485,23 +446,12 @@ static RTEXITCODE handleCloudLists(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
     {
         switch (c)
         {
-            case kCloudList_Images:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDLIST_IMAGES);
+            case 1000:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_LIST);
                 return listCloudImages(a, GetState.iNext, pCommonOpts);
-
-            case kCloudList_Instances:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDLIST_INSTANCES);
+            case 1001:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_LIST);
                 return listCloudInstances(a, GetState.iNext, pCommonOpts);
-
-            case kCloudList_Machines:
-                return listCloudMachines(a, GetState.iNext,
-                                         pCommonOpts->provider.pszProviderName,
-                                         pCommonOpts->profile.pszProfileName);
-
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
-
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -516,13 +466,9 @@ static RTEXITCODE handleCloudLists(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
 static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
-
-    enum
-    {
-        kInstanceIota = 1000,
-        kInstance_ShapeCpu,
-        kInstance_ShapeMemory,
-    };
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
@@ -531,8 +477,6 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
         { "--display-name",   'n', RTGETOPT_REQ_STRING },
         { "--launch-mode",    'm', RTGETOPT_REQ_STRING },
         { "--shape",          's', RTGETOPT_REQ_STRING },
-        { "--shape-cpus",     kInstance_ShapeCpu,       RTGETOPT_REQ_UINT32 },
-        { "--shape-memory",   kInstance_ShapeMemory,    RTGETOPT_REQ_UINT32 },
         { "--domain-name",    'd', RTGETOPT_REQ_STRING },
         { "--boot-disk-size", 'b', RTGETOPT_REQ_STRING },
         { "--publicip",       'p', RTGETOPT_REQ_STRING },
@@ -541,19 +485,11 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
         { "--launch",         'l', RTGETOPT_REQ_STRING },
         { "--public-ssh-key", 'k', RTGETOPT_REQ_STRING },
         { "--cloud-init-script-path", 'c', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     ComPtr<IAppliance> pAppliance;
     CHECK_ERROR2_RET(hrc, a->virtualBox, CreateAppliance(pAppliance.asOutParam()), RTEXITCODE_FAILURE);
@@ -591,22 +527,10 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
                 pVSD->AddDescription(VirtualSystemDescriptionType_CloudOCILaunchMode,
                                      Bstr(ValueUnion.psz).raw(), NULL);
                 break;
-
             case 's':
                 pVSD->AddDescription(VirtualSystemDescriptionType_CloudInstanceShape,
                                      Bstr(ValueUnion.psz).raw(), NULL);
                 break;
-
-            case kInstance_ShapeCpu:
-                pVSD->AddDescription(VirtualSystemDescriptionType_CloudShapeCpus,
-                                     BstrFmt("%RI32", ValueUnion.u32).raw(), NULL);
-                break;
-
-            case kInstance_ShapeMemory:
-                pVSD->AddDescription(VirtualSystemDescriptionType_CloudShapeMemory,
-                                     BstrFmt("%RI32", ValueUnion.u32).raw(), NULL);
-                break;
-
             case 'd':
                 pVSD->AddDescription(VirtualSystemDescriptionType_CloudDomain,
                                      Bstr(ValueUnion.psz).raw(), NULL);
@@ -644,9 +568,6 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
                 pVSD->AddDescription(VirtualSystemDescriptionType_CloudInitScriptPath,
                                      Bstr(ValueUnion.psz).raw(), NULL);
                 break;
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
             default:
@@ -654,20 +575,15 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strPublicSSHKey.isEmpty())
-        RTPrintf(Cloud::tr("Warning!!! Public SSH key doesn't present in the passed arguments...\n"));
+        RTPrintf("Warning!!! Public SSH key doesn't present in the passed arguments...\n");
 
     if (strImageId.isNotEmpty() && strBootVolumeId.isNotEmpty())
-        return errorArgument(Cloud::tr("Parameters --image-id and --boot-volume-id are mutually exclusive. "
-                                       "Only one of them must be presented."));
+        return errorArgument("Parameters --image-id and --boot-volume-id are mutually exclusive. "
+                             "Only one of them must be presented.");
 
     if (strImageId.isEmpty() && strBootVolumeId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter --image-id or --boot-volume-id. One of them must be presented."));
+        return errorArgument("Missing parameter --image-id or --boot-volume-id. One of them must be presented.");
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -689,7 +605,7 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
          * OCI API returns an error during an instance creation if the image isn't available
          * or in the inappropriate state. So the check can be omitted.
          */
-        RTPrintf(Cloud::tr("Checking the cloud image with id \'%s\'...\n"), strImageId.c_str());
+        RTPrintf("Checking the cloud image with id \'%s\'...\n", strImageId.c_str());
         CHECK_ERROR2_RET(hrc, oCloudClient,
                          GetImageInfo(Bstr(strImageId).raw(),
                                       infoArray.asOutParam(),
@@ -697,25 +613,25 @@ static RTEXITCODE createCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
                          RTEXITCODE_FAILURE);
 
         hrc = showProgress(pProgress);
-        CHECK_PROGRESS_ERROR_RET(pProgress, (Cloud::tr("Checking the cloud image failed")), RTEXITCODE_FAILURE);
+        CHECK_PROGRESS_ERROR_RET(pProgress, ("Checking the cloud image failed"), RTEXITCODE_FAILURE);
 
         pProgress.setNull();
 #endif
 
     if (strImageId.isNotEmpty())
-        RTPrintf(Cloud::tr("Creating cloud instance with name \'%s\' from the image \'%s\'...\n"),
+        RTPrintf("Creating cloud instance with name \'%s\' from the image \'%s\'...\n",
                  strDisplayName.c_str(), strImageId.c_str());
     else
-        RTPrintf(Cloud::tr("Creating cloud instance with name \'%s\' from the boot volume \'%s\'...\n"),
+        RTPrintf("Creating cloud instance with name \'%s\' from the boot volume \'%s\'...\n",
                  strDisplayName.c_str(), strBootVolumeId.c_str());
 
     CHECK_ERROR2_RET(hrc, oCloudClient, LaunchVM(pVSD, pProgress.asOutParam()), RTEXITCODE_FAILURE);
 
     hrc = showProgress(pProgress);
-    CHECK_PROGRESS_ERROR_RET(pProgress, (Cloud::tr("Creating cloud instance failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(pProgress, ("Creating cloud instance failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud instance was created successfully\n"));
+        RTPrintf("Cloud instance was created successfully\n");
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -732,22 +648,18 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
 {
     HRESULT hrc = S_OK;
 
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
+
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id",   'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strInstanceId;
 
@@ -759,17 +671,15 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
             case 'i':
             {
                 if (strInstanceId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strInstanceId = ValueUnion.psz;
                 if (strInstanceId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -778,13 +688,9 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strInstanceId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
+
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -792,8 +698,8 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Getting information about cloud instance with id %s...\n"), strInstanceId.c_str());
-    RTPrintf(Cloud::tr("Reply is in the form \'setting name\' = \'value\'\n"));
+    RTPrintf("Getting information about cloud instance with id %s...\n", strInstanceId.c_str());
+    RTPrintf("Reply is in the form \'setting name\' = \'value\'\n");
 
     ComPtr<IAppliance> pAppliance;
     CHECK_ERROR2_RET(hrc, a->virtualBox, CreateAppliance(pAppliance.asOutParam()), RTEXITCODE_FAILURE);
@@ -814,9 +720,9 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
                      RTEXITCODE_FAILURE);
 
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Getting information about cloud instance failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Getting information about cloud instance failed"), RTEXITCODE_FAILURE);
 
-    RTPrintf(Cloud::tr("Cloud instance info (provider '%s'):\n"),
+    RTPrintf("Cloud instance info (provider '%s'):\n",
              pCommonOpts->provider.pszProviderName);
 
     struct vsdHReadable {
@@ -827,21 +733,21 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
 
     const size_t vsdHReadableArraySize = 13;//the number of items in the vsdHReadableArray
     vsdHReadable vsdHReadableArray[vsdHReadableArraySize] = {
-        {VirtualSystemDescriptionType_CloudDomain, Cloud::tr("Availability domain = %ls\n"), Cloud::tr("Availability domain wasn't found\n")},
-        {VirtualSystemDescriptionType_Name, Cloud::tr("Instance displayed name = %ls\n"), Cloud::tr("Instance displayed name wasn't found\n")},
-        {VirtualSystemDescriptionType_CloudInstanceState, Cloud::tr("Instance state = %ls\n"), Cloud::tr("Instance state wasn't found\n")},
-        {VirtualSystemDescriptionType_CloudInstanceId, Cloud::tr("Instance Id = %ls\n"), Cloud::tr("Instance Id wasn't found\n")},
-        {VirtualSystemDescriptionType_CloudInstanceDisplayName, Cloud::tr("Instance name = %ls\n"), Cloud::tr("Instance name wasn't found\n")},
-        {VirtualSystemDescriptionType_CloudImageId, Cloud::tr("Bootable image Id = %ls\n"),
-            Cloud::tr("Image Id whom the instance is booted up wasn't found\n")},
-        {VirtualSystemDescriptionType_CloudInstanceShape, Cloud::tr("Shape of the instance = %ls\n"),
-            Cloud::tr("The shape of the instance wasn't found\n")},
-        {VirtualSystemDescriptionType_OS, Cloud::tr("Type of guest OS = %ls\n"), Cloud::tr("Type of guest OS wasn't found\n")},
-        {VirtualSystemDescriptionType_Memory, Cloud::tr("RAM = %ls MB\n"), Cloud::tr("Value for RAM wasn't found\n")},
-        {VirtualSystemDescriptionType_CPU, Cloud::tr("CPUs = %ls\n"), Cloud::tr("Numbers of CPUs weren't found\n")},
-        {VirtualSystemDescriptionType_CloudPublicIP, Cloud::tr("Instance public IP = %ls\n"), Cloud::tr("Public IP wasn't found\n")},
-        {VirtualSystemDescriptionType_Miscellaneous, "%ls\n", Cloud::tr("Free-form tags or metadata weren't found\n")},
-        {VirtualSystemDescriptionType_CloudInitScriptPath, "%ls\n", Cloud::tr("Cloud-init script wasn't found\n")}
+        {VirtualSystemDescriptionType_CloudDomain, "Availability domain = %ls\n", "Availability domain wasn't found\n"},
+        {VirtualSystemDescriptionType_Name, "Instance displayed name = %ls\n", "Instance displayed name wasn't found\n"},
+        {VirtualSystemDescriptionType_CloudInstanceState, "Instance state = %ls\n", "Instance state wasn't found\n"},
+        {VirtualSystemDescriptionType_CloudInstanceId, "Instance Id = %ls\n", "Instance Id wasn't found\n"},
+        {VirtualSystemDescriptionType_CloudInstanceDisplayName, "Instance name = %ls\n", "Instance name wasn't found\n"},
+        {VirtualSystemDescriptionType_CloudImageId, "Bootable image Id = %ls\n",
+            "Image Id whom the instance is booted up wasn't found\n"},
+        {VirtualSystemDescriptionType_CloudInstanceShape, "Shape of the instance = %ls\n",
+            "The shape of the instance wasn't found\n"},
+        {VirtualSystemDescriptionType_OS, "Type of guest OS = %ls\n", "Type of guest OS wasn't found\n"},
+        {VirtualSystemDescriptionType_Memory, "RAM = %ls MB\n", "Value for RAM wasn't found\n"},
+        {VirtualSystemDescriptionType_CPU, "CPUs = %ls\n", "Numbers of CPUs weren't found\n"},
+        {VirtualSystemDescriptionType_CloudPublicIP, "Instance public IP = %ls\n", "Public IP wasn't found\n"},
+        {VirtualSystemDescriptionType_Miscellaneous, "%ls\n", "Free-form tags or metadata weren't found\n"},
+        {VirtualSystemDescriptionType_CloudInitScriptPath, "%ls\n", "Cloud-init script wasn't found\n"}
     };
 
     com::SafeArray<VirtualSystemDescriptionType_T> retTypes;
@@ -882,23 +788,18 @@ static RTEXITCODE showCloudInstanceInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONO
 static RTEXITCODE startCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id",   'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strInstanceId;
 
@@ -910,17 +811,15 @@ static RTEXITCODE startCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
             case 'i':
             {
                 if (strInstanceId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strInstanceId = ValueUnion.psz;
                 if (strInstanceId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -929,13 +828,9 @@ static RTEXITCODE startCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strInstanceId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
+
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -943,17 +838,17 @@ static RTEXITCODE startCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Starting cloud instance with id %s...\n"), strInstanceId.c_str());
+    RTPrintf("Starting cloud instance with id %s...\n", strInstanceId.c_str());
 
     ComPtr<IProgress> progress;
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      StartInstance(Bstr(strInstanceId).raw(), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Starting the cloud instance failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Starting the cloud instance failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud instance with id %s (provider = '%s', profile = '%s') was started\n"),
+        RTPrintf("Cloud instance with id %s (provider = '%s', profile = '%s') was started\n",
                  strInstanceId.c_str(),
                  pCommonOpts->provider.pszProviderName,
                  pCommonOpts->profile.pszProfileName);
@@ -964,23 +859,19 @@ static RTEXITCODE startCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
 static RTEXITCODE pauseCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id",   'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strInstanceId;
 
@@ -992,17 +883,15 @@ static RTEXITCODE pauseCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
             case 'i':
             {
                 if (strInstanceId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strInstanceId = ValueUnion.psz;
                 if (strInstanceId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -1011,13 +900,9 @@ static RTEXITCODE pauseCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strInstanceId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
+
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -1025,17 +910,17 @@ static RTEXITCODE pauseCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Pausing cloud instance with id %s...\n"), strInstanceId.c_str());
+    RTPrintf("Pausing cloud instance with id %s...\n", strInstanceId.c_str());
 
     ComPtr<IProgress> progress;
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      PauseInstance(Bstr(strInstanceId).raw(), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Pause the cloud instance failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Pause the cloud instance failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud instance with id %s (provider = '%s', profile = '%s') was paused\n"),
+        RTPrintf("Cloud instance with id %s (provider = '%s', profile = '%s') was paused\n",
                  strInstanceId.c_str(),
                  pCommonOpts->provider.pszProviderName,
                  pCommonOpts->profile.pszProfileName);
@@ -1047,22 +932,18 @@ static RTEXITCODE terminateCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMON
 {
     HRESULT hrc = S_OK;
 
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
+
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id",   'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strInstanceId;
 
@@ -1074,17 +955,15 @@ static RTEXITCODE terminateCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMON
             case 'i':
             {
                 if (strInstanceId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strInstanceId = ValueUnion.psz;
                 if (strInstanceId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
+
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -1093,13 +972,8 @@ static RTEXITCODE terminateCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMON
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strInstanceId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
 
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
@@ -1108,17 +982,17 @@ static RTEXITCODE terminateCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMON
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Terminating cloud instance with id %s...\n"), strInstanceId.c_str());
+    RTPrintf("Terminating cloud instance with id %s...\n", strInstanceId.c_str());
 
     ComPtr<IProgress> progress;
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      TerminateInstance(Bstr(strInstanceId).raw(), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Termination the cloud instance failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Termination the cloud instance failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud instance with id %s (provider = '%s', profile = '%s') was terminated\n"),
+        RTPrintf("Cloud instance with id %s (provider = '%s', profile = '%s') was terminated\n",
                  strInstanceId.c_str(),
                  pCommonOpts->provider.pszProviderName,
                  pCommonOpts->profile.pszProfileName);
@@ -1128,38 +1002,18 @@ static RTEXITCODE terminateCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMON
 
 static RTEXITCODE handleCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
-    enum
-    {
-        kCloudInstanceIota = 1000,
-        kCloudInstance_Create,
-        kCloudInstance_Info,
-        kCloudInstance_Pause,
-        kCloudInstance_Start,
-        kCloudInstance_Terminate,
-        kCloudInstance_Update,
-    };
+    if (a->argc < 1)
+        return errorNoSubcommand();
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "create",         kCloudInstance_Create,    RTGETOPT_REQ_NOTHING },
-        { "info",           kCloudInstance_Info,      RTGETOPT_REQ_NOTHING },
-        { "pause",          kCloudInstance_Pause,     RTGETOPT_REQ_NOTHING },
-        { "start",          kCloudInstance_Start,     RTGETOPT_REQ_NOTHING },
-        { "terminate",      kCloudInstance_Terminate, RTGETOPT_REQ_NOTHING },
-        { "update",         kCloudInstance_Update,    RTGETOPT_REQ_NOTHING },
-
-        { "help",           'h',                      RTGETOPT_REQ_NOTHING },
-        { "-?",             'h',                      RTGETOPT_REQ_NOTHING },
-        { "-help",          'h',                      RTGETOPT_REQ_NOTHING },
-        { "--help",         'h',                      RTGETOPT_REQ_NOTHING },
+        { "create",         1000, RTGETOPT_REQ_NOTHING },
+        { "start",          1001, RTGETOPT_REQ_NOTHING },
+        { "pause",          1002, RTGETOPT_REQ_NOTHING },
+        { "info",           1003, RTGETOPT_REQ_NOTHING },
+        { "update",         1004, RTGETOPT_REQ_NOTHING },
+        { "terminate",      1005, RTGETOPT_REQ_NOTHING }
     };
-
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     RTGETOPTSTATE GetState;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
@@ -1172,34 +1026,24 @@ static RTEXITCODE handleCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
         switch (c)
         {
             /* Sub-commands: */
-            case kCloudInstance_Create:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_CREATE);
+            case 1000:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_CREATE);
                 return createCloudInstance(a, GetState.iNext, pCommonOpts);
-
-            case kCloudInstance_Start:
+            case 1001:
                 setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_START);
                 return startCloudInstance(a, GetState.iNext, pCommonOpts);
-
-            case kCloudInstance_Pause:
+            case 1002:
                 setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_PAUSE);
                 return pauseCloudInstance(a, GetState.iNext, pCommonOpts);
-
-            case kCloudInstance_Info:
+            case 1003:
                 setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_INFO);
                 return showCloudInstanceInfo(a, GetState.iNext, pCommonOpts);
-
-            case kCloudInstance_Update:
+            case 1004:
 //              setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_UPDATE);
                 return updateCloudInstance(a, GetState.iNext, pCommonOpts);
-
-            case kCloudInstance_Terminate:
+            case 1005:
                 setCurrentSubcommand(HELP_SCOPE_CLOUDINSTANCE_TERMINATE);
                 return terminateCloudInstance(a, GetState.iNext, pCommonOpts);
-
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
-
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -1215,6 +1059,9 @@ static RTEXITCODE handleCloudInstance(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT
 static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
@@ -1224,19 +1071,11 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         { "--instance-id",    'i', RTGETOPT_REQ_STRING },
         { "--display-name",   'd', RTGETOPT_REQ_STRING },
         { "--launch-mode",    'm', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strCompartmentId;
     Utf8Str strInstanceId;
@@ -1274,9 +1113,6 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                 strBucketName=ValueUnion.psz;
                 Bstr(Utf8Str("launch-mode=").append(ValueUnion.psz)).detachTo(parameters.appendedRaw());
                 break;
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
             default:
@@ -1284,13 +1120,8 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strInstanceId.isNotEmpty() && strObjectName.isNotEmpty())
-        return errorArgument(Cloud::tr("Conflicting parameters: --instance-id and --object-name can't be used together. Choose one."));
+        return errorArgument("Conflicting parameters: --instance-id and --object-name can't be used together. Choose one.");
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -1299,10 +1130,10 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
     if (strInstanceId.isNotEmpty())
-        RTPrintf(Cloud::tr("Creating cloud image with name \'%s\' from the instance \'%s\'...\n"),
+        RTPrintf("Creating cloud image with name \'%s\' from the instance \'%s\'...\n",
                  strDisplayName.c_str(), strInstanceId.c_str());
     else
-        RTPrintf(Cloud::tr("Creating cloud image with name \'%s\' from the object \'%s\' in the bucket \'%s\'...\n"),
+        RTPrintf("Creating cloud image with name \'%s\' from the object \'%s\' in the bucket \'%s\'...\n",
                  strDisplayName.c_str(), strObjectName.c_str(), strBucketName.c_str());
 
     ComPtr<IProgress> progress;
@@ -1310,10 +1141,10 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                      CreateImage(ComSafeArrayAsInParam(parameters), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Creating cloud image failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Creating cloud image failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud image was created successfully\n"));
+        RTPrintf("Cloud image was created successfully\n");
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -1322,6 +1153,9 @@ static RTEXITCODE createCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
 static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
@@ -1330,19 +1164,11 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         { "--object-name",    'o', RTGETOPT_REQ_STRING },
         { "--display-name",   'd', RTGETOPT_REQ_STRING },
         { "--launch-mode",    'm', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strImageId;   /* XXX: this is vbox "image", i.e. medium */
     Utf8Str strBucketName;
@@ -1359,11 +1185,11 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'b': /* --bucket-name */
             {
                 if (strBucketName.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --bucket-name"));
+                    return errorArgument("Duplicate parameter: --bucket-name");
 
                 strBucketName = ValueUnion.psz;
                 if (strBucketName.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --bucket-name"));
+                    return errorArgument("Empty parameter: --bucket-name");
 
                 break;
             }
@@ -1371,11 +1197,11 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'o': /* --object-name */
             {
                 if (strObjectName.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --object-name"));
+                    return errorArgument("Duplicate parameter: --object-name");
 
                 strObjectName = ValueUnion.psz;
                 if (strObjectName.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --object-name"));
+                    return errorArgument("Empty parameter: --object-name");
 
                 break;
             }
@@ -1383,11 +1209,11 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'i': /* --id */
             {
                 if (strImageId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strImageId = ValueUnion.psz;
                 if (strImageId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
@@ -1395,11 +1221,11 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'd': /* --display-name */
             {
                 if (strDisplayName.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --display-name"));
+                    return errorArgument("Duplicate parameter: --display-name");
 
                 strDisplayName = ValueUnion.psz;
                 if (strDisplayName.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --display-name"));
+                    return errorArgument("Empty parameter: --display-name");
 
                 break;
             }
@@ -1407,18 +1233,14 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'm': /* --launch-mode */
             {
                 if (strLaunchMode.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --launch-mode"));
+                    return errorArgument("Duplicate parameter: --launch-mode");
 
                 strLaunchMode = ValueUnion.psz;
                 if (strLaunchMode.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --launch-mode"));
+                    return errorArgument("Empty parameter: --launch-mode");
 
                 break;
             }
-
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
 
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
@@ -1428,20 +1250,15 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strImageId.isNotEmpty())
         BstrFmt("image-id=%s", strImageId.c_str()).detachTo(parameters.appendedRaw());
     else
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
 
     if (strBucketName.isNotEmpty())
         BstrFmt("bucket-name=%s", strBucketName.c_str()).detachTo(parameters.appendedRaw());
     else
-        return errorArgument(Cloud::tr("Missing parameter: --bucket-name"));
+        return errorArgument("Missing parameter: --bucket-name");
 
     if (strObjectName.isNotEmpty())
         BstrFmt("object-name=%s", strObjectName.c_str()).detachTo(parameters.appendedRaw());
@@ -1461,10 +1278,10 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                      RTEXITCODE_FAILURE);
 
     if (strObjectName.isNotEmpty())
-        RTPrintf(Cloud::tr("Exporting image \'%s\' to the Cloud with name \'%s\'...\n"),
+        RTPrintf("Exporting image \'%s\' to the Cloud with name \'%s\'...\n",
                  strImageId.c_str(), strObjectName.c_str());
     else
-        RTPrintf(Cloud::tr("Exporting image \'%s\' to the Cloud with default name\n"),
+        RTPrintf("Exporting image \'%s\' to the Cloud with default name\n",
                  strImageId.c_str());
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
@@ -1492,14 +1309,14 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         if (!strImageId.compare(imageId.toString()))
         {
             fFound = true;
-            RTPrintf(Cloud::tr("Image %s was found\n"), strImageId.c_str());
+            RTPrintf("Image %s was found\n", strImageId.c_str());
             break;
         }
     }
 
     if (!fFound)
     {
-        RTPrintf(Cloud::tr("Process of exporting the image to the Cloud was interrupted. The image wasn't found.\n"));
+        RTPrintf("Process of exporting the image to the Cloud was interrupted. The image wasn't found.\n");
         return RTEXITCODE_FAILURE;
     }
 
@@ -1508,10 +1325,10 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                      ExportImage(pImage, ComSafeArrayAsInParam(parameters), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Export the image to the Cloud failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Export the image to the Cloud failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Export the image to the Cloud was successfull\n"));
+        RTPrintf("Export the image to the Cloud was successfull\n");
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -1519,25 +1336,20 @@ static RTEXITCODE exportCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
 static RTEXITCODE importCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
         { "--id",             'i', RTGETOPT_REQ_STRING },
         { "--bucket-name",    'b', RTGETOPT_REQ_STRING },
-        { "--object-name",    'o', RTGETOPT_REQ_STRING },
-        { "help",             'h', RTGETOPT_REQ_NOTHING },
-        { "--help",           'h', RTGETOPT_REQ_NOTHING }
+        { "--object-name",    'o', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strImageId;
     Utf8Str strCompartmentId;
@@ -1562,20 +1374,12 @@ static RTEXITCODE importCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
                 strObjectName=ValueUnion.psz;
                 Bstr(Utf8Str("object-name=").append(ValueUnion.psz)).detachTo(parameters.appendedRaw());
                 break;
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
             default:
                 return errorGetOpt(c, &ValueUnion);
         }
     }
-
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -1584,19 +1388,19 @@ static RTEXITCODE importCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Creating an object \'%s\' from the cloud image \'%s\'...\n"), strObjectName.c_str(), strImageId.c_str());
+    RTPrintf("Creating an object \'%s\' from the cloud image \'%s\'...\n", strObjectName.c_str(), strImageId.c_str());
 
     ComPtr<IProgress> progress;
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      ImportImage(Bstr(strImageId).raw(), ComSafeArrayAsInParam(parameters), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Cloud image import failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Cloud image import failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
     {
-        RTPrintf(Cloud::tr("Cloud image was imported successfully. Find the downloaded object with the name %s "
-                           "in the system temp folder (find the possible environment variables like TEMP, TMP and etc.)\n"),
+        RTPrintf("Cloud image was imported successfully. Find the downloaded object with the name %s "
+                 "in the system temp folder (find the possible environment variables like TEMP, TMP and etc.)\n",
                  strObjectName.c_str());
     }
 
@@ -1606,23 +1410,18 @@ static RTEXITCODE importCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
 static RTEXITCODE showCloudImageInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id", 'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strImageId;
 
@@ -1634,9 +1433,6 @@ static RTEXITCODE showCloudImageInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
             case 'i':
                 strImageId = ValueUnion.psz;
                 break;
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
             default:
@@ -1644,24 +1440,19 @@ static RTEXITCODE showCloudImageInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
     ComObjPtr<ICloudClient> oCloudClient;
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Getting information about the cloud image with id \'%s\'...\n"), strImageId.c_str());
+    RTPrintf("Getting information about the cloud image with id \'%s\'...\n", strImageId.c_str());
 
     ComPtr<IStringArray> infoArray;
     com::SafeArray<BSTR> pStrInfoArray;
     ComPtr<IProgress> pProgress;
 
-    RTPrintf(Cloud::tr("Reply is in the form \'image property\' = \'value\'\n"));
+    RTPrintf("Reply is in the form \'image property\' = \'value\'\n");
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      GetImageInfo(Bstr(strImageId).raw(),
                                   infoArray.asOutParam(),
@@ -1669,13 +1460,13 @@ static RTEXITCODE showCloudImageInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
                      RTEXITCODE_FAILURE);
 
     hrc = showProgress(pProgress);
-    CHECK_PROGRESS_ERROR_RET(pProgress, (Cloud::tr("Getting information about the cloud image failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(pProgress, ("Getting information about the cloud image failed"), RTEXITCODE_FAILURE);
 
     CHECK_ERROR2_RET(hrc,
                      infoArray, COMGETTER(Values)(ComSafeArrayAsOutParam(pStrInfoArray)),
                      RTEXITCODE_FAILURE);
 
-    RTPrintf(Cloud::tr("General information about the image:\n"));
+    RTPrintf("General information about the image:\n");
     size_t cParamNames = pStrInfoArray.size();
     for (size_t k = 0; k < cParamNames; k++)
     {
@@ -1697,23 +1488,18 @@ static RTEXITCODE updateCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
 static RTEXITCODE deleteCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
     HRESULT hrc = S_OK;
+    hrc = checkAndSetCommonOptions(a, pCommonOpts);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "--id", 'i', RTGETOPT_REQ_STRING },
-        { "help",   'h', RTGETOPT_REQ_NOTHING },
-        { "--help", 'h', RTGETOPT_REQ_NOTHING }
+        { "--id", 'i', RTGETOPT_REQ_STRING }
     };
     RTGETOPTSTATE GetState;
     RTGETOPTUNION ValueUnion;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
     AssertRCReturn(vrc, RTEXITCODE_FAILURE);
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     Utf8Str strImageId;
 
@@ -1725,18 +1511,15 @@ static RTEXITCODE deleteCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
             case 'i':
             {
                 if (strImageId.isNotEmpty())
-                    return errorArgument(Cloud::tr("Duplicate parameter: --id"));
+                    return errorArgument("Duplicate parameter: --id");
 
                 strImageId = ValueUnion.psz;
                 if (strImageId.isEmpty())
-                    return errorArgument(Cloud::tr("Empty parameter: --id"));
+                    return errorArgument("Empty parameter: --id");
 
                 break;
             }
 
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -1745,13 +1528,8 @@ static RTEXITCODE deleteCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         }
     }
 
-    /* Delayed check. It allows us to print help information.*/
-    hrc = checkAndSetCommonOptions(a, pCommonOpts);
-    if (FAILED(hrc))
-        return RTEXITCODE_FAILURE;
-
     if (strImageId.isEmpty())
-        return errorArgument(Cloud::tr("Missing parameter: --id"));
+        return errorArgument("Missing parameter: --id");
 
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
@@ -1760,55 +1538,35 @@ static RTEXITCODE deleteCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
     CHECK_ERROR2_RET(hrc, pCloudProfile,
                      CreateCloudClient(oCloudClient.asOutParam()),
                      RTEXITCODE_FAILURE);
-    RTPrintf(Cloud::tr("Deleting cloud image with id %s...\n"), strImageId.c_str());
+    RTPrintf("Deleting cloud image with id %s...\n", strImageId.c_str());
 
     ComPtr<IProgress> progress;
     CHECK_ERROR2_RET(hrc, oCloudClient,
                      DeleteImage(Bstr(strImageId).raw(), progress.asOutParam()),
                      RTEXITCODE_FAILURE);
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Deleting cloud image failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Deleting cloud image failed"), RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud image was deleted successfully\n"));
+        RTPrintf("Cloud image with was deleted successfully\n");
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
 
 static RTEXITCODE handleCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
-    enum
-    {
-        kCloudImageIota = 1000,
-        kCloudImage_Create,
-        kCloudImage_Delete,
-        kCloudImage_Export,
-        kCloudImage_Import,
-        kCloudImage_Info,
-        kCloudImage_Update,
-    };
+    if (a->argc < 1)
+        return errorNoSubcommand();
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "create",         kCloudImage_Create,     RTGETOPT_REQ_NOTHING },
-        { "delete",         kCloudImage_Delete,     RTGETOPT_REQ_NOTHING },
-        { "export",         kCloudImage_Export,     RTGETOPT_REQ_NOTHING },
-        { "import",         kCloudImage_Import,     RTGETOPT_REQ_NOTHING },
-        { "info",           kCloudImage_Info,       RTGETOPT_REQ_NOTHING },
-        { "update",         kCloudImage_Update,     RTGETOPT_REQ_NOTHING },
-
-        { "help",                'h',               RTGETOPT_REQ_NOTHING },
-        { "-?",                  'h',               RTGETOPT_REQ_NOTHING },
-        { "-help",               'h',               RTGETOPT_REQ_NOTHING },
-        { "--help",              'h',               RTGETOPT_REQ_NOTHING },
+        { "create",         1000, RTGETOPT_REQ_NOTHING },
+        { "export",         1001, RTGETOPT_REQ_NOTHING },
+        { "import",         1002, RTGETOPT_REQ_NOTHING },
+        { "info",           1003, RTGETOPT_REQ_NOTHING },
+        { "update",         1004, RTGETOPT_REQ_NOTHING },
+        { "delete",         1005, RTGETOPT_REQ_NOTHING }
     };
-
-    if (a->argc == iFirst)
-    {
-        RTPrintf(Cloud::tr("Empty command parameter list, show help.\n"));
-        printHelp(g_pStdOut);
-        return RTEXITCODE_SUCCESS;
-    }
 
     RTGETOPTSTATE GetState;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
@@ -1821,34 +1579,24 @@ static RTEXITCODE handleCloudImage(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pC
         switch (c)
         {
             /* Sub-commands: */
-            case kCloudImage_Create:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_CREATE);
+            case 1000:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_CREATE);
                 return createCloudImage(a, GetState.iNext, pCommonOpts);
-
-            case kCloudImage_Export:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_EXPORT);
+            case 1001:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_EXPORT);
                 return exportCloudImage(a, GetState.iNext, pCommonOpts);
-
-            case kCloudImage_Import:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_IMPORT);
+            case 1002:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_IMPORT);
                 return importCloudImage(a, GetState.iNext, pCommonOpts);
-
-            case kCloudImage_Info:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_INFO);
+            case 1003:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_INFO);
                 return showCloudImageInfo(a, GetState.iNext, pCommonOpts);
-
-            case kCloudImage_Update:
+            case 1004:
 //              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_UPDATE);
                 return updateCloudImage(a, GetState.iNext, pCommonOpts);
-
-            case kCloudImage_Delete:
-                setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_DELETE);
+            case 1005:
+//              setCurrentSubcommand(HELP_SCOPE_CLOUDIMAGE_DELETE);
                 return deleteCloudImage(a, GetState.iNext, pCommonOpts);
-
-            case 'h':
-                printHelp(g_pStdOut);
-                return RTEXITCODE_SUCCESS;
-
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -1953,9 +1701,9 @@ static RTEXITCODE createCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     }
 
     if (options.strNetworkName.isEmpty())
-        return errorArgument(Cloud::tr("Missing --name parameter"));
+        return errorArgument("Missing --name parameter");
     if (options.strNetworkId.isEmpty())
-        return errorArgument(Cloud::tr("Missing --network-id parameter"));
+        return errorArgument("Missing --network-id parameter");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
 
@@ -1967,7 +1715,7 @@ static RTEXITCODE createCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     /* Fill out the created network */
     RTEXITCODE rc = createUpdateCloudNetworkCommon(cloudNetwork, options, pCommonOpts);
     if (RT_SUCCESS(rc))
-        RTPrintf(Cloud::tr("Cloud network was created successfully\n"));
+        RTPrintf("Cloud network was created successfully\n");
 
     return rc;
 }
@@ -2004,7 +1752,7 @@ static RTEXITCODE showCloudNetworkInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
     }
 
     if (strNetworkName.isEmpty())
-        return errorArgument(Cloud::tr("Missing --name parameter"));
+        return errorArgument("Missing --name parameter");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
     ComPtr<ICloudNetwork> cloudNetwork;
@@ -2012,21 +1760,21 @@ static RTEXITCODE showCloudNetworkInfo(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
                      FindCloudNetworkByName(strNetworkName.raw(), cloudNetwork.asOutParam()),
                      RTEXITCODE_FAILURE);
 
-    RTPrintf(Cloud::tr("Name:            %ls\n"), strNetworkName.raw());
+    RTPrintf("Name:            %ls\n", strNetworkName.raw());
     BOOL fEnabled = FALSE;
     cloudNetwork->COMGETTER(Enabled)(&fEnabled);
-    RTPrintf(Cloud::tr("State:           %s\n"), fEnabled ? Cloud::tr("Enabled") : Cloud::tr("Disabled"));
+    RTPrintf("State:           %s\n", fEnabled ? "Enabled" : "Disabled");
     Bstr Provider;
     cloudNetwork->COMGETTER(Provider)(Provider.asOutParam());
-    RTPrintf(Cloud::tr("CloudProvider:   %ls\n"), Provider.raw());
+    RTPrintf("CloudProvider:   %ls\n", Provider.raw());
     Bstr Profile;
     cloudNetwork->COMGETTER(Profile)(Profile.asOutParam());
-    RTPrintf(Cloud::tr("CloudProfile:    %ls\n"), Profile.raw());
+    RTPrintf("CloudProfile:    %ls\n", Profile.raw());
     Bstr NetworkId;
     cloudNetwork->COMGETTER(NetworkId)(NetworkId.asOutParam());
-    RTPrintf(Cloud::tr("CloudNetworkId:  %ls\n"), NetworkId.raw());
+    RTPrintf("CloudNetworkId:  %ls\n", NetworkId.raw());
     Bstr netName = BstrFmt("cloud-%ls", strNetworkName.raw());
-    RTPrintf(Cloud::tr("VBoxNetworkName: %ls\n\n"), netName.raw());
+    RTPrintf("VBoxNetworkName: %ls\n\n", netName.raw());
 
     return RTEXITCODE_SUCCESS;
 }
@@ -2078,7 +1826,7 @@ static RTEXITCODE updateCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     }
 
     if (options.strNetworkName.isEmpty())
-        return errorArgument(Cloud::tr("Missing --name parameter"));
+        return errorArgument("Missing --name parameter");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
     ComPtr<ICloudNetwork> cloudNetwork;
@@ -2088,7 +1836,7 @@ static RTEXITCODE updateCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
 
     RTEXITCODE rc = createUpdateCloudNetworkCommon(cloudNetwork, options, pCommonOpts);
     if (RT_SUCCESS(rc))
-        RTPrintf(Cloud::tr("Cloud network %ls was updated successfully\n"), options.strNetworkName.raw());
+        RTPrintf("Cloud network %ls was updated successfully\n", options.strNetworkName.raw());
 
     return rc;
 }
@@ -2125,7 +1873,7 @@ static RTEXITCODE deleteCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
     }
 
     if (strNetworkName.isEmpty())
-        return errorArgument(Cloud::tr("Missing --name parameter"));
+        return errorArgument("Missing --name parameter");
 
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
     ComPtr<ICloudNetwork> cloudNetwork;
@@ -2138,14 +1886,47 @@ static RTEXITCODE deleteCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
                      RTEXITCODE_FAILURE);
 
     if (SUCCEEDED(hrc))
-        RTPrintf(Cloud::tr("Cloud network %ls was deleted successfully\n"), strNetworkName.raw());
+        RTPrintf("Cloud network %ls was deleted successfully\n", strNetworkName.raw());
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
 
 
-/* Disabled temporarily until proxy support is implemented in libssh */
-#if 0
+static bool errorOccured(HRESULT hrc, const char *pszFormat, ...)
+{
+    if (FAILED(hrc))
+    {
+        va_list va;
+        va_start(va, pszFormat);
+        Utf8Str strError(pszFormat, va);
+        va_end(va);
+        RTStrmPrintf(g_pStdErr, "%s (rc=%x)\n", strError.c_str(), hrc);
+        RTStrmFlush(g_pStdErr);
+        return true;
+    }
+    return false;
+}
+
+
+static int composeTemplatePath(const char *pcszTemplate, Bstr& strFullPath)
+{
+    com::Utf8Str strTemplatePath;
+    int rc = RTPathAppPrivateNoArchCxx(strTemplatePath);
+    if (RT_SUCCESS(rc))
+        rc = RTPathAppendCxx(strTemplatePath, "UnattendedTemplates");
+    if (RT_SUCCESS(rc))
+        rc = RTPathAppendCxx(strTemplatePath, pcszTemplate);
+    if (RT_FAILURE(rc))
+    {
+        RTStrmPrintf(g_pStdErr, "Failed to compose path to the unattended installer script templates (%Rrc)", rc);
+        RTStrmFlush(g_pStdErr);
+    }
+    else
+        strFullPath = strTemplatePath;
+
+    return rc;
+}
+
 /**
  * @returns COM status code.
  * @retval  S_OK if url needs proxy.
@@ -2225,7 +2006,388 @@ static HRESULT getSystemProxyForUrl(const com::Utf8Str &strUrl, Bstr &strProxy)
     return hrc;
 #endif /* VBOX_WITH_PROXY_INFO */
 }
+
+static HRESULT localGatewayImagePath(const Bstr &aDefaultMachineFolder, Bstr &aLgwImage)
+{
+    com::Utf8Str strPath(aDefaultMachineFolder);
+    int rc = RTPathAppendCxx(strPath, "gateways");
+    if (RT_SUCCESS(rc))
+        rc = RTPathAppendCxx(strPath, "lgw.vdi");
+    if (RT_SUCCESS(rc))
+        aLgwImage = strPath;
+
+    return rc;
+}
+
+static HRESULT createLocalGatewayImage(ComPtr<IVirtualBox> virtualBox, const Bstr& aGatewayIso, const Bstr& aGuestAdditionsIso, const Bstr& aProxy)
+{
+    /* Check if the image already exists. */
+    HRESULT hrc;
+
+    Bstr strGatewayVM = "lgw";
+    Bstr strUser = "vbox";
+    Bstr strPassword = "vbox";
+
+    Bstr strInstallerScript;
+    Bstr strPostInstallScript;
+
+    if (RT_FAILURE(composeTemplatePath("lgw_ks.cfg", strInstallerScript)))
+        return E_FAIL;
+    if (RT_FAILURE(composeTemplatePath("lgw_postinstall.sh", strPostInstallScript)))
+        return E_FAIL;
+
+    ComPtr<ISystemProperties> systemProperties;
+    ProxyMode_T enmProxyMode;
+    Bstr strProxy;
+    ComPtr<IMedium> hd;
+    Bstr defaultMachineFolder;
+    Bstr guestAdditionsISO;
+    hrc = virtualBox->COMGETTER(SystemProperties)(systemProperties.asOutParam());
+    if (errorOccured(hrc, "Failed to obtain system properties."))
+        return hrc;
+    if (aProxy.isNotEmpty())
+        strProxy = aProxy;
+    else
+    {
+        hrc = systemProperties->COMGETTER(ProxyMode)(&enmProxyMode);
+        if (errorOccured(hrc, "Failed to obtain proxy mode."))
+            return hrc;
+        switch (enmProxyMode)
+        {
+            case ProxyMode_NoProxy:
+                strProxy.setNull();
+                break;
+            case ProxyMode_Manual:
+                hrc = systemProperties->COMGETTER(ProxyURL)(strProxy.asOutParam());
+                if (errorOccured(hrc, "Failed to obtain proxy URL."))
+                    return hrc;
+                break;
+            case ProxyMode_System:
+                hrc = getSystemProxyForUrl("https://dl.fedoraproject.org", strProxy);
+                if (FAILED(hrc))
+                    errorOccured(hrc, "Failed to get system proxy for https://dl.fedoraproject.org. Will use direct connection.");
+                break;
+            default: /* To get rid of ProxyMode_32BitHack 'warning' */
+                AssertFailed();
+                break;
+        }
+
+    }
+    hrc = systemProperties->COMGETTER(DefaultMachineFolder)(defaultMachineFolder.asOutParam());
+    if (errorOccured(hrc, "Failed to obtain default machine folder."))
+        return hrc;
+    if (aGuestAdditionsIso.isEmpty())
+    {
+        hrc = systemProperties->COMGETTER(DefaultAdditionsISO)(guestAdditionsISO.asOutParam());
+        if (errorOccured(hrc, "Failed to obtain default guest additions ISO path."))
+            return hrc;
+        if (guestAdditionsISO.isEmpty())
+        {
+            errorOccured(E_INVALIDARG, "The default guest additions ISO path is empty nor it is provided as --guest-additions-iso parameter. Cannot proceed without it.");
+            return E_INVALIDARG;
+        }
+    }
+    else
+        guestAdditionsISO = aGuestAdditionsIso;
+
+    Bstr strGatewayImage;
+    int rc = localGatewayImagePath(defaultMachineFolder, strGatewayImage);
+    if (RT_FAILURE(rc))
+    {
+        RTStrmPrintf(g_pStdErr, "Failed to compose a path to the local gateway image (%Rrc)", rc);
+        RTStrmFlush(g_pStdErr);
+        return E_FAIL;
+    }
+    hrc = virtualBox->OpenMedium(strGatewayImage.raw(), DeviceType_HardDisk, AccessMode_ReadWrite, FALSE, hd.asOutParam());
+    /* If the image is already in place, there is nothing for us to do. */
+    if (SUCCEEDED(hrc))
+    {
+        RTPrintf("Local gateway image already exists, skipping image preparation step.\n");
+        return hrc;
+    }
+
+    RTPrintf("Preparing unattended install of temporary local gateway machine from %ls...\n", aGatewayIso.raw());
+    /* The image does not exist, let's try to open the provided ISO file. */
+    ComPtr<IMedium> iso;
+    hrc = virtualBox->OpenMedium(aGatewayIso.raw(), DeviceType_DVD, AccessMode_ReadOnly, FALSE, iso.asOutParam());
+    if (errorOccured(hrc, "Failed to open %ls.", aGatewayIso.raw()))
+        return hrc;
+
+    ComPtr<IMachine> machine;
+    SafeArray<IN_BSTR> groups;
+    groups.push_back(Bstr("/gateways").mutableRaw());
+    hrc = virtualBox->CreateMachine(NULL, strGatewayVM.raw(), ComSafeArrayAsInParam(groups), Bstr("Oracle_64").raw(), Bstr("").raw(), machine.asOutParam());
+    if (errorOccured(hrc, "Failed to create '%ls'.", strGatewayVM.raw()))
+        return hrc;
+    /* Initial configuration */
+    hrc = machine->ApplyDefaults(NULL);
+    if (errorOccured(hrc, "Failed to apply defaults to '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    hrc = machine->COMSETTER(CPUCount)(2);
+    if (errorOccured(hrc, "Failed to adjust CPU count for '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    hrc = machine->COMSETTER(MemorySize)(512/*MB*/);
+    if (errorOccured(hrc, "Failed to adjust memory size for '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    /* No need for audio -- disable it. */
+    ComPtr<IAudioAdapter> audioAdapter;
+    hrc = machine->COMGETTER(AudioAdapter)(audioAdapter.asOutParam());
+    if (errorOccured(hrc, "Failed to set attachment type for the second network adapter."))
+        return hrc;
+
+    hrc = audioAdapter->COMSETTER(Enabled)(FALSE);
+    if (errorOccured(hrc, "Failed to disable the audio adapter."))
+        return hrc;
+    audioAdapter.setNull();
+
+    hrc = virtualBox->RegisterMachine(machine);
+    if (errorOccured(hrc, "Failed to register '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    hrc = virtualBox->CreateMedium(Bstr("VDI").raw(), strGatewayImage.raw(), AccessMode_ReadWrite, DeviceType_HardDisk, hd.asOutParam());
+    if (errorOccured(hrc, "Failed to create %ls.", strGatewayImage.raw()))
+        return hrc;
+
+    ComPtr<IProgress> progress;
+    com::SafeArray<MediumVariant_T>  mediumVariant;
+    mediumVariant.push_back(MediumVariant_Standard);
+
+    /* Kick off the creation of a dynamic growing disk image with the given capacity. */
+    hrc = hd->CreateBaseStorage(8ll * 1000 * 1000 * 1000 /* 8GB */,
+                                ComSafeArrayAsInParam(mediumVariant),
+                                progress.asOutParam());
+    if (errorOccured(hrc, "Failed to create base storage for local gateway image."))
+        return hrc;
+
+    hrc = showProgress(progress);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Failed to create base storage for local gateway image."), hrc);
+
+    ComPtr<ISession> session;
+    hrc = session.createInprocObject(CLSID_Session);
+    hrc = machine->LockMachine(session, LockType_Write);
+    if (errorOccured(hrc, "Failed to lock '%ls' for modifications.", strGatewayVM.raw()))
+        return hrc;
+
+    ComPtr<IMachine> sessionMachine;
+    hrc = session->COMGETTER(Machine)(sessionMachine.asOutParam());
+    if (errorOccured(hrc, "Failed to obtain a mutable machine."))
+        return hrc;
+
+    hrc = sessionMachine->AttachDevice(Bstr("SATA").raw(), 0, 0, DeviceType_HardDisk, hd);
+    if (errorOccured(hrc, "Failed to attach HD to '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    hrc = sessionMachine->AttachDevice(Bstr("IDE").raw(), 0, 0, DeviceType_DVD, iso);
+    if (errorOccured(hrc, "Failed to attach ISO to '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    /* Save settings */
+    hrc = sessionMachine->SaveSettings();
+    if (errorOccured(hrc, "Failed to save '%ls' settings.", strGatewayVM.raw()))
+        return hrc;
+    session->UnlockMachine();
+
+    /* Prepare unattended install */
+    ComPtr<IUnattended> unattended;
+    hrc = virtualBox->CreateUnattendedInstaller(unattended.asOutParam());
+    if (errorOccured(hrc, "Failed to create unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(Machine)(machine);
+    if (errorOccured(hrc, "Failed to set machine for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(IsoPath)(aGatewayIso.raw());
+    if (errorOccured(hrc, "Failed to set machine for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(User)(strUser.raw());
+    if (errorOccured(hrc, "Failed to set user for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(Password)(strPassword.raw());
+    if (errorOccured(hrc, "Failed to set password for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(FullUserName)(strUser.raw());
+    if (errorOccured(hrc, "Failed to set full user name for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(InstallGuestAdditions)(TRUE);
+    if (errorOccured(hrc, "Failed to enable guest addtions for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(AdditionsIsoPath)(guestAdditionsISO.raw());
+    if (errorOccured(hrc, "Failed to set guest addtions ISO path for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(ScriptTemplatePath)(strInstallerScript.raw());
+    if (errorOccured(hrc, "Failed to set script template for the unattended installer."))
+        return hrc;
+
+    hrc = unattended->COMSETTER(PostInstallScriptTemplatePath)(strPostInstallScript.raw());
+    if (errorOccured(hrc, "Failed to set post install script template for the unattended installer."))
+        return hrc;
+
+    if (strProxy.isNotEmpty())
+    {
+        hrc = unattended->COMSETTER(Proxy)(strProxy.raw());
+        if (errorOccured(hrc, "Failed to set post install script template for the unattended installer."))
+            return hrc;
+    }
+
+    hrc = unattended->Prepare();
+    if (errorOccured(hrc, "Failed to prepare unattended installation."))
+        return hrc;
+
+    hrc = unattended->ConstructMedia();
+    if (errorOccured(hrc, "Failed to construct media for unattended installation."))
+        return hrc;
+
+    hrc = unattended->ReconfigureVM();
+    if (errorOccured(hrc, "Failed to reconfigure %ls for unattended installation.", strGatewayVM.raw()))
+        return hrc;
+
+#define SHOW_ATTR(a_Attr, a_szText, a_Type, a_szFmt) do { \
+            a_Type Value; \
+            HRESULT hrc2 = unattended->COMGETTER(a_Attr)(&Value); \
+            if (SUCCEEDED(hrc2)) \
+                RTPrintf("  %32s = " a_szFmt "\n", a_szText, Value); \
+            else \
+                RTPrintf("  %32s = failed: %Rhrc\n", a_szText, hrc2); \
+        } while (0)
+#define SHOW_STR_ATTR(a_Attr, a_szText) do { \
+            Bstr bstrString; \
+            HRESULT hrc2 = unattended->COMGETTER(a_Attr)(bstrString.asOutParam()); \
+            if (SUCCEEDED(hrc2)) \
+                RTPrintf("  %32s = %ls\n", a_szText, bstrString.raw()); \
+            else \
+                RTPrintf("  %32s = failed: %Rhrc\n", a_szText, hrc2); \
+        } while (0)
+
+    SHOW_STR_ATTR(IsoPath,                       "isoPath");
+    SHOW_STR_ATTR(User,                          "user");
+    SHOW_STR_ATTR(Password,                      "password");
+    SHOW_STR_ATTR(FullUserName,                  "fullUserName");
+    SHOW_STR_ATTR(ProductKey,                    "productKey");
+    SHOW_STR_ATTR(AdditionsIsoPath,              "additionsIsoPath");
+    SHOW_ATTR(    InstallGuestAdditions,         "installGuestAdditions",    BOOL, "%RTbool");
+    SHOW_STR_ATTR(ValidationKitIsoPath,          "validationKitIsoPath");
+    SHOW_ATTR(    InstallTestExecService,        "installTestExecService",   BOOL, "%RTbool");
+    SHOW_STR_ATTR(Locale,                        "locale");
+    SHOW_STR_ATTR(Country,                       "country");
+    SHOW_STR_ATTR(TimeZone,                      "timeZone");
+    SHOW_STR_ATTR(Proxy,                         "proxy");
+    SHOW_STR_ATTR(Hostname,                      "hostname");
+    SHOW_STR_ATTR(PackageSelectionAdjustments,   "packageSelectionAdjustments");
+    SHOW_STR_ATTR(AuxiliaryBasePath,             "auxiliaryBasePath");
+    SHOW_ATTR(    ImageIndex,                    "imageIndex",               ULONG, "%u");
+    SHOW_STR_ATTR(ScriptTemplatePath,            "scriptTemplatePath");
+    SHOW_STR_ATTR(PostInstallScriptTemplatePath, "postInstallScriptTemplatePath");
+    SHOW_STR_ATTR(PostInstallCommand,            "postInstallCommand");
+    SHOW_STR_ATTR(ExtraInstallKernelParameters,  "extraInstallKernelParameters");
+    SHOW_STR_ATTR(Language,                      "language");
+    SHOW_STR_ATTR(DetectedOSTypeId,              "detectedOSTypeId");
+    SHOW_STR_ATTR(DetectedOSVersion,             "detectedOSVersion");
+    SHOW_STR_ATTR(DetectedOSFlavor,              "detectedOSFlavor");
+    SHOW_STR_ATTR(DetectedOSLanguages,           "detectedOSLanguages");
+    SHOW_STR_ATTR(DetectedOSHints,               "detectedOSHints");
+
+#undef SHOW_STR_ATTR
+#undef SHOW_ATTR
+
+    /* 'unattended' is no longer needed. */
+    unattended.setNull();
+
+    RTPrintf("Performing unattended install of temporary local gateway...\n");
+
+    hrc = machine->LaunchVMProcess(session, Bstr("gui").raw(), ComSafeArrayNullInParam(), progress.asOutParam());
+    if (errorOccured(hrc, "Failed to launch '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    hrc = progress->WaitForCompletion(-1);
+    if (errorOccured(hrc, "Failed to launch '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    unsigned i = 0;
+    const char progressChars[] = { '|', '/', '-', '\\'};
+    MachineState_T machineState;
+    uint64_t u64Started = RTTimeMilliTS();
+    do
+    {
+        RTThreadSleep(1000); /* One second */
+        hrc = machine->COMGETTER(State)(&machineState);
+        if (errorOccured(hrc, "Failed to get machine state."))
+            break;
+        RTPrintf("\r%c", progressChars[i++ % sizeof(progressChars)]);
+        if (machineState == MachineState_Aborted)
+        {
+            errorOccured(E_ABORT, "Temporary local gateway VM has aborted.");
+            return E_ABORT;
+        }
+    }
+    while (machineState != MachineState_PoweredOff && RTTimeMilliTS() - u64Started < 40 * 60 * 1000);
+
+    if (machineState != MachineState_PoweredOff)
+    {
+        errorOccured(E_ABORT, "Timed out (40min) while waiting for unattended install to finish.");
+        return E_ABORT;
+    }
+    /* Machine will still be immutable for a short while after powering off, let's wait a little. */
+    RTThreadSleep(5000); /* Five seconds */
+
+    RTPrintf("\rDone.\n");
+
+    hrc = machine->LockMachine(session, LockType_Write);
+    if (errorOccured(hrc, "Failed to lock '%ls' for modifications.", strGatewayVM.raw()))
+        return hrc;
+
+    RTPrintf("Detaching local gateway image...\n");
+    hrc = session->COMGETTER(Machine)(sessionMachine.asOutParam());
+    if (errorOccured(hrc, "Failed to obtain a mutable machine."))
+        return hrc;
+
+    hrc = sessionMachine->DetachDevice(Bstr("SATA").raw(), 0, 0);
+    if (errorOccured(hrc, "Failed to detach HD to '%ls'.", strGatewayVM.raw()))
+        return hrc;
+
+    /* Remove the image from the media registry. */
+    hd->Close();
+
+    /* Save settings */
+    hrc = sessionMachine->SaveSettings();
+    if (errorOccured(hrc, "Failed to save '%ls' settings.", strGatewayVM.raw()))
+        return hrc;
+    session->UnlockMachine();
+
+#if 0
+    /** @todo Unregistering the temporary VM makes the image mutable again. Find out the way around it! */
+    RTPrintf("Unregistering temporary local gateway machine...\n");
+    SafeIfaceArray<IMedium> media;
+    hrc = machine->Unregister(CleanupMode_DetachAllReturnNone, ComSafeArrayAsOutParam(media));
+    if (errorOccured(hrc, "Failed to unregister '%ls'.", strGatewayVM.raw()))
+        return hrc;
+    hrc = machine->DeleteConfig(ComSafeArrayAsInParam(media), progress.asOutParam());
+    if (errorOccured(hrc, "Failed to delete config for '%ls'.", strGatewayVM.raw()))
+        return hrc;
+    hrc = progress->WaitForCompletion(-1);
+    if (errorOccured(hrc, "Failed to delete config for '%ls'.", strGatewayVM.raw()))
+        return hrc;
 #endif
+
+    RTPrintf("Making local gateway image immutable...\n");
+    hrc = virtualBox->OpenMedium(strGatewayImage.raw(), DeviceType_HardDisk, AccessMode_ReadWrite, FALSE, hd.asOutParam());
+    if (errorOccured(hrc, "Failed to open '%ls'.", strGatewayImage.raw()))
+        return hrc;
+    hd->COMSETTER(Type)(MediumType_Immutable);
+    if (errorOccured(hrc, "Failed to make '%ls' immutable.", strGatewayImage.raw()))
+        return hrc;
+
+    return S_OK;
+}
 
 
 static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
@@ -2239,6 +2401,8 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
         { "--gateway-shape",        's', RTGETOPT_REQ_STRING },
         { "--tunnel-network-name",  't', RTGETOPT_REQ_STRING },
         { "--tunnel-network-range", 'r', RTGETOPT_REQ_STRING },
+        { "--guest-additions-iso",  'a', RTGETOPT_REQ_STRING },
+        { "--local-gateway-iso",    'l', RTGETOPT_REQ_STRING },
         { "--proxy",                'p', RTGETOPT_REQ_STRING },
         { "--compartment-id",       'c', RTGETOPT_REQ_STRING }
     };
@@ -2252,6 +2416,8 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
     Bstr strGatewayShape;
     Bstr strTunnelNetworkName;
     Bstr strTunnelNetworkRange;
+    Bstr strLocalGatewayIso;
+    Bstr strGuestAdditionsIso;
     Bstr strProxy;
     Bstr strCompartmentId;
 
@@ -2275,6 +2441,12 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
             case 'r':
                 strTunnelNetworkRange=ValueUnion.psz;
                 break;
+            case 'l':
+                strLocalGatewayIso=ValueUnion.psz;
+                break;
+            case 'a':
+                strGuestAdditionsIso=ValueUnion.psz;
+                break;
             case 'p':
                 strProxy=ValueUnion.psz;
                 break;
@@ -2293,9 +2465,16 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
     if (FAILED(hrc))
         return RTEXITCODE_FAILURE;
 
+    if (strLocalGatewayIso.isEmpty())
+        return errorArgument("Missing --local-gateway-iso parameter");
+
     ComPtr<IVirtualBox> pVirtualBox = a->virtualBox;
 
-    RTPrintf(Cloud::tr("Setting up tunnel network in the cloud...\n"));
+    hrc = createLocalGatewayImage(pVirtualBox, strLocalGatewayIso, strGuestAdditionsIso, strProxy);
+    if (FAILED(hrc))
+        return RTEXITCODE_FAILURE;
+
+    RTPrintf("Setting up tunnel network in the cloud...\n");
 
     ComPtr<ICloudProfile> pCloudProfile = pCommonOpts->profile.pCloudProfile;
 
@@ -2321,11 +2500,11 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
                      RTEXITCODE_FAILURE);
 
     hrc = showProgress(progress);
-    CHECK_PROGRESS_ERROR_RET(progress, (Cloud::tr("Setting up cloud network environment failed")), RTEXITCODE_FAILURE);
+    CHECK_PROGRESS_ERROR_RET(progress, ("Setting up cloud network environment failed"), RTEXITCODE_FAILURE);
 
     Bstr tunnelNetworkId;
     hrc = cloudNetworkEnv->COMGETTER(TunnelNetworkId)(tunnelNetworkId.asOutParam());
-    RTPrintf(Cloud::tr("Cloud network environment was set up successfully. Tunnel network id is: %ls\n"), tunnelNetworkId.raw());
+    RTPrintf("Cloud network environment was set up successfully. Tunnel network id is: %ls\n", tunnelNetworkId.raw());
 
     return SUCCEEDED(hrc) ? RTEXITCODE_SUCCESS : RTEXITCODE_FAILURE;
 }
@@ -2333,27 +2512,17 @@ static RTEXITCODE setupCloudNetworkEnv(HandlerArg *a, int iFirst, PCLOUDCOMMONOP
 
 static RTEXITCODE handleCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT pCommonOpts)
 {
-    enum
-    {
-        kCloudNetworkIota = 1000,
-        kCloudNetwork_Create,
-        kCloudNetwork_Delete,
-        kCloudNetwork_Info,
-        kCloudNetwork_Setup,
-        kCloudNetwork_Update,
-    };
+    if (a->argc < 1)
+        return errorNoSubcommand();
 
     static const RTGETOPTDEF s_aOptions[] =
     {
-        { "create",         kCloudNetwork_Create,   RTGETOPT_REQ_NOTHING },
-        { "delete",         kCloudNetwork_Delete,   RTGETOPT_REQ_NOTHING },
-        { "info",           kCloudNetwork_Info,     RTGETOPT_REQ_NOTHING },
-        { "setup",          kCloudNetwork_Setup,    RTGETOPT_REQ_NOTHING },
-        { "update",         kCloudNetwork_Update,   RTGETOPT_REQ_NOTHING },
+        { "create",         1000, RTGETOPT_REQ_NOTHING },
+        { "info",           1001, RTGETOPT_REQ_NOTHING },
+        { "update",         1002, RTGETOPT_REQ_NOTHING },
+        { "delete",         1003, RTGETOPT_REQ_NOTHING },
+        { "setup",          1004, RTGETOPT_REQ_NOTHING }
     };
-
-    if (a->argc < 1)
-        return errorNoSubcommand();
 
     RTGETOPTSTATE GetState;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), iFirst, 0);
@@ -2366,21 +2535,16 @@ static RTEXITCODE handleCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
         switch (c)
         {
             /* Sub-commands: */
-            case kCloudNetwork_Create:
+            case 1000:
                 return createCloudNetwork(a, GetState.iNext, pCommonOpts);
-
-            case kCloudNetwork_Info:
+            case 1001:
                 return showCloudNetworkInfo(a, GetState.iNext, pCommonOpts);
-
-            case kCloudNetwork_Update:
+            case 1002:
                 return updateCloudNetwork(a, GetState.iNext, pCommonOpts);
-
-            case kCloudNetwork_Delete:
+            case 1003:
                 return deleteCloudNetwork(a, GetState.iNext, pCommonOpts);
-
-            case kCloudNetwork_Setup:
+            case 1004:
                 return setupCloudNetworkEnv(a, GetState.iNext, pCommonOpts);
-
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 
@@ -2396,37 +2560,21 @@ static RTEXITCODE handleCloudNetwork(HandlerArg *a, int iFirst, PCLOUDCOMMONOPT 
 
 RTEXITCODE handleCloud(HandlerArg *a)
 {
-    enum
-    {
-        kCloudIota = 1000,
-        kCloud_Image,
-        kCloud_Instance,
-        kCloud_List,
-        kCloud_Machine,
-        kCloud_Network,
-        kCloud_Object,
-        kCloud_ShowVMInfo,
-        kCloud_Volume,
-    };
+    if (a->argc < 1)
+        return errorNoSubcommand();
 
     static const RTGETOPTDEF s_aOptions[] =
     {
         /* common options */
-        { "--provider",     'v',                    RTGETOPT_REQ_STRING },
-        { "--profile",      'f',                    RTGETOPT_REQ_STRING },
-
-        { "image",            kCloud_Image,         RTGETOPT_REQ_NOTHING },
-        { "instance",         kCloud_Instance,      RTGETOPT_REQ_NOTHING },
-        { "list",             kCloud_List,          RTGETOPT_REQ_NOTHING },
-        { "machine",          kCloud_Machine,       RTGETOPT_REQ_NOTHING },
-        { "network",          kCloud_Network,       RTGETOPT_REQ_NOTHING },
-        { "object",           kCloud_Object,        RTGETOPT_REQ_NOTHING },
-        { "showvminfo",       kCloud_ShowVMInfo,    RTGETOPT_REQ_NOTHING },
-        { "volume",           kCloud_Volume,        RTGETOPT_REQ_NOTHING },
+        { "--provider",     'v', RTGETOPT_REQ_STRING },
+        { "--profile",      'f', RTGETOPT_REQ_STRING },
+        { "list",             1000, RTGETOPT_REQ_NOTHING },
+        { "image",            1001, RTGETOPT_REQ_NOTHING },
+        { "instance",         1002, RTGETOPT_REQ_NOTHING },
+        { "network",          1003, RTGETOPT_REQ_NOTHING },
+        { "volume",           1004, RTGETOPT_REQ_NOTHING },
+        { "object",           1005, RTGETOPT_REQ_NOTHING }
     };
-
-    if (a->argc < 1)
-        return errorNoSubcommand();
 
     RTGETOPTSTATE GetState;
     int vrc = RTGetOptInit(&GetState, a->argc, a->argv, s_aOptions, RT_ELEMENTS(s_aOptions), 0, 0);
@@ -2442,38 +2590,20 @@ RTEXITCODE handleCloud(HandlerArg *a)
             case 'v':   // --provider
                 commonOpts.provider.pszProviderName = ValueUnion.psz;
                 break;
-
             case 'f':   // --profile
                 commonOpts.profile.pszProfileName = ValueUnion.psz;
                 break;
-
             /* Sub-commands: */
-            case kCloud_List:
+            case 1000:
                 return handleCloudLists(a, GetState.iNext, &commonOpts);
-
-            case kCloud_Image:
+            case 1001:
                 return handleCloudImage(a, GetState.iNext, &commonOpts);
-
-            case kCloud_Instance:
+            case 1002:
                 return handleCloudInstance(a, GetState.iNext, &commonOpts);
-
 #ifdef VBOX_WITH_CLOUD_NET
-            case kCloud_Network:
+            case 1003:
                 return handleCloudNetwork(a, GetState.iNext, &commonOpts);
 #endif /* VBOX_WITH_CLOUD_NET */
-
-            /* "cloud machine ..." handling is in VBoxManageCloudMachine.cpp */
-            case kCloud_Machine:
-                return handleCloudMachine(a, GetState.iNext,
-                                          commonOpts.provider.pszProviderName,
-                                          commonOpts.profile.pszProfileName);
-
-            /* ... including aliases that mimic the local vm commands */
-            case kCloud_ShowVMInfo:
-                return handleCloudShowVMInfo(a, GetState.iNext,
-                                             commonOpts.provider.pszProviderName,
-                                             commonOpts.profile.pszProfileName);
-
             case VINF_GETOPT_NOT_OPTION:
                 return errorUnknownSubcommand(ValueUnion.psz);
 

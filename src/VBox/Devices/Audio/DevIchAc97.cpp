@@ -1,10 +1,10 @@
-/* $Id: DevIchAc97.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevIchAc97.cpp $ */
 /** @file
  * DevIchAc97 - VBox ICH AC97 Audio Controller.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -639,8 +639,8 @@ typedef AC97STATER3 *PAC97STATER3;
  */
 #define DEVAC97_LOCK(a_pDevIns, a_pThis) \
     do { \
-        int const rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
-        PDM_CRITSECT_RELEASE_ASSERT_RC_DEV((a_pDevIns), &(a_pThis)->CritSect, rcLock); \
+        int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, VERR_IGNORED); \
+        AssertRC(rcLock); \
     } while (0)
 
 /**
@@ -650,12 +650,9 @@ typedef AC97STATER3 *PAC97STATER3;
     do { \
         int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, a_rcBusy); \
         if (rcLock == VINF_SUCCESS) \
-        { /* likely */ } \
-        else \
-        { \
-            AssertRC(rcLock); \
-            return rcLock; \
-        } \
+            break; \
+        AssertRC(rcLock); \
+        return rcLock; \
     } while (0)
 
 /**
@@ -1567,14 +1564,14 @@ DECLINLINE(void) ichac97R3TimerSet(PPDMDEVINS pDevIns, PAC97STREAM pStream, uint
  * @callback_method_impl{FNTMTIMERDEV,
  * Timer callback which handles the audio data transfers on a periodic basis.}
  */
-static DECLCALLBACK(void) ichac97R3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) ichac97R3Timer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     PAC97STATE      pThis     = PDMDEVINS_2_DATA(pDevIns, PAC97STATE);
     STAM_PROFILE_START(&pThis->StatTimer, a);
     PAC97STATER3    pThisCC   = PDMDEVINS_2_DATA_CC(pDevIns, PAC97STATER3);
     PAC97STREAM     pStream   = (PAC97STREAM)pvUser;
     PAC97STREAMR3   pStreamCC = &RT_SAFE_SUBSCRIPT8(pThisCC->aStreams, pStream->u8SD);
-    Assert(hTimer == pStream->hTimer); RT_NOREF(hTimer);
+    RT_NOREF(pTimer);
 
     Assert(pStream - &pThis->aStreams[0] == pStream->u8SD);
     Assert(PDMDevHlpCritSectIsOwner(pDevIns, &pThis->CritSect));
@@ -2832,7 +2829,7 @@ ichac97IoPortNabmWrite(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint3
                                 ichac97StreamUpdateSR(pDevIns, pThis, pStream, pStream->Regs.sr | AC97_SR_BCIS);
 # ifdef LOG_ENABLED
                             if (LogIsFlowEnabled())
-                                ichac97R3DbgPrintBdl(pDevIns, pThis, pStream, PDMDevHlpDBGFInfoLogHlp(pDevIns), "ichac97IoPortNabmWrite: ");
+                                ichac97R3DbgPrintBdl(pDevIns, pThis, pStream, DBGFR3InfoLogHlp(), "ichac97IoPortNabmWrite: ");
 # endif
                             ichac97R3StreamEnable(pDevIns, pThis, pThisCC, pStream, pStreamCC, true /* fEnable */);
 
@@ -4171,7 +4168,7 @@ static int ichac97R3AttachInternal(PPDMDEVINS pDevIns, PAC97STATER3 pThisCC, uns
     int rc = PDMDevHlpDriverAttach(pDevIns, uLUN, &pThisCC->IBase, &pDrvBase, pDrv->szDesc);
     if (RT_SUCCESS(rc))
     {
-       pDrv->pConnector = PDMIBASE_QUERY_INTERFACE(pDrvBase, PDMIAUDIOCONNECTOR);
+        pDrv->pConnector = PDMIBASE_QUERY_INTERFACE(pDrvBase, PDMIAUDIOCONNECTOR);
         AssertPtr(pDrv->pConnector);
         if (RT_VALID_PTR(pDrv->pConnector))
         {
@@ -4587,16 +4584,12 @@ static DECLCALLBACK(int) ichac97R3Construct(PPDMDEVINS pDevIns, int iInstance, P
      *        relies on exact (virtual) DMA timing and uses DMA Position Buffers
      *        instead of the LPIB registers.
      */
-    /** @todo r=bird: The need to use virtual sync is perhaps because TM
-     *        doesn't schedule regular TMCLOCK_VIRTUAL timers as accurately as it
-     *        should (VT-x preemption timer, etc).  Hope to address that before
-     *        long. @bugref{9943}. */
     static const char * const s_apszNames[] = { "AC97 PI", "AC97 PO", "AC97 MC" };
     AssertCompile(RT_ELEMENTS(s_apszNames) == AC97_MAX_STREAMS);
     for (unsigned i = 0; i < AC97_MAX_STREAMS; i++)
     {
         rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, ichac97R3Timer, &pThis->aStreams[i],
-                                  TMTIMER_FLAGS_NO_CRIT_SECT | TMTIMER_FLAGS_RING0, s_apszNames[i], &pThis->aStreams[i].hTimer);
+                                  TMTIMER_FLAGS_NO_CRIT_SECT, s_apszNames[i], &pThis->aStreams[i].hTimer);
         AssertRCReturn(rc, rc);
 
         rc = PDMDevHlpTimerSetCritSect(pDevIns, pThis->aStreams[i].hTimer, &pThis->CritSect);

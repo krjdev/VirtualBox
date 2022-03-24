@@ -1,4 +1,4 @@
-/* $Id: IEMAllInstructionsTwoByte0f.cpp.h 94162 2022-03-10 22:29:05Z vboxsync $ */
+/* $Id: IEMAllInstructionsTwoByte0f.cpp.h $ */
 /** @file
  * IEM - Instruction Decoding and Emulation.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2215,14 +2215,9 @@ FNIEMOP_DEF(iemOp_mov_Dd_Rd)
 FNIEMOP_DEF(iemOp_mov_Rd_Td)
 {
     IEMOP_MNEMONIC(mov_Rd_Td, "mov Rd,Td");
-    IEMOP_HLP_MIN_386();
-    uint8_t bRm; IEM_OPCODE_GET_NEXT_U8(&bRm);
-    IEMOP_HLP_DONE_DECODING_NO_LOCK_PREFIX();
-    if (RT_LIKELY(IEM_GET_TARGET_CPU(pVCpu) >= IEMTARGETCPU_PENTIUM))
-        return IEMOP_RAISE_INVALID_OPCODE();
-    return IEM_MC_DEFER_TO_CIMPL_2(iemCImpl_mov_Rd_Td,
-                                   (X86_MODRM_RM_MASK & bRm) | pVCpu->iem.s.uRexB,
-                                   ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK));
+    /** @todo works on 386 and 486. */
+    /* The RM byte is not considered, see testcase. */
+    return IEMOP_RAISE_INVALID_OPCODE();
 }
 
 
@@ -2230,14 +2225,9 @@ FNIEMOP_DEF(iemOp_mov_Rd_Td)
 FNIEMOP_DEF(iemOp_mov_Td_Rd)
 {
     IEMOP_MNEMONIC(mov_Td_Rd, "mov Td,Rd");
-    IEMOP_HLP_MIN_386();
-    uint8_t bRm; IEM_OPCODE_GET_NEXT_U8(&bRm);
-    IEMOP_HLP_DONE_DECODING_NO_LOCK_PREFIX();
-    if (RT_LIKELY(IEM_GET_TARGET_CPU(pVCpu) >= IEMTARGETCPU_PENTIUM))
-        return IEMOP_RAISE_INVALID_OPCODE();
-    return IEM_MC_DEFER_TO_CIMPL_2(iemCImpl_mov_Td_Rd,
-                                   ((bRm >> X86_MODRM_REG_SHIFT) & X86_MODRM_REG_SMASK),
-                                   (X86_MODRM_RM_MASK & bRm) | pVCpu->iem.s.uRexB);
+    /** @todo works on 386 and 486. */
+    /* The RM byte is not considered, see testcase. */
+    return IEMOP_RAISE_INVALID_OPCODE();
 }
 
 
@@ -2610,21 +2600,9 @@ FNIEMOP_DEF(iemOp_rdpmc)
 
 
 /** Opcode 0x0f 0x34. */
-FNIEMOP_DEF(iemOp_sysenter)
-{
-    IEMOP_MNEMONIC0(FIXED, SYSENTER, sysenter, DISOPTYPE_CONTROLFLOW | DISOPTYPE_UNCOND_CONTROLFLOW, 0);
-    IEMOP_HLP_DONE_DECODING_NO_LOCK_PREFIX();
-    return IEM_MC_DEFER_TO_CIMPL_0(iemCImpl_sysenter);
-}
-
+FNIEMOP_STUB(iemOp_sysenter);
 /** Opcode 0x0f 0x35. */
-FNIEMOP_DEF(iemOp_sysexit)
-{
-    IEMOP_MNEMONIC0(FIXED, SYSEXIT, sysexit, DISOPTYPE_CONTROLFLOW | DISOPTYPE_UNCOND_CONTROLFLOW, 0);
-    IEMOP_HLP_DONE_DECODING_NO_LOCK_PREFIX();
-    return IEM_MC_DEFER_TO_CIMPL_1(iemCImpl_sysexit, pVCpu->iem.s.enmEffOpSize);
-}
-
+FNIEMOP_STUB(iemOp_sysexit);
 /** Opcode 0x0f 0x37. */
 FNIEMOP_STUB(iemOp_getsec);
 
@@ -6725,7 +6703,7 @@ FNIEMOP_DEF(iemOp_shld_Ev_Gv_Ib)
 {
     IEMOP_MNEMONIC(shld_Ev_Gv_Ib, "shld Ev,Gv,Ib");
     IEMOP_HLP_MIN_386();
-    return FNIEMOP_CALL_1(iemOpCommonShldShrd_Ib, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shld_eflags));
+    return FNIEMOP_CALL_1(iemOpCommonShldShrd_Ib, &g_iemAImpl_shld);
 }
 
 
@@ -6734,7 +6712,7 @@ FNIEMOP_DEF(iemOp_shld_Ev_Gv_CL)
 {
     IEMOP_MNEMONIC(shld_Ev_Gv_CL, "shld Ev,Gv,CL");
     IEMOP_HLP_MIN_386();
-    return FNIEMOP_CALL_1(iemOpCommonShldShrd_CL, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shld_eflags));
+    return FNIEMOP_CALL_1(iemOpCommonShldShrd_CL, &g_iemAImpl_shld);
 }
 
 
@@ -6783,7 +6761,7 @@ FNIEMOP_DEF(iemOp_shrd_Ev_Gv_Ib)
 {
     IEMOP_MNEMONIC(shrd_Ev_Gv_Ib, "shrd Ev,Gv,Ib");
     IEMOP_HLP_MIN_386();
-    return FNIEMOP_CALL_1(iemOpCommonShldShrd_Ib, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shrd_eflags));
+    return FNIEMOP_CALL_1(iemOpCommonShldShrd_Ib, &g_iemAImpl_shrd);
 }
 
 
@@ -6792,7 +6770,7 @@ FNIEMOP_DEF(iemOp_shrd_Ev_Gv_CL)
 {
     IEMOP_MNEMONIC(shrd_Ev_Gv_CL, "shrd Ev,Gv,CL");
     IEMOP_HLP_MIN_386();
-    return FNIEMOP_CALL_1(iemOpCommonShldShrd_CL, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_shrd_eflags));
+    return FNIEMOP_CALL_1(iemOpCommonShldShrd_CL, &g_iemAImpl_shrd);
 }
 
 
@@ -7032,14 +7010,10 @@ FNIEMOP_DEF_1(iemOp_Grp15_lfence,   uint8_t, bRm)
         return IEMOP_RAISE_INVALID_OPCODE();
 
     IEM_MC_BEGIN(0, 0);
-#ifndef RT_ARCH_ARM64
     if (IEM_GET_HOST_CPU_FEATURES(pVCpu)->fSse2)
-#endif
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_lfence);
-#ifndef RT_ARCH_ARM64
     else
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_alt_mem_fence);
-#endif
     IEM_MC_ADVANCE_RIP();
     IEM_MC_END();
     return VINF_SUCCESS;
@@ -7056,14 +7030,10 @@ FNIEMOP_DEF_1(iemOp_Grp15_mfence,   uint8_t, bRm)
         return IEMOP_RAISE_INVALID_OPCODE();
 
     IEM_MC_BEGIN(0, 0);
-#ifndef RT_ARCH_ARM64
     if (IEM_GET_HOST_CPU_FEATURES(pVCpu)->fSse2)
-#endif
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_mfence);
-#ifndef RT_ARCH_ARM64
     else
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_alt_mem_fence);
-#endif
     IEM_MC_ADVANCE_RIP();
     IEM_MC_END();
     return VINF_SUCCESS;
@@ -7080,14 +7050,10 @@ FNIEMOP_DEF_1(iemOp_Grp15_sfence,   uint8_t, bRm)
         return IEMOP_RAISE_INVALID_OPCODE();
 
     IEM_MC_BEGIN(0, 0);
-#ifndef RT_ARCH_ARM64
     if (IEM_GET_HOST_CPU_FEATURES(pVCpu)->fSse2)
-#endif
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_sfence);
-#ifndef RT_ARCH_ARM64
     else
         IEM_MC_CALL_VOID_AIMPL_0(iemAImpl_alt_mem_fence);
-#endif
     IEM_MC_ADVANCE_RIP();
     IEM_MC_END();
     return VINF_SUCCESS;
@@ -7267,7 +7233,7 @@ FNIEMOP_DEF(iemOp_imul_Gv_Ev)
     IEMOP_MNEMONIC(imul_Gv_Ev, "imul Gv,Ev");
     IEMOP_HLP_MIN_386();
     IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_SF | X86_EFL_ZF | X86_EFL_AF | X86_EFL_PF);
-    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_imul_two_eflags));
+    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, &g_iemAImpl_imul_two);
 }
 
 
@@ -8009,7 +7975,7 @@ FNIEMOP_DEF(iemOp_bsf_Gv_Ev)
     IEMOP_MNEMONIC(bsf_Gv_Ev, "bsf Gv,Ev");
     IEMOP_HLP_MIN_386();
     IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_OF | X86_EFL_SF | X86_EFL_AF | X86_EFL_PF | X86_EFL_CF);
-    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_bsf_eflags));
+    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, &g_iemAImpl_bsf);
 }
 
 
@@ -8023,7 +7989,7 @@ FNIEMOP_DEF(iemOp_bsr_Gv_Ev)
     IEMOP_MNEMONIC(bsr_Gv_Ev, "bsr Gv,Ev");
     IEMOP_HLP_MIN_386();
     IEMOP_VERIFICATION_UNDEFINED_EFLAGS(X86_EFL_OF | X86_EFL_SF | X86_EFL_AF | X86_EFL_PF | X86_EFL_CF);
-    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, IEMTARGETCPU_EFL_BEHAVIOR_SELECT(g_iemAImpl_bsr_eflags));
+    return FNIEMOP_CALL_1(iemOpHlpBinaryOperator_rv_rm, &g_iemAImpl_bsr);
 }
 
 
@@ -8579,21 +8545,16 @@ FNIEMOP_DEF_1(iemOp_Grp9_cmpxchg16b_Mdq, uint8_t, bRm)
         IEM_MC_REF_LOCAL(pu128RbxRcx, u128RbxRcx);
 
         IEM_MC_FETCH_EFLAGS(EFlags);
-# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_ARM64)
-#  if defined(RT_ARCH_AMD64)
+# ifdef RT_ARCH_AMD64
         if (IEM_GET_HOST_CPU_FEATURES(pVCpu)->fMovCmpXchg16b)
-#  endif
         {
             if (!(pVCpu->iem.s.fPrefixes & IEM_OP_PRF_LOCK))
                 IEM_MC_CALL_VOID_AIMPL_4(iemAImpl_cmpxchg16b, pu128MemDst, pu128RaxRdx, pu128RbxRcx, pEFlags);
             else
                 IEM_MC_CALL_VOID_AIMPL_4(iemAImpl_cmpxchg16b_locked, pu128MemDst, pu128RaxRdx, pu128RbxRcx, pEFlags);
         }
-#  if defined(RT_ARCH_AMD64)
         else
-#  endif
 # endif
-# if !defined(RT_ARCH_ARM64) /** @todo may need this for unaligned accesses... */
         {
             /* Note! The fallback for 32-bit systems and systems without CX16 is multiple
                      accesses and not all all atomic, which works fine on in UNI CPU guest
@@ -8607,7 +8568,6 @@ FNIEMOP_DEF_1(iemOp_Grp9_cmpxchg16b_Mdq, uint8_t, bRm)
                 /* Does not get here, tail code is duplicated in iemCImpl_cmpxchg16b_fallback_rendezvous. */
             }
         }
-# endif
 
         IEM_MC_MEM_COMMIT_AND_UNMAP(pu128MemDst, IEM_ACCESS_DATA_RW);
         IEM_MC_COMMIT_EFLAGS(EFlags);

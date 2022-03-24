@@ -1,10 +1,10 @@
-/* $Id: VBoxNetAdpCtl.cpp 93479 2022-01-28 15:04:07Z vboxsync $ */
+/* $Id: VBoxNetAdpCtl.cpp $ */
 /** @file
  * Apps - VBoxAdpCtl, Configuration tool for vboxnetX adapters.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -276,19 +276,12 @@ protected:
 #ifdef RT_OS_LINUX
 /*
  * Helper class to incapsulate IPv4 address conversion.
- *
- * Note that this class relies on NetworkAddress to have been used for
- * checking validity of IP addresses prior calling any methods of this
- * class.
  */
 class AddressIPv4
 {
 public:
     AddressIPv4(const char *pcszAddress, const char *pcszNetmask = 0)
         {
-            m_Prefix = 0;
-            memset(&m_Address, 0, sizeof(m_Address));
-
             if (pcszNetmask)
                 m_Prefix = maskToPrefix(pcszNetmask);
             else
@@ -300,43 +293,49 @@ public:
                  */
                 m_Prefix = 24;
             }
-            int rc = RTNetStrToIPv4Addr(pcszAddress, &m_Address);
-            AssertRCReturnVoid(rc);
+            inet_pton(AF_INET, pcszAddress, &(m_Address.sin_addr));
             snprintf(m_szAddressAndMask, sizeof(m_szAddressAndMask), "%s/%d", pcszAddress, m_Prefix);
-            deriveBroadcast(&m_Address, m_Prefix);
+            m_Broadcast.sin_addr.s_addr = computeBroadcast(m_Address.sin_addr.s_addr, m_Prefix);
+            inet_ntop(AF_INET, &(m_Broadcast.sin_addr), m_szBroadcast, sizeof(m_szBroadcast));
         }
     const char *getBroadcast() const { return m_szBroadcast; };
     const char *getAddressAndMask() const { return m_szAddressAndMask; };
 private:
-    int maskToPrefix(const char *pcszNetmask);
-    void deriveBroadcast(PCRTNETADDRIPV4 pcAddress, int uPrefix);
+    unsigned int maskToPrefix(const char *pcszNetmask);
+    unsigned long computeBroadcast(unsigned long ulAddress, unsigned int uPrefix);
 
-    int           m_Prefix;
-    RTNETADDRIPV4 m_Address;
+    unsigned int       m_Prefix;
+    struct sockaddr_in m_Address;
+    struct sockaddr_in m_Broadcast;
     char m_szAddressAndMask[INET_ADDRSTRLEN + 3]; /* e.g. 192.168.56.101/24 */
     char m_szBroadcast[INET_ADDRSTRLEN];
 };
 
-int AddressIPv4::maskToPrefix(const char *pcszNetmask)
+unsigned int AddressIPv4::maskToPrefix(const char *pcszNetmask)
 {
-    RTNETADDRIPV4 mask;
-    int prefix = 0;
+    unsigned cBits = 0;
+    unsigned m[4];
 
-    int rc = RTNetStrToIPv4Addr(pcszNetmask, &mask);
-    AssertRCReturn(rc, 0);
-    rc = RTNetMaskToPrefixIPv4(&mask, &prefix);
-    AssertRCReturn(rc, 0);
-
-    return prefix;
+    if (sscanf(pcszNetmask, "%u.%u.%u.%u", &m[0], &m[1], &m[2], &m[3]) == 4)
+    {
+        for (int i = 0; i < 4 && m[i]; ++i)
+        {
+            int mask = m[i];
+            while (mask & 0x80)
+            {
+                cBits++;
+                mask <<= 1;
+            }
+        }
+    }
+    return cBits;
 }
 
-void AddressIPv4::deriveBroadcast(PCRTNETADDRIPV4 pcAddress, int iPrefix)
+unsigned long AddressIPv4::computeBroadcast(unsigned long ulAddress, unsigned int uPrefix)
 {
-    RTNETADDRIPV4 mask, broadcast;
-    int rc = RTNetPrefixToMaskIPv4(iPrefix, &mask);
-    AssertRCReturnVoid(rc);
-    broadcast.au32[0] = (pcAddress->au32[0] & mask.au32[0]) | ~mask.au32[0];
-    inet_ntop(AF_INET, broadcast.au32, m_szBroadcast, sizeof(m_szBroadcast));
+    /* Note: the address is big-endian. */
+    unsigned long ulNetworkMask = (1l << uPrefix) - 1;
+    return (ulAddress & ulNetworkMask) | ~ulNetworkMask;
 }
 
 
@@ -750,17 +749,104 @@ class NetworkAddress
         virtual const char *defaultNetwork() = 0;
     protected:
         bool m_fValid;
+
+        int RTNetStrToIPv4CidrWithZeroPrefixAllowed(const char *pcszAddr, PRTNETADDRIPV4 pAddr, int *piPrefix);
+        int RTNetStrToIPv6CidrWithZeroPrefixAllowed(const char *pcszAddr, PRTNETADDRIPV6 pAddr, int *piPrefix);
 };
+
+int NetworkAddress::RTNetStrToIPv4CidrWithZeroPrefixAllowed(const char *pcszAddr, PRTNETADDRIPV4 pAddr, int *piPrefix)
+{
+    RTNETADDRIPV4 addr;
+    char *pszNext;
+
+    AssertPtrReturn(pcszAddr, VERR_INVALID_PARAMETER);
+    AssertPtrReturn(pAddr, VERR_INVALID_PARAMETER);
+    AssertPtrReturn(piPrefix, VERR_INVALID_PARAMETER);
+
+    pcszAddr = RTStrStripL(pcszAddr);
+    int rc = RTNetStrToIPv4AddrEx(pcszAddr, &addr, &pszNext);
+    if (RT_FAILURE(rc))
+        return rc;
+
+    /*
+     * If the prefix is missing, treat is as exact (/32) address
+     * specification.
+     */
+    if (*pszNext == '\0' || rc == VWRN_TRAILING_SPACES)
+    {
+        *pAddr = addr;
+        *piPrefix = 32;
+        return VINF_SUCCESS;
+    }
+
+    if (*pszNext == '/')
+        ++pszNext;
+    else
+        return VERR_INVALID_PARAMETER;
+
+    uint32_t prefix;
+    rc = RTStrToUInt32Ex(pszNext, &pszNext, 0, &prefix);
+    if ((rc == VINF_SUCCESS || rc == VWRN_TRAILING_SPACES) && prefix == 0)
+    {
+        *pAddr = addr;
+        *piPrefix = 0;
+        return VINF_SUCCESS;
+    }
+    return RTNetStrToIPv4Cidr(pcszAddr, pAddr, piPrefix);
+}
+
+int NetworkAddress::RTNetStrToIPv6CidrWithZeroPrefixAllowed(const char *pcszAddr, PRTNETADDRIPV6 pAddr, int *piPrefix)
+{
+    RTNETADDRIPV6 Addr;
+    uint8_t u8Prefix;
+    char *pszNext;
+    int rc;
+
+    AssertPtrReturn(pcszAddr, VERR_INVALID_PARAMETER);
+    AssertPtrReturn(pAddr, VERR_INVALID_PARAMETER);
+    AssertPtrReturn(piPrefix, VERR_INVALID_PARAMETER);
+
+    pcszAddr = RTStrStripL(pcszAddr);
+    rc = RTNetStrToIPv6AddrEx(pcszAddr, &Addr, &pszNext);
+    if (RT_FAILURE(rc))
+        return rc;
+
+    /*
+     * If the prefix is missing, treat is as exact (/128) address
+     * specification.
+     */
+    if (*pszNext == '\0' || rc == VWRN_TRAILING_SPACES)
+    {
+        *pAddr = Addr;
+        *piPrefix = 128;
+        return VINF_SUCCESS;
+    }
+
+    if (*pszNext != '/')
+        return VERR_INVALID_PARAMETER;
+
+    ++pszNext;
+    rc = RTStrToUInt8Ex(pszNext, &pszNext, 10, &u8Prefix);
+    if (RT_FAILURE(rc) || rc == VWRN_TRAILING_CHARS)
+        return VERR_INVALID_PARAMETER;
+
+    if (u8Prefix > 128)
+        return VERR_INVALID_PARAMETER;
+
+    *pAddr = Addr;
+    *piPrefix = u8Prefix;
+    return VINF_SUCCESS;
+}
 
 bool NetworkAddress::isValidString(const char *pcszNetwork)
 {
     RTNETADDRIPV4 addrv4;
     RTNETADDRIPV6 addrv6;
     int prefix;
-    int rc = RTNetStrToIPv4Cidr(pcszNetwork, &addrv4, &prefix);
+    int rc = RTNetStrToIPv4CidrWithZeroPrefixAllowed(pcszNetwork, &addrv4, &prefix);
     if (RT_SUCCESS(rc))
         return true;
-    rc = RTNetStrToIPv6Cidr(pcszNetwork, &addrv6, &prefix);
+    rc = RTNetStrToIPv6CidrWithZeroPrefixAllowed(pcszNetwork, &addrv6, &prefix);
     return RT_SUCCESS(rc);
 }
 
@@ -770,9 +856,6 @@ class NetworkAddressIPv4 : public NetworkAddress
         NetworkAddressIPv4(const char *pcszIpAddress, const char *pcszNetMask = VBOXNET_DEFAULT_IPV4MASK);
         virtual bool matches(const char *pcszNetwork);
         virtual const char *defaultNetwork() { return "192.168.56.1/21"; }; /* Matches defaults in VBox/Main/include/netif.h, see @bugref{10077}. */
-
-    protected:
-        bool isValidUnicastAddress(PCRTNETADDRIPV4 address);
 
     private:
         RTNETADDRIPV4 m_address;
@@ -795,31 +878,14 @@ NetworkAddressIPv4::NetworkAddressIPv4(const char *pcszIpAddress, const char *pc
     else
         rc = RTNetStrToIPv4Cidr(pcszIpAddress, &m_address, &m_prefix);
 #endif
-    m_fValid = RT_SUCCESS(rc) && isValidUnicastAddress(&m_address);
-}
-
-bool NetworkAddressIPv4::isValidUnicastAddress(PCRTNETADDRIPV4 address)
-{
-    /* Multicast addresses are not allowed. */
-    if ((address->au8[0] & 0xF0) == 0xE0)
-        return false;
-
-    /* Broadcast address is not allowed. */
-    if (address->au32[0] == 0xFFFFFFFF) /* Endianess does not matter in this particual case. */
-        return false;
-
-    /* Loopback addresses are not allowed. */
-    if ((address->au8[0] & 0xFF) == 0x7F)
-        return false;
-
-    return true;
+    m_fValid = RT_SUCCESS(rc);
 }
 
 bool NetworkAddressIPv4::matches(const char *pcszNetwork)
 {
     RTNETADDRIPV4 allowedNet, allowedMask;
     int allowedPrefix;
-    int rc = RTNetStrToIPv4Cidr(pcszNetwork, &allowedNet, &allowedPrefix);
+    int rc = RTNetStrToIPv4CidrWithZeroPrefixAllowed(pcszNetwork, &allowedNet, &allowedPrefix);
     if (RT_SUCCESS(rc))
         rc = RTNetPrefixToMaskIPv4(allowedPrefix, &allowedMask);
     if (RT_FAILURE(rc))
@@ -840,7 +906,7 @@ class NetworkAddressIPv6 : public NetworkAddress
 
 NetworkAddressIPv6::NetworkAddressIPv6(const char *pcszIpAddress)
 {
-    int rc = RTNetStrToIPv6Cidr(pcszIpAddress, &m_address, &m_prefix);
+    int rc = RTNetStrToIPv6CidrWithZeroPrefixAllowed(pcszIpAddress, &m_address, &m_prefix);
     m_fValid = RT_SUCCESS(rc);
 }
 
@@ -848,7 +914,7 @@ bool NetworkAddressIPv6::matches(const char *pcszNetwork)
 {
     RTNETADDRIPV6 allowedNet, allowedMask;
     int allowedPrefix;
-    int rc = RTNetStrToIPv6Cidr(pcszNetwork, &allowedNet, &allowedPrefix);
+    int rc = RTNetStrToIPv6CidrWithZeroPrefixAllowed(pcszNetwork, &allowedNet, &allowedPrefix);
     if (RT_SUCCESS(rc))
         rc = RTNetPrefixToMaskIPv6(allowedPrefix, &allowedMask);
     if (RT_FAILURE(rc))

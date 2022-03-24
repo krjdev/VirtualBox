@@ -1,10 +1,10 @@
-/* $Id: SUPLibLdr.cpp 93239 2022-01-14 19:15:41Z vboxsync $ */
+/* $Id: SUPLibLdr.cpp $ */
 /** @file
  * VirtualBox Support Library - Loader related bits.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,7 +64,7 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
-typedef DECLCALLBACKTYPE(int, FNCALLVMMR0,(PVMR0 pVMR0, unsigned uOperation, void *pvArg));
+typedef DECLCALLBACK(int) FNCALLVMMR0(PVMR0 pVMR0, unsigned uOperation, void *pvArg);
 typedef FNCALLVMMR0 *PFNCALLVMMR0;
 
 
@@ -151,8 +151,7 @@ static DECLCALLBACK(int) supLoadModuleResolveImport(RTLDRMOD hLdrMod, const char
      */
     if (   pszModule
         && *pszModule
-        && strcmp(pszModule, "VBoxSup.sys")
-        && strcmp(pszModule, "VBoxDrv.sys") /* old name */
+        && strcmp(pszModule, "VBoxDrv.sys")
         && strcmp(pszModule, "VMMR0.r0"))
     {
 #if defined(RT_OS_WINDOWS) && 0 /* Useful for VMMR0 hacking, not for production use.  See also SUPDrv-win.cpp */
@@ -635,13 +634,14 @@ static int supLoadModuleInner(RTLDRMOD hLdrMod, PSUPLDRLOAD pLoadReq, uint32_t c
     if (fIsVMMR0)
     {
         pLoadReq->u.In.eEPType                = SUPLDRLOADEP_VMMR0;
-        pLoadReq->u.In.EP.VMMR0.pvVMMR0EntryFast = (RTR0PTR)VMMR0EntryFast;
-        pLoadReq->u.In.EP.VMMR0.pvVMMR0EntryEx   = (RTR0PTR)VMMR0EntryEx;
+        pLoadReq->u.In.EP.VMMR0.pvVMMR0       = uImageBase;
+        pLoadReq->u.In.EP.VMMR0.pvVMMR0EntryFast= (RTR0PTR)VMMR0EntryFast;
+        pLoadReq->u.In.EP.VMMR0.pvVMMR0EntryEx  = (RTR0PTR)VMMR0EntryEx;
     }
     else if (pszSrvReqHandler)
     {
         pLoadReq->u.In.eEPType                = SUPLDRLOADEP_SERVICE;
-        pLoadReq->u.In.EP.Service.pfnServiceReq  = (RTR0PTR)SrvReqHandler;
+        pLoadReq->u.In.EP.Service.pfnServiceReq = (RTR0PTR)SrvReqHandler;
         pLoadReq->u.In.EP.Service.apvReserved[0] = NIL_RTR0PTR;
         pLoadReq->u.In.EP.Service.apvReserved[1] = NIL_RTR0PTR;
         pLoadReq->u.In.EP.Service.apvReserved[2] = NIL_RTR0PTR;
@@ -715,7 +715,7 @@ static int supLoadModuleInner(RTLDRMOD hLdrMod, PSUPLDRLOAD pLoadReq, uint32_t c
 static int supLoadModule(const char *pszFilename, const char *pszModule, const char *pszSrvReqHandler,
                          PRTERRINFO pErrInfo, void **ppvImageBase)
 {
-    SUPLDROPEN OpenReq;
+    int rc;
 
     /*
      * Validate input.
@@ -723,69 +723,26 @@ static int supLoadModule(const char *pszFilename, const char *pszModule, const c
     AssertPtrReturn(pszFilename, VERR_INVALID_PARAMETER);
     AssertPtrReturn(pszModule, VERR_INVALID_PARAMETER);
     AssertPtrReturn(ppvImageBase, VERR_INVALID_PARAMETER);
-    AssertReturn(strlen(pszModule) < sizeof(OpenReq.u.In.szName), VERR_FILENAME_TOO_LONG);
+    /** @todo abspath it right into SUPLDROPEN */
+    AssertReturn(strlen(pszModule) < RT_SIZEOFMEMB(SUPLDROPEN, u.In.szName), VERR_FILENAME_TOO_LONG);
+    char szAbsFilename[RT_SIZEOFMEMB(SUPLDROPEN, u.In.szFilename)];
+    rc = RTPathAbs(pszFilename, szAbsFilename, sizeof(szAbsFilename));
+    if (RT_FAILURE(rc))
+        return rc;
+    pszFilename = szAbsFilename;
 
     const bool fIsVMMR0 = !strcmp(pszModule, "VMMR0.r0");
     AssertReturn(!pszSrvReqHandler || !fIsVMMR0, VERR_INTERNAL_ERROR);
     *ppvImageBase = NULL;
 
     /*
-     * First try open it w/o preparing a binary for loading.
-     *
-     * This will be a lot faster if it's already loaded, and it will
-     * avoid fixup issues when using wrapped binaries.  With wrapped
-     * ring-0 binaries not all binaries need to be wrapped, so trying
-     * to load it ourselves is not a bug, but intentional behaviour
-     * (even it it asserts in the loader code).
-     */
-    OpenReq.Hdr.u32Cookie              = g_u32Cookie;
-    OpenReq.Hdr.u32SessionCookie       = g_u32SessionCookie;
-    OpenReq.Hdr.cbIn                   = SUP_IOCTL_LDR_OPEN_SIZE_IN;
-    OpenReq.Hdr.cbOut                  = SUP_IOCTL_LDR_OPEN_SIZE_OUT;
-    OpenReq.Hdr.fFlags                 = SUPREQHDR_FLAGS_DEFAULT;
-    OpenReq.Hdr.rc                     = VERR_INTERNAL_ERROR;
-    OpenReq.u.In.cbImageWithEverything = 0;
-    OpenReq.u.In.cbImageBits           = 0;
-    strcpy(OpenReq.u.In.szName, pszModule);
-    int rc = RTPathAbs(pszFilename, OpenReq.u.In.szFilename, sizeof(OpenReq.u.In.szFilename));
-    if (RT_FAILURE(rc))
-        return rc;
-    if (   (SUPDRV_IOC_VERSION & 0xffff0000) != 0x00300000
-        || g_uSupSessionVersion >= 0x00300001)
-    {
-        if (!g_uSupFakeMode)
-        {
-            rc = suplibOsIOCtl(&g_supLibData, SUP_IOCTL_LDR_OPEN, &OpenReq, SUP_IOCTL_LDR_OPEN_SIZE);
-            if (RT_SUCCESS(rc))
-                rc = OpenReq.Hdr.rc;
-        }
-        else
-        {
-            OpenReq.u.Out.fNeedsLoading = true;
-            OpenReq.u.Out.pvImageBase = 0xef423420;
-        }
-        *ppvImageBase = (void *)OpenReq.u.Out.pvImageBase;
-        if (rc != VERR_MODULE_NOT_FOUND)
-        {
-            if (fIsVMMR0)
-                g_pvVMMR0 = OpenReq.u.Out.pvImageBase;
-            LogRel(("SUP: Opened %s (%s) at %#RKv%s.\n", pszModule, pszFilename, OpenReq.u.Out.pvImageBase,
-                    OpenReq.u.Out.fNativeLoader ? " loaded by the native ring-0 loader" : ""));
-#ifdef RT_OS_WINDOWS
-            LogRel(("SUP: windbg> .reload /f %s=%#RKv\n", pszFilename, OpenReq.u.Out.pvImageBase));
-#endif
-            return rc;
-        }
-    }
-
-    /*
      * Open image file and figure its size.
      */
     RTLDRMOD hLdrMod;
-    rc = RTLdrOpenEx(OpenReq.u.In.szFilename, 0 /*fFlags*/, RTLDRARCH_HOST, &hLdrMod, pErrInfo);
+    rc = RTLdrOpenEx(pszFilename, 0 /*fFlags*/, RTLDRARCH_HOST, &hLdrMod, pErrInfo);
     if (RT_FAILURE(rc))
     {
-        LogRel(("SUP: RTLdrOpen failed for %s (%s) %Rrc\n", pszModule, OpenReq.u.In.szFilename, rc));
+        LogRel(("SUP: RTLdrOpen failed for %s (%s) %Rrc\n", pszModule, pszFilename, rc));
         return rc;
     }
 
@@ -827,6 +784,7 @@ static int supLoadModule(const char *pszFilename, const char *pszModule, const c
             /*
              * Open the R0 image.
              */
+            SUPLDROPEN OpenReq;
             OpenReq.Hdr.u32Cookie              = g_u32Cookie;
             OpenReq.Hdr.u32SessionCookie       = g_u32SessionCookie;
             OpenReq.Hdr.cbIn                   = SUP_IOCTL_LDR_OPEN_SIZE_IN;
@@ -836,25 +794,21 @@ static int supLoadModule(const char *pszFilename, const char *pszModule, const c
             OpenReq.u.In.cbImageWithEverything = cbImageWithEverything;
             OpenReq.u.In.cbImageBits           = (uint32_t)CalcArgs.cbImage;
             strcpy(OpenReq.u.In.szName, pszModule);
-            rc = RTPathAbs(pszFilename, OpenReq.u.In.szFilename, sizeof(OpenReq.u.In.szFilename));
-            AssertRC(rc);
-            if (RT_SUCCESS(rc))
+            strcpy(OpenReq.u.In.szFilename, pszFilename);
+            if (!g_uSupFakeMode)
             {
-                if (!g_uSupFakeMode)
-                {
-                    rc = suplibOsIOCtl(&g_supLibData, SUP_IOCTL_LDR_OPEN, &OpenReq, SUP_IOCTL_LDR_OPEN_SIZE);
-                    if (RT_SUCCESS(rc))
-                        rc = OpenReq.Hdr.rc;
-                }
-                else
-                {
-                    OpenReq.u.Out.fNeedsLoading = true;
-                    OpenReq.u.Out.pvImageBase = 0xef423420;
-                }
+                rc = suplibOsIOCtl(&g_supLibData, SUP_IOCTL_LDR_OPEN, &OpenReq, SUP_IOCTL_LDR_OPEN_SIZE);
+                if (RT_SUCCESS(rc))
+                    rc = OpenReq.Hdr.rc;
+            }
+            else
+            {
+                OpenReq.u.Out.fNeedsLoading = true;
+                OpenReq.u.Out.pvImageBase = 0xef423420;
             }
             *ppvImageBase = (void *)OpenReq.u.Out.pvImageBase;
-            if (   RT_SUCCESS(rc)
-                && OpenReq.u.Out.fNeedsLoading)
+            if (    RT_SUCCESS(rc)
+                &&  OpenReq.u.Out.fNeedsLoading)
             {
                 /*
                  * We need to load it.

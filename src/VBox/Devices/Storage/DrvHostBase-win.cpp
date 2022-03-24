@@ -1,10 +1,10 @@
-/* $Id: DrvHostBase-win.cpp 93305 2022-01-18 11:29:31Z vboxsync $ */
+/* $Id: DrvHostBase-win.cpp $ */
 /** @file
  * DrvHostBase - Host base drive access driver, Windows specifics.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -305,7 +305,7 @@ DECLHIDDEN(int) drvHostBaseGetMediaSizeOs(PDRVHOSTBASE pThis, uint64_t *pcb)
     {
         /* use NT api, retry a few times if the media is being verified. */
         IO_STATUS_BLOCK             IoStatusBlock = {0};
-        FILE_FS_SIZE_INFORMATION    FsSize = {{0}};
+        FILE_FS_SIZE_INFORMATION    FsSize = {0};
         NTSTATUS rcNt = NtQueryVolumeInformationFile((HANDLE)RTFileToNative(pThis->Os.hFileDevice),  &IoStatusBlock,
                                                      &FsSize, sizeof(FsSize), FileFsSizeInformation);
         int cRetries = 5;

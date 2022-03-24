@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceStats.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxServiceStats.cpp $ */
 /** @file
  * VBoxStats - Guest statistics notification
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,7 +67,7 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
-typedef struct VBOXSTATSCONTEXT
+typedef struct _VBOXSTATSCONTEXT
 {
     RTMSINTERVAL    cMsStatInterval;
 
@@ -77,11 +77,10 @@ typedef struct VBOXSTATSCONTEXT
     uint64_t        au64LastCpuLoad_Nice[VMM_MAX_CPU_COUNT];
 
 #ifdef RT_OS_WINDOWS
-    DECLCALLBACKMEMBER_EX(NTSTATUS, WINAPI, pfnNtQuerySystemInformation,(SYSTEM_INFORMATION_CLASS SystemInformationClass,
-                                                                         PVOID SystemInformation, ULONG SystemInformationLength,
-                                                                         PULONG ReturnLength));
-    DECLCALLBACKMEMBER_EX(void,     WINAPI, pfnGlobalMemoryStatusEx,(LPMEMORYSTATUSEX lpBuffer));
-    DECLCALLBACKMEMBER_EX(BOOL,     WINAPI, pfnGetPerformanceInfo,(PPERFORMANCE_INFORMATION pPerformanceInformation, DWORD cb));
+    NTSTATUS (WINAPI *pfnNtQuerySystemInformation)(SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation,
+                                                   ULONG SystemInformationLength, PULONG ReturnLength);
+    void     (WINAPI *pfnGlobalMemoryStatusEx)(LPMEMORYSTATUSEX lpBuffer);
+    BOOL     (WINAPI *pfnGetPerformanceInfo)(PPERFORMANCE_INFORMATION pPerformanceInformation, DWORD cb);
 #endif
 } VBOXSTATSCONTEXT;
 
@@ -534,12 +533,12 @@ static void vgsvcVMStatsReport(void)
                                    | VBOX_GUEST_STAT_PHYS_MEM_AVAIL
                                    | VBOX_GUEST_STAT_MEM_SYSTEM_CACHE
                                    | VBOX_GUEST_STAT_PAGE_FILE_SIZE;
-# ifdef VBOX_WITH_MEMBALLOON
+#ifdef VBOX_WITH_MEMBALLOON
         req.guestStats.u32PhysMemBalloon  = VGSvcBalloonQueryPages(_4K);
         req.guestStats.u32StatCaps       |= VBOX_GUEST_STAT_PHYS_MEM_BALLOON;
-# else
+#else
         req.guestStats.u32PhysMemBalloon  = 0;
-# endif
+#endif
 
         /*
          * CPU statistics.

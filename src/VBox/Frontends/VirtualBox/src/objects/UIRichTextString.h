@@ -1,10 +1,10 @@
-/* $Id: UIRichTextString.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIRichTextString.h $ */
 /** @file
  * VBox Qt GUI - UIRichTextString class declaration.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,14 +53,14 @@ public:
     UIRichTextString(const QString &strString, Type enmType = Type_None, const QString &strStringMeta = QString());
 
     /** Destructor rich text string. */
-    virtual ~UIRichTextString();
+    virtual ~UIRichTextString() /* override */;
 
     /** Returns the QString representation. */
     QString toString() const;
 
     /** Returns the list of existing format ranges appropriate for QTextLayout.
       * @param  iShift  Brings the shift of <i>this</i> rich text block accordig to it's root. */
-    QVector<QTextLayout::FormatRange> formatRanges(int iShift = 0) const;
+    QList<QTextLayout::FormatRange> formatRanges(int iShift = 0) const;
 
     /** Defines the anchor to highlight in <i>this</i> rich text block and in it's children. */
     void setHoveredAnchor(const QString &strHoveredAnchor);

@@ -1,10 +1,10 @@
-/* $Id: VBoxNetAdpUninstall.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNetAdpUninstall.cpp $ */
 /** @file
  * NetAdpUninstall - VBoxNetAdp uninstaller command line tool
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,19 +31,19 @@
 #include <devguid.h>
 
 #ifdef NDIS60
-# define VBOX_NETADP_HWID L"sun_VBoxNetAdp6"
-#else
-# define VBOX_NETADP_HWID L"sun_VBoxNetAdp"
-#endif
+#define VBOX_NETADP_HWID L"sun_VBoxNetAdp6"
+#else /* !NDIS60 */
+#define VBOX_NETADP_HWID L"sun_VBoxNetAdp"
+#endif /* !NDIS60 */
 
-static DECLCALLBACK(void) winNetCfgLogger(const char *pszString)
+static VOID winNetCfgLogger (LPCSTR szString)
 {
-    printf("%s", pszString);
+    printf("%s", szString);
 }
 
-static int VBoxNetAdpUninstall(void)
+static int VBoxNetAdpUninstall()
 {
-    int rcExit = RTEXITCODE_FAILURE;
+    int r = 1;
     VBoxNetCfgWinSetLogging(winNetCfgLogger);
 
     printf("uninstalling all Host-Only interfaces..\n");
@@ -56,22 +56,30 @@ static int VBoxNetAdpUninstall(void)
         {
             hr = VBoxDrvCfgInfUninstallAllSetupDi(&GUID_DEVCLASS_NET, L"Net", VBOX_NETADP_HWID, 0/* could be SUOI_FORCEDELETE */);
             if (hr == S_OK)
+            {
                 printf("uninstalled successfully\n");
+            }
             else
+            {
                 printf("uninstalled successfully, but failed to remove infs\n");
-            rcExit = RTEXITCODE_SUCCESS;
+            }
+            r = 0;
         }
         else
-            printf("uninstall failed, hr=%#lx\n", hr);
+        {
+            printf("uninstall failed, hr = 0x%x\n", hr);
+        }
 
         CoUninitialize();
     }
     else
-        wprintf(L"Error initializing COM (%#lx)\n", hr);
+    {
+        wprintf(L"Error initializing COM (0x%x)\n", hr);
+    }
 
     VBoxNetCfgWinSetLogging(NULL);
 
-    return rcExit;
+    return r;
 }
 
 int __cdecl main(int argc, char **argv)

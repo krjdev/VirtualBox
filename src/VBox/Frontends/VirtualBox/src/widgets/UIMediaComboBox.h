@@ -1,10 +1,10 @@
-/* $Id: UIMediaComboBox.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMediaComboBox.h $ */
 /** @file
  * VBox Qt GUI - UIMediaComboBox class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,7 +40,7 @@ public:
     typedef QMap<QString, QString> BaseToDiffMap;
 
     /** Constructs media combo-box passing @a pParent to the base-class. */
-    UIMediaComboBox(QWidget *pParent = 0);
+    UIMediaComboBox(QWidget *pParent);
 
     /** Performs refresh. */
     void refresh();

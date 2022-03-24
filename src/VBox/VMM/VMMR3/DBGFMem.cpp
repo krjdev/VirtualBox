@@ -1,10 +1,10 @@
-/* $Id: DBGFMem.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DBGFMem.cpp $ */
 /** @file
  * DBGF - Debugger Facility, Memory Methods.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,7 +60,7 @@ static DECLCALLBACK(int) dbgfR3MemScan(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS p
     RTGCUINTPTR cbRange = *pcbRange;
     if (!DBGFR3AddrIsValid(pUVM, pAddress))
         return VERR_INVALID_POINTER;
-    if (!RT_VALID_PTR(pHitAddress))
+    if (!VALID_PTR(pHitAddress))
         return VERR_INVALID_POINTER;
 
     /*
@@ -154,7 +154,7 @@ static DECLCALLBACK(int) dbgfR3MemRead(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS p
      */
     if (!DBGFR3AddrIsValid(pUVM, pAddress))
         return VERR_INVALID_POINTER;
-    if (!RT_VALID_PTR(pvBuf))
+    if (!VALID_PTR(pvBuf))
         return VERR_INVALID_POINTER;
 
     /*
@@ -226,7 +226,7 @@ static DECLCALLBACK(int) dbgfR3MemReadString(PUVM pUVM, VMCPUID idCpu, PCDBGFADD
      */
     if (!DBGFR3AddrIsValid(pUVM, pAddress))
         return VERR_INVALID_POINTER;
-    if (!RT_VALID_PTR(pszBuf))
+    if (!VALID_PTR(pszBuf))
         return VERR_INVALID_POINTER;
 
     /*
@@ -272,7 +272,7 @@ VMMR3DECL(int) DBGFR3MemReadString(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS pAddr
     /*
      * Validate and zero output.
      */
-    if (!RT_VALID_PTR(pszBuf))
+    if (!VALID_PTR(pszBuf))
         return VERR_INVALID_POINTER;
     if (cchBuf <= 0)
         return VERR_INVALID_PARAMETER;
@@ -305,7 +305,7 @@ static DECLCALLBACK(int) dbgfR3MemWrite(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS 
      */
     if (!DBGFR3AddrIsValid(pUVM, pAddress))
         return VERR_INVALID_POINTER;
-    if (!RT_VALID_PTR(pvBuf))
+    if (!VALID_PTR(pvBuf))
         return VERR_INVALID_POINTER;
     PVM pVM = pUVM->pVM;
     VM_ASSERT_VALID_EXT_RETURN(pVM, VERR_INVALID_VM_HANDLE);
@@ -631,12 +631,13 @@ VMMDECL(int) DBGFR3PagingDumpEx(PUVM pUVM, VMCPUID idCpu, uint32_t fFlags, uint6
     AssertReturn(   !(fFlags & DBGFPGDMP_FLAGS_EPT)
                  || !(fFlags & (DBGFPGDMP_FLAGS_LME | DBGFPGDMP_FLAGS_PAE | DBGFPGDMP_FLAGS_PSE | DBGFPGDMP_FLAGS_NXE))
                  , VERR_INVALID_PARAMETER);
+    AssertPtrReturn(pHlp, VERR_INVALID_POINTER);
     AssertReturn(cMaxDepth, VERR_INVALID_PARAMETER);
 
     /*
      * Forward the request to the target CPU.
      */
     return VMR3ReqPriorityCallWaitU(pUVM, idCpu, (PFNRT)dbgfR3PagingDumpEx, 8,
-                                    pUVM, idCpu, fFlags, &cr3, &u64FirstAddr, &u64LastAddr, cMaxDepth, pHlp ? pHlp : DBGFR3InfoLogHlp());
+                                    pUVM, idCpu, fFlags, &cr3, &u64FirstAddr, &u64LastAddr, cMaxDepth, pHlp);
 }
 

@@ -1,10 +1,10 @@
-/* $Id: MachineImplCloneVM.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MachineImplCloneVM.h $ */
 /** @file
  * Definition of MachineCloneVM
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,8 +30,6 @@ struct MachineCloneVMPrivate;
 class MachineCloneVM
 {
 public:
-    DECLARE_TRANSLATE_METHODS(MachineCloneVM)
-
     MachineCloneVM(ComObjPtr<Machine> pSrcMachine, ComObjPtr<Machine> pTrgMachine, CloneMode_T mode, const RTCList<CloneOptions_T> &opts);
     ~MachineCloneVM();
 

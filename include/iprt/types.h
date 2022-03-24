@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@
 /*
  * Include standard C types.
  */
-#if !defined(IPRT_NO_CRT) && !defined(DOXYGEN_RUNNING)
+#ifndef IPRT_NO_CRT
 
 # if defined(IN_XF86_MODULE) && !defined(NO_ANSIC)
     /*
@@ -183,25 +183,16 @@ RT_C_DECLS_END
 #  undef false
 #  undef true
 #  undef bool
-
-# elif !defined(DOXYGEN_RUNNING) && RT_MSC_PREREQ(RT_MSC_VER_VC140) && defined(RT_OS_AGNOSTIC)
-    /* Try avoid needing the UCRT just for stddef.h and sys/types.h. */
-    /** @todo refine the RT_OS_AGNOSTIC test? */
-#  include <vcruntime.h>
-
 # else
 #  include <stddef.h>
 #  include <sys/types.h>
 # endif
 
 
-/* Define any types missing from sys/types.h on Windows and OS/2. */
+/* Define any types missing from sys/types.h on windows. */
 # ifdef _MSC_VER
 #  undef ssize_t
-typedef intptr_t ssize_t;
-# endif
-# if defined(RT_OS_OS2) && (defined(__IBMC__) || defined(__IBMCPP__))
-typedef signed long ssize_t;
+   typedef intptr_t ssize_t;
 # endif
 
 #else  /* no crt */
@@ -271,7 +262,9 @@ typedef _Bool bool;
      typedef _Bool bool;
 #   endif
 #  else
-#   undef bool /* see above netbsd explanation */
+#   if (defined(RT_OS_DARWIN) || defined(RT_OS_HAIKU)) && (defined(_STDBOOL_H) || defined(__STDBOOL_H))
+#    undef bool
+#   endif
 typedef _Bool bool;
 #  endif
 # else
@@ -289,11 +282,10 @@ typedef unsigned char bool;
 # endif
 #endif
 
-
 /**
  * 128-bit unsigned integer.
  */
-#ifdef RT_COMPILER_WITH_128BIT_INT_TYPES
+#if defined(__GNUC__) && defined(RT_ARCH_AMD64)
 typedef __uint128_t uint128_t;
 #else
 typedef struct uint128_s
@@ -312,7 +304,7 @@ typedef struct uint128_s
 /**
  * 128-bit signed integer.
  */
-#ifdef RT_COMPILER_WITH_128BIT_INT_TYPES
+#if defined(__GNUC__) && defined(RT_ARCH_AMD64)
 typedef __int128_t int128_t;
 #else
 typedef struct int128_s
@@ -903,64 +895,14 @@ typedef const RTUINT512U RT_FAR *PCRTUINT512U;
 
 
 /**
- * Single precision floating point format (32-bit).
- */
-typedef union RTFLOAT32U
-{
-    /** Format using regular bitfields.  */
-    struct
-    {
-# ifdef RT_BIG_ENDIAN
-        /** The sign indicator. */
-        uint32_t    fSign : 1;
-        /** The exponent (offseted by 127). */
-        uint32_t    uExponent : 8;
-        /** The fraction. */
-        uint32_t    uFraction : 23;
-# else
-        /** The fraction. */
-        uint32_t    uFraction : 23;
-        /** The exponent (offseted by 127). */
-        uint32_t    uExponent : 8;
-        /** The sign indicator. */
-        uint32_t    fSign : 1;
-# endif
-    } s;
-
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-    /** Double view. */
-    float       r;
-#endif
-    /** Unsigned integer view. */
-    uint32_t    u;
-    /** 32-bit view. */
-    uint32_t    au32[1];
-    /** 16-bit view. */
-    uint16_t    au16[2];
-    /** 8-bit view. */
-    uint8_t     au8[4];
-} RTFLOAT32U;
-/** Pointer to a single precision floating point format union. */
-typedef RTFLOAT32U RT_FAR *PRTFLOAT32U;
-/** Pointer to a const single precision floating point format union. */
-typedef const RTFLOAT32U RT_FAR *PCRTFLOAT32U;
-/** RTFLOAT32U initializer. */
-#ifdef RT_BIG_ENDIAN
-# define RTFLOAT32U_INIT(a_fSign, a_uFraction, a_uExponent)     { { (a_fSign), (a_uExponent), (a_uFraction) } }
-#else
-# define RTFLOAT32U_INIT(a_fSign, a_uFraction, a_uExponent)     { { (a_uFraction), (a_uExponent), (a_fSign) } }
-#endif
-#define RTFLOAT32U_INIT_C(a_fSign, a_uFraction, a_uExponent)    RTFLOAT32U_INIT((a_fSign), UINT32_C(a_uFraction), (a_uExponent))
-/** Check if two 32-bit floating values are identical (memcmp, not
- *  numerically). */
-#define RTFLOAT32U_ARE_IDENTICAL(a_pLeft, a_pRight)             ((a_pLeft)->u == (a_pRight)->u)
-
-
-/**
  * Double precision floating point format (64-bit).
  */
 typedef union RTFLOAT64U
 {
+#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
+    /** Double view. */
+    double      rd;
+#endif
     /** Format using regular bitfields.  */
     struct
     {
@@ -970,14 +912,14 @@ typedef union RTFLOAT64U
         /** The exponent (offseted by 1023). */
         uint32_t    uExponent : 11;
         /** The fraction, bits 32 thru 51. */
-        uint32_t    uFractionHigh : 20;
+        uint32_t    u20FractionHigh : 20;
         /** The fraction, bits 0 thru 31. */
-        uint32_t    uFractionLow;
+        uint32_t    u32FractionLow;
 # else
         /** The fraction, bits 0 thru 31. */
-        uint32_t    uFractionLow;
+        uint32_t    u32FractionLow;
         /** The fraction, bits 32 thru 51. */
-        uint32_t    uFractionHigh : 20;
+        uint32_t    u20FractionHigh : 20;
         /** The exponent (offseted by 1023). */
         uint32_t    uExponent : 11;
         /** The sign indicator. */
@@ -1007,12 +949,6 @@ typedef union RTFLOAT64U
     } s64;
 #endif
 
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-    /** Double view. */
-    double      rd;
-#endif
-    /** Unsigned integer view. */
-    uint64_t    u;
     /** 64-bit view. */
     uint64_t    au64[1];
     /** 32-bit view. */
@@ -1026,18 +962,6 @@ typedef union RTFLOAT64U
 typedef RTFLOAT64U RT_FAR *PRTFLOAT64U;
 /** Pointer to a const double precision floating point format union. */
 typedef const RTFLOAT64U RT_FAR *PCRTFLOAT64U;
-/** RTFLOAT64U initializer. */
-#ifdef RT_BIG_ENDIAN
-# define RTFLOAT64U_INIT(a_fSign, a_uFraction, a_uExponent)     \
-    { { (a_fSign), (a_uExponent), (uint32_t)((a_uFraction) >> 32), (uint32_t)((a_uFraction) & UINT32_MAX) } }
-#else
-# define RTFLOAT64U_INIT(a_fSign, a_uFraction, a_uExponent)     \
-    { { (uint32_t)((a_uFraction) & UINT32_MAX), (uint32_t)((a_uFraction) >> 32), (a_uExponent), (a_fSign) } }
-#endif
-#define RTFLOAT64U_INIT_C(a_fSign, a_uFraction, a_uExponent)    RTFLOAT64U_INIT((a_fSign), UINT64_C(a_uFraction), (a_uExponent))
-/** Check if two 64-bit floating values are identical (memcmp, not
- *  numerically). */
-#define RTFLOAT64U_ARE_IDENTICAL(a_pLeft, a_pRight)             ((a_pLeft)->u == (a_pRight)->u)
 
 
 #if !defined(__IBMCPP__) && !defined(__IBMC__)
@@ -1045,7 +969,7 @@ typedef const RTFLOAT64U RT_FAR *PCRTFLOAT64U;
 /**
  * Extended Double precision floating point format (80-bit).
  */
-# pragma pack(1)
+#pragma pack(1)
 typedef union RTFLOAT80U
 {
     /** Format using bitfields.  */
@@ -1057,42 +981,16 @@ typedef union RTFLOAT80U
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The mantissa. */
-        uint64_t                    uMantissa;
+        uint64_t                    u64Mantissa;
 # else
         /** The mantissa. */
-        uint64_t                    uMantissa;
+        uint64_t                    u64Mantissa;
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The sign indicator. */
         RT_GCC_EXTENSION uint16_t   fSign : 1;
 # endif
     } s;
-
-# ifdef RT_COMPILER_GROKS_64BIT_BITFIELDS
-    /** 64-bit bitfields exposing the J bit and the fraction.  */
-    RT_GCC_EXTENSION struct
-    {
-#  ifdef RT_BIG_ENDIAN
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint16_t   fSign : 1;
-        /** The exponent (offseted by 16383). */
-        RT_GCC_EXTENSION uint16_t   uExponent : 15;
-        /** The J bit, aka the integer bit. */
-        RT_GCC_EXTENSION uint64_t   fInteger : 1;
-        /** The fraction. */
-        RT_GCC_EXTENSION uint64_t   uFraction : 63;
-#  else
-        /** The fraction. */
-        RT_GCC_EXTENSION uint64_t   uFraction : 63;
-        /** The J bit, aka the integer bit. */
-        RT_GCC_EXTENSION uint64_t   fInteger : 1;
-        /** The exponent (offseted by 16383). */
-        RT_GCC_EXTENSION uint16_t   uExponent : 15;
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint16_t   fSign : 1;
-#  endif
-    } sj64;
-# endif
 
     /** 64-bit view. */
     uint64_t    au64[1];
@@ -1103,113 +1001,98 @@ typedef union RTFLOAT80U
     /** 8-bit view. */
     uint8_t     au8[10];
 } RTFLOAT80U;
-# pragma pack()
+#pragma pack()
 /** Pointer to a extended precision floating point format union. */
 typedef RTFLOAT80U RT_FAR *PRTFLOAT80U;
 /** Pointer to a const extended precision floating point format union. */
 typedef const RTFLOAT80U RT_FAR *PCRTFLOAT80U;
-/** RTFLOAT80U initializer. */
-# ifdef RT_BIG_ENDIAN
-#  define RTFLOAT80U_INIT(a_fSign, a_uMantissa, a_uExponent)  { { (a_fSign), (a_uExponent), (a_uMantissa) } }
-# else
-#  define RTFLOAT80U_INIT(a_fSign, a_uMantissa, a_uExponent)  { { (a_uMantissa), (a_uExponent), (a_fSign) } }
-# endif
-# define RTFLOAT80U_INIT_C(a_fSign, a_uMantissa, a_uExponent) RTFLOAT80U_INIT((a_fSign), UINT64_C(a_uMantissa), (a_uExponent))
-/** Check if two 80-bit floating values are identical (memcmp, not
- *  numberically). */
-# define RTFLOAT80U_ARE_IDENTICAL(a_pLeft, a_pRight) \
-    (   (a_pLeft)->au64[0] == (a_pRight)->au64[0] \
-     && (a_pLeft)->au16[4] == (a_pRight)->au16[4] )
 
 
 /**
  * A variant of RTFLOAT80U that may be larger than 80-bits depending on how the
  * compiler implements long double.
- *
- * @note On AMD64 systems implementing the System V ABI, this will be 16 bytes!
- *       The last 6 bytes are unused padding taken up by the long double view.
  */
-# pragma pack(1)
+#pragma pack(1)
 typedef union RTFLOAT80U2
 {
+#ifdef RT_COMPILER_WITH_80BIT_LONG_DOUBLE
+    /** Long double view. */
+    long double     lrd;
+#endif
     /** Format using bitfields.  */
     RT_GCC_EXTENSION struct
     {
-# ifdef RT_BIG_ENDIAN
+#ifdef RT_BIG_ENDIAN
         /** The sign indicator. */
         RT_GCC_EXTENSION uint16_t   fSign : 1;
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The mantissa. */
-        uint64_t                    uMantissa;
-# else
+        uint64_t                    u64Mantissa;
+#else
         /** The mantissa. */
-        uint64_t                    uMantissa;
+        uint64_t                    u64Mantissa;
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The sign indicator. */
         RT_GCC_EXTENSION uint16_t   fSign : 1;
-# endif
+#endif
     } s;
 
     /** Bitfield exposing the J bit and the fraction.  */
     RT_GCC_EXTENSION struct
     {
+#ifdef RT_BIG_ENDIAN
+        /** The sign indicator. */
+        RT_GCC_EXTENSION uint16_t   fSign : 1;
+        /** The exponent (offseted by 16383). */
+        RT_GCC_EXTENSION uint16_t   uExponent : 15;
+        /** The J bit, aka the integer bit. */
+        uint32_t                    fInteger;
+        /** The fraction, bits 32 thru 62. */
+        uint32_t                    u31FractionHigh : 31;
+        /** The fraction, bits 0 thru 31. */
+        uint32_t                    u32FractionLow : 32;
+#else
+        /** The fraction, bits 0 thru 31. */
+        uint32_t                    u32FractionLow : 32;
+        /** The fraction, bits 32 thru 62. */
+        uint32_t                    u31FractionHigh : 31;
+        /** The J bit, aka the integer bit. */
+        uint32_t                    fInteger;
+        /** The exponent (offseted by 16383). */
+        RT_GCC_EXTENSION uint16_t   uExponent : 15;
+        /** The sign indicator. */
+        RT_GCC_EXTENSION uint16_t   fSign : 1;
+#endif
+    } sj;
+
+#ifdef RT_COMPILER_GROKS_64BIT_BITFIELDS
+    /** 64-bit bitfields exposing the J bit and the fraction.  */
+    RT_GCC_EXTENSION struct
+    {
 # ifdef RT_BIG_ENDIAN
         /** The sign indicator. */
         RT_GCC_EXTENSION uint16_t   fSign : 1;
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The J bit, aka the integer bit. */
-        uint32_t                    fInteger : 1;
-        /** The fraction, bits 32 thru 62. */
-        uint32_t                    uFractionHigh : 31;
-        /** The fraction, bits 0 thru 31. */
-        uint32_t                    uFractionLow : 32;
+        RT_GCC_EXTENSION uint64_t   fInteger : 1;
+        /** The fraction. */
+        RT_GCC_EXTENSION uint64_t   u63Fraction : 63;
 # else
-        /** The fraction, bits 0 thru 31. */
-        uint32_t                    uFractionLow : 32;
-        /** The fraction, bits 32 thru 62. */
-        uint32_t                    uFractionHigh : 31;
+        /** The fraction. */
+        RT_GCC_EXTENSION uint64_t   u63Fraction : 63;
         /** The J bit, aka the integer bit. */
-        uint32_t                    fInteger : 1;
+        RT_GCC_EXTENSION uint64_t   fInteger : 1;
         /** The exponent (offseted by 16383). */
         RT_GCC_EXTENSION uint16_t   uExponent : 15;
         /** The sign indicator. */
         RT_GCC_EXTENSION uint16_t   fSign : 1;
 # endif
-    } sj;
-
-# ifdef RT_COMPILER_GROKS_64BIT_BITFIELDS
-    /** 64-bit bitfields exposing the J bit and the fraction.  */
-    RT_GCC_EXTENSION struct
-    {
-#  ifdef RT_BIG_ENDIAN
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint16_t   fSign : 1;
-        /** The exponent (offseted by 16383). */
-        RT_GCC_EXTENSION uint16_t   uExponent : 15;
-        /** The J bit, aka the integer bit. */
-        RT_GCC_EXTENSION uint64_t   fInteger : 1;
-        /** The fraction. */
-        RT_GCC_EXTENSION uint64_t   uFraction : 63;
-#  else
-        /** The fraction. */
-        RT_GCC_EXTENSION uint64_t   uFraction : 63;
-        /** The J bit, aka the integer bit. */
-        RT_GCC_EXTENSION uint64_t   fInteger : 1;
-        /** The exponent (offseted by 16383). */
-        RT_GCC_EXTENSION uint16_t   uExponent : 15;
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint16_t   fSign : 1;
-#  endif
     } sj64;
-# endif
+#endif
 
-# ifdef RT_COMPILER_WITH_80BIT_LONG_DOUBLE
-    /** Long double view. */
-    long double lrd;
-# endif
     /** 64-bit view. */
     uint64_t    au64[1];
     /** 32-bit view. */
@@ -1219,7 +1102,7 @@ typedef union RTFLOAT80U2
     /** 8-bit view. */
     uint8_t     au8[10];
 } RTFLOAT80U2;
-# pragma pack()
+#pragma pack()
 /** Pointer to a extended precision floating point format union, 2nd
  * variant. */
 typedef RTFLOAT80U2 RT_FAR *PRTFLOAT80U2;
@@ -1230,52 +1113,10 @@ typedef const RTFLOAT80U2 RT_FAR *PCRTFLOAT80U2;
 #endif /* uint16_t bitfields doesn't work */
 
 
-/**
- * Packed BCD 18-digit signed integer format (80-bit).
- */
-#pragma pack(1)
-typedef union RTPBCD80U
-{
-    /** Format using bitfields.  */
-    RT_GCC_EXTENSION struct
-    {
-# ifdef RT_BIG_ENDIAN
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint8_t    fSign : 1;
-        /** Padding, non-zero if indefinite. */
-        RT_GCC_EXTENSION uint8_t    uPad : 7;
-        /** 18 packed BCD digits, two to a byte. */
-        uint8_t                     aBcdDigits[9];
-# else
-        /** 18 packed BCD digits, two to a byte. */
-        uint8_t                     aBcdDigits[9];
-        /** Padding, non-zero if indefinite. */
-        RT_GCC_EXTENSION uint8_t    uPad : 7;
-        /** The sign indicator. */
-        RT_GCC_EXTENSION uint8_t    fSign : 1;
-# endif
-    } s;
-
-    /** 64-bit view. */
-    uint64_t    au64[1];
-    /** 32-bit view. */
-    uint32_t    au32[2];
-    /** 16-bit view. */
-    uint16_t    au16[5];
-    /** 8-bit view. */
-    uint8_t     au8[10];
-} RTPBCD80U;
-#pragma pack()
-/** Pointer to a packed BCD integer format union. */
-typedef RTPBCD80U RT_FAR *PRTPBCD80U;
-/** Pointer to a const packed BCD integer format union. */
-typedef const RTPBCD80U RT_FAR *PCRTPBCD80U;
-
-
 /** Generic function type.
  * @see PFNRT
  */
-typedef DECLCALLBACKTYPE(void, FNRT,(void));
+typedef DECLCALLBACK(void) FNRT(void);
 
 /** Generic function pointer.
  * With -pedantic, gcc-4 complains when casting a function to a data object, for
@@ -1295,11 +1136,6 @@ typedef DECLCALLBACKTYPE(void, FNRT,(void));
  * something dangerous, assigning a pointer to executable code to a data object.
  */
 typedef FNRT *PFNRT;
-
-/** Variant on PFNRT that takes one pointer argument. */
-typedef DECLCALLBACKTYPE(void, FNRT1,(void *pvArg));
-/** Pointer to FNRT1. */
-typedef FNRT1 *PFNRT1;
 
 /** Millisecond interval. */
 typedef uint32_t                        RTMSINTERVAL;
@@ -2721,14 +2557,6 @@ typedef RTSHMEM                             RT_FAR *PRTSHMEM;
 /** A NIL shared memory object handle. */
 #define NIL_RTSHMEM                                ((RTSHMEM)~(uintptr_t)0)
 
-/** EFI signature database handle. */
-typedef struct RTEFISIGDBINT                RT_FAR *RTEFISIGDB;
-/** Pointer to a EFI signature database handle. */
-typedef RTEFISIGDB                          RT_FAR *PRTEFISIGDB;
-/** A NIL EFI signature database handle. */
-#define NIL_RTEFISIGDB                             ((RTEFISIGDB)~(uintptr_t)0)
-
-
 /**
  * Handle type.
  *
@@ -2959,7 +2787,7 @@ typedef RTSTRTUPLE const RT_FAR *PCRTSTRTUPLE;
  * @param   uPercentage     The percentage of the operation which has been completed.
  * @param   pvUser          The user specified argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTPROGRESS,(unsigned uPercentage, void *pvUser));
+typedef DECLCALLBACK(int) FNRTPROGRESS(unsigned uPrecentage, void *pvUser);
 /** Pointer to a generic progress callback function, FNRTPROCESS(). */
 typedef FNRTPROGRESS *PFNRTPROGRESS;
 
@@ -2970,7 +2798,7 @@ typedef FNRTPROGRESS *PFNRTPROGRESS;
  * @param   pszFormat       The format string.
  * @param   va              Arguments for the format string.
  */
-typedef DECLCALLBACKTYPE(void, FNRTDUMPPRINTFV,(void *pvUser, const char *pszFormat, va_list va) RT_IPRT_FORMAT_ATTR(2, 0));
+typedef DECLCALLBACK(void) FNRTDUMPPRINTFV(void *pvUser, const char *pszFormat, va_list va) RT_IPRT_FORMAT_ATTR(2, 0);
 /** Pointer to a generic printf-like function for dumping. */
 typedef FNRTDUMPPRINTFV *PFNRTDUMPPRINTFV;
 
@@ -3138,20 +2966,6 @@ typedef enum RTDIGESTTYPE
     RTDIGESTTYPE_SHA512T224,
     /** SHA-512/256 checksum. */
     RTDIGESTTYPE_SHA512T256,
-    /** SHA3-224 checksum. */
-    RTDIGESTTYPE_SHA3_224,
-    /** SHA3-256 checksum. */
-    RTDIGESTTYPE_SHA3_256,
-    /** SHA3-384 checksum. */
-    RTDIGESTTYPE_SHA3_384,
-    /** SHA3-512 checksum. */
-    RTDIGESTTYPE_SHA3_512,
-#if 0
-    /** SHAKE128 checksum. */
-    RTDIGESTTYPE_SHAKE128,
-    /** SHAKE256 checksum. */
-    RTDIGESTTYPE_SHAKE256,
-#endif
     /** End of valid types. */
     RTDIGESTTYPE_END,
     /** Usual 32-bit type blowup. */

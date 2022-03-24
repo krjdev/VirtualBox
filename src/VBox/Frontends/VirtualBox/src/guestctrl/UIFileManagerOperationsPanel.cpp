@@ -1,10 +1,10 @@
-/* $Id: UIFileManagerOperationsPanel.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIFileManagerOperationsPanel.cpp $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,22 +51,22 @@ class UIFileOperationProgressWidget : public QIWithRetranslateUI<QFrame>
 signals:
 
     void sigProgressComplete(QUuid progressId);
-    void sigProgressFail(QString strErrorString, QString strSourceTableName, FileManagerLogType eLogType);
+    void sigProgressFail(QString strErrorString, FileManagerLogType eLogType);
     void sigFocusIn(QWidget *pWidget);
     void sigFocusOut(QWidget *pWidget);
 
 public:
 
-    UIFileOperationProgressWidget(const CProgress &comProgress, const QString &strSourceTableName, QWidget *pParent = 0);
+    UIFileOperationProgressWidget(const CProgress &comProgress, QWidget *pParent = 0);
     ~UIFileOperationProgressWidget();
     bool isCompleted() const;
     bool isCanceled() const;
 
 protected:
 
-    virtual void retranslateUi() RT_OVERRIDE;
-    virtual void focusInEvent(QFocusEvent *pEvent) RT_OVERRIDE;
-    virtual void focusOutEvent(QFocusEvent *pEvent) RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+    virtual void focusInEvent(QFocusEvent *pEvent) /* override */;
+    virtual void focusOutEvent(QFocusEvent *pEvent) /* override */;
 
 private slots:
 
@@ -100,8 +100,6 @@ private:
     QIToolButton           *m_pCancelButton;
     QILabel                *m_pStatusLabel;
     QILabel                *m_pOperationDescriptionLabel;
-    /** Name of the table from which this operation has originated. */
-    QString                 m_strSourceTableName;
 };
 
 
@@ -109,7 +107,7 @@ private:
 *   UIFileOperationProgressWidget implementation.                                                                                *
 *********************************************************************************************************************************/
 
-UIFileOperationProgressWidget::UIFileOperationProgressWidget(const CProgress &comProgress, const QString &strSourceTableName, QWidget *pParent /* = 0 */)
+UIFileOperationProgressWidget::UIFileOperationProgressWidget(const CProgress &comProgress, QWidget *pParent /* = 0 */)
     : QIWithRetranslateUI<QFrame>(pParent)
     , m_eStatus(OperationStatus_NotStarted)
     , m_comProgress(comProgress)
@@ -119,7 +117,6 @@ UIFileOperationProgressWidget::UIFileOperationProgressWidget(const CProgress &co
     , m_pCancelButton(0)
     , m_pStatusLabel(0)
     , m_pOperationDescriptionLabel(0)
-    , m_strSourceTableName(strSourceTableName)
 {
     prepare();
     setFocusPolicy(Qt::ClickFocus);
@@ -278,7 +275,7 @@ void UIFileOperationProgressWidget::sltHandleProgressComplete(const QUuid &uProg
 
     if (!m_comProgress.isOk() || m_comProgress.GetResultCode() != 0)
     {
-        emit sigProgressFail(UIErrorString::formatErrorInfo(m_comProgress), m_strSourceTableName, FileManagerLogType_Error);
+        emit sigProgressFail(UIErrorString::formatErrorInfo(m_comProgress), FileManagerLogType_Error);
         m_eStatus = OperationStatus_Failed;
     }
     else
@@ -321,12 +318,12 @@ UIFileManagerOperationsPanel::UIFileManagerOperationsPanel(QWidget *pParent /* =
     prepare();
 }
 
-void UIFileManagerOperationsPanel::addNewProgress(const CProgress &comProgress, const QString &strSourceTableName)
+void UIFileManagerOperationsPanel::addNewProgress(const CProgress &comProgress)
 {
     if (!m_pContainerLayout)
         return;
 
-    UIFileOperationProgressWidget *pOperationsWidget = new UIFileOperationProgressWidget(comProgress, strSourceTableName);
+    UIFileOperationProgressWidget *pOperationsWidget = new UIFileOperationProgressWidget(comProgress);
     if (!pOperationsWidget)
         return;
     m_widgetSet.insert(pOperationsWidget);
@@ -353,9 +350,9 @@ void UIFileManagerOperationsPanel::prepareWidgets()
     if (!mainLayout())
         return;
 
-    QPalette pal = QApplication::palette();
-    pal.setColor(QPalette::Active, QPalette::Window, pal.color(QPalette::Active, QPalette::Base));
-    setPalette(pal);
+    QPalette mPalette = palette();
+    mPalette.setColor(QPalette::Window, qApp->palette().color(QPalette::Light));
+    setPalette(mPalette);
 
     m_pScrollArea = new QScrollArea;
     m_pContainerWidget = new QWidget;

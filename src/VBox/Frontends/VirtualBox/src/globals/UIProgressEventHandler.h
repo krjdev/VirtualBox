@@ -1,10 +1,10 @@
-/* $Id: UIProgressEventHandler.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIProgressEventHandler.h $ */
 /** @file
  * VBox Qt GUI - UIProgressEventHandler class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,15 +42,13 @@ signals:
     void sigProgressPercentageChange(const QUuid &uProgressId, const int iPercent);
     /** Notifies about task complete for progress with @a uProgressId. */
     void sigProgressTaskComplete(const QUuid &uProgressId);
-    /** Notifies about handling has finished. */
-    void sigHandlingFinished();
 
 public:
 
     /** Constructs event proxy object on the basis of passed @a pParent. */
     UIProgressEventHandler(QObject *pParent, const CProgress &comProgress);
     /** Destructs event proxy object. */
-    virtual ~UIProgressEventHandler() RT_OVERRIDE;
+    virtual ~UIProgressEventHandler() /* override */;
 
 protected:
 

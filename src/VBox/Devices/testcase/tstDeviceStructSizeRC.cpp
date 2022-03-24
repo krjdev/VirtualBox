@@ -1,4 +1,4 @@
-/* $Id: tstDeviceStructSizeRC.cpp 93944 2022-02-24 21:15:14Z vboxsync $ */
+/* $Id: tstDeviceStructSizeRC.cpp $ */
 /** @file
  * tstDeviceStructSizeGC - Generate structure member and size checks from the RC perspective.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -121,6 +121,10 @@
 # undef LOG_GROUP
 # include "../Network/DevE1000.cpp"
 #endif
+#ifdef VBOX_WITH_VIRTIO
+# undef LOG_GROUP
+# include "../Network/DevVirtioNet.cpp"
+#endif
 #ifdef VBOX_WITH_BUSLOGIC
 # undef LOG_GROUP
 # include "../Storage/DevBusLogic.cpp"
@@ -138,14 +142,6 @@
 #ifdef VBOX_WITH_NVME_IMPL
 # undef LOG_GROUP
 # include "../Storage/DevNVMe.cpp"
-#endif
-#ifdef VBOX_WITH_IOMMU_AMD
-# undef LOG_GROUP
-# include "../Bus/DevIommuAmd.cpp"
-#endif
-#ifdef VBOX_WITH_IOMMU_INTEL
-# undef LOG_GROUP
-# include "../Bus/DevIommuIntel.cpp"
 #endif
 
 /* Check that important preprocessor macros didn't get redefined: */
@@ -395,7 +391,7 @@ int main()
     GEN_CHECK_OFF(VGASTATE, cMilliesRefreshInterval);
     GEN_CHECK_OFF(VGASTATE, au32DirtyBitmap);
     GEN_CHECK_OFF(VGASTATE, au32DirtyBitmap[1]);
-    GEN_CHECK_OFF(VGASTATE, au32DirtyBitmap[(VGA_VRAM_MAX / GUEST_PAGE_SIZE / 32) - 1]);
+    GEN_CHECK_OFF(VGASTATE, au32DirtyBitmap[(VGA_VRAM_MAX / PAGE_SIZE / 32) - 1]);
     GEN_CHECK_OFF(VGASTATE, fHasDirtyBits);
     GEN_CHECK_OFF(VGASTATE, fLFBUpdated);
     GEN_CHECK_OFF(VGASTATE, fGCEnabled);
@@ -632,8 +628,6 @@ int main()
     GEN_CHECK_OFF(ACPIState, fCpuHotPlug);
     GEN_CHECK_OFF(ACPIState, u32NicPciAddress);
     GEN_CHECK_OFF(ACPIState, u32HbcPciAddress);
-    GEN_CHECK_OFF(ACPIState, u32IommuPciAddress);
-    GEN_CHECK_OFF(ACPIState, u32SbIoApicPciAddress);
     GEN_CHECK_OFF(ACPIState, u64PciConfigMMioAddress);
     GEN_CHECK_OFF(ACPIState, IBase);
     GEN_CHECK_OFF(ACPIState, IACPIPort);
@@ -1557,6 +1551,66 @@ int main()
     GEN_CHECK_OFF(E1KSTATE, StatReceiveBytes);
 #endif /* VBOX_WITH_E1000 */
 
+#ifdef VBOX_WITH_VIRTIO
+    GEN_CHECK_OFF(VPCISTATE, cs);
+    GEN_CHECK_OFF(VPCISTATE, szInstance);
+    GEN_CHECK_OFF(VPCISTATE, IBase);
+    GEN_CHECK_OFF(VPCISTATE, ILeds);
+    GEN_CHECK_OFF(VPCISTATE, pLedsConnector);
+    GEN_CHECK_OFF(VPCISTATE, pDevInsR3);
+    GEN_CHECK_OFF(VPCISTATE, pDevInsR0);
+    GEN_CHECK_OFF(VPCISTATE, pDevInsRC);
+    GEN_CHECK_OFF(VPCISTATE, pciDevice);
+    GEN_CHECK_OFF(VPCISTATE, IOPortBase);
+    GEN_CHECK_OFF(VPCISTATE, led);
+    GEN_CHECK_OFF(VPCISTATE, uGuestFeatures);
+    GEN_CHECK_OFF(VPCISTATE, uQueueSelector);
+    GEN_CHECK_OFF(VPCISTATE, uStatus);
+    GEN_CHECK_OFF(VPCISTATE, uISR);
+    GEN_CHECK_OFF(VPCISTATE, Queues);
+    GEN_CHECK_OFF(VPCISTATE, Queues[VIRTIO_MAX_NQUEUES]);
+    GEN_CHECK_OFF(VNETSTATE, VPCI);
+    GEN_CHECK_OFF(VNETSTATE, INetworkDown);
+    GEN_CHECK_OFF(VNETSTATE, INetworkConfig);
+    GEN_CHECK_OFF(VNETSTATE, pDrvBase);
+    GEN_CHECK_OFF(VNETSTATE, pCanRxQueueR3);
+    GEN_CHECK_OFF(VNETSTATE, pCanRxQueueR0);
+    GEN_CHECK_OFF(VNETSTATE, pCanRxQueueRC);
+    GEN_CHECK_OFF(VNETSTATE, pLinkUpTimer);
+# ifdef VNET_TX_DELAY
+    GEN_CHECK_OFF(VNETSTATE, pTxTimerR3);
+    GEN_CHECK_OFF(VNETSTATE, pTxTimerR0);
+    GEN_CHECK_OFF(VNETSTATE, pTxTimerRC);
+# endif /* VNET_TX_DELAY */
+    GEN_CHECK_OFF(VNETSTATE, config);
+    GEN_CHECK_OFF(VNETSTATE, macConfigured);
+    GEN_CHECK_OFF(VNETSTATE, fCableConnected);
+    GEN_CHECK_OFF(VNETSTATE, u32PktNo);
+    GEN_CHECK_OFF(VNETSTATE, fPromiscuous);
+    GEN_CHECK_OFF(VNETSTATE, fAllMulti);
+    GEN_CHECK_OFF(VNETSTATE, pRxQueue);
+    GEN_CHECK_OFF(VNETSTATE, pTxQueue);
+    GEN_CHECK_OFF(VNETSTATE, pCtlQueue);
+    GEN_CHECK_OFF(VNETSTATE, fMaybeOutOfSpace);
+    GEN_CHECK_OFF(VNETSTATE, hEventMoreRxDescAvail);
+#endif /* VBOX_WITH_VIRTIO */
+
+#ifdef VBOX_WITH_SCSI
+    GEN_CHECK_SIZE(VBOXSCSI);
+    GEN_CHECK_OFF(VBOXSCSI, regIdentify);
+    GEN_CHECK_OFF(VBOXSCSI, uTargetDevice);
+    GEN_CHECK_OFF(VBOXSCSI, uTxDir);
+    GEN_CHECK_OFF(VBOXSCSI, cbCDB);
+    GEN_CHECK_OFF(VBOXSCSI, abCDB);
+    GEN_CHECK_OFF(VBOXSCSI, abCDB[11]);
+    GEN_CHECK_OFF(VBOXSCSI, iCDB);
+    GEN_CHECK_OFF(VBOXSCSI, pbBuf);
+    GEN_CHECK_OFF(VBOXSCSI, cbBuf);
+    GEN_CHECK_OFF(VBOXSCSI, iBuf);
+    GEN_CHECK_OFF(VBOXSCSI, fBusy);
+    GEN_CHECK_OFF(VBOXSCSI, enmState);
+#endif
+
     /* VMMDev*.cpp/h */
     GEN_CHECK_SIZE(VMMDEV);
     GEN_CHECK_OFF(VMMDEV, PciDev);
@@ -1699,6 +1753,7 @@ int main()
     GEN_CHECK_OFF(BUSLOGIC, pNotifierQueueR0);
     GEN_CHECK_OFF(BUSLOGIC, pNotifierQueueRC);
     GEN_CHECK_OFF(BUSLOGIC, CritSectIntr);
+    GEN_CHECK_OFF(BUSLOGIC, VBoxSCSI);
     GEN_CHECK_OFF(BUSLOGIC, aDeviceStates);
     GEN_CHECK_OFF(BUSLOGIC, aDeviceStates[BUSLOGIC_MAX_DEVICES-1]);
     GEN_CHECK_OFF(BUSLOGIC, IBase);
@@ -1707,6 +1762,7 @@ int main()
     GEN_CHECK_OFF(BUSLOGIC, pMediaNotify);
     GEN_CHECK_OFF(BUSLOGIC, fSignalIdle);
     GEN_CHECK_OFF(BUSLOGIC, fWrkThreadSleeping);
+    GEN_CHECK_OFF(BUSLOGIC, fBiosReqPending);
     GEN_CHECK_OFF(BUSLOGIC, pSupDrvSession);
     GEN_CHECK_OFF(BUSLOGIC, hEvtProcess);
     GEN_CHECK_OFF(BUSLOGIC, paGCPhysAddrCCBRedo);
@@ -1777,6 +1833,7 @@ int main()
     GEN_CHECK_OFF(LSILOGICSCSI, uRequestQueueNextAddressRead);
     GEN_CHECK_OFF(LSILOGICSCSI, u16NextHandle);
     GEN_CHECK_OFF(LSILOGICSCSI, enmCtrlType);
+    GEN_CHECK_OFF(LSILOGICSCSI, VBoxSCSI);
     GEN_CHECK_OFF(LSILOGICSCSI, IBase);
     GEN_CHECK_OFF(LSILOGICSCSI, ILeds);
     GEN_CHECK_OFF(LSILOGICSCSI, pLedsConnector);
@@ -2065,189 +2122,6 @@ int main()
     GEN_CHECK_OFF(NVME, aStatMemXfer[0]);
     GEN_CHECK_OFF(NVME, aStatMemXfer[NVME_CMBSZ_SUPP_BIT_IDX_MAX]);
 # endif
-#endif
-
-#ifdef VBOX_WITH_IOMMU_AMD
-# ifdef IOMMU_WITH_DTE_CACHE
-    GEN_CHECK_SIZE(DTECACHE);
-# endif
-# ifdef IOMMU_WITH_DTE_CACHE
-    GEN_CHECK_SIZE(IRTECACHE);
-# endif
-    GEN_CHECK_SIZE(IOMMU);
-    GEN_CHECK_OFF(IOMMU, idxIommu);
-    GEN_CHECK_OFF(IOMMU, u32Magic);
-    GEN_CHECK_OFF(IOMMU, hMmio);
-    GEN_CHECK_OFF(IOMMU, hEvtCmdThread);
-    GEN_CHECK_OFF(IOMMU, fCmdThreadSignaled);
-# ifdef IOMMU_WITH_DTE_CACHE
-    GEN_CHECK_OFF(IOMMU, CritSectCache);
-    GEN_CHECK_OFF(IOMMU, aDeviceIds);
-    GEN_CHECK_OFF(IOMMU, aDteCache);
-# endif
-# ifdef IOMMU_WITH_IRTE_CACHE
-    GEN_CHECK_OFF(IOMMU, aIrteCache);
-# endif
-    GEN_CHECK_OFF(IOMMU, IommuBar);
-    GEN_CHECK_OFF(IOMMU, aDevTabBaseAddrs);
-    GEN_CHECK_OFF(IOMMU, CmdBufBaseAddr);
-    GEN_CHECK_OFF(IOMMU, EvtLogBaseAddr);
-    GEN_CHECK_OFF(IOMMU, Ctrl);
-    GEN_CHECK_OFF(IOMMU, ExclRangeBaseAddr);
-    GEN_CHECK_OFF(IOMMU, ExclRangeLimit);
-    GEN_CHECK_OFF(IOMMU, ExtFeat);
-    GEN_CHECK_OFF(IOMMU, PprLogBaseAddr);
-    GEN_CHECK_OFF(IOMMU, HwEvtHi);
-    GEN_CHECK_OFF(IOMMU, HwEvtLo);
-    GEN_CHECK_OFF(IOMMU, HwEvtStatus);
-    GEN_CHECK_OFF(IOMMU, GALogBaseAddr);
-    GEN_CHECK_OFF(IOMMU, GALogTailAddr);
-    GEN_CHECK_OFF(IOMMU, PprLogBBaseAddr);
-    GEN_CHECK_OFF(IOMMU, EvtLogBBaseAddr);
-    GEN_CHECK_OFF(IOMMU, DevSpecificFeat);
-    GEN_CHECK_OFF(IOMMU, DevSpecificCtrl);
-    GEN_CHECK_OFF(IOMMU, DevSpecificStatus);
-    GEN_CHECK_OFF(IOMMU, MiscInfo);
-    GEN_CHECK_OFF(IOMMU, PerfOptCtrl);
-    GEN_CHECK_OFF(IOMMU, XtGenIntrCtrl);
-    GEN_CHECK_OFF(IOMMU, XtPprIntrCtrl);
-    GEN_CHECK_OFF(IOMMU, XtGALogIntrCtrl);
-    GEN_CHECK_OFF(IOMMU, aMarcApers);
-    GEN_CHECK_OFF(IOMMU, RsvdReg);
-    GEN_CHECK_OFF(IOMMU, CmdBufHeadPtr);
-    GEN_CHECK_OFF(IOMMU, CmdBufTailPtr);
-    GEN_CHECK_OFF(IOMMU, EvtLogHeadPtr);
-    GEN_CHECK_OFF(IOMMU, EvtLogTailPtr);
-    GEN_CHECK_OFF(IOMMU, Status);
-    GEN_CHECK_OFF(IOMMU, PprLogHeadPtr);
-    GEN_CHECK_OFF(IOMMU, PprLogTailPtr);
-    GEN_CHECK_OFF(IOMMU, GALogHeadPtr);
-    GEN_CHECK_OFF(IOMMU, GALogTailPtr);
-    GEN_CHECK_OFF(IOMMU, PprLogBHeadPtr);
-    GEN_CHECK_OFF(IOMMU, PprLogBTailPtr);
-    GEN_CHECK_OFF(IOMMU, EvtLogBHeadPtr);
-    GEN_CHECK_OFF(IOMMU, EvtLogBTailPtr);
-    GEN_CHECK_OFF(IOMMU, PprLogAutoResp);
-    GEN_CHECK_OFF(IOMMU, PprLogOverflowEarly);
-    GEN_CHECK_OFF(IOMMU, PprLogBOverflowEarly);
-# ifdef VBOX_WITH_STATISTICS
-    GEN_CHECK_OFF(IOMMU, StatMmioReadR3);
-    GEN_CHECK_OFF(IOMMU, StatMmioReadRZ);
-    GEN_CHECK_OFF(IOMMU, StatMmioWriteR3);
-    GEN_CHECK_OFF(IOMMU, StatMmioWriteRZ);
-    GEN_CHECK_OFF(IOMMU, StatMsiRemapR3);
-    GEN_CHECK_OFF(IOMMU, StatMsiRemapRZ);
-    GEN_CHECK_OFF(IOMMU, StatMemReadR3);
-    GEN_CHECK_OFF(IOMMU, StatMemReadRZ);
-    GEN_CHECK_OFF(IOMMU, StatMemWriteR3);
-    GEN_CHECK_OFF(IOMMU, StatMemWriteRZ);
-    GEN_CHECK_OFF(IOMMU, StatMemBulkReadR3);
-    GEN_CHECK_OFF(IOMMU, StatMemBulkReadRZ);
-    GEN_CHECK_OFF(IOMMU, StatMemBulkWriteR3);
-    GEN_CHECK_OFF(IOMMU, StatMemBulkWriteRZ);
-    GEN_CHECK_OFF(IOMMU, StatCmd);
-    GEN_CHECK_OFF(IOMMU, StatCmdCompWait);
-    GEN_CHECK_OFF(IOMMU, StatCmdInvDte);
-    GEN_CHECK_OFF(IOMMU, StatCmdInvIommuPages);
-    GEN_CHECK_OFF(IOMMU, StatCmdInvIotlbPages);
-    GEN_CHECK_OFF(IOMMU, StatCmdInvIntrTable);
-    GEN_CHECK_OFF(IOMMU, StatCmdPrefIommuPages);
-    GEN_CHECK_OFF(IOMMU, StatCmdCompletePprReq);
-    GEN_CHECK_OFF(IOMMU, StatCmdInvIommuAll);
-    GEN_CHECK_OFF(IOMMU, StatIotlbeCached);
-    GEN_CHECK_OFF(IOMMU, StatIotlbeLazyEvictReuse);
-    GEN_CHECK_OFF(IOMMU, StatProfDteLookup);
-    GEN_CHECK_OFF(IOMMU, StatProfIotlbeLookup);
-    GEN_CHECK_OFF(IOMMU, StatProfIrteLookup);
-    GEN_CHECK_OFF(IOMMU, StatProfIrteCacheLookup);
-    GEN_CHECK_OFF(IOMMU, StatAccessCacheHit);
-    GEN_CHECK_OFF(IOMMU, StatAccessCacheHitFull);
-    GEN_CHECK_OFF(IOMMU, StatAccessCacheMiss);
-    GEN_CHECK_OFF(IOMMU, StatAccessCacheNonContig);
-    GEN_CHECK_OFF(IOMMU, StatAccessCachePermDenied);
-    GEN_CHECK_OFF(IOMMU, StatAccessDteNonContig);
-    GEN_CHECK_OFF(IOMMU, StatAccessDtePermDenied);
-    GEN_CHECK_OFF(IOMMU, StatIntrCacheHit);
-    GEN_CHECK_OFF(IOMMU, StatIntrCacheMiss);
-# endif
-#endif
-
-#ifdef VBOX_WITH_IOMMU_INTEL
-    GEN_CHECK_SIZE(DMAR);
-    GEN_CHECK_OFF(DMAR, idxIommu);
-    GEN_CHECK_OFF(DMAR, abRegs0);
-    GEN_CHECK_OFF(DMAR, abRegs1);
-    GEN_CHECK_OFF(DMAR, uIrtaReg);
-    GEN_CHECK_OFF(DMAR, uRtaddrReg);
-    GEN_CHECK_OFF(DMAR, uVerReg);
-    GEN_CHECK_OFF(DMAR, fCapReg);
-    GEN_CHECK_OFF(DMAR, fExtCapReg);
-    GEN_CHECK_OFF(DMAR, fHawBaseMask);
-    GEN_CHECK_OFF(DMAR, fMgawInvMask);
-    GEN_CHECK_OFF(DMAR, cMaxPagingLevel);
-    GEN_CHECK_OFF(DMAR, fPermValidMask);
-    GEN_CHECK_OFF(DMAR, hEvtInvQueue);
-    GEN_CHECK_OFF(DMAR, enmDiag);
-    GEN_CHECK_OFF(DMAR, hMmio);
-# ifdef VBOX_WITH_STATISTICS
-    GEN_CHECK_OFF(DMAR, StatMmioReadR3);
-    GEN_CHECK_OFF(DMAR, StatMmioReadRZ);
-    GEN_CHECK_OFF(DMAR, StatMmioWriteR3);
-    GEN_CHECK_OFF(DMAR, StatMmioWriteRZ);
-    GEN_CHECK_OFF(DMAR, StatMsiRemapCfiR3);
-    GEN_CHECK_OFF(DMAR, StatMsiRemapCfiRZ);
-    GEN_CHECK_OFF(DMAR, StatMsiRemapRfiR3);
-    GEN_CHECK_OFF(DMAR, StatMsiRemapRfiRZ);
-    GEN_CHECK_OFF(DMAR, StatMemReadR3);
-    GEN_CHECK_OFF(DMAR, StatMemReadRZ);
-    GEN_CHECK_OFF(DMAR, StatMemWriteR3);
-    GEN_CHECK_OFF(DMAR, StatMemWriteRZ);
-    GEN_CHECK_OFF(DMAR, StatMemBulkReadR3);
-    GEN_CHECK_OFF(DMAR, StatMemBulkReadRZ);
-    GEN_CHECK_OFF(DMAR, StatMemBulkWriteR3);
-    GEN_CHECK_OFF(DMAR, StatMemBulkWriteRZ);
-    GEN_CHECK_OFF(DMAR, StatCcInvDsc);
-    GEN_CHECK_OFF(DMAR, StatIotlbInvDsc);
-    GEN_CHECK_OFF(DMAR, StatDevtlbInvDsc);
-    GEN_CHECK_OFF(DMAR, StatIecInvDsc);
-    GEN_CHECK_OFF(DMAR, StatInvWaitDsc);
-    GEN_CHECK_OFF(DMAR, StatPasidIotlbInvDsc);
-    GEN_CHECK_OFF(DMAR, StatPasidCacheInvDsc);
-    GEN_CHECK_OFF(DMAR, StatPasidDevtlbInvDsc);
-# endif
-
-    GEN_CHECK_SIZE(DMARIOPAGE);
-    GEN_CHECK_OFF(DMARIOPAGE, GCPhysBase);
-    GEN_CHECK_OFF(DMARIOPAGE, cShift);
-    GEN_CHECK_OFF(DMARIOPAGE, fPerm);
-
-    GEN_CHECK_SIZE(DMARIOADDRRANGE);
-    GEN_CHECK_OFF(DMARIOADDRRANGE, uAddr);
-    GEN_CHECK_OFF(DMARIOADDRRANGE, cb);
-    GEN_CHECK_OFF(DMARIOADDRRANGE, fPerm);
-
-    GEN_CHECK_SIZE(DMARMEMREQIN);
-    GEN_CHECK_OFF(DMARMEMREQIN, AddrRange);
-    GEN_CHECK_OFF(DMARMEMREQIN, idDevice);
-    GEN_CHECK_OFF(DMARMEMREQIN, Pasid);
-    GEN_CHECK_OFF(DMARMEMREQIN, enmAddrType);
-    GEN_CHECK_OFF(DMARMEMREQIN, enmReqType);
-
-    GEN_CHECK_SIZE(DMARMEMREQOUT);
-    GEN_CHECK_OFF(DMARMEMREQOUT, AddrRange);
-    GEN_CHECK_OFF(DMARMEMREQOUT, idDomain);
-
-    GEN_CHECK_SIZE(DMARMEMREQAUX);
-    GEN_CHECK_OFF(DMARMEMREQAUX, fTtm
-    GEN_CHECK_OFF(DMARMEMREQAUX, fFpd);
-    GEN_CHECK_OFF(DMARMEMREQAUX, cPagingLevel);
-    GEN_CHECK_OFF(DMARMEMREQAUX, GCPhysFlPt);
-    GEN_CHECK_OFF(DMARMEMREQAUX, GCPhysSlPt);
-
-    GEN_CHECK_SIZE(DMARMEMREQREMAP);
-    GEN_CHECK_OFF(DMARMEMREQREMAP, In);
-    GEN_CHECK_OFF(DMARMEMREQREMAP, Aux);
-    GEN_CHECK_OFF(DMARMEMREQREMAP, Out);
 #endif
 
     return (0);

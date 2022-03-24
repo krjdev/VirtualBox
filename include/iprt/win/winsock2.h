@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,11 +29,6 @@
 # pragma once
 #endif
 
-/* winsock2.h includes windows.h, but without winsock.h, so we need to do it
-   up front using our wrapper header to avoid repeating tricks here. */
-#define _WINSOCKAPI_ /* do not include winsock.h via windows.h */
-#include <iprt/win/windows.h>
-
 #ifdef _MSC_VER
 /*
  * Unfortunately, the Windows.h file in SDK 7.1 is not clean wrt warning C4668:
@@ -46,11 +41,6 @@
 # endif
 # if _MSC_VER >= 1800 /*RT_MSC_VER_VC120*/
 #  pragma warning(disable:4005) /* sdk/v7.1/include/sal_supp.h(57) : warning C4005: '__useHeader' : macro redefinition */
-# endif
-# if _MSC_VER >= 1900 /*RT_MSC_VER_VC140*/
-#  ifdef __cplusplus
-#   pragma warning(disable:5039) /* winbase.h(13179): warning C5039: 'TpSetCallbackCleanupGroup': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception. */
-#  endif
 # endif
 #endif
 

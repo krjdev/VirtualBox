@@ -1,10 +1,10 @@
-/* $Id: tstInt.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstInt.cpp $ */
 /** @file
  * SUP Testcase - Test the interrupt gate feature of the support library.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,11 +34,7 @@
 #include <VBox/vmm/vm.h>
 #include <iprt/errcore.h>
 #include <VBox/param.h>
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-# include <iprt/asm-amd64-x86.h>
-#else
-# define ASMReadTSC RTTimeSystemNanoTS
-#endif
+#include <iprt/asm-amd64-x86.h>
 #include <iprt/initterm.h>
 #include <iprt/stream.h>
 #include <iprt/string.h>
@@ -98,7 +94,7 @@ int main(int argc, char **argv)
             if (RT_SUCCESS(rc))
             {
                 PVM pVM = CreateVMReq.pVMR3;
-                AssertRelease(RT_VALID_PTR(pVM));
+                AssertRelease(VALID_PTR(pVM));
                 AssertRelease(pVM->pVMR0ForCall == CreateVMReq.pVMR0);
                 AssertRelease(pVM->pSession == pSession);
                 AssertRelease(pVM->cCpus == 1);

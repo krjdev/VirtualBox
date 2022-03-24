@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1169,22 +1169,6 @@ RTDECL(RTUNICP) RTUtf16GetCpInternal(PCRTUTF16 pwsz);
 RTDECL(int) RTUtf16GetCpExInternal(PCRTUTF16 *ppwsz, PRTUNICP pCp);
 
 /**
- * Get the unicode code point at the given string position with length
- * restriction.
- *
- * @returns iprt status code.
- * @param   ppwsz       Pointer to the string pointer. This will be updated to
- *                      point to the char following the current code point.
- * @param   pcwc        Pointer to the max string length. This will be
- *                      decremented corrsponding to the advancement of @a ppwsz.
- * @param   pCp         Where to store the code point.
- *                      RTUNICP_INVALID is stored here on failure.
- *
- * @remark  This is an internal worker for RTUtf16GetCpNEx().
- */
-RTDECL(int) RTUtf16GetCpNExInternal(PCRTUTF16 *ppwsz, size_t *pcwc, PRTUNICP pCp);
-
-/**
  * Get the unicode code point at the given string position, big endian.
  *
  * @returns iprt status code.
@@ -1255,38 +1239,6 @@ DECLINLINE(int) RTUtf16GetCpEx(PCRTUTF16 *ppwsz, PRTUNICP pCp)
         return VINF_SUCCESS;
     }
     return RTUtf16GetCpExInternal(ppwsz, pCp);
-}
-
-/**
- * Get the unicode code point at the given string position.
- *
- * @returns iprt status code.
- * @param   ppwsz       Pointer to the string pointer. This will be updated to
- *                      point to the char following the current code point.
- * @param   pcwc        Pointer to the max string length. This will be
- *                      decremented corrsponding to the advancement of @a ppwsz.
- * @param   pCp         Where to store the code point. RTUNICP_INVALID is stored
- *                      here on failure.
- *
- * @remark  We optimize this operation by using an inline function for
- *          everything which isn't a surrogate pair or and endian indicator.
- */
-DECLINLINE(int) RTUtf16GetCpNEx(PCRTUTF16 *ppwsz, size_t *pcwc, PRTUNICP pCp)
-{
-    const size_t cwc = *pcwc;
-    if (cwc > 0)
-    {
-        const PCRTUTF16 pwsz = *ppwsz;
-        const RTUTF16   wc   = *pwsz;
-        if (wc < 0xd800 || (wc > 0xdfff && wc < 0xfffe))
-        {
-            *pCp   = wc;
-            *pcwc  = cwc  - 1;
-            *ppwsz = pwsz + 1;
-            return VINF_SUCCESS;
-        }
-    }
-    return RTUtf16GetCpNExInternal(ppwsz, pcwc, pCp);
 }
 
 /**
@@ -1428,76 +1380,6 @@ DECLINLINE(bool) RTUtf16IsSurrogatePair(RTUTF16 wcHigh, RTUTF16 wcLow)
  * @sa      RTStrPrintHexBytes.
  */
 RTDECL(int) RTUtf16PrintHexBytes(PRTUTF16 pwszBuf, size_t cwcBuf, void const *pv, size_t cb, uint32_t fFlags);
-
-/**
- * String printf producing UTF-16 output.
- *
- * @returns On success, positive count of formatted RTUTF16 units excluding the
- *          terminator.  On buffer overflow, negative number giving the required
- *          buffer size (including terminator) in RTUTF16 units.
- *
- * @param   pwszBuffer  Output buffer.
- * @param   cwcBuffer   Size of the output buffer in RTUTF16 units.
- * @param   pszFormat   Pointer to the format string, @see pg_rt_str_format.
- * @param   args        The format argument.
- *
- * @note    This is similar to RTStrPrintf2V (not RTStrPrintfV)!
- */
-RTDECL(ssize_t) RTUtf16PrintfV(PRTUTF16 pwszBuffer, size_t cwcBuffer, const char *pszFormat, va_list args) RT_IPRT_FORMAT_ATTR(3, 0);
-
-/**
- * String printf producing UTF-16 output.
- *
- * @returns On success, positive count of formatted RTUTF16 units excluding the
- *          terminator.  On buffer overflow, negative number giving the required
- *          buffer size (including terminator) in RTUTF16 units.
- *
- * @param   pwszBuffer  Output buffer.
- * @param   cwcBuffer   Size of the output buffer in RTUTF16 units.
- * @param   pszFormat   Pointer to the format string, @see pg_rt_str_format.
- * @param   ...         The format argument.
- *
- * @note    This is similar to RTStrPrintf2 (not RTStrPrintf)!
- */
-RTDECL(ssize_t) RTUtf16Printf(PRTUTF16 pwszBuffer, size_t cwcBuffer, const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
-
-/**
- * String printf producing UTF-16 output with custom formatting.
- *
- * @returns On success, positive count of formatted RTUTF16 units excluding the
- *          terminator.  On buffer overflow, negative number giving the required
- *          buffer size (including terminator) in RTUTF16 units.
- *
- * @param   pfnFormat   Pointer to handler function for the custom formats.
- * @param   pvArg       Argument to the pfnFormat function.
- * @param   pwszBuffer  Output buffer.
- * @param   cwcBuffer   Size of the output buffer in RTUTF16 units.
- * @param   pszFormat   Pointer to the format string, @see pg_rt_str_format.
- * @param   args        The format argument.
- *
- * @note    This is similar to RTStrPrintf2ExV (not RTStrPrintfExV)!
- */
-RTDECL(ssize_t) RTUtf16PrintfExV(PFNSTRFORMAT pfnFormat, void *pvArg, PRTUTF16 pwszBuffer, size_t cwcBuffer,
-                                 const char *pszFormat, va_list args)  RT_IPRT_FORMAT_ATTR(5, 0);
-
-/**
- * String printf producing UTF-16 output with custom formatting.
- *
- * @returns On success, positive count of formatted RTUTF16 units excluding the
- *          terminator.  On buffer overflow, negative number giving the required
- *          buffer size (including terminator) in RTUTF16 units.
- *
- * @param   pfnFormat   Pointer to handler function for the custom formats.
- * @param   pvArg       Argument to the pfnFormat function.
- * @param   pwszBuffer  Output buffer.
- * @param   cwcBuffer   Size of the output buffer in RTUTF16 units.
- * @param   pszFormat   Pointer to the format string, @see pg_rt_str_format.
- * @param   ...         The format argument.
- *
- * @note    This is similar to RTStrPrintf2Ex (not RTStrPrintfEx)!
- */
-RTDECL(ssize_t) RTUtf16PrintfEx(PFNSTRFORMAT pfnFormat, void *pvArg, PRTUTF16 pwszBuffer, size_t cwcBuffer,
-                                const char *pszFormat, ...)  RT_IPRT_FORMAT_ATTR(5, 6);
 
 /** @} */
 RT_C_DECLS_END

@@ -1,10 +1,10 @@
-/* $Id: DHCPConfigImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DHCPConfigImpl.h $ */
 /** @file
  * VirtualBox Main - IDHCPConfig, IDHCPConfigGlobal, IDHCPConfigGroup, IDHCPConfigIndividual header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,8 +97,6 @@ protected:
     /** @} */
 
 public:
-    DECLARE_TRANSLATE_METHODS(DHCPConfig)
-
     /** @name IDHCPConfig methods
      * @note public because the DHCPServer needs them for 6.0 interfaces.
      * @todo Make protected again when IDHCPServer is cleaned up.
@@ -128,8 +126,6 @@ public:
 class DHCPGlobalConfig : public DHCPGlobalConfigWrap, public DHCPConfig
 {
 public:
-    DECLARE_TRANSLATE_METHODS(DHCPGlobalConfig)
-
     /** @name Constructors and destructors.
      * @{ */
     DHCPGlobalConfig()
@@ -227,8 +223,6 @@ private:
     DHCPGroupConfig            *m_pParent;
 
 public:
-    DECLARE_TRANSLATE_METHODS(DHCPGroupCondition)
-
     /** @name Constructors and destructors.
      * @{ */
     DHCPGroupCondition()
@@ -293,8 +287,6 @@ private:
     typedef std::vector<ComObjPtr<DHCPGroupCondition> >::iterator ConditionsIterator;
 
 public:
-    DECLARE_TRANSLATE_METHODS(DHCPGroupConfig)
-
     /** @name Constructors and destructors.
      * @{ */
     DHCPGroupConfig()
@@ -407,8 +399,6 @@ private:
     com::Utf8Str        m_strFixedAddress;
 
 public:
-    DECLARE_TRANSLATE_METHODS(DHCPIndividualConfig)
-
     /** @name Constructors and destructors.
      * @{ */
     DHCPIndividualConfig()

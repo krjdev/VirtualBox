@@ -1,10 +1,10 @@
-/* $Id: UIGlobalSettingsUpdate.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGlobalSettingsUpdate.h $ */
 /** @file
  * VBox Qt GUI - UIGlobalSettingsUpdate class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,64 +23,75 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIGlobalSettingsUpdate.gen.h"
 #include "UIUpdateDefs.h"
 
 /* Forward declarations: */
-class UIUpdateSettingsEditor;
 struct UIDataSettingsGlobalUpdate;
 typedef UISettingsCache<UIDataSettingsGlobalUpdate> UISettingsCacheGlobalUpdate;
 
 /** Global settings: Update page. */
-class SHARED_LIBRARY_STUFF UIGlobalSettingsUpdate : public UISettingsPageGlobal
+class SHARED_LIBRARY_STUFF UIGlobalSettingsUpdate : public UISettingsPageGlobal,
+                                                    public Ui::UIGlobalSettingsUpdate
 {
     Q_OBJECT;
 
 public:
 
-    /** Constructs settings page. */
+    /** Constructs Update settings page. */
     UIGlobalSettingsUpdate();
-    /** Destructs settings page. */
-    virtual ~UIGlobalSettingsUpdate() RT_OVERRIDE;
+    /** Destructs Update settings page. */
+    ~UIGlobalSettingsUpdate();
 
 protected:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
+    /** Defines TAB order for passed @a pWidget. */
+    virtual void setOrderAfter(QWidget *pWidget) /* override */;
+
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+
+private slots:
+
+    /** Handles whether update is @a fEnabled. */
+    void sltHandleUpdateToggle(bool fEnabled);
+    /** Handles update period change. */
+    void sltHandleUpdatePeriodChange();
 
 private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
     /** Cleanups all. */
     void cleanup();
 
-    /** Saves existing data from cache. */
-    bool saveData();
+    /** Returns period type. */
+    VBoxUpdateData::PeriodType periodType() const;
+    /** Returns branch type. */
+    VBoxUpdateData::BranchType branchType() const;
+
+    /** Saves existing update data from the cache. */
+    bool saveUpdateData();
+
+    /** Holds the last checked button reference. */
+    QRadioButton *m_pLastChosenRadio;
 
     /** Holds the page data cache instance. */
     UISettingsCacheGlobalUpdate *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the update settings editor instance. */
-        UIUpdateSettingsEditor *m_pEditorUpdateSettings;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_global_UIGlobalSettingsUpdate_h */

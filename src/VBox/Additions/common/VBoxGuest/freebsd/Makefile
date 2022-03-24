@@ -1,10 +1,10 @@
-# $Id: Makefile 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile $
 ## @file
 # VirtualBox Guest Additions Module Makefile.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -65,8 +65,7 @@ SRCS += \
 	logrel.c \
 	logrelellipsis.c \
 	logcom.c \
-	logformat.c \
-	RTLogCreateEx.c
+	logformat.c
 
 .PATH:	${.CURDIR}/common/misc
 SRCS += \
@@ -90,7 +89,6 @@ SRCS += \
 	RTStrCopy.c \
 	RTStrCopyEx.c \
 	RTStrCopyP.c \
-	RTStrEnd.c \
 	RTStrICmpAscii.c \
 	RTStrNICmpAscii.c \
 	RTStrNCmp.c \
@@ -103,8 +101,6 @@ SRCS += \
 	strformattype.c \
 	strprintf.c \
 	strprintf-ellipsis.c \
-	strprintf2.c \
-	strprintf2-ellipsis.c \
 	strtonum.c \
 	memchr.c \
 	utf-8.c

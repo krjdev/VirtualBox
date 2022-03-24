@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: postinstall.sh 93662 2022-02-08 17:11:45Z vboxsync $
+# $Id: postinstall.sh $
 ## @file
 # VirtualBox postinstall script for Solaris Guest Additions.
 #
 
 #
-# Copyright (C) 2008-2022 Oracle Corporation
+# Copyright (C) 2008-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -103,7 +103,7 @@ if test "$currentzone" = "global"; then
     if [ -f /etc/dev/reserved_devnames ]; then
         # Solaris 11 SRU6 and later use group root (check a file which isn't
         # tainted by VirtualBox install scripts and allow no other group)
-        refgroup=`LC_ALL=C /usr/bin/ls -lL /etc/dev/reserved_devnames | awk '{ print $4 }' 2>/dev/null`
+        refgroup=$(LC_ALL=C /usr/bin/ls -lL /etc/dev/reserved_devnames | awk '{ print $4 }' 2>/dev/null)
         if [ $? -eq 0 -a "x$refgroup" = "xroot" ]; then
             group=root
         fi

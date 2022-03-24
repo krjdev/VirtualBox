@@ -398,7 +398,7 @@ UsbParseConfigDesc (
       break;
 
     } else if (Setting->Desc.InterfaceNumber >= NumIf) {
-      DEBUG (( DEBUG_ERROR, "UsbParseConfigDesc: malformatted interface descriptor\n"));
+      DEBUG (( EFI_D_ERROR, "UsbParseConfigDesc: mal-formated interface descriptor\n"));
 
       UsbFreeInterfaceDesc (Setting);
       goto ON_ERROR;

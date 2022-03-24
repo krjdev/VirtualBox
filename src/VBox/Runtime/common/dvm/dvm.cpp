@@ -1,10 +1,10 @@
-/* $Id: dvm.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dvm.cpp $ */
 /** @file
  * IPRT Disk Volume Management API (DVM) - generic code.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -93,6 +93,10 @@ typedef RTDVMVOLUMEINTERNAL *PRTDVMVOLUMEINTERNAL;
 /*********************************************************************************************************************************
 *   Global variables                                                                                                             *
 *********************************************************************************************************************************/
+extern RTDVMFMTOPS g_rtDvmFmtMbr;
+extern RTDVMFMTOPS g_rtDvmFmtGpt;
+extern RTDVMFMTOPS g_rtDvmFmtBsdLbl;
+
 /**
  * Supported volume formats.
  */
@@ -140,46 +144,8 @@ static const char * const g_apszDvmVolTypes[] =
     "Windows storage spaces",
 
     "IBM GPFS",
-
-    "OS/2",
 };
 AssertCompile(RT_ELEMENTS(g_apszDvmVolTypes) == RTDVMVOLTYPE_END);
-
-
-/**
- * Read from the disk at the given offset, neither the offset nor the size is
- * necessary sector aligned.
- *
- * @returns IPRT status code.
- * @param   pDisk    The disk descriptor to read from.
- * @param   off      Start offset.
- * @param   pvBuf    Destination buffer.
- * @param   cbRead   How much to read.
- */
-DECLHIDDEN(int) rtDvmDiskReadUnaligned(PCRTDVMDISK pDisk, uint64_t off, void *pvBuf, size_t cbRead)
-{
-    size_t const cbSector = (size_t)pDisk->cbSector;
-    size_t const offDelta = off    % cbSector;
-    size_t const cbDelta  = cbRead % cbSector;
-    if (!cbDelta && !offDelta)
-        return rtDvmDiskRead(pDisk, off, pvBuf, cbRead);
-
-    int rc;
-    size_t cbExtra = offDelta + (cbDelta ? cbSector - cbDelta: 0);
-    uint8_t *pbTmpBuf = (uint8_t *)RTMemTmpAlloc(cbRead + cbExtra);
-    if (pbTmpBuf)
-    {
-        rc = rtDvmDiskRead(pDisk, off - offDelta, pbTmpBuf, cbRead + cbExtra);
-        if (RT_SUCCESS(rc))
-            memcpy(pvBuf, &pbTmpBuf[offDelta], cbRead);
-        else
-            RT_BZERO(pvBuf, cbRead);
-        RTMemTmpFree(pbTmpBuf);
-    }
-    else
-        rc = VERR_NO_TMP_MEMORY;
-    return rc;
-}
 
 
 /**
@@ -463,19 +429,6 @@ RTDECL(RTDVMFORMATTYPE) RTDvmMapGetFormatType(RTDVM hVolMgr)
     return pThis->pDvmFmtOps->enmFormat;
 }
 
-RTDECL(int) RTDvmMapQueryDiskUuid(RTDVM hVolMgr, PRTUUID pUuid)
-{
-    PRTDVMINTERNAL pThis = hVolMgr;
-    AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTDVM_MAGIC, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->hVolMgrFmt != NIL_RTDVMFMT, VERR_INVALID_HANDLE);
-    AssertPtrReturn(pUuid, VERR_INVALID_POINTER);
-
-    if (pThis->pDvmFmtOps->pfnQueryDiskUuid)
-        return pThis->pDvmFmtOps->pfnQueryDiskUuid(pThis->hVolMgrFmt, pUuid);
-    return VERR_NOT_SUPPORTED;
-}
-
 RTDECL(uint32_t) RTDvmMapGetValidVolumes(RTDVM hVolMgr)
 {
     PRTDVMINTERNAL pThis = hVolMgr;
@@ -628,38 +581,6 @@ RTDECL(int) RTDvmMapQueryBlockStatus(RTDVM hVolMgr, uint64_t off, uint64_t cb, b
     return rc;
 }
 
-RTDECL(int) RTDvmMapQueryTableLocations(RTDVM hVolMgr, uint32_t fFlags,
-                                        PRTDVMTABLELOCATION paLocations, size_t cLocations, size_t *pcActual)
-{
-    PRTDVMINTERNAL pThis = hVolMgr;
-
-    /*
-     * Input validation.
-     */
-    if (cLocations)
-    {
-        AssertPtrReturn(paLocations, VERR_INVALID_POINTER);
-        if (pcActual)
-        {
-            AssertPtrReturn(pcActual, VERR_INVALID_POINTER);
-            *pcActual = 0;
-        }
-    }
-    else
-    {
-        AssertPtrReturn(pcActual, VERR_INVALID_POINTER);
-        *pcActual = 0;
-    }
-    AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTDVM_MAGIC, VERR_INVALID_HANDLE);
-    AssertReturn(!(fFlags & ~RTDVMMAPQTABLOC_F_VALID_MASK), VERR_INVALID_FLAGS);
-
-    /*
-     * Pass it down to the format backend.
-     */
-    return pThis->pDvmFmtOps->pfnQueryTableLocations(pThis->hVolMgrFmt, fFlags, paLocations, cLocations, pcActual);
-}
-
 RTDECL(uint32_t) RTDvmVolumeRetain(RTDVMVOLUME hVol)
 {
     PRTDVMVOLUMEINTERNAL pThis = hVol;
@@ -750,153 +671,6 @@ RTDECL(int) RTDvmVolumeQueryRange(RTDVMVOLUME hVol, uint64_t *poffStart, uint64_
     AssertPtrReturn(poffLast, VERR_INVALID_POINTER);
 
     return pThis->pVolMgr->pDvmFmtOps->pfnVolumeQueryRange(pThis->hVolFmt, poffStart, poffLast);
-}
-
-RTDECL(int) RTDvmVolumeQueryTableLocation(RTDVMVOLUME hVol, uint64_t *poffTable, uint64_t *pcbTable)
-{
-    PRTDVMVOLUMEINTERNAL pThis = hVol;
-    AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTDVMVOLUME_MAGIC, VERR_INVALID_HANDLE);
-    AssertPtrReturn(poffTable, VERR_INVALID_POINTER);
-    AssertPtrReturn(pcbTable, VERR_INVALID_POINTER);
-
-    return pThis->pVolMgr->pDvmFmtOps->pfnVolumeQueryTableLocation(pThis->hVolFmt, poffTable, pcbTable);
-}
-
-RTDECL(uint32_t) RTDvmVolumeGetIndex(RTDVMVOLUME hVol, RTDVMVOLIDX enmIndex)
-{
-    PRTDVMVOLUMEINTERNAL pThis = hVol;
-    AssertPtrReturn(pThis, UINT32_MAX);
-    AssertReturn(pThis->u32Magic == RTDVMVOLUME_MAGIC, UINT32_MAX);
-    AssertReturn(enmIndex > RTDVMVOLIDX_INVALID && enmIndex < RTDVMVOLIDX_END, UINT32_MAX);
-
-    if (enmIndex == RTDVMVOLIDX_HOST)
-    {
-#ifdef RT_OS_WINDOWS
-        enmIndex = RTDVMVOLIDX_USER_VISIBLE;
-#elif defined(RT_OS_LINUX) \
-   || defined(RT_OS_FREEBSD) \
-   || defined(RT_OS_NETBSD) \
-   || defined(RT_OS_SOLARIS) \
-   || defined(RT_OS_DARWIN) \
-   || defined(RT_OS_OS2) /*whatever*/
-/* Darwing and freebsd matches the linux algo. Solaris matches linux algo partially, at least, in the part we use. */
-        enmIndex = RTDVMVOLIDX_LINUX;
-#else
-# error "PORTME"
-#endif
-    }
-
-    return pThis->pVolMgr->pDvmFmtOps->pfnVolumeGetIndex(pThis->hVolFmt, enmIndex);
-}
-
-/**
- * Helper for RTDvmVolumeQueryProp.
- */
-static void rtDvmReturnInteger(void *pvDst, size_t cbDst, PRTUINT64U pSrc, size_t cbSrc)
-{
-    /* Read the source: */
-    uint64_t uSrc;
-    switch (cbSrc)
-    {
-        case sizeof(uint8_t):  uSrc = (uint8_t)pSrc->Words.w0; break;
-        case sizeof(uint16_t): uSrc = pSrc->Words.w0; break;
-        case sizeof(uint32_t): uSrc = pSrc->s.Lo; break;
-        default: AssertFailed(); RT_FALL_THROUGH();
-        case sizeof(uint64_t): uSrc = pSrc->u; break;
-    }
-
-    /* Write the destination: */
-    switch (cbDst)
-    {
-        default: AssertFailed(); RT_FALL_THROUGH();
-        case sizeof(uint8_t):  *(uint8_t  *)pvDst = (uint8_t)uSrc; break;
-        case sizeof(uint16_t): *(uint16_t *)pvDst = (uint16_t)uSrc; break;
-        case sizeof(uint32_t): *(uint32_t *)pvDst = (uint32_t)uSrc; break;
-        case sizeof(uint64_t): *(uint64_t *)pvDst = uSrc; break;
-    }
-}
-
-RTDECL(int) RTDvmVolumeQueryProp(RTDVMVOLUME hVol, RTDVMVOLPROP enmProperty, void *pvBuf, size_t cbBuf, size_t *pcbBuf)
-{
-    PRTDVMVOLUMEINTERNAL pThis = hVol;
-    AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTDVMVOLUME_MAGIC, VERR_INVALID_HANDLE);
-    size_t cbBufFallback = 0;
-    if (pcbBuf == NULL)
-        pcbBuf = &cbBufFallback;
-    AssertReturnStmt(enmProperty > RTDVMVOLPROP_INVALID && enmProperty < RTDVMVOLPROP_END, *pcbBuf = 0, VERR_INVALID_FUNCTION);
-
-    switch (enmProperty)
-    {
-        /* 8, 16, 32 or 64 bit sized integers: */
-        case RTDVMVOLPROP_MBR_FIRST_HEAD:
-        case RTDVMVOLPROP_MBR_FIRST_SECTOR:
-        case RTDVMVOLPROP_MBR_LAST_HEAD:
-        case RTDVMVOLPROP_MBR_LAST_SECTOR:
-        case RTDVMVOLPROP_MBR_TYPE:
-        {
-            *pcbBuf = sizeof(uint8_t);
-            AssertReturn(   cbBuf == sizeof(uint8_t)
-                         || cbBuf == sizeof(uint16_t)
-                         || cbBuf == sizeof(uint32_t)
-                         || cbBuf == sizeof(uint64_t), VERR_INVALID_PARAMETER);
-            AssertPtrReturn(pvBuf, VERR_INVALID_POINTER);
-
-            RTUINT64U Union64 = {0};
-            int rc = pThis->pVolMgr->pDvmFmtOps->pfnVolumeQueryProp(pThis->hVolFmt, enmProperty, &Union64, cbBuf, pcbBuf);
-            rtDvmReturnInteger(pvBuf, cbBuf, &Union64, *pcbBuf);
-            return rc;
-        }
-
-        /* 16, 32 or 64 bit sized integers: */
-        case RTDVMVOLPROP_MBR_FIRST_CYLINDER:
-        case RTDVMVOLPROP_MBR_LAST_CYLINDER:
-        {
-            *pcbBuf = sizeof(uint16_t);
-            AssertReturn(   cbBuf == sizeof(uint16_t)
-                         || cbBuf == sizeof(uint32_t)
-                         || cbBuf == sizeof(uint64_t), VERR_INVALID_PARAMETER);
-            AssertPtrReturn(pvBuf, VERR_INVALID_POINTER);
-
-            RTUINT64U Union64 = {0};
-            int rc = pThis->pVolMgr->pDvmFmtOps->pfnVolumeQueryProp(pThis->hVolFmt, enmProperty, &Union64, cbBuf, pcbBuf);
-            rtDvmReturnInteger(pvBuf, cbBuf, &Union64, *pcbBuf);
-            return rc;
-        }
-
-        /* RTUUIDs: */
-        case RTDVMVOLPROP_GPT_TYPE:
-        case RTDVMVOLPROP_GPT_UUID:
-        {
-            *pcbBuf = sizeof(RTUUID);
-            AssertReturn(cbBuf == sizeof(RTUUID), VERR_INVALID_PARAMETER);
-            AssertPtrReturn(pvBuf, VERR_INVALID_POINTER);
-
-            RTUUID Uuid = RTUUID_INITIALIZE_NULL;
-            int rc = pThis->pVolMgr->pDvmFmtOps->pfnVolumeQueryProp(pThis->hVolFmt, enmProperty, &Uuid, sizeof(RTUUID), pcbBuf);
-            memcpy(pvBuf, &Uuid, sizeof(Uuid));
-            return rc;
-        }
-
-        case RTDVMVOLPROP_INVALID:
-        case RTDVMVOLPROP_END:
-        case RTDVMVOLPROP_32BIT_HACK:
-            break;
-        /* No default case! */
-    }
-    AssertFailed();
-    return VERR_NOT_SUPPORTED;
-}
-
-RTDECL(uint64_t) RTDvmVolumeGetPropU64(RTDVMVOLUME hVol, RTDVMVOLPROP enmProperty, uint64_t uDefault)
-{
-    uint64_t uValue = uDefault;
-    int rc = RTDvmVolumeQueryProp(hVol, enmProperty, &uValue, sizeof(uValue), NULL);
-    if (RT_SUCCESS(rc))
-        return uValue;
-    AssertMsg(rc == VERR_NOT_SUPPORTED || rc == VERR_NOT_FOUND, ("%Rrc enmProperty=%d\n", rc, enmProperty));
-    return uDefault;
 }
 
 RTDECL(int) RTDvmVolumeRead(RTDVMVOLUME hVol, uint64_t off, void *pvBuf, size_t cbRead)

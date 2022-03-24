@@ -1,10 +1,10 @@
-/* $Id: VBoxAutostartStart.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxAutostartStart.cpp $ */
 /** @file
  * VBoxAutostart - VirtualBox Autostart service, start machines during system boot.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -112,14 +112,6 @@ DECLHIDDEN(RTEXITCODE) autostartStartMain(PCFGAST pCfgAst)
             }
         }
 
-        /**
-         * @todo r=uwe I'm not reindenting this whole burnt offering
-         * to mistinterpreted Dijkstra's "single exit" commandment
-         * just to add this log, hence a bit of duplicate logic here.
-         */
-        if (SUCCEEDED(rc) && listVM.empty())
-            LogRel(("No VMs configured for autostart\n"));
-
         if (   SUCCEEDED(rc)
             && !listVM.empty())
         {
@@ -174,10 +166,7 @@ DECLHIDDEN(RTEXITCODE) autostartStartMain(PCFGAST pCfgAst)
                         }
                     }
                 }
-                SessionState_T enmSessionState;
-                CHECK_ERROR(g_pSession, COMGETTER(State)(&enmSessionState));
-                if (SUCCEEDED(rc) && enmSessionState == SessionState_Locked)
-                    g_pSession->UnlockMachine();
+                g_pSession->UnlockMachine();
             }
         }
     }

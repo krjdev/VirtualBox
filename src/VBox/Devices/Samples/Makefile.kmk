@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93450 2022-01-26 19:57:34Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Makefile for the device and driver samples.
 #
 
 #
-# Copyright (C) 2009-2022 Oracle Corporation
+# Copyright (C) 2009-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,8 @@ VBoxSampleDevice_TEMPLATE = VBOXR3
 VBoxSampleDevice_SOURCES  = \
 	VBoxSampleDevice.cpp
 VBoxSampleDevice_LIBS     = \
-	$(LIB_RUNTIME)
+	$(LIB_RUNTIME) \
+	$(LIB_VMM)
 
 #
 # VBoxSampleDriver - A sample driver module.
@@ -37,7 +38,8 @@ VBoxSampleDriver_TEMPLATE = VBOXR3
 VBoxSampleDriver_SOURCES  = \
 	DrvStorageFilter.cpp
 VBoxSampleDriver_LIBS     = \
-	$(LIB_RUNTIME)
+	$(LIB_RUNTIME) \
+	$(LIB_VMM)
 
 
 #
@@ -49,7 +51,8 @@ VBoxPlaygroundDevice_SOURCES  = \
 	DevPlayground.cpp
 VBoxPlaygroundDevice_LIBS     = \
 	$(PATH_STAGE_LIB)/VBoxCOM$(VBOX_SUFF_LIB) \
-	$(LIB_RUNTIME)
+	$(LIB_RUNTIME) \
+	$(LIB_VMM)
 
 ifdef VBOX_WITH_XPCOM
  ## @todo may be worth creating the VBOX_XPCOM SDK def, or just a SDK_VBOXXPCOM.

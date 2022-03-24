@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Makefile for the linux guest additions base directory.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -116,10 +116,6 @@ VBOX_LNX_ADD_STRIP_BIN += \
 	VBoxControl \
 	VBoxDRMClient \
 	VBoxClient
-ifdef VBOX_WITH_ADDITIONS_SHIPPING_AUDIO_TEST
- VBOX_LNX_ADD_STRIP_BIN += \
-	VBoxAudioTest
-endif
 
 VBOX_LNX_ADD_STRIP_SBIN += \
 	VBoxService \
@@ -437,3 +433,4 @@ $(PATH_STAGE_BIN)/additions/VBoxLinuxAdditions.run: \
 	$(QUIET)$(VBOX_MAKESELF) --nocomp $(VBOX_LNX_ADD_INST_STAGE_DIR) $@ \
 		"VirtualBox $(VBOX_VERSION_STRING) Guest Additions for Linux" \
 		/bin/sh ./install.sh "\$$0"
+

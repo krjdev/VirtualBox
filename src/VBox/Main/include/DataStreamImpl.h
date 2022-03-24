@@ -1,10 +1,10 @@
-/* $Id: DataStreamImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DataStreamImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,7 @@ class ATL_NO_VTABLE DataStream
     : public DataStreamWrap
 {
 public:
-    DECLARE_COMMON_CLASS_METHODS(DataStream)
+    DECLARE_EMPTY_CTOR_DTOR(DataStream)
 
     HRESULT FinalConstruct();
     void FinalRelease();

@@ -1,10 +1,10 @@
-/* $Id: VBoxGuest-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuest-darwin.cpp $ */
 /** @file
  * VBoxGuest - Darwin Specifics.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,9 +61,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/kauth.h>
-#define _OS_OSUNSERIALIZE_H /* HACK ALERT! Block importing OSUnserialized.h as it causes compilation trouble with
-                               newer clang versions and the 10.15 SDK, and we really don't need it. Sample error:
-                               libkern/c++/OSUnserialize.h:72:2: error: use of OSPtr outside of a return type [-Werror,-Wossharedptr-misuse] */
 #include <IOKit/IOService.h>
 #include <IOKit/IOUserClient.h>
 #include <IOKit/pwr_mgt/RootDomain.h>
@@ -88,12 +85,6 @@
 #define VBOX_RETRIEVE_CUR_PROC_NAME(a_Name) char a_Name[VBOX_PROC_SELFNAME_LEN + 1]; \
                                             proc_selfname(a_Name, VBOX_PROC_SELFNAME_LEN)
 /** @} */
-
-#ifndef minor
-/* The inlined C++ function version minor() takes the wrong parameter
-   type, uint32_t instead of dev_t.  This kludge works around that. */
-# define minor(x) minor((uint32_t)(x))
-#endif
 
 
 /*********************************************************************************************************************************
@@ -200,9 +191,9 @@ extern kern_return_t _start(struct kmod_info *pKModInfo, void *pvData);
 extern kern_return_t _stop(struct kmod_info *pKModInfo, void *pvData);
 
 KMOD_EXPLICIT_DECL(VBoxGuest, VBOX_VERSION_STRING, _start, _stop)
-DECL_HIDDEN_DATA(kmod_start_func_t *) _realmain = vgdrvDarwinStart;
-DECL_HIDDEN_DATA(kmod_stop_func_t *)  _antimain = vgdrvDarwinStop;
-DECL_HIDDEN_DATA(int)                 _kext_apple_cc = __APPLE_CC__;
+DECLHIDDEN(kmod_start_func_t *) _realmain = vgdrvDarwinStart;
+DECLHIDDEN(kmod_stop_func_t *)  _antimain = vgdrvDarwinStop;
+DECLHIDDEN(int)                 _kext_apple_cc = __APPLE_CC__;
 RT_C_DECLS_END
 
 
@@ -321,14 +312,14 @@ static int vgdrvDarwinCharDevInit(void)
         if (g_iMajorDeviceNo >= 0)
         {
             /** @todo limit /dev/vboxguest access. */
-            g_hDevFsDeviceSys = devfs_make_node(makedev((uint32_t)g_iMajorDeviceNo, 0), DEVFS_CHAR,
+            g_hDevFsDeviceSys = devfs_make_node(makedev(g_iMajorDeviceNo, 0), DEVFS_CHAR,
                                                 UID_ROOT, GID_WHEEL, 0666, DEVICE_NAME_SYS);
             if (g_hDevFsDeviceSys != NULL)
             {
                 /*
                  * And a all-user device.
                  */
-                g_hDevFsDeviceUsr = devfs_make_node(makedev((uint32_t)g_iMajorDeviceNo, 1), DEVFS_CHAR,
+                g_hDevFsDeviceUsr = devfs_make_node(makedev(g_iMajorDeviceNo, 1), DEVFS_CHAR,
                                                     UID_ROOT, GID_WHEEL, 0666, DEVICE_NAME_USR);
                 if (g_hDevFsDeviceUsr != NULL)
                 {
@@ -507,7 +498,7 @@ static int vgdrvDarwinIOCtl(dev_t Dev, u_long iCmd, caddr_t pData, int fFlags, s
 {
     RT_NOREF(Dev, fFlags);
     const bool          fUnrestricted = minor(Dev) == 0;
-    const RTPROCESS     Process = (RTPROCESS)proc_pid(pProcess);
+    const RTPROCESS     Process = proc_pid(pProcess);
     const unsigned      iHash = SESSION_HASH(Process);
     PVBOXGUESTSESSION   pSession;
 
@@ -905,7 +896,7 @@ bool org_virtualbox_VBoxGuest::start(IOService *pProvider)
                             if (m_pMap)
                             {
                                 pvMMIOBase = (void *)m_pMap->getVirtualAddress();
-                                cbMMIO     = (uint32_t)m_pMap->getLength();
+                                cbMMIO     = m_pMap->getLength();
                             }
 
                             /*

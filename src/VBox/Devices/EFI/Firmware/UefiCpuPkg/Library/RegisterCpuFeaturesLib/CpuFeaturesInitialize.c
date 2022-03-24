@@ -1,7 +1,7 @@
 /** @file
   CPU Features Initialize functions.
 
-  Copyright (c) 2017 - 2020, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017 - 2019, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -103,16 +103,11 @@ CpuInitDataInitialize (
   UINT32                               Package;
   UINT32                               Thread;
   EFI_CPU_PHYSICAL_LOCATION            *Location;
-  UINT32                               PackageIndex;
-  UINT32                               CoreIndex;
-  UINTN                                Pages;
-  UINT32                               FirstPackage;
-  UINT32                               *FirstCore;
-  UINT32                               *FirstThread;
+  BOOLEAN                              *CoresVisited;
+  UINTN                                Index;
   ACPI_CPU_DATA                        *AcpiCpuData;
   CPU_STATUS_INFORMATION               *CpuStatus;
-  UINT32                               *ThreadCountPerPackage;
-  UINT8                                *ThreadCountPerCore;
+  UINT32                               *ValidCoreCountPerPackage;
   UINTN                                NumberOfCpus;
   UINTN                                NumberOfEnabledProcessors;
 
@@ -129,9 +124,8 @@ CpuInitDataInitialize (
 
   GetNumberOfProcessor (&NumberOfCpus, &NumberOfEnabledProcessors);
 
-  CpuFeaturesData->InitOrder = AllocatePages (EFI_SIZE_TO_PAGES (sizeof (CPU_FEATURES_INIT_ORDER) * NumberOfCpus));
+  CpuFeaturesData->InitOrder = AllocateZeroPool (sizeof (CPU_FEATURES_INIT_ORDER) * NumberOfCpus);
   ASSERT (CpuFeaturesData->InitOrder != NULL);
-  ZeroMem (CpuFeaturesData->InitOrder, sizeof (CPU_FEATURES_INIT_ORDER) * NumberOfCpus);
 
   //
   // Collect CPU Features information
@@ -205,104 +199,41 @@ CpuInitDataInitialize (
   //
   // Collect valid core count in each package because not all cores are valid.
   //
-  ThreadCountPerPackage = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount);
-  ASSERT (ThreadCountPerPackage != NULL);
-  CpuStatus->ThreadCountPerPackage = (EFI_PHYSICAL_ADDRESS)(UINTN)ThreadCountPerPackage;
+  ValidCoreCountPerPackage= AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount);
+  ASSERT (ValidCoreCountPerPackage != 0);
+  CpuStatus->ValidCoreCountPerPackage = (EFI_PHYSICAL_ADDRESS)(UINTN)ValidCoreCountPerPackage;
+  CoresVisited = AllocatePool (sizeof (BOOLEAN) * CpuStatus->MaxCoreCount);
+  ASSERT (CoresVisited != NULL);
 
-  ThreadCountPerCore = AllocateZeroPool (sizeof (UINT8) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount);
-  ASSERT (ThreadCountPerCore != NULL);
-  CpuStatus->ThreadCountPerCore = (EFI_PHYSICAL_ADDRESS)(UINTN)ThreadCountPerCore;
-
-  for (ProcessorNumber = 0; ProcessorNumber < NumberOfCpus; ProcessorNumber++) {
-    Location = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.ProcessorInfo.Location;
-    ThreadCountPerPackage[Location->Package]++;
-    ThreadCountPerCore[Location->Package * CpuStatus->MaxCoreCount + Location->Core]++;
-  }
-
-  for (PackageIndex = 0; PackageIndex < CpuStatus->PackageCount; PackageIndex++) {
-    if (ThreadCountPerPackage[PackageIndex] != 0) {
-      DEBUG ((DEBUG_INFO, "P%02d: Thread Count = %d\n", PackageIndex, ThreadCountPerPackage[PackageIndex]));
-      for (CoreIndex = 0; CoreIndex < CpuStatus->MaxCoreCount; CoreIndex++) {
-        if (ThreadCountPerCore[PackageIndex * CpuStatus->MaxCoreCount + CoreIndex] != 0) {
-          DEBUG ((
-            DEBUG_INFO, "  P%02d C%04d, Thread Count = %d\n", PackageIndex, CoreIndex,
-            ThreadCountPerCore[PackageIndex * CpuStatus->MaxCoreCount + CoreIndex]
-            ));
-        }
+  for (Index = 0; Index < CpuStatus->PackageCount; Index ++ ) {
+    ZeroMem (CoresVisited, sizeof (BOOLEAN) * CpuStatus->MaxCoreCount);
+    //
+    // Collect valid cores in Current package.
+    //
+    for (ProcessorNumber = 0; ProcessorNumber < NumberOfCpus; ProcessorNumber++) {
+      Location = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.ProcessorInfo.Location;
+      if (Location->Package == Index && !CoresVisited[Location->Core] ) {
+        //
+        // The ValidCores position for Location->Core is valid.
+        // The possible values in ValidCores[Index] are 0 or 1.
+        // FALSE means no valid threads in this Core.
+        // TRUE means have valid threads in this core, no matter the thead count is 1 or more.
+        //
+        CoresVisited[Location->Core] = TRUE;
+        ValidCoreCountPerPackage[Index]++;
       }
     }
+  }
+  FreePool (CoresVisited);
+
+  for (Index = 0; Index <= Package; Index++) {
+    DEBUG ((DEBUG_INFO, "Package: %d, Valid Core : %d\n", Index, ValidCoreCountPerPackage[Index]));
   }
 
   CpuFeaturesData->CpuFlags.CoreSemaphoreCount = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
   ASSERT (CpuFeaturesData->CpuFlags.CoreSemaphoreCount != NULL);
   CpuFeaturesData->CpuFlags.PackageSemaphoreCount = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
   ASSERT (CpuFeaturesData->CpuFlags.PackageSemaphoreCount != NULL);
-
-  //
-  // Initialize CpuFeaturesData->InitOrder[].CpuInfo.First
-  // Use AllocatePages () instead of AllocatePool () because pool cannot be freed in PEI phase but page can.
-  //
-  Pages     = EFI_SIZE_TO_PAGES (CpuStatus->PackageCount * sizeof (UINT32) + CpuStatus->PackageCount * CpuStatus->MaxCoreCount * sizeof (UINT32));
-  FirstCore = AllocatePages (Pages);
-  ASSERT (FirstCore != NULL);
-  FirstThread  = FirstCore + CpuStatus->PackageCount;
-
-  //
-  // Set FirstPackage, FirstCore[], FirstThread[] to maximum package ID, core ID, thread ID.
-  //
-  FirstPackage = MAX_UINT32;
-  SetMem32 (FirstCore,   CpuStatus->PackageCount * sizeof (UINT32), MAX_UINT32);
-  SetMem32 (FirstThread, CpuStatus->PackageCount * CpuStatus->MaxCoreCount * sizeof (UINT32), MAX_UINT32);
-
-  for (ProcessorNumber = 0; ProcessorNumber < NumberOfCpus; ProcessorNumber++) {
-    Location = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.ProcessorInfo.Location;
-
-    //
-    // Save the minimum package ID in the platform.
-    //
-    FirstPackage                 = MIN (Location->Package, FirstPackage);
-
-    //
-    // Save the minimum core ID per package.
-    //
-    FirstCore[Location->Package] = MIN (Location->Core, FirstCore[Location->Package]);
-
-    //
-    // Save the minimum thread ID per core.
-    //
-    FirstThread[Location->Package * CpuStatus->MaxCoreCount + Location->Core] = MIN (
-      Location->Thread,
-      FirstThread[Location->Package * CpuStatus->MaxCoreCount + Location->Core]
-    );
-  }
-
-  //
-  // Update the First field.
-  //
-  for (ProcessorNumber = 0; ProcessorNumber < NumberOfCpus; ProcessorNumber++) {
-    Location = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.ProcessorInfo.Location;
-
-    if (Location->Package == FirstPackage) {
-      CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Package = 1;
-    }
-
-    //
-    // Set First.Die/Tile/Module for each thread assuming:
-    //  single Die under each package, single Tile under each Die, single Module under each Tile
-    //
-    CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Die = 1;
-    CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Tile = 1;
-    CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Module = 1;
-
-    if (Location->Core == FirstCore[Location->Package]) {
-      CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Core = 1;
-    }
-    if (Location->Thread == FirstThread[Location->Package * CpuStatus->MaxCoreCount + Location->Core]) {
-      CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo.First.Thread = 1;
-    }
-  }
-
-  FreePages (FirstCore, Pages);
 }
 
 /**
@@ -499,8 +430,8 @@ DumpRegisterTableOnProcessor (
       DEBUG ((
         DebugPrintErrorLevel,
         "Processor: %04d: Index %04d, MSR  : %08x, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
-        (UINT32) ProcessorNumber,
-        (UINT32) FeatureIndex,
+        ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -511,8 +442,8 @@ DumpRegisterTableOnProcessor (
       DEBUG ((
         DebugPrintErrorLevel,
         "Processor: %04d: Index %04d, CR   : %08x, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
-        (UINT32) ProcessorNumber,
-        (UINT32) FeatureIndex,
+        ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -522,9 +453,9 @@ DumpRegisterTableOnProcessor (
     case MemoryMapped:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %04d: Index %04d, MMIO : %016lx, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
-        (UINT32) ProcessorNumber,
-        (UINT32) FeatureIndex,
+        "Processor: %04d: Index %04d, MMIO : %08lx, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
+        ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index | LShiftU64 (RegisterTableEntry->HighIndex, 32),
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -534,9 +465,9 @@ DumpRegisterTableOnProcessor (
     case CacheControl:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %04d: Index %04d, CACHE: %08x, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
-        (UINT32) ProcessorNumber,
-        (UINT32) FeatureIndex,
+        "Processor: %04d: Index %04d, CACHE: %08lx, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
+        ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -547,8 +478,8 @@ DumpRegisterTableOnProcessor (
       DEBUG ((
         DebugPrintErrorLevel,
         "Processor: %04d: Index %04d, SEMAP: %s\r\n",
-        (UINT32) ProcessorNumber,
-        (UINT32) FeatureIndex,
+        ProcessorNumber,
+        FeatureIndex,
         mDependTypeStr[MIN ((UINT32)RegisterTableEntry->Value, InvalidDepType)]
         ));
       break;
@@ -889,11 +820,11 @@ ProgramProcessorRegister (
   CPU_REGISTER_TABLE_ENTRY  *RegisterTableEntryHead;
   volatile UINT32           *SemaphorePtr;
   UINT32                    FirstThread;
+  UINT32                    PackageThreadsCount;
   UINT32                    CurrentThread;
-  UINT32                    CurrentCore;
   UINTN                     ProcessorIndex;
-  UINT32                    *ThreadCountPerPackage;
-  UINT8                     *ThreadCountPerCore;
+  UINTN                     ValidThreadCount;
+  UINT32                    *ValidCoreCountPerPackage;
   EFI_STATUS                Status;
   UINT64                    CurrentValue;
 
@@ -1024,44 +955,28 @@ ProgramProcessorRegister (
       switch (RegisterTableEntry->Value) {
       case CoreDepType:
         SemaphorePtr = CpuFlags->CoreSemaphoreCount;
-        ThreadCountPerCore = (UINT8 *)(UINTN)CpuStatus->ThreadCountPerCore;
-
-        CurrentCore = ApLocation->Package * CpuStatus->MaxCoreCount + ApLocation->Core;
         //
         // Get Offset info for the first thread in the core which current thread belongs to.
         //
-        FirstThread   = CurrentCore * CpuStatus->MaxThreadCount;
+        FirstThread = (ApLocation->Package * CpuStatus->MaxCoreCount + ApLocation->Core) * CpuStatus->MaxThreadCount;
         CurrentThread = FirstThread + ApLocation->Thread;
-
         //
-        // Different cores may have different valid threads in them. If driver maintail clearly
-        // thread index in different cores, the logic will be much complicated.
-        // Here driver just simply records the max thread number in all cores and use it as expect
-        // thread number for all cores.
-        // In below two steps logic, first current thread will Release semaphore for each thread
-        // in current core. Maybe some threads are not valid in this core, but driver don't
-        // care. Second, driver will let current thread wait semaphore for all valid threads in
-        // current core. Because only the valid threads will do release semaphore for this
-        // thread, driver here only need to wait the valid thread count.
-        //
-
-        //
-        // First Notify ALL THREADs in current Core that this thread is ready.
+        // First Notify all threads in current Core that this thread has ready.
         //
         for (ProcessorIndex = 0; ProcessorIndex < CpuStatus->MaxThreadCount; ProcessorIndex ++) {
-          LibReleaseSemaphore (&SemaphorePtr[FirstThread + ProcessorIndex]);
+          LibReleaseSemaphore ((UINT32 *) &SemaphorePtr[FirstThread + ProcessorIndex]);
         }
         //
-        // Second, check whether all VALID THREADs (not all threads) in current core are ready.
+        // Second, check whether all valid threads in current core have ready.
         //
-        for (ProcessorIndex = 0; ProcessorIndex < ThreadCountPerCore[CurrentCore]; ProcessorIndex ++) {
+        for (ProcessorIndex = 0; ProcessorIndex < CpuStatus->MaxThreadCount; ProcessorIndex ++) {
           LibWaitForSemaphore (&SemaphorePtr[CurrentThread]);
         }
         break;
 
       case PackageDepType:
         SemaphorePtr = CpuFlags->PackageSemaphoreCount;
-        ThreadCountPerPackage = (UINT32 *)(UINTN)CpuStatus->ThreadCountPerPackage;
+        ValidCoreCountPerPackage = (UINT32 *)(UINTN)CpuStatus->ValidCoreCountPerPackage;
         //
         // Get Offset info for the first thread in the package which current thread belongs to.
         //
@@ -1069,13 +984,18 @@ ProgramProcessorRegister (
         //
         // Get the possible threads count for current package.
         //
+        PackageThreadsCount = CpuStatus->MaxThreadCount * CpuStatus->MaxCoreCount;
         CurrentThread = FirstThread + CpuStatus->MaxThreadCount * ApLocation->Core + ApLocation->Thread;
+        //
+        // Get the valid thread count for current package.
+        //
+        ValidThreadCount = CpuStatus->MaxThreadCount * ValidCoreCountPerPackage[ApLocation->Package];
 
         //
-        // Different packages may have different valid threads in them. If driver maintail clearly
-        // thread index in different packages, the logic will be much complicated.
-        // Here driver just simply records the max thread number in all packages and use it as expect
-        // thread number for all packages.
+        // Different packages may have different valid cores in them. If driver maintail clearly
+        // cores number in different packages, the logic will be much complicated.
+        // Here driver just simply records the max core number in all packages and use it as expect
+        // core number for all packages.
         // In below two steps logic, first current thread will Release semaphore for each thread
         // in current package. Maybe some threads are not valid in this package, but driver don't
         // care. Second, driver will let current thread wait semaphore for all valid threads in
@@ -1084,15 +1004,15 @@ ProgramProcessorRegister (
         //
 
         //
-        // First Notify ALL THREADS in current package that this thread is ready.
+        // First Notify ALL THREADS in current package that this thread has ready.
         //
-        for (ProcessorIndex = 0; ProcessorIndex < CpuStatus->MaxThreadCount * CpuStatus->MaxCoreCount; ProcessorIndex ++) {
-          LibReleaseSemaphore (&SemaphorePtr[FirstThread + ProcessorIndex]);
+        for (ProcessorIndex = 0; ProcessorIndex < PackageThreadsCount ; ProcessorIndex ++) {
+          LibReleaseSemaphore ((UINT32 *) &SemaphorePtr[FirstThread + ProcessorIndex]);
         }
         //
-        // Second, check whether VALID THREADS (not all threads) in current package are ready.
+        // Second, check whether VALID THREADS (not all threads) in current package have ready.
         //
-        for (ProcessorIndex = 0; ProcessorIndex < ThreadCountPerPackage[ApLocation->Package]; ProcessorIndex ++) {
+        for (ProcessorIndex = 0; ProcessorIndex < ValidThreadCount; ProcessorIndex ++) {
           LibWaitForSemaphore (&SemaphorePtr[CurrentThread]);
         }
         break;

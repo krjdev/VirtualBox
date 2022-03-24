@@ -1,10 +1,10 @@
-/* $Id: VBoxSF.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxSF.cpp $ */
 /** @file
  * VBoxSF - Darwin Shared Folders, KEXT entry points.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -78,9 +78,9 @@ extern kern_return_t _start(struct kmod_info *pKModInfo, void *pvData);
 extern kern_return_t _stop(struct kmod_info *pKModInfo, void *pvData);
 
 KMOD_EXPLICIT_DECL(VBoxSF, VBOX_VERSION_STRING, _start, _stop)
-DECL_HIDDEN_DATA(kmod_start_func_t *) _realmain      = vboxSfDwnModuleLoad;
-DECL_HIDDEN_DATA(kmod_stop_func_t *)  _antimain      = vboxSfDwnModuleUnload;
-DECL_HIDDEN_DATA(int)                 _kext_apple_cc = __APPLE_CC__;
+DECLHIDDEN(kmod_start_func_t *) _realmain      = vboxSfDwnModuleLoad;
+DECLHIDDEN(kmod_stop_func_t *)  _antimain      = vboxSfDwnModuleUnload;
+DECLHIDDEN(int)                 _kext_apple_cc = __APPLE_CC__;
 RT_C_DECLS_END
 
 

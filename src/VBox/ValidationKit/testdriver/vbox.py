@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: vbox.py 94187 2022-03-11 18:40:19Z vboxsync $
+# $Id: vbox.py $
 # pylint: disable=too-many-lines
 
 """
@@ -8,7 +8,7 @@ VirtualBox Specific base testdriver.
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94187 $"
+__version__ = "$Revision: 135976 $"
 
 # pylint: disable=unnecessary-semicolon
 
@@ -403,11 +403,11 @@ class Build(object): # pylint: disable=too-few-public-methods
             self.sKind = "development";
 
             if self.sType is None:
-                self.sType = os.environ.get("KBUILD_TYPE",        "release");
+                self.sType = os.environ.get("KBUILD_TYPE",        os.environ.get("BUILD_TYPE",        "release"));
             if self.sOs is None:
-                self.sOs   = os.environ.get("KBUILD_TARGET",      oDriver.sHost);
+                self.sOs   = os.environ.get("KBUILD_TARGET",      os.environ.get("BUILD_TARGET",      oDriver.sHost));
             if self.sArch is None:
-                self.sArch = os.environ.get("KBUILD_TARGET_ARCH", oDriver.sHostArch);
+                self.sArch = os.environ.get("KBUILD_TARGET_ARCH", os.environ.get("BUILD_TARGET_ARCH", oDriver.sHostArch));
 
             sOut = os.path.join('out', self.sOs + '.' + self.sArch, self.sType);
             sSearch = os.environ.get('VBOX_TD_DEV_TREE', os.path.dirname(__file__)); # Env.var. for older trees or testboxscript.
@@ -459,22 +459,6 @@ class Build(object): # pylint: disable=too-few-public-methods
             self.sSrcRoot     = None;
             self.sDesignation = os.environ.get('TEST_BUILD_DESIGNATION', 'XXXXX');
             ## @todo Much more work is required here.
-
-            # Try Determine the build type.
-            sVBoxManage = os.path.join(self.sInstallPath, 'VBoxManage' + base.exeSuff());
-            if os.path.isfile(sVBoxManage):
-                try:
-                    (iExit, sStdOut, _) = utils.processOutputUnchecked([sVBoxManage, '--dump-build-type']);
-                    sStdOut = sStdOut.strip();
-                    if iExit == 0 and sStdOut in ('release', 'debug', 'strict', 'dbgopt', 'asan'):
-                        self.sType = sStdOut;
-                        reporter.log('Build: Detected build type: %s' % (self.sType));
-                    else:
-                        reporter.log('Build: --dump-build-type -> iExit=%u sStdOut=%s' % (iExit, sStdOut,));
-                except:
-                    reporter.logXcpt('Build: Running "%s --dump-build-type" failed!' % (sVBoxManage,));
-            else:
-                reporter.log3('Build: sVBoxManage=%s not found' % (sVBoxManage,));
 
             # Do some checks.
             sVMMR0 = os.path.join(self.sInstallPath, 'VMMR0.r0');
@@ -732,15 +716,11 @@ class ConsoleEventHandlerBase(EventHandlerBase):
             except:
                 reporter.logXcpt();
         ## @todo implement the other events.
-        try:
-            if eType not in (vboxcon.VBoxEventType_OnMousePointerShapeChanged,
-                             vboxcon.VBoxEventType_OnCursorPositionChanged):
-                if eType in self.dEventNo2Name:
-                    reporter.log2('%s(%s)/%s' % (self.dEventNo2Name[eType], str(eType), self.sName));
-                else:
-                    reporter.log2('%s/%s' % (str(eType), self.sName));
-        except AttributeError: # Handle older VBox versions which don't have a specific event.
-            pass;
+        if eType != vboxcon.VBoxEventType_OnMousePointerShapeChanged:
+            if eType in self.dEventNo2Name:
+                reporter.log2('%s(%s)/%s' % (self.dEventNo2Name[eType], str(eType), self.sName));
+            else:
+                reporter.log2('%s/%s' % (str(eType), self.sName));
         return None;
 
 
@@ -782,7 +762,7 @@ class VirtualBoxEventHandlerBase(EventHandlerBase):
         pass;
     def onSnapshotChange(self, sMachineId, sSnapshotId):
         pass;
-    def onGuestPropertyChange(self, sMachineId, sName, sValue, sFlags, fWasDeleted):
+    def onGuestPropertyChange(self, sMachineId, sName, sValue, sFlags):
         pass;
     # pylint: enable=missing-docstring,unused-argument
 
@@ -805,7 +785,7 @@ class VirtualBoxEventHandlerBase(EventHandlerBase):
         elif eType == vboxcon.VBoxEventType_OnGuestPropertyChanged:
             try:
                 oEvtIt = self.oVBoxMgr.queryInterface(oEvtBase, 'IGuestPropertyChangedEvent');
-                return self.onGuestPropertyChange(oEvtIt.machineId, oEvtIt.name, oEvtIt.value, oEvtIt.flags, oEvtIt.fWasDeleted);
+                return self.onGuestPropertyChange(oEvtIt.machineId, oEvtIt.name, oEvtIt.value, oEvtIt.flags);
             except:
                 reporter.logXcpt();
         ## @todo implement the other events.
@@ -881,24 +861,12 @@ class TestDriver(base.TestDriver):                                              
         self.oVBoxSvcProcess    = None;
         self.sVBoxSvcPidFile    = None;
         self.fVBoxSvcInDebugger = False;
-        self.fVBoxSvcWaitForDebugger = False;
         self.sVBoxValidationKit     = None;
         self.sVBoxValidationKitIso  = None;
         self.sVBoxBootSectors   = None;
         self.fAlwaysUploadLogs  = False;
         self.fAlwaysUploadScreenshots = False;
         self.fEnableDebugger          = True;
-
-        # Drop LD_PRELOAD and enable memory leak detection in LSAN_OPTIONS from vboxinstall.py
-        # before doing build detection. This is a little crude and inflexible...
-        if 'LD_PRELOAD' in os.environ:
-            del os.environ['LD_PRELOAD'];
-            if 'LSAN_OPTIONS' in os.environ:
-                asLSanOptions = os.environ['LSAN_OPTIONS'].split(':');
-                try:    asLSanOptions.remove('detect_leaks=0');
-                except: pass;
-                if asLSanOptions: os.environ['LSAN_OPTIONS'] = ':'.join(asLSanOptions);
-                else:         del os.environ['LSAN_OPTIONS'];
 
         # Quietly detect build and validation kit.
         self._detectBuild(False);
@@ -922,8 +890,6 @@ class TestDriver(base.TestDriver):                                              
         if True is True: # pylint: disable=comparison-with-itself
             try:
                 self.oBuild = Build(self, None);
-                reporter.log('VBox %s build at %s (%s).'
-                             % (self.oBuild.sType, self.oBuild.sInstallPath, self.oBuild.sDesignation,));
                 return True;
             except base.GenError:
                 pass;
@@ -950,8 +916,6 @@ class TestDriver(base.TestDriver):                                              
         for sLoc in asLocs:
             try:
                 self.oBuild = Build(self, sLoc);
-                reporter.log('VBox %s build at %s (%s).'
-                             % (self.oBuild.sType, self.oBuild.sInstallPath, self.oBuild.sDesignation,));
                 return True;
             except base.GenError:
                 pass;
@@ -1208,14 +1172,6 @@ class TestDriver(base.TestDriver):                                              
             if self.oVBoxSvcProcess is not None:
                 self.oVBoxSvcProcess.enableCrashReporting('crash/report/svc', 'crash/dump/svc');
 
-            #
-            # Wait for debugger to attach.
-            #
-            if self.oVBoxSvcProcess is not None and self.fVBoxSvcWaitForDebugger:
-                reporter.log('Press any key after attaching to VBoxSVC (pid %s) with a debugger...'
-                             % (self.oVBoxSvcProcess.getPid(),));
-                sys.stdin.read(1);
-
         #
         # Fudge and pid file.
         #
@@ -1316,11 +1272,7 @@ class TestDriver(base.TestDriver):                                              
                         self.oVBoxSvcProcess.wait(7500);
             else:
                 reporter.log('VBoxSVC is no longer running...');
-
             if not self.oVBoxSvcProcess.isRunning():
-                iExit = self.oVBoxSvcProcess.getExitCode();
-                if iExit != 0 or not self.oVBoxSvcProcess.isNormalExit():
-                    reporter.error("VBoxSVC exited with status %d (%#x)" % (iExit, self.oVBoxSvcProcess.uExitCode));
                 self.oVBoxSvcProcess = None;
         else:
             # by pid file.
@@ -1412,18 +1364,15 @@ class TestDriver(base.TestDriver):                                              
                 raise base.GenError('Malformed version "%s" - 3rd component is out of bounds 0..99: %u'
                                     % (sVer, aiVerComponents[2]));
 
-            # Convert the three integers into a floating point value.  The API is stable within a
+            # Convert the three integers into a floating point value.  The API is table witin a
             # x.y release, so the third component only indicates whether it's a stable or
             # development build of the next release.
             self.fpApiVer = aiVerComponents[0] + 0.1 * aiVerComponents[1];
             if aiVerComponents[2] >= 51:
-                if self.fpApiVer not in [6.1, 5.2, 4.3, 3.2,]:
+                if self.fpApiVer not in [4.3, 3.2,]:
                     self.fpApiVer += 0.1;
                 else:
-                    self.fpApiVer = int(self.fpApiVer) + 1.0;
-            # fudge value to be always bigger than the nominal value (0.1 gets rounded down)
-            if round(self.fpApiVer, 1) > self.fpApiVer:
-                self.fpApiVer += sys.float_info.epsilon * self.fpApiVer / 2.0;
+                    self.fpApiVer += 1.1;
 
             try:
                 self.uRevision = oVBox.revision;
@@ -1743,12 +1692,6 @@ class TestDriver(base.TestDriver):                                              
         reporter.log('  --vbox-use-svc-defaults');
         reporter.log('      Use default locations and files for VBoxSVC.  This is useful');
         reporter.log('      for automatically configuring the test VMs for debugging.');
-        reporter.log('  --vbox-log');
-        reporter.log('      The VBox logger group settings for everyone.');
-        reporter.log('  --vbox-log-flags');
-        reporter.log('      The VBox logger flags settings for everyone.');
-        reporter.log('  --vbox-log-dest');
-        reporter.log('      The VBox logger destination settings for everyone.');
         reporter.log('  --vbox-self-log');
         reporter.log('      The VBox logger group settings for the testdriver.');
         reporter.log('  --vbox-self-log-flags');
@@ -1767,10 +1710,14 @@ class TestDriver(base.TestDriver):                                              
         reporter.log('      The VBoxSVC logger flag settings.');
         reporter.log('  --vbox-svc-log-dest');
         reporter.log('      The VBoxSVC logger destination settings.');
+        reporter.log('  --vbox-log');
+        reporter.log('      The VBox logger group settings for everyone.');
+        reporter.log('  --vbox-log-flags');
+        reporter.log('      The VBox logger flags settings for everyone.');
+        reporter.log('  --vbox-log-dest');
+        reporter.log('      The VBox logger destination settings for everyone.');
         reporter.log('  --vbox-svc-debug');
-        reporter.log('      Start VBoxSVC in a debugger.');
-        reporter.log('  --vbox-svc-wait-debug');
-        reporter.log('      Start VBoxSVC and wait for debugger to attach to it.');
+        reporter.log('      Start VBoxSVC in a debugger');
         reporter.log('  --vbox-always-upload-logs');
         reporter.log('      Whether to always upload log files, or only do so on failure.');
         reporter.log('  --vbox-always-upload-screenshots');
@@ -1876,8 +1823,6 @@ class TestDriver(base.TestDriver):                                              
             self.sLogSvcDest      = asArgs[iArg];
         elif asArgs[iArg] == '--vbox-svc-debug':
             self.fVBoxSvcInDebugger = True;
-        elif asArgs[iArg] == '--vbox-svc-wait-debug':
-            self.fVBoxSvcWaitForDebugger = True;
         elif asArgs[iArg] == '--vbox-always-upload-logs':
             self.fAlwaysUploadLogs = True;
         elif asArgs[iArg] == '--vbox-always-upload-screenshots':
@@ -1899,25 +1844,6 @@ class TestDriver(base.TestDriver):                                              
 
     def completeOptions(self):
         return base.TestDriver.completeOptions(self);
-
-    def getNetworkAdapterNameFromType(self, oNic):
-        """
-        Returns the network adapter name from a given adapter type.
-
-        Returns an empty string if not found / invalid.
-        """
-        sAdpName = '';
-        if    oNic.adapterType == vboxcon.NetworkAdapterType_Am79C970A \
-            or oNic.adapterType == vboxcon.NetworkAdapterType_Am79C973 \
-            or oNic.adapterType == vboxcon.NetworkAdapterType_Am79C960:
-            sAdpName = 'pcnet';
-        elif    oNic.adapterType == vboxcon.NetworkAdapterType_I82540EM \
-            or oNic.adapterType == vboxcon.NetworkAdapterType_I82543GC \
-            or oNic.adapterType == vboxcon.NetworkAdapterType_I82545EM:
-            sAdpName = 'e1000';
-        elif oNic.adapterType == vboxcon.NetworkAdapterType_Virtio:
-            sAdpName = 'virtio-net';
-        return sAdpName;
 
     def getResourceSet(self):
         asRsrcs = [];
@@ -1952,7 +1878,6 @@ class TestDriver(base.TestDriver):                                              
         If your test driver overrides this, it should normally call us at the
         end of the job.
         """
-        cErrorsEntry = reporter.getErrorCount();
 
         # Kill any left over VM processes.
         self._powerOffAllVms();
@@ -1978,15 +1903,16 @@ class TestDriver(base.TestDriver):                                              
             for sSuff in [ '.1', '.2', '.3', '.4', '.5', '.6', '.7', '.8' ]:
                 if os.path.isfile(sVBoxSvcRelLog + sSuff):
                     reporter.addLogFile(sVBoxSvcRelLog + sSuff, 'log/release/svc', 'Release log file for VBoxSVC');
+            # Testbox debugging - START - TEMPORARY, REMOVE ASAP.
+            if self.sHost in ('darwin', 'freebsd', 'linux', 'solaris', ):
+                try:
+                    reporter.log('> ls -R -la %s' % (self.sScratchPath,));
+                    utils.processCall(['ls', '-R', '-la', self.sScratchPath]);
+                except: pass;
+            # Testbox debugging - END   - TEMPORARY, REMOVE ASAP.
 
         # Finally, call the base driver to wipe the scratch space.
-        fRc = base.TestDriver.actionCleanupAfter(self);
-
-        # Flag failure if the error count increased.
-        if reporter.getErrorCount() > cErrorsEntry:
-            fRc = False;
-        return fRc;
-
+        return base.TestDriver.actionCleanupAfter(self);
 
     def actionAbort(self):
         """
@@ -2106,17 +2032,15 @@ class TestDriver(base.TestDriver):                                              
             reporter.log("  VRAM:               %sMB" % (oVM.graphicsAdapter.VRAMSize,));
             reporter.log("  Monitors:           %s" % (oVM.graphicsAdapter.monitorCount,));
             reporter.log("  GraphicsController: %s"
-                         % (self.oVBoxMgr.getEnumValueName('GraphicsControllerType',                                              # pylint: disable=not-callable
+                         % (self.oVBoxMgr.getEnumValueName('GraphicsControllerType',
                                                            oVM.graphicsAdapter.graphicsControllerType),));
         else:
             reporter.log("  VRAM:               %sMB" % (oVM.VRAMSize,));
             reporter.log("  Monitors:           %s" % (oVM.monitorCount,));
             reporter.log("  GraphicsController: %s"
-                         % (self.oVBoxMgr.getEnumValueName('GraphicsControllerType', oVM.graphicsControllerType),));              # pylint: disable=not-callable
-        reporter.log("  Chipset:            %s" % (self.oVBoxMgr.getEnumValueName('ChipsetType', oVM.chipsetType),));             # pylint: disable=not-callable
-        if self.fpApiVer >= 6.2 and hasattr(vboxcon, 'IommuType_None'):
-            reporter.log("  IOMMU:              %s" % (self.oVBoxMgr.getEnumValueName('IommuType', oVM.iommuType),));             # pylint: disable=not-callable
-        reporter.log("  Firmware:           %s" % (self.oVBoxMgr.getEnumValueName('FirmwareType', oVM.firmwareType),));           # pylint: disable=not-callable
+                         % (self.oVBoxMgr.getEnumValueName('GraphicsControllerType', oVM.graphicsControllerType),));
+        reporter.log("  Chipset:            %s" % (self.oVBoxMgr.getEnumValueName('ChipsetType', oVM.chipsetType),));
+        reporter.log("  Firmware:           %s" % (self.oVBoxMgr.getEnumValueName('FirmwareType', oVM.firmwareType),));
         reporter.log("  HwVirtEx:           %s" % (oVM.getHWVirtExProperty(vboxcon.HWVirtExPropertyType_Enabled),));
         reporter.log("  VPID support:       %s" % (oVM.getHWVirtExProperty(vboxcon.HWVirtExPropertyType_VPID),));
         reporter.log("  Nested paging:      %s" % (oVM.getHWVirtExProperty(vboxcon.HWVirtExPropertyType_NestedPaging),));
@@ -2173,10 +2097,10 @@ class TestDriver(base.TestDriver):                                              
         for oCtrl in aoControllers:
             reporter.log("    %s %s bus: %s type: %s" % (oCtrl.name, oCtrl.controllerType, oCtrl.bus, oCtrl.controllerType,));
         reporter.log("    AudioController:  %s"
-                     % (self.oVBoxMgr.getEnumValueName('AudioControllerType', oVM.audioAdapter.audioController),));               # pylint: disable=not-callable
+                     % (self.oVBoxMgr.getEnumValueName('AudioControllerType', oVM.audioAdapter.audioController),));
         reporter.log("    AudioEnabled:     %s" % (oVM.audioAdapter.enabled,));
         reporter.log("    Host AudioDriver: %s"
-                     % (self.oVBoxMgr.getEnumValueName('AudioDriverType', oVM.audioAdapter.audioDriver),));                       # pylint: disable=not-callable
+                     % (self.oVBoxMgr.getEnumValueName('AudioDriverType', oVM.audioAdapter.audioDriver),));
 
         self.processPendingEvents();
         aoAttachments = self.oVBoxMgr.getArray(oVM, 'mediumAttachments')
@@ -2229,16 +2153,13 @@ class TestDriver(base.TestDriver):                                              
                 reporter.log2("    slot #%d found but not enabled, skipping" % (iSlot,));
                 continue;
             reporter.log("    slot #%d: type: %s (%s) MAC Address: %s lineSpeed: %s"
-                         % (iSlot, self.oVBoxMgr.getEnumValueName('NetworkAdapterType', oNic.adapterType),                        # pylint: disable=not-callable
+                         % (iSlot, self.oVBoxMgr.getEnumValueName('NetworkAdapterType', oNic.adapterType),
                             oNic.adapterType, oNic.MACAddress, oNic.lineSpeed) );
 
             if   oNic.attachmentType == vboxcon.NetworkAttachmentType_NAT:
                 reporter.log("    attachmentType: NAT (%s)" % (oNic.attachmentType,));
                 if self.fpApiVer >= 4.1:
                     reporter.log("    nat-network:    %s" % (oNic.NATNetwork,));
-                if self.fpApiVer >= 7.0 and hasattr(oNic.NATEngine, 'localhostReachable'):
-                    reporter.log("    localhostReachable: %s" % (oNic.NATEngine.localhostReachable,));
-
             elif oNic.attachmentType == vboxcon.NetworkAttachmentType_Bridged:
                 reporter.log("    attachmentType: Bridged (%s)" % (oNic.attachmentType,));
                 if self.fpApiVer >= 4.1:
@@ -2255,11 +2176,7 @@ class TestDriver(base.TestDriver):                                              
                 else:
                     reporter.log("    hostInterface:  %s" % (oNic.hostInterface,));
             else:
-                if self.fpApiVer >= 7.0:
-                    if oNic.attachmentType == vboxcon.NetworkAttachmentType_HostOnlyNetwork:
-                        reporter.log("    attachmentType: HostOnlyNetwork (%s)" % (oNic.attachmentType,));
-                        reporter.log("    hostonly-net: %s" % (oNic.hostOnlyNetwork,));
-                elif self.fpApiVer >= 4.1:
+                if self.fpApiVer >= 4.1:
                     if oNic.attachmentType == vboxcon.NetworkAttachmentType_Generic:
                         reporter.log("    attachmentType: Generic (%s)" % (oNic.attachmentType,));
                         reporter.log("    generic-driver: %s" % (oNic.GenericDriver,));
@@ -2278,7 +2195,7 @@ class TestDriver(base.TestDriver):                                              
             if oPort is not None and oPort.enabled:
                 enmHostMode = oPort.hostMode;
                 reporter.log("    slot #%d: hostMode: %s (%s)  I/O port: %s  IRQ: %s  server: %s  path: %s" %
-                             (iSlot,  self.oVBoxMgr.getEnumValueName('PortMode', enmHostMode),                                    # pylint: disable=not-callable
+                             (iSlot,  self.oVBoxMgr.getEnumValueName('PortMode', enmHostMode),
                               enmHostMode, oPort.IOBase, oPort.IRQ, oPort.server, oPort.path,) );
                 self.processPendingEvents();
 
@@ -2417,7 +2334,6 @@ class TestDriver(base.TestDriver):                                              
                      fVmmDevTestingMmio = False,
                      sFirmwareType = 'bios',
                      sChipsetType = 'piix3',
-                     sIommuType = 'none',
                      sDvdControllerType = 'IDE Controller',
                      sCom1RawFile = None):
         """
@@ -2462,9 +2378,6 @@ class TestDriver(base.TestDriver):                                              
                 if sNic0MacAddr == 'grouped':
                     sNic0MacAddr = '%02X' % (iGroup);
                 fRc = oSession.setNicMacAddress(sNic0MacAddr, 0);
-            # Needed to reach the host (localhost) from the guest. See xTracker #9896.
-            if fRc and self.fpApiVer >= 7.0:
-                fRc = oSession.setNicLocalhostReachable(True, 0);
             if fRc and fNatForwardingForTxs is True:
                 fRc = oSession.setupNatForwardingForTxs();
             if fRc and fFastBootLogo is not None:
@@ -2475,39 +2388,33 @@ class TestDriver(base.TestDriver):                                              
                 fRc = oSession.enableVmmDevTestingPart(fVmmDevTestingPart, fVmmDevTestingMmio);
             if fRc and sFirmwareType == 'bios':
                 fRc = oSession.setFirmwareType(vboxcon.FirmwareType_BIOS);
-            elif fRc and sFirmwareType == 'efi':
+            elif sFirmwareType == 'efi':
                 fRc = oSession.setFirmwareType(vboxcon.FirmwareType_EFI);
             if fRc and self.fEnableDebugger:
                 fRc = oSession.setExtraData('VBoxInternal/DBGC/Enabled', '1');
             if fRc and sChipsetType == 'piix3':
                 fRc = oSession.setChipsetType(vboxcon.ChipsetType_PIIX3);
-            elif fRc and sChipsetType == 'ich9':
+            elif sChipsetType == 'ich9':
                 fRc = oSession.setChipsetType(vboxcon.ChipsetType_ICH9);
             if fRc and sCom1RawFile:
                 fRc = oSession.setupSerialToRawFile(0, sCom1RawFile);
-            if fRc and self.fpApiVer >= 6.2 and hasattr(vboxcon, 'IommuType_AMD') and sIommuType == 'amd':
-                fRc = oSession.setIommuType(vboxcon.IommuType_AMD);
-            elif fRc and self.fpApiVer >= 6.2 and hasattr(vboxcon, 'IommuType_Intel') and sIommuType == 'intel':
-                fRc = oSession.setIommuType(vboxcon.IommuType_Intel);
 
             if fRc: fRc = oSession.saveSettings();
             if not fRc:   oSession.discardSettings(True);
             oSession.close();
         if not fRc:
+            try:    self.oVBox.unregisterMachine(oVM.id);
+            except: pass;
             if self.fpApiVer >= 4.0:
-                try:    oVM.unregister(vboxcon.CleanupMode_Full);
-                except: reporter.logXcpt();
                 try:
                     if self.fpApiVer >= 4.3:
                         oProgress = oVM.deleteConfig([]);
                     else:
-                        oProgress = oVM.delete([]);
+                        oProgress = oVM.delete(None);
                     self.waitOnProgress(oProgress);
                 except:
                     reporter.logXcpt();
             else:
-                try:    self.oVBox.unregisterMachine(oVM.id);
-                except: reporter.logXcpt();
                 try:    oVM.deleteSettings();
                 except: reporter.logXcpt();
             return None;
@@ -2567,12 +2474,6 @@ class TestDriver(base.TestDriver):                                              
                     if sNic0MacAddr == 'grouped':
                         sNic0MacAddr = '%02X' % (iGroup,);
                     fRc = oSession.setNicMacAddress(sNic0MacAddr, 0);
-                # Needed to reach the host (localhost) from the guest. See xTracker #9896.
-                if fRc and self.fpApiVer >= 7.0:
-                    fRc = oSession.setNicLocalhostReachable(True, 0);
-
-                if fRc and self.fEnableVrdp:
-                    fRc = oSession.setupVrdp(True, self.uVrdpBasePort + iGroup);
 
                 if fRc and fVmmDevTestingPart is not None:
                     fRc = oSession.enableVmmDevTestingPart(fVmmDevTestingPart, fVmmDevTestingMmio);
@@ -2596,20 +2497,19 @@ class TestDriver(base.TestDriver):                                              
                 return oVM;
 
             # Failed. Unregister the machine and delete it.
+            try:    self.oVBox.unregisterMachine(oVM.id);
+            except: pass;
+
             if self.fpApiVer >= 4.0:
-                try:    oVM.unregister(vboxcon.CleanupMode_Full);
-                except: reporter.logXcpt();
                 try:
                     if self.fpApiVer >= 4.3:
                         oProgress = oVM.deleteConfig([]);
                     else:
-                        oProgress = oVM.delete([]);
+                        oProgress = oVM.delete(None);
                     self.waitOnProgress(oProgress);
                 except:
                     reporter.logXcpt();
             else:
-                try:    self.oVBox.unregisterMachine(oVM.id);
-                except: reporter.logXcpt();
                 try:    oVM.deleteSettings();
                 except: reporter.logXcpt();
         return None;
@@ -2618,11 +2518,8 @@ class TestDriver(base.TestDriver):                                              
         """
         Adds an already existing (that is, configured) test VM to the
         test VM list.
-
-        Returns the VM object on success, None if failed.
         """
         # find + add the VM to the list.
-        oVM = None;
         try:
             if self.fpApiVer >= 4.0:
                 oVM = self.oVBox.findMachine(sNameOrId);
@@ -2630,12 +2527,12 @@ class TestDriver(base.TestDriver):                                              
                 reporter.error('fpApiVer=%s - did you remember to initialize the API' % (self.fpApiVer,));
         except:
             reporter.errorXcpt('could not find vm "%s"' % (sNameOrId,));
+            return None;
 
-        if oVM:
-            self.aoVMs.append(oVM);
-            if not fQuiet:
-                reporter.log('Added "%s" with name "%s"' % (oVM.id, sNameOrId));
-                self.logVmInfo(oVM);
+        self.aoVMs.append(oVM);
+        if not fQuiet:
+            reporter.log('Added "%s" with name "%s"' % (oVM.id, sNameOrId));
+            self.logVmInfo(oVM);
         return oVM;
 
     def openSession(self, oVM):
@@ -2669,105 +2566,6 @@ class TestDriver(base.TestDriver):                                              
             self.waitOnDirectSessionClose(oVM, 5000 + i * 1000);
         from testdriver.vboxwrappers import SessionWrapper;
         return SessionWrapper(oSession, oVM, self.oVBox, self.oVBoxMgr, self, False);
-
-    #
-    # Guest locations.
-    #
-
-    @staticmethod
-    def getGuestTempDir(oTestVm):
-        """
-        Helper for finding a temporary directory in the test VM.
-
-        Note! It may be necessary to create it!
-        """
-        if oTestVm.isWindows():
-            return "C:\\Temp";
-        if oTestVm.isOS2():
-            return "C:\\Temp";
-        return '/var/tmp';
-
-    @staticmethod
-    def getGuestSystemDir(oTestVm, sPathPrefix = ''):
-        """
-        Helper for finding a system directory in the test VM that we can play around with.
-        sPathPrefix can be used to specify other directories, such as /usr/local/bin/ or /usr/bin, for instance.
-
-        On Windows this is always the System32 directory, so this function can be used as
-        basis for locating other files in or under that directory.
-        """
-        if oTestVm.isWindows():
-            return oTestVm.pathJoin(TestDriver.getGuestWinDir(oTestVm), 'System32');
-        if oTestVm.isOS2():
-            return 'C:\\OS2\\DLL';
-
-        # OL / RHEL symlinks "/bin"/ to "/usr/bin". To avoid (unexpectedly) following symlinks, use "/usr/bin" then instead.
-        if  not sPathPrefix \
-        and oTestVm.sKind in ('Oracle_64', 'Oracle'): ## @todo Does this apply for "RedHat" as well?
-            return "/usr/bin";
-
-        return sPathPrefix + "/bin";
-
-    @staticmethod
-    def getGuestSystemAdminDir(oTestVm, sPathPrefix = ''):
-        """
-        Helper for finding a system admin directory ("sbin") in the test VM that we can play around with.
-        sPathPrefix can be used to specify other directories, such as /usr/local/sbin/ or /usr/sbin, for instance.
-
-        On Windows this is always the System32 directory, so this function can be used as
-        basis for locating other files in or under that directory.
-        On UNIX-y systems this always is the "sh" shell to guarantee a common shell syntax.
-        """
-        if oTestVm.isWindows():
-            return oTestVm.pathJoin(TestDriver.getGuestWinDir(oTestVm), 'System32');
-        if oTestVm.isOS2():
-            return 'C:\\OS2\\DLL'; ## @todo r=andy Not sure here.
-
-        # OL / RHEL symlinks "/sbin"/ to "/usr/sbin". To avoid (unexpectedly) following symlinks, use "/usr/sbin" then instead.
-        if  not sPathPrefix \
-        and oTestVm.sKind in ('Oracle_64', 'Oracle'): ## @todo Does this apply for "RedHat" as well?
-            return "/usr/sbin";
-
-        return sPathPrefix + "/sbin";
-
-    @staticmethod
-    def getGuestWinDir(oTestVm):
-        """
-        Helper for finding the Windows directory in the test VM that we can play around with.
-        ASSUMES that we always install Windows on drive C.
-
-        Returns the Windows directory, or an empty string when executed on a non-Windows guest (asserts).
-        """
-        sWinDir = '';
-        if oTestVm.isWindows():
-            if oTestVm.sKind in ['WindowsNT4', 'WindowsNT3x',]:
-                sWinDir = 'C:\\WinNT\\';
-            else:
-                sWinDir = 'C:\\Windows\\';
-        assert sWinDir != '', 'Retrieving Windows directory for non-Windows OS';
-        return sWinDir;
-
-    @staticmethod
-    def getGuestSystemShell(oTestVm):
-        """
-        Helper for finding the default system shell in the test VM.
-        """
-        if oTestVm.isWindows():
-            return TestDriver.getGuestSystemDir(oTestVm) + '\\cmd.exe';
-        if oTestVm.isOS2():
-            return TestDriver.getGuestSystemDir(oTestVm) + '\\..\\CMD.EXE';
-        return "/bin/sh";
-
-    @staticmethod
-    def getGuestSystemFileForReading(oTestVm):
-        """
-        Helper for finding a file in the test VM that we can read.
-        """
-        if oTestVm.isWindows():
-            return TestDriver.getGuestSystemDir(oTestVm) + '\\ntdll.dll';
-        if oTestVm.isOS2():
-            return TestDriver.getGuestSystemDir(oTestVm) + '\\DOSCALL1.DLL';
-        return "/bin/sh";
 
     def getVmByName(self, sName):
         """
@@ -2903,7 +2701,7 @@ class TestDriver(base.TestDriver):                                              
             if fRcTmp:
                 reporter.log('Successfully prepared environment');
                 sReportDbgSym = oResolver.annotateReport(sProcessReport);
-                if sReportDbgSym and len(sReportDbgSym) > 8:
+                if sReportDbgSym is not None:
                     reporter.addLogString(sReportDbgSym, sFilename, sKind, sDesc);
                     fRc = True;
                 else:
@@ -3003,8 +2801,6 @@ class TestDriver(base.TestDriver):                                              
             reporter.errorXcpt();
             return (None, None);
 
-        oSession = None; # Must be initialized, otherwise the log statement at the end of the function can fail.
-
         # Open a remote session, wait for this operation to complete.
         # (The loop is a kludge to deal with us racing the closing of the
         # direct session of a previous VM run. See waitOnDirectSessionClose.)
@@ -3045,21 +2841,6 @@ class TestDriver(base.TestDriver):                                              
                 from testdriver.vboxwrappers import SessionWrapper;
                 oTmp = SessionWrapper(oSession, oVM, self.oVBox, self.oVBoxMgr, self, True, sName, sLogFile);
                 oTmp.addLogsToReport();
-
-                # Try to collect a stack trace of the process for further investigation of any startup hangs.
-                uPid = oTmp.getPid();
-                if uPid is not None:
-                    sHostProcessInfoHung = utils.processGetInfo(uPid, fSudo = True);
-                    if sHostProcessInfoHung is not None:
-                        reporter.log('Trying to annotate the hung VM startup process report, please stand by...');
-                        fRcTmp = self.annotateAndUploadProcessReport(sHostProcessInfoHung, 'vmprocess-startup-hung.log',
-                                                                     'process/report/vm', 'Annotated hung VM process state during startup');     # pylint: disable=line-too-long
-                        # Upload the raw log for manual annotation in case resolving failed.
-                        if not fRcTmp:
-                            reporter.log('Failed to annotate hung VM process report, uploading raw report');
-                            reporter.addLogString(sHostProcessInfoHung, 'vmprocess-startup-hung.log', 'process/report/vm',
-                                                  'Hung VM process state during startup');
-
                 try:
                     if oSession is not None:
                         oSession.close();
@@ -3215,8 +2996,8 @@ class TestDriver(base.TestDriver):                                              
                                      ('phys', ''),
                                      ('clocks', ''),
                                      ('timers', ''),
-                                     ('gdt', ''),
-                                     ('ldt', ''),
+                                     ('gdtguest', ''),
+                                     ('ldtguest', ''),
                                     ]:
                     if sInfo in ['apic',] and self.fpApiVer < 5.1: # asserts and burns
                         continue;
@@ -3338,13 +3119,8 @@ class TestDriver(base.TestDriver):                                              
             # Upload the raw log for manual annotation in case resolving failed.
             if not fRcTmp:
                 reporter.log('Failed to annotate hung VM process report, uploading raw report');
-                fRcTmp = reporter.addLogString(sHostProcessInfoHung, 'vmprocess-hung.log', 'process/report/vm',
-                                               'Hung VM process state');
-                if not fRcTmp:
-                    try: reporter.log('******* START vmprocess-hung.log *******\n%s\n******* END vmprocess-hung.log *******\n'
-                                      % (sHostProcessInfoHung,));
-                    except: pass; # paranoia
-
+                reporter.addLogString(sHostProcessInfoHung, 'vmprocess-hung.log', 'process/report/vm',
+                                      'Hung VM process state');
 
         return fRc;
 
@@ -3569,6 +3345,7 @@ class TestDriver(base.TestDriver):                                              
         Generic TXS task wrapper which waits both on the TXS and the session tasks.
 
         Returns False on error, logged.
+
         Returns task result on success.
         """
         # All async methods ends with the following two args.
@@ -3618,10 +3395,6 @@ class TestDriver(base.TestDriver):                                              
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncDisconnect,
                               (self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
 
-    def txsVer(self, oSession, oTxsSession, cMsTimeout = 30000, fIgnoreErrors = False):
-        return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncVer,
-                              (self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
-
     def txsUuid(self, oSession, oTxsSession, cMsTimeout = 30000, fIgnoreErrors = False):
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncUuid,
                               (self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
@@ -3666,10 +3439,6 @@ class TestDriver(base.TestDriver):                                              
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncIsSymlink,
                               (sRemoteSymlink, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
 
-    def txsCopyFile(self, oSession, oTxsSession, sSrcFile, sDstFile, fMode = 0, cMsTimeout = 30000, fIgnoreErrors = False):
-        return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncCopyFile, \
-                              (sSrcFile, sDstFile, fMode, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
-
     def txsUploadFile(self, oSession, oTxsSession, sLocalFile, sRemoteFile, cMsTimeout = 30000, fIgnoreErrors = False):
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncUploadFile, \
                               (sLocalFile, sRemoteFile, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
@@ -3682,44 +3451,31 @@ class TestDriver(base.TestDriver):                                              
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncDownloadFile, \
                               (sRemoteFile, sLocalFile, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
 
-    def txsDownloadFiles(self, oSession, oTxsSession, aasFiles, fAddToLog = True, fIgnoreErrors = False):
+    def txsDownloadFiles(self, oSession, oTxsSession, asFiles, fIgnoreErrors = False):
         """
-        Convenience function to get files from the guest, storing them in the
-        scratch and adding them to the test result set (optional, but default).
-
-        The aasFiles parameter contains an array of with guest-path + host-path
-        pairs, optionally a file 'kind', description and an alternative upload
-        filename can also be specified.
-
-        Host paths are relative to the scratch directory or they must be given
-        in absolute form.  The guest path should be using guest path style.
+        Convenience function to get files from the guest and stores it
+        into the scratch directory for later (manual) review.
 
         Returns True on success.
-        Returns False on failure (unless fIgnoreErrors is set), logged.
+
+        Returns False on failure, logged.
         """
-        for asEntry in aasFiles:
-            # Unpack:
-            sGstFile     = asEntry[0];
-            sHstFile     = asEntry[1];
-            sKind        = asEntry[2] if len(asEntry) > 2 and asEntry[2] else 'misc/other';
-            sDescription = asEntry[3] if len(asEntry) > 3 and asEntry[3] else '';
-            sAltName     = asEntry[4] if len(asEntry) > 4 and asEntry[4] else None;
-            assert len(asEntry) <= 5 and sGstFile and sHstFile;
-            if not os.path.isabs(sHstFile):
-                sHstFile = os.path.join(self.sScratchPath, sHstFile);
-
-            reporter.log2('Downloading file "%s" to "%s" ...' % (sGstFile, sHstFile,));
-
-            try:    os.unlink(sHstFile); ## @todo txsDownloadFile doesn't truncate the output file.
+        fRc = True;
+        for sGstFile in asFiles:
+            sTmpFile = os.path.join(self.sScratchPath, 'tmp-' + os.path.basename(sGstFile));
+            reporter.log2('Downloading file "%s" to "%s" ...' % (sGstFile, sTmpFile));
+            # First try to remove (unlink) an existing temporary file, as we don't truncate the file.
+            try:    os.unlink(sTmpFile);
             except: pass;
-
-            fRc = self.txsDownloadFile(oSession, oTxsSession, sGstFile, sHstFile, 30 * 1000, fIgnoreErrors);
+            ## @todo Check for already existing files on the host and create a new
+            #        name for the current file to download.
+            fRc = self.txsDownloadFile(oSession, oTxsSession, sGstFile, sTmpFile, 30 * 1000, fIgnoreErrors);
             if fRc:
-                if fAddToLog:
-                    reporter.addLogFile(sHstFile, sKind, sDescription, sAltName);
+                reporter.addLogFile(sTmpFile, 'misc/other', 'guest - ' + sGstFile);
             else:
                 if fIgnoreErrors is not True:
-                    return reporter.error('error downloading file "%s" to "%s"' % (sGstFile, sHstFile));
+                    reporter.error('error downloading file "%s" to "%s"' % (sGstFile, sTmpFile));
+                    return fRc;
                 reporter.log('warning: file "%s" was not downloaded, ignoring.' % (sGstFile,));
         return True;
 
@@ -3727,10 +3483,6 @@ class TestDriver(base.TestDriver):                                              
                           cMsTimeout = 30000, fIgnoreErrors = False):
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncDownloadString,
                               (sRemoteFile, sEncoding, fIgnoreEncodingErrors, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
-
-    def txsPackFile(self, oSession, oTxsSession, sRemoteFile, sRemoteSource, cMsTimeout = 30000, fIgnoreErrors = False):
-        return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncPackFile, \
-                              (sRemoteFile, sRemoteSource, self.adjustTimeoutMs(cMsTimeout), fIgnoreErrors));
 
     def txsUnpackFile(self, oSession, oTxsSession, sRemoteFile, sRemoteDir, cMsTimeout = 30000, fIgnoreErrors = False):
         return self.txsDoTask(oSession, oTxsSession, oTxsSession.asyncUnpackFile, \
@@ -3756,9 +3508,6 @@ class TestDriver(base.TestDriver):                                              
 
         if sFile is None:
             sFile = 'valkit.txt';
-
-        reporter.log('txsCdWait: Waiting for file "%s" to become available ...' % (sFile,));
-
         fRemoveVm   = self.addTask(oSession);
         fRemoveTxs  = self.addTask(oTxsSession);
         cMsTimeout  = self.adjustTimeoutMs(cMsTimeout);
@@ -3789,63 +3538,20 @@ class TestDriver(base.TestDriver):                                              
                     reporter.error('txsCdWait: timed out');
                     fRc = False;
                     break;
+
                 # delay.
                 self.sleep(1);
 
-                # resubmit the task.
+                # resubmitt the task.
                 cMsTimeout2 = msStart + cMsTimeout - base.timestampMilli();
-                cMsTimeout2 = max(cMsTimeout2, 500);
+                if cMsTimeout2 < 500:
+                    cMsTimeout2 = 500;
                 fRc = oTxsSession.asyncIsFile('${CDROM}/%s' % (sFile,), cMsTimeout2);
                 if fRc is not True:
                     reporter.error('txsCdWait: asyncIsFile failed');
                     break;
         else:
             reporter.error('txsCdWait: asyncIsFile failed');
-
-        if not fRc:
-            # Do some diagnosis to find out why this failed.
-            ## @todo Identify guest OS type and only run one of the following commands.
-            fIsNotWindows = True;
-            reporter.log('txsCdWait: Listing root contents of ${CDROM}:');
-            if fIsNotWindows:
-                reporter.log('txsCdWait: Tiggering udevadm ...');
-                oTxsSession.syncExec("/sbin/udevadm", ("/sbin/udevadm", "trigger", "--verbose"), fIgnoreErrors = True);
-                time.sleep(15);
-                oTxsSession.syncExec("/bin/ls", ("/bin/ls", "-al", "${CDROM}"), fIgnoreErrors = True);
-                reporter.log('txsCdWait: Listing media directory:');
-                oTxsSession.syncExec('/bin/ls', ('/bin/ls', '-l', '-a', '-R', '/media'), fIgnoreErrors = True);
-                reporter.log('txsCdWait: Listing mount points / drives:');
-                oTxsSession.syncExec('/bin/mount', ('/bin/mount',), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/cat', ('/bin/cat', '/etc/fstab'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/dmesg', ('/bin/dmesg',), fIgnoreErrors = True);
-                oTxsSession.syncExec('/usr/bin/lshw', ('/usr/bin/lshw', '-c', 'disk'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/journalctl',
-                                     ('/bin/journalctl', '-x', '-b'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/journalctl',
-                                     ('/bin/journalctl', '-x', '-b', '/usr/lib/udisks2/udisksd'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/usr/bin/udisksctl',
-                                     ('/usr/bin/udisksctl', 'info', '-b', '/dev/sr0'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/systemctl',
-                                     ('/bin/systemctl', 'status', 'udisks2'), fIgnoreErrors = True);
-                oTxsSession.syncExec('/bin/ps',
-                                     ('/bin/ps', '-a', '-u', '-x'), fIgnoreErrors = True);
-                reporter.log('txsCdWait: Mounting manually ...');
-                for _ in range(3):
-                    oTxsSession.syncExec('/bin/mount', ('/bin/mount', '/dev/sr0', '${CDROM}'), fIgnoreErrors = True);
-                    time.sleep(5);
-                reporter.log('txsCdWait: Re-Listing media directory:');
-                oTxsSession.syncExec('/bin/ls', ('/bin/ls', '-l', '-a', '-R', '/media'), fIgnoreErrors = True);
-            else:
-                # ASSUMES that we always install Windows on drive C right now.
-                sWinDir = "C:\\Windows\\System32\\";
-                # Should work since WinXP Pro.
-                oTxsSession.syncExec(sWinDir + "wbem\\WMIC.exe",
-                                     ("WMIC.exe", "logicaldisk", "get",
-                                      "deviceid, volumename, description"),
-                                     fIgnoreErrors = True);
-                oTxsSession.syncExec(sWinDir + " cmd.exe",
-                                     ('cmd.exe', '/C', 'dir', '${CDROM}'),
-                                     fIgnoreErrors = True);
 
         if fRemoveTxs:
             self.removeTask(oTxsSession);
@@ -3931,17 +3637,9 @@ class TestDriver(base.TestDriver):                                              
             if fRc is True:
                 if fCdWait:
                     # Wait for CD?
-                    reporter.log2('startVmAndConnectToTxsViaTcp: Waiting for file "%s" to become available ...' % (sFileCdWait,));
                     fRc = self.txsCdWait(oSession, oTxsSession, cMsCdWait, sFileCdWait);
                     if fRc is not True:
                         reporter.error('startVmAndConnectToTxsViaTcp: txsCdWait failed');
-
-                sVer = self.txsVer(oSession, oTxsSession, cMsTimeout, fIgnoreErrors = True);
-                if sVer is not False:
-                    reporter.log('startVmAndConnectToTxsViaTcp: TestExecService version %s' % (sVer,));
-                else:
-                    reporter.log('startVmAndConnectToTxsViaTcp: Unable to retrieve TestExecService version');
-
                 if fRc is True:
                     # Success!
                     return (oSession, oTxsSession);
@@ -4006,12 +3704,6 @@ class TestDriver(base.TestDriver):                                              
                                 fRc = self.txsCdWait(oSession, oTxsSession, cMsCdWait, sFileCdWait);
                                 if fRc is not True:
                                     reporter.error('txsRebootAndReconnectViaTcp: txsCdWait failed');
-
-                            sVer = self.txsVer(oSession, oTxsSession, cMsTimeout, fIgnoreErrors = True);
-                            if sVer is not False:
-                                reporter.log('txsRebootAndReconnectViaTcp: TestExecService version %s' % (sVer,));
-                            else:
-                                reporter.log('txsRebootAndReconnectViaTcp: Unable to retrieve TestExecService version');
                         else:
                             reporter.error('txsRebootAndReconnectViaTcp: failed to get UUID (after)');
                     else:
@@ -4026,8 +3718,7 @@ class TestDriver(base.TestDriver):                                              
 
     # pylint: disable=too-many-locals,too-many-arguments
 
-    def txsRunTest(self, oTxsSession, sTestName, cMsTimeout, sExecName, asArgs = (), asAddEnv = (), sAsUser = "",
-                   fCheckSessionStatus = False):
+    def txsRunTest(self, oTxsSession, sTestName, cMsTimeout, sExecName, asArgs = (), asAddEnv = (), sAsUser = ""):
         """
         Executes the specified test task, waiting till it completes or times out.
 
@@ -4038,9 +3729,6 @@ class TestDriver(base.TestDriver):                                              
 
         Returns False if some unexpected task was signalled or we failed to
         submit the job.
-
-        If fCheckSessionStatus is set to True, the overall session status will be
-        taken into account and logged as an error on failure.
         """
         reporter.testStart(sTestName);
         reporter.log2('txsRunTest: cMsTimeout=%u sExecName=%s asArgs=%s' % (cMsTimeout, sExecName, asArgs));
@@ -4054,19 +3742,11 @@ class TestDriver(base.TestDriver):                                              
             while True:
                 oTask = self.waitForTasks(cMsTimeout + 1);
                 if oTask is None:
-                    if fCheckSessionStatus:
-                        reporter.error('txsRunTest: waitForTasks for test "%s" timed out' % (sTestName,));
-                    else:
-                        reporter.log('txsRunTest: waitForTasks for test "%s" timed out' % (sTestName,));
+                    reporter.log('txsRunTest: waitForTasks timed out');
                     break;
                 if oTask is oTxsSession:
-                    if      fCheckSessionStatus \
-                    and not oTxsSession.isSuccess():
-                        reporter.error('txsRunTest: Test "%s" failed' % (sTestName,));
-                    else:
-                        fRc = True;
-                        reporter.log('txsRunTest: isSuccess=%s getResult=%s' \
-                                     % (oTxsSession.isSuccess(), oTxsSession.getResult()));
+                    fRc = True;
+                    reporter.log('txsRunTest: isSuccess=%s getResult=%s' % (oTxsSession.isSuccess(), oTxsSession.getResult()));
                     break;
                 if not self.handleTask(oTask, 'txsRunTest'):
                     break;
@@ -4407,3 +4087,4 @@ class TestDriver(base.TestDriver):                                              
         else:
             sName = "Storage Controller";
         return sName;
+

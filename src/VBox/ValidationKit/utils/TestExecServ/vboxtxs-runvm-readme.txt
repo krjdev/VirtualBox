@@ -1,4 +1,4 @@
-$Id: vboxtxs-runvm-readme.txt 72521 2018-06-12 04:49:39Z vboxsync $
+$Id: vboxtxs-runvm-readme.txt $
 
 
 VirtualBox Test eXecution Service

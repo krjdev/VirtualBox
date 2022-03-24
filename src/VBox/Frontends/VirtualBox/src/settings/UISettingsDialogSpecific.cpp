@@ -1,10 +1,10 @@
-/* $Id: UISettingsDialogSpecific.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UISettingsDialogSpecific.cpp $ */
 /** @file
  * VBox Qt GUI - UISettingsDialogSpecific class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -14,9 +14,6 @@
  * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
-
-/* Qt includes: */
-#include <QStackedWidget>
 
 /* GUI includes: */
 #include "QIWidgetValidator.h"
@@ -31,12 +28,11 @@
 
 /* GUI includes: Global Preferences: */
 #include "UIGlobalSettingsDisplay.h"
+#include "UIGlobalSettingsExtension.h"
 #include "UIGlobalSettingsGeneral.h"
 #include "UIGlobalSettingsInput.h"
 #include "UIGlobalSettingsLanguage.h"
-#ifdef VBOX_WS_WIN
-# include "UIGlobalSettingsInterface.h"
-#endif
+#include "UIGlobalSettingsNetwork.h"
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
 # include "UIGlobalSettingsProxy.h"
 # include "UIGlobalSettingsUpdate.h"
@@ -55,7 +51,6 @@
 #include "UIMachineSettingsUSB.h"
 
 /* COM includes: */
-#include "CExtPackManager.h"
 #include "CGraphicsAdapter.h"
 #include "CUSBController.h"
 
@@ -101,14 +96,15 @@ void UISettingsDialogGlobal::retranslateUi()
     /* Display page: */
     m_pSelector->setItemText(GlobalSettingsPageType_Display, tr("Display"));
 
+    /* Network page: */
+    m_pSelector->setItemText(GlobalSettingsPageType_Network, tr("Network"));
+
+    /* Extension page: */
+    m_pSelector->setItemText(GlobalSettingsPageType_Extensions, tr("Extensions"));
+
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
     /* Proxy page: */
     m_pSelector->setItemText(GlobalSettingsPageType_Proxy, tr("Proxy"));
-#endif
-
-#ifdef VBOX_WS_WIN
-    /* Interface page: */
-    m_pSelector->setItemText(GlobalSettingsPageType_Interface, tr("Interface"));
 #endif
 
     /* Polish the selector: */
@@ -197,7 +193,6 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsGeneral;
                     addItem(":/machine_32px.png", ":/machine_24px.png", ":/machine_16px.png",
                             iPageIndex, "#general", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
                     break;
                 }
                 /* Input page: */
@@ -206,7 +201,6 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsInput;
                     addItem(":/keyboard_32px.png", ":/keyboard_24px.png", ":/keyboard_16px.png",
                             iPageIndex, "#input", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
                     break;
                 }
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
@@ -216,7 +210,6 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsUpdate;
                     addItem(":/refresh_32px.png", ":/refresh_24px.png", ":/refresh_16px.png",
                             iPageIndex, "#update", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
                     break;
                 }
 #endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
@@ -226,7 +219,6 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsLanguage;
                     addItem(":/site_32px.png", ":/site_24px.png", ":/site_16px.png",
                             iPageIndex, "#language", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
                     break;
                 }
                 /* Display page: */
@@ -235,7 +227,22 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsDisplay;
                     addItem(":/vrdp_32px.png", ":/vrdp_24px.png", ":/vrdp_16px.png",
                             iPageIndex, "#display", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
+                    break;
+                }
+                /* Network page: */
+                case GlobalSettingsPageType_Network:
+                {
+                    pSettingsPage = new UIGlobalSettingsNetwork;
+                    addItem(":/nw_32px.png", ":/nw_24px.png", ":/nw_16px.png",
+                            iPageIndex, "#network", pSettingsPage);
+                    break;
+                }
+                /* Extensions page: */
+                case GlobalSettingsPageType_Extensions:
+                {
+                    pSettingsPage = new UIGlobalSettingsExtension;
+                    addItem(":/extension_pack_32px.png", ":/extension_pack_24px.png", ":/extension_pack_16px.png",
+                            iPageIndex, "#extensions", pSettingsPage);
                     break;
                 }
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
@@ -245,21 +252,9 @@ void UISettingsDialogGlobal::prepare()
                     pSettingsPage = new UIGlobalSettingsProxy;
                     addItem(":/proxy_32px.png", ":/proxy_24px.png", ":/proxy_16px.png",
                             iPageIndex, "#proxy", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
                     break;
                 }
 #endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
-#ifdef VBOX_WS_WIN
-                /* Interface page: */
-                case GlobalSettingsPageType_Interface:
-                {
-                    pSettingsPage = new UIGlobalSettingsInterface;
-                    addItem(":/interface_32px.png", ":/interface_24px.png", ":/interface_16px.png",
-                            iPageIndex, "#userInterface", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "globalsettings");
-                    break;
-                }
-#endif /* VBOX_WS_WIN */
                 default:
                     break;
             }
@@ -307,9 +302,20 @@ void UISettingsDialogGlobal::prepare()
         m_pSelector->selectById(GlobalSettingsPageType_General);
 }
 
-bool UISettingsDialogGlobal::isPageAvailable(int) const
+bool UISettingsDialogGlobal::isPageAvailable(int iPageId) const
 {
-    /* Add restrictions here.. */
+    switch (iPageId)
+    {
+        case GlobalSettingsPageType_Network:
+        {
+#ifndef VBOX_WITH_NETFLT
+            return false;
+#endif
+            break;
+        }
+        default:
+            break;
+    }
     return true;
 }
 
@@ -319,12 +325,13 @@ bool UISettingsDialogGlobal::isPageAvailable(int) const
 *********************************************************************************************************************************/
 
 UISettingsDialogMachine::UISettingsDialogMachine(QWidget *pParent, const QUuid &uMachineId,
-                                                 const QString &strCategory, const QString &strControl, UIActionPool *pActionPool)
+                                                 const QString &strCategory, const QString &strControl)
     : UISettingsDialog(pParent)
     , m_uMachineId(uMachineId)
     , m_strCategory(strCategory)
     , m_strControl(strControl)
-    , m_pActionPool(pActionPool)
+    , m_fAllowResetFirstRunFlag(false)
+    , m_fResetFirstRunFlag(false)
 {
     /* Prepare: */
     prepare();
@@ -447,15 +454,24 @@ void UISettingsDialogMachine::saveOwnData()
             qobject_cast<UIMachineSettingsGeneral*>(m_pSelector->idToPage(MachineSettingsPageType_General));
         UIMachineSettingsSystem *pSystemPage =
             qobject_cast<UIMachineSettingsSystem*>(m_pSelector->idToPage(MachineSettingsPageType_System));
-#ifdef VBOX_WITH_3D_ACCELERATION
+#if defined(VBOX_WITH_VIDEOHWACCEL) || defined(VBOX_WITH_3D_ACCELERATION)
         UIMachineSettingsDisplay *pDisplayPage =
             qobject_cast<UIMachineSettingsDisplay*>(m_pSelector->idToPage(MachineSettingsPageType_Display));
-#endif /* VBOX_WITH_3D_ACCELERATION */
+#endif /* VBOX_WITH_VIDEOHWACCEL || VBOX_WITH_3D_ACCELERATION */
 
         /* Guest OS type & VT-x/AMD-V option correlation auto-fix: */
         if (pGeneralPage && pSystemPage &&
             pGeneralPage->is64BitOSTypeSelected() && !pSystemPage->isHWVirtExEnabled())
             m_machine.SetHWVirtExProperty(KHWVirtExPropertyType_Enabled, true);
+
+#ifdef VBOX_WITH_VIDEOHWACCEL
+        /* Disable 2D Video Acceleration for non-Windows guests: */
+        if (pGeneralPage && !pGeneralPage->isWindowsOSTypeSelected())
+        {
+            if (pDisplayPage && pDisplayPage->isAcceleration2DVideoSelected())
+                m_machine.GetGraphicsAdapter().SetAccelerate2DVideoEnabled(false);
+        }
+#endif /* VBOX_WITH_VIDEOHWACCEL */
 
 #ifdef VBOX_WITH_3D_ACCELERATION
         /* Adjust graphics controller type if necessary: */
@@ -468,6 +484,10 @@ void UISettingsDialogMachine::saveOwnData()
         /* Enable OHCI controller if HID is enabled but no USB controllers present: */
         if (pSystemPage && pSystemPage->isHIDEnabled() && m_machine.GetUSBControllers().isEmpty())
             m_machine.AddUSBController("OHCI", KUSBControllerType_OHCI);
+
+        /* Disable First RUN Wizard: */
+        if (m_fResetFirstRunFlag)
+            gEDataManager->setMachineFirstTimeStarted(false, m_uMachineId);
 
         /* Save settings finally: */
         m_machine.SaveSettings();
@@ -560,6 +580,9 @@ void UISettingsDialogMachine::sltMarkLoaded()
     /* Call for base-class: */
     UISettingsDialog::sltMarkLoaded();
 
+    /* No need to reset 'first run' flag: */
+    m_fResetFirstRunFlag = false;
+
     /* Unlock the session if exists: */
     if (!m_session.isNull())
     {
@@ -640,12 +663,27 @@ void UISettingsDialogMachine::sltMachineDataChanged(const QUuid &uMachineId)
     loadOwnData();
 }
 
+void UISettingsDialogMachine::sltAllowResetFirstRunFlag()
+{
+    m_fAllowResetFirstRunFlag = true;
+}
+
+void UISettingsDialogMachine::sltResetFirstRunFlag()
+{
+    if (m_fAllowResetFirstRunFlag)
+        m_fResetFirstRunFlag = true;
+}
+
 void UISettingsDialogMachine::prepare()
 {
     /* Window icon: */
 #ifndef VBOX_WS_MAC
     setWindowIcon(QIcon(":/vm_settings_16px.png"));
 #endif
+
+    /* Allow to reset first-run flag just when medium-enumeration was finished: */
+    connect(&uiCommon(), &UICommon::sigMediumEnumerationFinished,
+            this, &UISettingsDialogMachine::sltAllowResetFirstRunFlag);
 
     /* Make sure settings window will be updated on session/machine state/data changes: */
     connect(gVBoxEvents, &UIVirtualBoxEventHandler::sigSessionStateChange,
@@ -681,7 +719,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsGeneral;
                     addItem(":/machine_32px.png", ":/machine_24px.png", ":/machine_16px.png",
                             iPageIndex, "#general", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "generalsettings");
                     break;
                 }
                 /* System page: */
@@ -690,7 +727,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsSystem;
                     addItem(":/chipset_32px.png", ":/chipset_24px.png", ":/chipset_16px.png",
                             iPageIndex, "#system", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "settings-system");
                     break;
                 }
                 /* Display page: */
@@ -699,16 +735,16 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsDisplay;
                     addItem(":/vrdp_32px.png", ":/vrdp_24px.png", ":/vrdp_16px.png",
                             iPageIndex, "#display", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "settings-display");
                     break;
                 }
                 /* Storage page: */
                 case MachineSettingsPageType_Storage:
                 {
-                    pSettingsPage = new UIMachineSettingsStorage(m_pActionPool);
+                    pSettingsPage = new UIMachineSettingsStorage;
+                    connect(static_cast<UIMachineSettingsStorage*>(pSettingsPage), &UIMachineSettingsStorage::sigStorageChanged,
+                            this, &UISettingsDialogMachine::sltResetFirstRunFlag);
                     addItem(":/hd_32px.png", ":/hd_24px.png", ":/hd_16px.png",
                             iPageIndex, "#storage", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "settings-storage");
                     break;
                 }
                 /* Audio page: */
@@ -717,7 +753,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsAudio;
                     addItem(":/sound_32px.png", ":/sound_24px.png", ":/sound_16px.png",
                             iPageIndex, "#audio", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "settings-audio");
                     break;
                 }
                 /* Network page: */
@@ -726,7 +761,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsNetworkPage;
                     addItem(":/nw_32px.png", ":/nw_24px.png", ":/nw_16px.png",
                             iPageIndex, "#network", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "settings-network");
                     break;
                 }
                 /* Ports page: */
@@ -742,7 +776,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsSerialPage;
                     addItem(":/serial_port_32px.png", ":/serial_port_24px.png", ":/serial_port_16px.png",
                             iPageIndex, "#serialPorts", pSettingsPage, MachineSettingsPageType_Ports);
-                    addPageHelpKeyword(iPageIndex, "serialports");
                     break;
                 }
                 /* USB page: */
@@ -751,7 +784,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsUSB;
                     addItem(":/usb_32px.png", ":/usb_24px.png", ":/usb_16px.png",
                             iPageIndex, "#usb", pSettingsPage, MachineSettingsPageType_Ports);
-                    addPageHelpKeyword(iPageIndex, "usb-support");
                     break;
                 }
                 /* Shared Folders page: */
@@ -760,7 +792,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsSF;
                     addItem(":/sf_32px.png", ":/sf_24px.png", ":/sf_16px.png",
                             iPageIndex, "#sharedFolders", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "shared-folders");
                     break;
                 }
                 /* Interface page: */
@@ -769,7 +800,6 @@ void UISettingsDialogMachine::prepare()
                     pSettingsPage = new UIMachineSettingsInterface(m_machine.GetId());
                     addItem(":/interface_32px.png", ":/interface_24px.png", ":/interface_16px.png",
                             iPageIndex, "#userInterface", pSettingsPage);
-                    addPageHelpKeyword(iPageIndex, "user-interface");
                     break;
                 }
                 default:

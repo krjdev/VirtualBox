@@ -1,10 +1,10 @@
-/* $Id: split-soapC.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
 /** @file
- * Splits soapC.cpp and soapH-noinline.cpp into more manageable portions.
+ * File splitter: splits soapC.cpp into manageable pieces. It is somewhat
+ * intelligent and avoids splitting inside functions or similar places.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -15,12 +15,7 @@
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
 
-
-/*********************************************************************************************************************************
-*   Header Files                                                                                                                 *
-*********************************************************************************************************************************/
 #include <iprt/types.h>
-#include <iprt/path.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,7 +23,7 @@
 #include <limits.h>
 
 
-static char *readfileIntoBuffer(const char *pszFile, size_t *pcbFile)
+char *readfileIntoBuffer(const char *pszFile, size_t *pcbFile)
 {
     FILE *pFileIn = fopen(pszFile, "rb");
     if (pFileIn)
@@ -73,9 +68,9 @@ int main(int argc, char *argv[])
      */
     if (argc != 4)
     {
-        fprintf(stderr, "split-soapC: Must be started with exactly four arguments,\n"
-                        "1) the input file, 2) the output filename prefix and\n"
-                        "3) the number chunks to create.");
+        fprintf(stderr, "split-soapC: Must be started with exactly three arguments,\n"
+                        "1) the input file, 2) the directory where to put the output files and\n"
+                        "3) the number chunks to create.\n");
         return RTEXITCODE_SYNTAX;
     }
 
@@ -120,13 +115,9 @@ int main(int argc, char *argv[])
         {
             /* construct output filename */
             char szFilename[1024];
-            sprintf(szFilename, "%s%lu.cpp", argv[2], ++cFiles);
+            sprintf(szFilename, "%s/soapC-%lu.cpp", argv[2], ++cFiles);
             szFilename[sizeof(szFilename)-1] = '\0';
-
-            size_t offName = strlen(szFilename);
-            while (offName > 0 && !RTPATH_IS_SEP(szFilename[offName - 1]))
-                offName -= 1;
-            printf("info: %s\n", &szFilename[offName]);
+            printf("info: soapC-%lu.cpp\n", cFiles);
 
             /* create output file */
             pFileOut = fopen(szFilename, "wb");

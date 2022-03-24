@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -380,19 +380,8 @@ VMM_INT_DECL(VBOXSTRICTRC)  IEMExecDecodedVmlaunchVmresume(PVMCPUCC pVCpu, uint8
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecDecodedVmxon(PVMCPUCC pVCpu, PCVMXVEXITINFO pExitInfo);
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecDecodedVmxoff(PVMCPUCC pVCpu, uint8_t cbInstr);
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecDecodedInvvpid(PVMCPUCC pVCpu, PCVMXVEXITINFO pExitInfo);
-# ifdef VBOX_WITH_NESTED_HWVIRT_VMX_EPT
-VMM_INT_DECL(VBOXSTRICTRC)  IEMExecDecodedInvept(PVMCPUCC pVCpu, PCVMXVEXITINFO pExitInfo);
-VMM_INT_DECL(VBOXSTRICTRC)  IEMExecVmxVmexitEptViolation(PVMCPUCC pVCpu, PCVMXVEXITINFO pExitInfo, PCVMXVEXITEVENTINFO pExitEventInfo);
-VMM_INT_DECL(VBOXSTRICTRC)  IEMExecVmxVmexitEptMisconfig(PVMCPUCC pVCpu, RTGCPHYS GCPhysAddr, PCVMXVEXITEVENTINFO pExitEventInfo);
-# endif
 #endif
 /** @}  */
-
-/** @defgroup grp_iem_r3     The IEM Host Context Ring-3 API.
- * @{
- */
-VMMR0_INT_DECL(int) IEMR0InitVM(PGVM pGVM);
-/** @} */
 
 
 /** @defgroup grp_iem_r3     The IEM Host Context Ring-3 API.

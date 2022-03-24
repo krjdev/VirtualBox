@@ -1,10 +1,10 @@
-/* $Id: init-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: init-win.cpp $ */
 /** @file
  * IPRT - Init Ring-3, Windows Specific Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,7 +42,6 @@
 #include <iprt/ldr.h>
 #include <iprt/log.h>
 #include <iprt/param.h>
-#include <iprt/process.h>
 #include <iprt/string.h>
 #include <iprt/thread.h>
 #include "../init.h"
@@ -59,98 +58,96 @@ typedef LPTOP_LEVEL_EXCEPTION_FILTER (WINAPI * PFNSETUNHANDLEDEXCEPTIONFILTER)(L
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
 /** Windows DLL loader protection level. */
-DECL_HIDDEN_DATA(RTR3WINLDRPROT)      g_enmWinLdrProt = RTR3WINLDRPROT_NONE;
+DECLHIDDEN(RTR3WINLDRPROT)      g_enmWinLdrProt = RTR3WINLDRPROT_NONE;
 /** Our simplified windows version.    */
-DECL_HIDDEN_DATA(RTWINOSTYPE)         g_enmWinVer = kRTWinOSType_UNKNOWN;
+DECLHIDDEN(RTWINOSTYPE)         g_enmWinVer = kRTWinOSType_UNKNOWN;
 /** Extended windows version information. */
-DECL_HIDDEN_DATA(OSVERSIONINFOEXW)    g_WinOsInfoEx;
+DECLHIDDEN(OSVERSIONINFOEXW)    g_WinOsInfoEx;
 
 /** The native kernel32.dll handle. */
-DECL_HIDDEN_DATA(HMODULE)                       g_hModKernel32 = NULL;
+DECLHIDDEN(HMODULE)                         g_hModKernel32 = NULL;
 /** GetSystemWindowsDirectoryW or GetWindowsDirectoryW (NT4). */
-DECL_HIDDEN_DATA(PFNGETWINSYSDIR)               g_pfnGetSystemWindowsDirectoryW = NULL;
+DECLHIDDEN(PFNGETWINSYSDIR)                 g_pfnGetSystemWindowsDirectoryW = NULL;
 /** The GetCurrentThreadStackLimits API. */
-static PFNGETCURRENTTHREADSTACKLIMITS           g_pfnGetCurrentThreadStackLimits = NULL;
+static PFNGETCURRENTTHREADSTACKLIMITS       g_pfnGetCurrentThreadStackLimits = NULL;
 /** SetUnhandledExceptionFilter. */
-static PFNSETUNHANDLEDEXCEPTIONFILTER           g_pfnSetUnhandledExceptionFilter = NULL;
+static PFNSETUNHANDLEDEXCEPTIONFILTER       g_pfnSetUnhandledExceptionFilter = NULL;
 /** The previous unhandled exception filter. */
-static LPTOP_LEVEL_EXCEPTION_FILTER             g_pfnUnhandledXcptFilter = NULL;
+static LPTOP_LEVEL_EXCEPTION_FILTER         g_pfnUnhandledXcptFilter = NULL;
 /** SystemTimeToTzSpecificLocalTime. */
-DECL_HIDDEN_DATA(decltype(SystemTimeToTzSpecificLocalTime) *) g_pfnSystemTimeToTzSpecificLocalTime = NULL;
-/** CreateWaitableTimerEx . */
-DECL_HIDDEN_DATA(PFNCREATEWAITABLETIMEREX)      g_pfnCreateWaitableTimerExW = NULL;
+decltype(SystemTimeToTzSpecificLocalTime)  *g_pfnSystemTimeToTzSpecificLocalTime = NULL;
 
 /** The native ntdll.dll handle. */
-DECL_HIDDEN_DATA(HMODULE)                       g_hModNtDll = NULL;
+DECLHIDDEN(HMODULE)                         g_hModNtDll = NULL;
 /** NtQueryFullAttributesFile   */
-DECL_HIDDEN_DATA(PFNNTQUERYFULLATTRIBUTESFILE)  g_pfnNtQueryFullAttributesFile = NULL;
+DECLHIDDEN(PFNNTQUERYFULLATTRIBUTESFILE)    g_pfnNtQueryFullAttributesFile = NULL;
 /** NtDuplicateToken (NT 3.51). */
-DECL_HIDDEN_DATA(PFNNTDUPLICATETOKEN)           g_pfnNtDuplicateToken = NULL;
+DECLHIDDEN(PFNNTDUPLICATETOKEN)             g_pfnNtDuplicateToken = NULL;
 /** NtAlertThread (NT 3.51). */
-DECL_HIDDEN_DATA(decltype(NtAlertThread) *)     g_pfnNtAlertThread = NULL;
+decltype(NtAlertThread)                    *g_pfnNtAlertThread = NULL;
 
 /** Either ws2_32.dll (NT4+) or wsock32.dll (NT3.x). */
-DECL_HIDDEN_DATA(HMODULE)                       g_hModWinSock = NULL;
+DECLHIDDEN(HMODULE)                         g_hModWinSock = NULL;
 /** Set if we're dealing with old winsock.   */
-DECL_HIDDEN_DATA(bool)                          g_fOldWinSock = false;
+DECLHIDDEN(bool)                            g_fOldWinSock = false;
 /** WSAStartup   */
-DECL_HIDDEN_DATA(PFNWSASTARTUP)                 g_pfnWSAStartup = NULL;
+DECLHIDDEN(PFNWSASTARTUP)                   g_pfnWSAStartup = NULL;
 /** WSACleanup */
-DECL_HIDDEN_DATA(PFNWSACLEANUP)                 g_pfnWSACleanup = NULL;
+DECLHIDDEN(PFNWSACLEANUP)                   g_pfnWSACleanup = NULL;
 /** Pointner to WSAGetLastError (for RTErrVarsSave). */
-DECL_HIDDEN_DATA(PFNWSAGETLASTERROR)            g_pfnWSAGetLastError = NULL;
+DECLHIDDEN(PFNWSAGETLASTERROR)              g_pfnWSAGetLastError = NULL;
 /** Pointner to WSASetLastError (for RTErrVarsRestore). */
-DECL_HIDDEN_DATA(PFNWSASETLASTERROR)            g_pfnWSASetLastError = NULL;
+DECLHIDDEN(PFNWSASETLASTERROR)              g_pfnWSASetLastError = NULL;
 /** WSACreateEvent */
-DECL_HIDDEN_DATA(PFNWSACREATEEVENT)             g_pfnWSACreateEvent = NULL;
+DECLHIDDEN(PFNWSACREATEEVENT)               g_pfnWSACreateEvent = NULL;
 /** WSACloseEvent  */
-DECL_HIDDEN_DATA(PFNWSACLOSEEVENT)              g_pfnWSACloseEvent = NULL;
+DECLHIDDEN(PFNWSACLOSEEVENT)                g_pfnWSACloseEvent = NULL;
 /** WSASetEvent */
-DECL_HIDDEN_DATA(PFNWSASETEVENT)                g_pfnWSASetEvent = NULL;
+DECLHIDDEN(PFNWSASETEVENT)                  g_pfnWSASetEvent = NULL;
 /** WSAEventSelect   */
-DECL_HIDDEN_DATA(PFNWSAEVENTSELECT)             g_pfnWSAEventSelect = NULL;
+DECLHIDDEN(PFNWSAEVENTSELECT)               g_pfnWSAEventSelect = NULL;
 /** WSAEnumNetworkEvents */
-DECL_HIDDEN_DATA(PFNWSAENUMNETWORKEVENTS)       g_pfnWSAEnumNetworkEvents = NULL;
+DECLHIDDEN(PFNWSAENUMNETWORKEVENTS)         g_pfnWSAEnumNetworkEvents = NULL;
 /** WSASend */
-DECL_HIDDEN_DATA(PFNWSASend)                    g_pfnWSASend = NULL;
+DECLHIDDEN(PFNWSASend)                      g_pfnWSASend = NULL;
 /** socket */
-DECL_HIDDEN_DATA(PFNWINSOCKSOCKET)              g_pfnsocket = NULL;
+DECLHIDDEN(PFNWINSOCKSOCKET)                g_pfnsocket = NULL;
 /** closesocket */
-DECL_HIDDEN_DATA(PFNWINSOCKCLOSESOCKET)         g_pfnclosesocket = NULL;
+DECLHIDDEN(PFNWINSOCKCLOSESOCKET)           g_pfnclosesocket = NULL;
 /** recv */
-DECL_HIDDEN_DATA(PFNWINSOCKRECV)                g_pfnrecv = NULL;
+DECLHIDDEN(PFNWINSOCKRECV)                  g_pfnrecv = NULL;
 /** send */
-DECL_HIDDEN_DATA(PFNWINSOCKSEND)                g_pfnsend = NULL;
+DECLHIDDEN(PFNWINSOCKSEND)                  g_pfnsend = NULL;
 /** recvfrom */
-DECL_HIDDEN_DATA(PFNWINSOCKRECVFROM)            g_pfnrecvfrom = NULL;
+DECLHIDDEN(PFNWINSOCKRECVFROM)              g_pfnrecvfrom = NULL;
 /** sendto */
-DECL_HIDDEN_DATA(PFNWINSOCKSENDTO)              g_pfnsendto = NULL;
+DECLHIDDEN(PFNWINSOCKSENDTO)                g_pfnsendto = NULL;
 /** bind */
-DECL_HIDDEN_DATA(PFNWINSOCKBIND)                g_pfnbind = NULL;
+DECLHIDDEN(PFNWINSOCKBIND)                  g_pfnbind = NULL;
 /** listen  */
-DECL_HIDDEN_DATA(PFNWINSOCKLISTEN)              g_pfnlisten = NULL;
+DECLHIDDEN(PFNWINSOCKLISTEN)                g_pfnlisten = NULL;
 /** accept */
-DECL_HIDDEN_DATA(PFNWINSOCKACCEPT)              g_pfnaccept = NULL;
+DECLHIDDEN(PFNWINSOCKACCEPT)                g_pfnaccept = NULL;
 /** connect */
-DECL_HIDDEN_DATA(PFNWINSOCKCONNECT)             g_pfnconnect = NULL;
+DECLHIDDEN(PFNWINSOCKCONNECT)               g_pfnconnect = NULL;
 /** shutdown */
-DECL_HIDDEN_DATA(PFNWINSOCKSHUTDOWN)            g_pfnshutdown = NULL;
+DECLHIDDEN(PFNWINSOCKSHUTDOWN)              g_pfnshutdown = NULL;
 /** getsockopt */
-DECL_HIDDEN_DATA(PFNWINSOCKGETSOCKOPT)          g_pfngetsockopt = NULL;
+DECLHIDDEN(PFNWINSOCKGETSOCKOPT)            g_pfngetsockopt = NULL;
 /** setsockopt */
-DECL_HIDDEN_DATA(PFNWINSOCKSETSOCKOPT)          g_pfnsetsockopt = NULL;
+DECLHIDDEN(PFNWINSOCKSETSOCKOPT)            g_pfnsetsockopt = NULL;
 /** ioctlsocket */
-DECL_HIDDEN_DATA(PFNWINSOCKIOCTLSOCKET)         g_pfnioctlsocket = NULL;
+DECLHIDDEN(PFNWINSOCKIOCTLSOCKET)           g_pfnioctlsocket = NULL;
 /** getpeername   */
-DECL_HIDDEN_DATA(PFNWINSOCKGETPEERNAME)         g_pfngetpeername = NULL;
+DECLHIDDEN(PFNWINSOCKGETPEERNAME)           g_pfngetpeername = NULL;
 /** getsockname */
-DECL_HIDDEN_DATA(PFNWINSOCKGETSOCKNAME)         g_pfngetsockname = NULL;
+DECLHIDDEN(PFNWINSOCKGETSOCKNAME)           g_pfngetsockname = NULL;
 /** __WSAFDIsSet */
-DECL_HIDDEN_DATA(PFNWINSOCK__WSAFDISSET)        g_pfn__WSAFDIsSet = NULL;
+DECLHIDDEN(PFNWINSOCK__WSAFDISSET)          g_pfn__WSAFDIsSet = NULL;
 /** select */
-DECL_HIDDEN_DATA(PFNWINSOCKSELECT)              g_pfnselect = NULL;
+DECLHIDDEN(PFNWINSOCKSELECT)                g_pfnselect = NULL;
 /** gethostbyname */
-DECL_HIDDEN_DATA(PFNWINSOCKGETHOSTBYNAME)       g_pfngethostbyname = NULL;
+DECLHIDDEN(PFNWINSOCKGETHOSTBYNAME)         g_pfngethostbyname = NULL;
 
 
 /*********************************************************************************************************************************
@@ -523,7 +520,6 @@ DECLHIDDEN(int) rtR3InitNativeFirst(uint32_t fFlags)
     if (g_pfnGetSystemWindowsDirectoryW)
         g_pfnGetSystemWindowsDirectoryW = (PFNGETWINSYSDIR)GetProcAddress(g_hModKernel32, "GetWindowsDirectoryW");
     g_pfnSystemTimeToTzSpecificLocalTime = (decltype(SystemTimeToTzSpecificLocalTime) *)GetProcAddress(g_hModKernel32, "SystemTimeToTzSpecificLocalTime");
-    g_pfnCreateWaitableTimerExW = (PFNCREATEWAITABLETIMEREX)GetProcAddress(g_hModKernel32, "CreateWaitableTimerExW");
 
     /*
      * Resolve some ntdll.dll APIs that weren't there in early NT versions.
@@ -574,8 +570,7 @@ static LONG CALLBACK rtR3WinUnhandledXcptFilter(PEXCEPTION_POINTERS pPtrs)
         pLogger = RTLogGetDefaultInstance();
     if (pLogger)
     {
-        RTLogLogger(pLogger, NULL, "\n!!! rtR3WinUnhandledXcptFilter caught an exception on thread %p in %u !!!\n",
-                    RTThreadNativeSelf(), RTProcSelf());
+        RTLogLogger(pLogger, NULL, "\n!!! rtR3WinUnhandledXcptFilter caught an exception on thread %p!!!\n", RTThreadNativeSelf());
 
         /*
          * Dump the exception record.
@@ -800,21 +795,6 @@ static LONG CALLBACK rtR3WinUnhandledXcptFilter(PEXCEPTION_POINTERS pPtrs)
                         puStack++;
                     }
                 }
-            }
-
-            /*
-             * Dump the command line if we have one. We do this last in case it crashes.
-             */
-            PRTL_USER_PROCESS_PARAMETERS pProcParams = pPeb->ProcessParameters;
-            if (RT_VALID_PTR(pProcParams))
-            {
-                if (RT_VALID_PTR(pProcParams->CommandLine.Buffer)
-                    && pProcParams->CommandLine.Length > 0
-                    && pProcParams->CommandLine.Length <= pProcParams->CommandLine.MaximumLength
-                    && !(pProcParams->CommandLine.Length & 1)
-                    && !(pProcParams->CommandLine.MaximumLength & 1))
-                    RTLogLogger(pLogger, NULL, "PEB/CommandLine: %.*ls\n",
-                                pProcParams->CommandLine.Length / sizeof(RTUTF16), pProcParams->CommandLine.Buffer);
             }
         }
     }

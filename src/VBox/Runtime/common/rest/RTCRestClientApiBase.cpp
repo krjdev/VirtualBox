@@ -1,10 +1,10 @@
-/* $Id: RTCRestClientApiBase.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTCRestClientApiBase.cpp $ */
 /** @file
  * IPRT - C++ REST, RTCRestClientApiBase implementation.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -59,18 +59,6 @@ RTCRestClientApiBase::~RTCRestClientApiBase()
         AssertRC(rc);
         m_hHttp = NIL_RTHTTP;
     }
-}
-
-
-int RTCRestClientApiBase::setCAFile(const char *pcszCAFile) RT_NOEXCEPT
-{
-    return m_strCAFile.assignNoThrow(pcszCAFile);
-}
-
-
-int RTCRestClientApiBase::setCAFile(const RTCString &strCAFile) RT_NOEXCEPT
-{
-    return m_strCAFile.assignNoThrow(strCAFile);
 }
 
 
@@ -190,14 +178,8 @@ int RTCRestClientApiBase::reinitHttpInstance() RT_NOEXCEPT
         return RTHttpReset(m_hHttp, 0 /*fFlags*/);
 
     int rc = RTHttpCreate(&m_hHttp);
-    if (RT_SUCCESS(rc) && m_strCAFile.isNotEmpty())
-        rc = RTHttpSetCAFile(m_hHttp, m_strCAFile.c_str());
-
-    if (RT_FAILURE(rc) && m_hHttp != NIL_RTHTTP)
-    {
-        RTHttpDestroy(m_hHttp);
+    if (RT_FAILURE(rc))
         m_hHttp = NIL_RTHTTP;
-    }
     return rc;
 }
 
@@ -213,7 +195,7 @@ int RTCRestClientApiBase::xmitReady(RTHTTP a_hHttp, RTCString const &a_rStrFullU
 int RTCRestClientApiBase::doCall(RTCRestClientRequestBase const &a_rRequest, RTHTTPMETHOD a_enmHttpMethod,
                                  RTCRestClientResponseBase *a_pResponse, const char *a_pszMethod, uint32_t a_fFlags) RT_NOEXCEPT
 {
-    LogFlow(("doCall: %s %s\n", a_pszMethod, RTHttpMethodToStr(a_enmHttpMethod)));
+    LogFlow(("doCall: %s %s\n", a_pszMethod, RTHttpMethodName(a_enmHttpMethod)));
 
 
     /*

@@ -1,10 +1,10 @@
-; $Id: ASMSerializeInstruction-iret.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMSerializeInstruction-iret.asm $
 ;; @file
 ; IPRT - ASMSerializeInstruction() using iret.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,12 +34,12 @@ BEGINCODE
 
 
 ;;
-; Executes a serializing instruction.
+; Executes a seralizing instruction.
 ;
 ; The IRET instruction is rather expensive, but unlike the CPUID instruction it
 ; will not result in a VM EXIT when running in a virtual machine.
 ;
-RT_BEGINPROC ASMSerializeInstructionIRet
+BEGINPROC_EXPORTED ASMSerializeInstructionIRet
         pop     xAX
 %ifdef RT_ARCH_AMD64
         mov     rdx, xSP

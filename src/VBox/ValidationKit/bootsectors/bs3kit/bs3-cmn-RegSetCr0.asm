@@ -1,10 +1,10 @@
-; $Id: bs3-cmn-RegSetCr0.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: bs3-cmn-RegSetCr0.asm $
 ;; @file
 ; BS3Kit - Bs3RegSetCr0
 ;
 
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -71,7 +71,7 @@ BS3_PROC_BEGIN_CMN Bs3RegSetCr0, BS3_PBC_HYBRID_SAFE
         push    xAX
 
         mov     sSI, [xBP + xCB + cbCurRetAddr]
-        mov     xAX, BS3_SYSCALL_SET_CRX
+        mov     xAX, BS3_SYSCALL_SET_DRX
         mov     dl, 0
         call    Bs3Syscall
         pop     xAX

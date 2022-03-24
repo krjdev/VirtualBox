@@ -1,10 +1,10 @@
-/* $Id: UIMediumItem.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMediumItem.h $ */
 /** @file
  * VBox Qt GUI - UIMediumItem class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,9 +22,9 @@
 #endif
 
 /* GUI includes: */
-#include "QITreeWidget.h"
 #include "UIMedium.h"
 #include "UIMediumDetailsWidget.h"
+#include "QITreeWidget.h"
 
 /** QITreeWidgetItem extension representing Media Manager item. */
 class SHARED_LIBRARY_STUFF UIMediumItem : public QITreeWidgetItem, public UIDataMedium
@@ -46,6 +46,8 @@ public:
       * @param  pParent    Brings the parent item reference. */
     UIMediumItem(const UIMedium &guiMedium, QITreeWidgetItem *pParent);
 
+    /** Copies UIMedium wrapped by <i>this</i> item. */
+    //virtual bool copy();
     /** Moves UIMedium wrapped by <i>this</i> item. */
     virtual bool move();
     /** Removes UIMedium wrapped by <i>this</i> item. */
@@ -107,7 +109,7 @@ public:
     bool isMediumModifiable() const;
     /** Returns true if the medium is attached to the vm with @p uId. */
     bool isMediumAttachedTo(QUuid uId);
-    bool changeMediumType(KMediumType enmNewType);
+    bool changeMediumType(KMediumType enmOldType, KMediumType enmNewType);
 
 protected:
 
@@ -115,32 +117,17 @@ protected:
     virtual bool releaseFrom(CMachine comMachine) = 0;
 
     /** Returns default text. */
-    virtual QString defaultText() const RT_OVERRIDE;
-
-protected slots:
-
-    /** Handles medium move progress result. */
-    void sltHandleMoveProgressFinished();
-
-    /** Handles @a comMedium remove request. */
-    void sltHandleMediumRemoveRequest(CMedium comMedium);
+    virtual QString defaultText() const /* override */;
 
 private:
-
     /** A simple struct used to save some parameters of machine device attachment.
-      * Used for re-attaching the medium to VMs after a medium type change. */
+      * Used for re-attaching the medium to vms after a medium type change. */
     struct AttachmentCache
     {
-        /** Holds the machine ID. */
-        QUuid        m_uMachineId;
-        /** Holds the controller name. */
-        QString      m_strControllerName;
-        /** Holds the controller bus. */
-        KStorageBus  m_enmControllerBus;
-        /** Holds the attachment port. */
-        LONG         m_iAttachmentPort;
-        /** Holds the attachment device. */
-        LONG         m_iAttachmentDevice;
+        QString m_strControllerName;
+        QUuid   m_uMachineId;
+        LONG    m_port;
+        LONG    m_device;
     };
 
     /** Refreshes item information such as icon, text and tool-tip. */
@@ -180,9 +167,9 @@ public:
 protected:
 
     /** Removes UIMedium wrapped by <i>this</i> item. */
-    virtual bool remove() RT_OVERRIDE;
+    virtual bool remove() /* override */;
     /** Releases UIMedium wrapped by <i>this</i> item from virtual @a comMachine. */
-    virtual bool releaseFrom(CMachine comMachine) RT_OVERRIDE;
+    virtual bool releaseFrom(CMachine comMachine) /* override */;
 
 private:
 
@@ -207,9 +194,9 @@ public:
 protected:
 
     /** Removes UIMedium wrapped by <i>this</i> item. */
-    virtual bool remove() RT_OVERRIDE;
+    virtual bool remove() /* override */;
     /** Releases UIMedium wrapped by <i>this</i> item from virtual @a comMachine. */
-    virtual bool releaseFrom(CMachine comMachine) RT_OVERRIDE;
+    virtual bool releaseFrom(CMachine comMachine) /* override */;
 };
 
 /** UIMediumItem extension representing floppy-disk item. */
@@ -229,9 +216,9 @@ public:
 protected:
 
     /** Removes UIMedium wrapped by <i>this</i> item. */
-    virtual bool remove() RT_OVERRIDE;
+    virtual bool remove() /* override */;
     /** Releases UIMedium wrapped by <i>this</i> item from virtual @a comMachine. */
-    virtual bool releaseFrom(CMachine comMachine) RT_OVERRIDE;
+    virtual bool releaseFrom(CMachine comMachine) /* override */;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_medium_UIMediumItem_h */

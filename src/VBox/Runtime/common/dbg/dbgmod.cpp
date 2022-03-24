@@ -1,10 +1,10 @@
-/* $Id: dbgmod.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgmod.cpp $ */
 /** @file
  * IPRT - Debug Module Interpreter.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -119,7 +119,7 @@ static PRTDBGMODREGIMG  g_pImgHead;
 static PRTDBGMODREGDBG  g_pDbgHead;
 /** String cache for the debug info interpreters.
  * RTSTRCACHE is thread safe. */
-DECL_HIDDEN_DATA(RTSTRCACHE)  g_hDbgModStrCache = NIL_RTSTRCACHE;
+DECLHIDDEN(RTSTRCACHE)  g_hDbgModStrCache = NIL_RTSTRCACHE;
 
 
 
@@ -284,10 +284,6 @@ static DECLCALLBACK(int) rtDbgModInitOnce(void *pvUser)
             rc = rtDbgModDebugInterpreterRegister(&g_rtDbgModVtDbgDwarf);
         if (RT_SUCCESS(rc))
             rc = rtDbgModDebugInterpreterRegister(&g_rtDbgModVtDbgCodeView);
-#ifdef IPRT_WITH_GHIDRA_DBG_MOD
-        if (RT_SUCCESS(rc))
-            rc = rtDbgModDebugInterpreterRegister(&g_rtDbgModVtDbgGhidra);
-#endif
 #ifdef RT_OS_WINDOWS
         if (RT_SUCCESS(rc))
             rc = rtDbgModDebugInterpreterRegister(&g_rtDbgModVtDbgDbgHelp);

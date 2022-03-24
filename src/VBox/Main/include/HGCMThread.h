@@ -1,10 +1,10 @@
-/* $Id: HGCMThread.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: HGCMThread.h $ */
 /** @file
  * HGCMThread - Host-Guest Communication Manager worker threads header.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,9 +54,11 @@ typedef FNHGCMNEWMSGALLOC *PFNHGCMNEWMSGALLOC;
  * @retval VERR_NOT_AVAILABLE if HGCM has been disconnected from the VMMDev
  *         (shouldn't happen).
  */
-typedef DECLCALLBACKTYPE(int, FNHGCMMSGCALLBACK,(int32_t result, HGCMMsgCore *pMsgCore));
+typedef DECLCALLBACK(int) FNHGCMMSGCALLBACK(int32_t result, HGCMMsgCore *pMsgCore);
+/** @copydoc FNHGCMMSGCALLBACK */
+typedef FNHGCMMSGCALLBACK HGCMMSGCALLBACK;
 /** Pointer to a message completeion callback function. */
-typedef FNHGCMMSGCALLBACK *PFNHGCMMSGCALLBACK;
+typedef HGCMMSGCALLBACK *PHGCMMSGCALLBACK;
 
 
 /** HGCM core message. */
@@ -75,7 +77,7 @@ class HGCMMsgCore : public HGCMReferencedObject
         HGCMThread *m_pThread;
 
         /** Callback function pointer. */
-        PFNHGCMMSGCALLBACK m_pfnCallback;
+        PHGCMMSGCALLBACK m_pfnCallback;
 
         /** Next element in a message queue. */
         HGCMMsgCore *m_pNext;
@@ -114,7 +116,7 @@ class HGCMMsgCore : public HGCMReferencedObject
  *  @param pThread       The HGCM thread instance.
  *  @param pvUser        User specified thread parameter.
  */
-typedef DECLCALLBACKTYPE(void, FNHGCMTHREAD,(HGCMThread *pThread, void *pvUser));
+typedef DECLCALLBACK(void) FNHGCMTHREAD(HGCMThread *pThread, void *pvUser);
 typedef FNHGCMTHREAD *PFNHGCMTHREAD;
 
 
@@ -142,13 +144,11 @@ void hgcmThreadUninit(void);
  *                          HGCMService, will deregister them.  NULL if no stats.
  * @param pUVM              The user mode VM handle to register statistics with.
  *                          NULL if no stats.
- * @param pVMM              The VMM vtable for statistics registration. NULL if
- *                          no stats.
  *
  * @return VBox status code.
  */
 int hgcmThreadCreate(HGCMThread **ppThread, const char *pszThreadName, PFNHGCMTHREAD pfnThread, void *pvUser,
-                     const char *pszStatsSubDir, PUVM pUVM, PCVMMR3VTABLE pVMM);
+                     const char *pszStatsSubDir, PUVM pUVM);
 
 /** Wait for termination of a HGCM worker thread.
  *
@@ -180,7 +180,7 @@ int hgcmMsgAlloc(HGCMThread *pThread, HGCMMsgCore **ppHandle, uint32_t u32MsgId,
  *
  * @thread any
  */
-int hgcmMsgPost(HGCMMsgCore *pMsg, PFNHGCMMSGCALLBACK pfnCallback);
+int hgcmMsgPost(HGCMMsgCore *pMsg, PHGCMMSGCALLBACK pfnCallback);
 
 /** Send a message to HGCM worker thread.
  *

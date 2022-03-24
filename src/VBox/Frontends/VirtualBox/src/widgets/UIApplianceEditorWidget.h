@@ -1,10 +1,10 @@
-/* $Id: UIApplianceEditorWidget.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIApplianceEditorWidget.h $ */
 /** @file
  * VBox Qt GUI - UIApplianceEditorWidget class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,7 +33,6 @@
 
 /* COM includes: */
 #include "COMEnums.h"
-#include "CAppliance.h"
 #include "CVirtualSystemDescription.h"
 
 /* Forward declarations: */
@@ -167,27 +166,27 @@ public:
     /** Returns the root index in the model. */
     virtual QModelIndex root() const;
     /** Returns the index of the item in the model specified by the given @a iRow, @a iColumn and @a parentIdx. */
-    virtual QModelIndex index(int iRow, int iColumn, const QModelIndex &parentIdx = QModelIndex()) const RT_OVERRIDE;
+    virtual QModelIndex index(int iRow, int iColumn, const QModelIndex &parentIdx = QModelIndex()) const /* override */;
     /** Returns the parent of the model item with the given @a idx. */
-    virtual QModelIndex parent(const QModelIndex &idx) const RT_OVERRIDE;
+    virtual QModelIndex parent(const QModelIndex &idx) const /* override */;
 
     /** Returns the number of rows for the children of the given @a parentIdx. */
-    virtual int rowCount(const QModelIndex &parentIdx = QModelIndex()) const RT_OVERRIDE;
+    virtual int rowCount(const QModelIndex &parentIdx = QModelIndex()) const /* override */;
     /** Returns the number of columns for the children of the given @a parentIdx. */
-    virtual int columnCount(const QModelIndex &parentIdx = QModelIndex()) const RT_OVERRIDE;
+    virtual int columnCount(const QModelIndex &parentIdx = QModelIndex()) const /* override */;
 
     /** Returns the item flags for the given @a idx. */
-    virtual Qt::ItemFlags flags(const QModelIndex &idx) const RT_OVERRIDE;
+    virtual Qt::ItemFlags flags(const QModelIndex &idx) const /* override */;
     /** Returns the data for the given @a iRole and @a iSection in the header with the specified @a enmOrientation. */
-    virtual QVariant headerData(int iSection, Qt::Orientation enmOrientation, int iRole) const RT_OVERRIDE;
+    virtual QVariant headerData(int iSection, Qt::Orientation enmOrientation, int iRole) const /* override */;
 
     /** Defines the @a iRole data for the item at @a idx to @a value. */
-    virtual bool setData(const QModelIndex &idx, const QVariant &value, int iRole) RT_OVERRIDE;
+    virtual bool setData(const QModelIndex &idx, const QVariant &value, int iRole) /* override */;
     /** Returns the data stored under the given @a iRole for the item referred to by the @a idx. */
-    virtual QVariant data(const QModelIndex &idx, int iRole = Qt::DisplayRole) const RT_OVERRIDE;
+    virtual QVariant data(const QModelIndex &idx, int iRole = Qt::DisplayRole) const /* override */;
 
     /** Returns a model index for the buddy of the item represented by @a idx. */
-    virtual QModelIndex buddy(const QModelIndex &idx) const RT_OVERRIDE;
+    virtual QModelIndex buddy(const QModelIndex &idx) const /* override */;
 
     /** Restores the default values for the item with the given @a parentIdx. */
     void restoreDefaults(QModelIndex parentIdx = QModelIndex());
@@ -223,31 +222,31 @@ class UIApplianceDelegate : public QItemDelegate
 
 public:
 
-    /** Constructs the Appliance Delegate.
+    /** Constructs the Appliance Delegate passing @a pParent to the base-class.
       * @param  pProxy  Brings the proxy model reference used to redirect requests to. */
-    UIApplianceDelegate(QAbstractProxyModel *pProxy);
+    UIApplianceDelegate(QAbstractProxyModel *pProxy, QObject *pParent = 0);
 
     /** Returns the widget used to edit the item specified by @a idx for editing.
       * @param  pParent      Brings the parent to be assigned for newly created editor.
       * @param  styleOption  Bring the style option set for the newly created editor. */
-    virtual QWidget *createEditor(QWidget *pParent, const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const RT_OVERRIDE;
+    virtual QWidget *createEditor(QWidget *pParent, const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const /* override */;
 
     /** Defines the contents of the given @a pEditor to the data for the item at the given @a idx. */
-    virtual void setEditorData(QWidget *pEditor, const QModelIndex &idx) const RT_OVERRIDE;
+    virtual void setEditorData(QWidget *pEditor, const QModelIndex &idx) const /* override */;
     /** Defines the data for the item at the given @a idx in the @a pModel to the contents of the given @a pEditor. */
-    virtual void setModelData(QWidget *pEditor, QAbstractItemModel *pModel, const QModelIndex &idx) const RT_OVERRIDE;
+    virtual void setModelData(QWidget *pEditor, QAbstractItemModel *pModel, const QModelIndex &idx) const /* override */;
 
     /** Updates the geometry of the @a pEditor for the item with the given @a idx, according to the rectangle specified in the @a styleOption. */
-    virtual void updateEditorGeometry(QWidget *pEditor, const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const RT_OVERRIDE;
+    virtual void updateEditorGeometry(QWidget *pEditor, const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const /* override */;
 
     /** Returns the size hint for the item at the given @a idx and specified @a styleOption. */
-    virtual QSize sizeHint(const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const RT_OVERRIDE;
+    virtual QSize sizeHint(const QStyleOptionViewItem &styleOption, const QModelIndex &idx) const /* override */;
 
 protected:
 
 #ifdef VBOX_WS_MAC
     /** Filters @a pEvent if this object has been installed as an event filter for the watched @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 #endif
 
 private:
@@ -270,11 +269,11 @@ public:
 protected:
 
     /** Returns whether item in the row indicated by the given @a iSourceRow and @a srcParenIdx should be included in the model. */
-    virtual bool filterAcceptsRow(int iSourceRow, const QModelIndex &srcParenIdx) const RT_OVERRIDE;
+    virtual bool filterAcceptsRow(int iSourceRow, const QModelIndex &srcParenIdx) const /* override */;
 
     /** Returns whether value of the item referred to by the given index @a leftIdx is less
       * than the value of the item referred to by the given index @a rightIdx. */
-    virtual bool lessThan(const QModelIndex &leftIdx, const QModelIndex &rightIdx) const RT_OVERRIDE;
+    virtual bool lessThan(const QModelIndex &leftIdx, const QModelIndex &rightIdx) const /* override */;
 
     /** Holds the array of sorted Virtual System Description types. */
     static KVirtualSystemDescriptionType s_aSortList[];
@@ -294,17 +293,13 @@ public:
     /** Constructs the Appliance Editor widget passing @a pParent to the base-class. */
     UIApplianceEditorWidget(QWidget *pParent = 0);
 
-    /** Clears everything. */
-    void clear();
-
-    /** Defines @a comAppliance wrapper instance. */
-    virtual void setAppliance(const CAppliance &comAppliance);
-
     /** Defines the list of VSD @a hints. */
     void setVsdHints(const AbstractVSDParameterList &hints);
 
-    /** Defines virtual system base folder @a strPath. */
-    void setVirtualSystemBaseFolder(const QString &strPath);
+    /** Returns whether the Appliance Editor has valid state. */
+    bool isValid() const { return m_pAppliance != 0; }
+    /** Returns the currently set appliance reference. */
+    CAppliance *appliance() const { return m_pAppliance; }
 
     /** Returns the minimum guest RAM. */
     static int minGuestRAM() { return m_minGuestRAM; }
@@ -323,14 +318,15 @@ public slots:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
-    /** Holds the currently set appliance reference. */
-    CAppliance  m_comAppliance;
+    void setVirtualSystemBaseFolder(const QString& path);
 
     /** Holds the list of VSD hints. */
     AbstractVSDParameterList  m_listVsdHints;
 
+    /** Holds the currently set appliance reference. */
+    CAppliance         *m_pAppliance;
     /** Holds the Appliance model reference. */
     UIApplianceModel *m_pModel;
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: reporting.py 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: reporting.py $
 
 """
 Test Result Report Writer.
@@ -10,7 +10,7 @@ or normal text report from it.
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 93115 $"
+__version__ = "$Revision: 135976 $"
 __all__     = ['HtmlReport', 'RstReport', 'TextReport'];
 
 
@@ -217,14 +217,14 @@ def produceHtmlReport(oTest):
     """
     Produce an HTML report on stdout (via print).
     """
-    print('not implemented: %s' % (oTest));
+    print 'not implemented: %s' % (oTest);
     return False;
 
 def produceReStructuredTextReport(oTest):
     """
     Produce a ReStructured text report on stdout (via print).
     """
-    print('not implemented: %s' % (oTest));
+    print 'not implemented: %s' % (oTest);
     return False;
 
 def produceTextReport(oTest):
@@ -275,28 +275,28 @@ def produceTextReport(oTest):
             for i in range(len(asLine)):
                 if i > 0: sLine += '  ';
                 sLine += asLine[i].center(acchColumns[i]);
-            print(sLine);
+            print sLine;
 
         # Units.
         sLine = '';
         for i in range(len(oTable.asUnits)):
             if i > 0: sLine += '  ';
             sLine += oTable.asUnits[i].center(acchColumns[i]);
-        print(sLine);
+        print sLine;
 
         # Separator line.
         sLine = '';
         for i in range(len(oTable.asHeader)):
             if i > 0: sLine += '  '
             sLine += '=' * acchColumns[i];
-        print(sLine);
+        print sLine;
 
         # The rows.
         for asColumns in oTable.aasRows:
             sText = asColumns[0].ljust(acchColumns[0]);
             for i in range(1, len(asColumns)):
                 sText += '  ' + asColumns[i].rjust(acchColumns[i]);
-            print(sText);
+            print sText;
 
     return None;
 

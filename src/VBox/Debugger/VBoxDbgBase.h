@@ -1,10 +1,10 @@
-/* $Id: VBoxDbgBase.h 93468 2022-01-27 21:17:12Z vboxsync $ */
+/* $Id: VBoxDbgBase.h $ */
 /** @file
  * VBox Debugger GUI - Base classes.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,7 +24,6 @@
 
 #include <VBox/vmm/stam.h>
 #include <VBox/vmm/vmapi.h>
-#include <VBox/vmm/vmmr3vtable.h>
 #include <VBox/dbg.h>
 #include <iprt/thread.h>
 #include <QString>
@@ -87,7 +86,7 @@ public:
     /**
      * Wrapper for DBGCCreate().
      */
-    int dbgcCreate(PCDBGCIO pIo, unsigned fFlags);
+    int dbgcCreate(PDBGCBACK pBack, unsigned fFlags);
     /** @} */
 
 
@@ -107,15 +106,13 @@ protected:
 
 private:
     /** @callback_method_impl{FNVMATSTATE}  */
-    static DECLCALLBACK(void) atStateChange(PUVM pUVM, PCVMMR3VTABLE pVMM, VMSTATE enmState, VMSTATE enmOldState, void *pvUser);
+    static DECLCALLBACK(void) atStateChange(PUVM pUVM, VMSTATE enmState, VMSTATE enmOldState, void *pvUser);
 
 private:
     /** Pointer to the debugger GUI object. */
     VBoxDbgGui *m_pDbgGui;
     /** The user mode VM handle. */
     PUVM volatile m_pUVM;
-    /** The VMM function table. */
-    PCVMMR3VTABLE volatile m_pVMM;
     /** The handle of the GUI thread. */
     RTNATIVETHREAD m_hGUIThread;
 };

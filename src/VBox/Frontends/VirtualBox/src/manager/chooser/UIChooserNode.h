@@ -1,10 +1,10 @@
-/* $Id: UIChooserNode.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserNode.h $ */
 /** @file
  * VBox Qt GUI - UIChooserNode class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,10 +51,10 @@ public:
       * @param  fFavorite  Brings whether the node is favorite. */
     UIChooserNode(UIChooserNode *pParent = 0, bool fFavorite = false);
     /** Destructs chooser node. */
-    virtual ~UIChooserNode() RT_OVERRIDE;
+    virtual ~UIChooserNode() /* override */;
 
     /** Returns RTTI node type. */
-    virtual UIChooserNodeType type() const = 0;
+    virtual UIChooserItemType type() const = 0;
 
     /** Casts node to group one. */
     UIChooserNodeGroup *toGroupNode();
@@ -86,17 +86,13 @@ public:
     virtual QString fullName() const = 0;
     /** Returns item description. */
     virtual QString description() const = 0;
-    /** Returns item definition.
-      * @param  fFull  Brings whether full definition is required
-      *                which is used while saving group definitions,
-      *                otherwise short definition will be returned,
-      *                which is used while saving last chosen node. */
-    virtual QString definition(bool fFull = false) const = 0;
+    /** Returns item definition. */
+    virtual QString definition() const = 0;
 
     /** Returns whether there are children of certain @a enmType. */
-    virtual bool hasNodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const = 0;
+    virtual bool hasNodes(UIChooserItemType enmType = UIChooserItemType_Any) const = 0;
     /** Returns a list of nodes of certain @a enmType. */
-    virtual QList<UIChooserNode*> nodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const = 0;
+    virtual QList<UIChooserNode*> nodes(UIChooserItemType enmType = UIChooserItemType_Any) const = 0;
 
     /** Adds passed @a pNode to specified @a iPosition. */
     virtual void addNode(UIChooserNode *pNode, int iPosition) = 0;
@@ -108,6 +104,10 @@ public:
     /** Updates all children with specified @a uId recursively. */
     virtual void updateAllNodes(const QUuid &uId) = 0;
 
+    /** Returns whether this node is a cloud node itself
+      * or contains at least one cloud VM node child. */
+    virtual bool hasAtLeastOneCloudNode() const = 0;
+
     /** Returns node position. */
     int position();
     /** Returns position of specified node inside this one. */
@@ -118,9 +118,9 @@ public:
     /** Returns linked item. */
     UIChooserItem *item() const { return m_pItem.data(); }
 
-    /** Performs search wrt. @a strSearchTerm and @a iSearchFlags and updates @a matchedItems. For an empty
-      * @a strSearchTerm all items are added wrt. node type from @a iSearchFlags. */
-    virtual void searchForNodes(const QString &strSearchTerm, int iSearchFlags, QList<UIChooserNode*> &matchedItems) = 0;
+    /** Performs search wrt. @a strSearchTerm and @a iItemSearchFlags and updates @a matchedItems. For an empty
+      * @a strSearchTerm all items are added wrt. node type from @a iItemSearchFlags. */
+    virtual void searchForNodes(const QString &strSearchTerm, int iItemSearchFlags, QList<UIChooserNode*> &matchedItems) = 0;
 
     /** Performs sorting of children nodes. */
     virtual void sortNodes() = 0;

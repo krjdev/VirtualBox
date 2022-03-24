@@ -1,10 +1,10 @@
-; $Id: bs3-mode-SwitchTo32BitAndCallC.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: bs3-mode-SwitchTo32BitAndCallC.asm $
 ;; @file
 ; BS3Kit - bs3SwitchTo32BitAndCallC
 ;
 
 ;
-; Copyright (C) 2007-2022 Oracle Corporation
+; Copyright (C) 2007-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;

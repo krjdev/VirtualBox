@@ -1,10 +1,10 @@
-/* $Id: UIActionPool.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIActionPool.h $ */
 /** @file
  * VBox Qt GUI - UIActionPool class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,6 +34,7 @@
 /* Forward declarations: */
 class QKeySequence;
 class QString;
+class UIActionPolymorphicMenu;
 class UIActionPool;
 class UIActionPoolRuntime;
 class UIActionPoolManager;
@@ -51,7 +52,9 @@ enum UIActionType
 {
     UIActionType_Menu,
     UIActionType_Simple,
-    UIActionType_Toggle
+    UIActionType_Toggle,
+    UIActionType_Polymorphic,
+    UIActionType_PolymorphicMenu
 };
 
 /** Action indexes. */
@@ -64,6 +67,7 @@ enum UIActionIndex
 #endif
     UIActionIndex_M_Application_S_Preferences,
 #ifdef VBOX_GUI_WITH_NETWORK_MANAGER
+    UIActionIndex_M_Application_S_NetworkAccessManager,
     UIActionIndex_M_Application_S_CheckForUpdates,
 #endif /* VBOX_GUI_WITH_NETWORK_MANAGER */
     UIActionIndex_M_Application_S_ResetWarnings,
@@ -94,13 +98,7 @@ enum UIActionIndex
     UIActionIndex_M_Log_T_Bookmark,
     UIActionIndex_M_Log_T_Options,
     UIActionIndex_M_Log_S_Refresh,
-    UIActionIndex_M_Log_S_Reload,
     UIActionIndex_M_Log_S_Save,
-
-    /* 'Performance' menu actions: */
-    UIActionIndex_M_Activity,
-    UIActionIndex_M_Activity_S_Export,
-    UIActionIndex_M_Activity_S_ToVMActivityOverview,
 
     /* File Manager actions: */
     UIActionIndex_M_FileManager,
@@ -111,7 +109,7 @@ enum UIActionIndex
     UIActionIndex_M_FileManager_T_Options,
     UIActionIndex_M_FileManager_T_Log,
     UIActionIndex_M_FileManager_T_Operations,
-    UIActionIndex_M_FileManager_T_GuestSession,
+    UIActionIndex_M_FileManager_T_Session,
     UIActionIndex_M_FileManager_S_Host_GoUp,
     UIActionIndex_M_FileManager_S_Guest_GoUp,
     UIActionIndex_M_FileManager_S_Host_GoHome,
@@ -137,31 +135,13 @@ enum UIActionIndex
     UIActionIndex_M_FileManager_S_Host_ShowProperties,
     UIActionIndex_M_FileManager_S_Guest_ShowProperties,
 
-    /* VISO Creator actions: */
-    UIActionIndex_M_VISOCreator,
-    UIActionIndex_M_VISOCreator_ToggleConfigPanel,
-    UIActionIndex_M_VISOCreator_ToggleOptionsPanel,
-    UIActionIndex_M_VISOCreator_Add,
-    UIActionIndex_M_VISOCreator_Remove,
-    UIActionIndex_M_VISOCreator_CreateNewDirectory,
-    UIActionIndex_M_VISOCreator_Rename,
-    UIActionIndex_M_VISOCreator_Reset,
 
-    /* Medium selector actions : */
-    UIActionIndex_M_MediumSelector,
-    UIActionIndex_M_MediumSelector_AddHD,
-    UIActionIndex_M_MediumSelector_AddFD,
-    UIActionIndex_M_MediumSelector_AddCD,
-    UIActionIndex_M_MediumSelector_CreateHD,
-    UIActionIndex_M_MediumSelector_CreateCD,
-    UIActionIndex_M_MediumSelector_CreateFD,
-    UIActionIndex_M_MediumSelector_Refresh,
 
     /* Maximum index: */
     UIActionIndex_Max
 };
 
-/** Action restriction levels. */
+/** Restriction levels. */
 enum UIActionRestrictionLevel
 {
     UIActionRestrictionLevel_Base,
@@ -221,24 +201,24 @@ class SHARED_LIBRARY_STUFF UIAction : public QAction
 
 public:
 
-    /** Constructs action passing @a pParent to the base-class.
-      * @param  enmType  Brings the action type. */
-    UIAction(UIActionPool *pParent, UIActionType enmType, bool fMachineMenuAction = false);
-    /** Destructs action. */
-    virtual ~UIAction() RT_OVERRIDE { delete menu(); }
-
-    /** Returns action-pool this action belongs to. */
-    UIActionPool *actionPool() const { return m_pActionPool; }
     /** Returns action type. */
     UIActionType type() const { return m_enmType; }
+    /** Returns whether this is machine-menu action. */
+    bool machineMenuAction() const { return m_fMachineMenuAction; }
 
     /** Returns menu contained by this action. */
     UIMenu *menu() const;
 
+    /** Returns action-pool this action belongs to. */
+    UIActionPool *actionPool() const { return m_pActionPool; }
+
+    /** Casts action to polymorphic-menu-action. */
+    UIActionPolymorphicMenu *toActionPolymorphicMenu();
+
     /** Returns current action state. */
     int state() const { return m_iState; }
     /** Defines current action @a iState. */
-    void setState(int iState);
+    void setState(int iState) { m_iState = iState; updateIcon(); retranslateUi(); }
 
     /** Defines @a icon for certain @a iState. */
     void setIcon(int iState, const QIcon &icon);
@@ -246,21 +226,14 @@ public:
     void setIcon(const QIcon &icon);
 
     /** Returns current action name. */
-    QString name() const { return m_strName; }
+    const QString &name() const { return m_strName; }
     /** Defines current action name. */
     void setName(const QString &strName);
 
     /** Returns action shortcut scope. */
-    QString shortcutScope() const { return m_strShortcutScope; }
+    const QString &shortcutScope() const { return m_strShortcutScope; }
     /** Defines action @a strShortcutScope. */
     void setShortcutScope(const QString &strShortcutScope) { m_strShortcutScope = strShortcutScope; }
-
-    /** Defines current keyboard shortcuts for this action. */
-    void setShortcuts(const QList<QKeySequence> &shortcuts);
-    /** Make action show keyboard shortcut. */
-    void showShortcut();
-    /** Make action hide keyboard shortcut. */
-    void hideShortcut();
 
     /** Returns action extra-data ID. */
     virtual int extraDataID() const { return 0; }
@@ -276,44 +249,55 @@ public:
     /** Returns standard keyboard shortcut for this action. */
     virtual QKeySequence standardShortcut(UIActionPoolType) const { return QKeySequence(); }
 
+    /** Defines current keyboard shortcuts for this action. */
+    void setShortcuts(const QList<QKeySequence> &shortcuts);
+    /** Make action show keyboard shortcut. */
+    void showShortcut();
+    /** Make action hide keyboard shortcut. */
+    void hideShortcut();
+
     /** Retranslates action. */
     virtual void retranslateUi() = 0;
+    /** Destructs action. */
+    virtual ~UIAction() /* override */ { delete menu(); }
 
 protected:
 
-    /** Handles state change. */
-    virtual void handleStateChange() {}
+    /** Constructs action passing @a pParent to the base-class.
+      * @param  enmType  Brings the action type. */
+    UIAction(UIActionPool *pParent, UIActionType enmType, bool fMachineMenuAction = false);
 
     /** Returns current action name in menu. */
     QString nameInMenu() const;
 
     /** Updates action icon. */
-    void updateIcon();
-    /** Updates action text. */
-    void updateText();
+    virtual void updateIcon();
+
+    /** Updates action text accordingly. */
+    virtual void updateText();
 
     /** Simplifies passed @a strText by removing dots and ampersands.
       * @note Used to simplify action names for tool-tip needs. */
     static QString simplifyText(QString strText);
 
-    /** Holds the reference to the action-pool this action belongs to. */
-    UIActionPool           *m_pActionPool;
-    /** Holds the type of the action-pool this action belongs to. */
-    const UIActionPoolType  m_enmActionPoolType;
+private:
 
     /** Holds the action type. */
-    const UIActionType  m_enmType;
+    UIActionType  m_enmType;
     /** Holds whether this is machine-menu action. */
-    const bool          m_fMachineMenuAction;
+    bool          m_fMachineMenuAction;
+
+    /** Holds the reference to the action-pool this action belongs to. */
+    UIActionPool     *m_pActionPool;
+    /** Holds the type of the action-pool this action belongs to. */
+    UIActionPoolType  m_enmActionPoolType;
 
     /** Holds current action state. */
-    int             m_iState;
+    int                  m_iState;
     /** Holds action icons. */
-    QVector<QIcon>  m_icons;
-
+    QVector<QIcon>       m_icons;
     /** Holds the action name. */
-    QString  m_strName;
-
+    QString              m_strName;
     /** Holds the action shortcut scope. */
     QString              m_strShortcutScope;
     /** Holds the action shortcuts. */
@@ -334,38 +318,23 @@ protected:
       * @param  strIcon          Brings the normal-icon name.
       * @param  strIconDisabled  Brings the disabled-icon name. */
     UIActionMenu(UIActionPool *pParent,
-                 const QString &strIcon = QString(), const QString &strIconDisabled = QString());
-    /** Constructs menu action passing @a pParent to the base-class.
-      * @param  strIconNormal          Brings the normal-icon name.
-      * @param  strIconSmall           Brings the small-icon name.
-      * @param  strIconNormalDisabled  Brings the normal-disabled-icon name.
-      * @param  strIconSmallDisabled   Brings the small-disabled-icon name. */
-    UIActionMenu(UIActionPool *pParent,
-                 const QString &strIconNormal, const QString &strIconSmall,
-                 const QString &strIconNormalDisabled, const QString &strIconSmallDisabled);
+                 const QString &strIcon = QString(),
+                 const QString &strIconDisabled = QString());
     /** Constructs menu action passing @a pParent to the base-class.
       * @param  icon  Brings the icon. */
     UIActionMenu(UIActionPool *pParent,
                  const QIcon &icon);
 
-    /** Destructs menu action. */
-    virtual ~UIActionMenu() RT_OVERRIDE;
-
     /** Defines whether tool-tip should be shown. */
     void setShowToolTip(bool fShowToolTip);
 
-    /** Shows menu. */
-    void showMenu();
-    /** Hides menu. */
-    void hideMenu();
-
 private:
 
-    /** Prepares all. */
+    /** Prepare routine. */
     void prepare();
 
-    /** Holds the menu instance. */
-    UIMenu *m_pMenu;
+    /** Updates action text accordingly. */
+    virtual void updateText();
 };
 
 
@@ -443,8 +412,68 @@ protected:
 
 private:
 
-    /** Prepares all. */
+    /** Prepare routine. */
     void prepare();
+};
+
+
+/** Abstract UIAction extension for 'Polymorphic Menu' action type. */
+class SHARED_LIBRARY_STUFF UIActionPolymorphicMenu : public UIAction
+{
+    Q_OBJECT;
+
+public:
+
+    /** Returns current action state. */
+    int state() const { return m_iState; }
+    /** Defines current action state. */
+    void setState(int iState) { m_iState = iState; retranslateUi(); }
+
+protected:
+
+    /** Constructs polymorphic menu action passing @a pParent to the base-class.
+      * @param  strIcon          Brings the normal-icon name.
+      * @param  strIconDisabled  Brings the disabled-icon name. */
+    UIActionPolymorphicMenu(UIActionPool *pParent,
+                            const QString &strIcon = QString(), const QString &strIconDisabled = QString());
+    /** Constructs polymorphic menu action passing @a pParent to the base-class.
+      * @param  strIconNormal          Brings the normal-icon name.
+      * @param  strIconSmall           Brings the small-icon name.
+      * @param  strIconNormalDisabled  Brings the normal-disabled-icon name.
+      * @param  strIconSmallDisabled   Brings the small-disabled-icon name. */
+    UIActionPolymorphicMenu(UIActionPool *pParent,
+                            const QString &strIconNormal, const QString &strIconSmall,
+                            const QString &strIconNormalDisabled, const QString &strIconSmallDisabled);
+    /** Constructs polymorphic menu action passing @a pParent to the base-class.
+      * @param  icon  Brings the icon. */
+    UIActionPolymorphicMenu(UIActionPool *pParent,
+                            const QIcon &icon);
+
+    /** Destructs polymorphic menu action. */
+    ~UIActionPolymorphicMenu();
+
+    /** Defines whether tool-tip should be shown. */
+    void setShowToolTip(bool fShowToolTip);
+
+    /** Show menu. */
+    void showMenu();
+    /** Hide menu. */
+    void hideMenu();
+
+private:
+
+    /** Prepare routine. */
+    void prepare();
+
+    /** Updates action text accordingly. */
+    virtual void updateText();
+
+private:
+
+    /** Holds the menu instance. */
+    UIMenu *m_pMenu;
+    /** Holds current action state. */
+    int     m_iState;
 };
 
 
@@ -454,26 +483,19 @@ class SHARED_LIBRARY_STUFF UIActionPool : public QIWithRetranslateUI3<QObject>
 {
     Q_OBJECT;
 
-#if RT_MSC_PREREQ(RT_MSC_VER_VS2019_U11)
-# pragma warning(push)
-# pragma warning(disable: 5243) /* warning C5243: 'UIActionPool::PTFActionPoolManager': using incomplete class 'UIActionPoolManager' can cause potential one definition rule violation due to ABI limitation */
-#endif
     /** Pointer to menu update-handler for this class. */
     typedef void (UIActionPool::*PTFActionPool)();
     /** Pointer to menu update-handler for Manager sub-class. */
     typedef void (UIActionPoolManager::*PTFActionPoolManager)();
     /** Pointer to menu update-handler for Runtime sub-class. */
     typedef void (UIActionPoolRuntime::*PTFActionPoolRuntime)();
-    /** Union for three defines above. */
+    /** Union for two defines above. */
     union PointerToFunction
     {
         PTFActionPool ptf;
         PTFActionPoolManager ptfm;
         PTFActionPoolRuntime ptfr;
     };
-#if RT_MSC_PREREQ(RT_MSC_VER_VS2019_U11)
-# pragma warning(pop)
-#endif
 
 signals:
 
@@ -496,20 +518,18 @@ public:
       * used to initialize shortcuts-pool from action-pool of passed @a enmType. */
     static void createTemporary(UIActionPoolType enmType);
 
-    /** Cast action-pool to Manager one. */
-    UIActionPoolManager *toManager();
     /** Cast action-pool to Runtime one. */
     UIActionPoolRuntime *toRuntime();
+    /** Cast action-pool to Manager one. */
+    UIActionPoolManager *toManager();
 
     /** Returns action-pool type. */
     UIActionPoolType type() const { return m_enmType; }
-    /** Returns whether this action-pool is temporary. */
-    bool isTemporary() const { return m_fTemporary; }
 
     /** Returns the action for the passed @a iIndex. */
-    UIAction *action(int iIndex) const;
+    UIAction *action(int iIndex) const { return m_pool.value(iIndex); }
     /** Returns all the actions action-pool contains. */
-    QList<UIAction*> actions() const;
+    QList<UIAction*> actions() const { return m_pool.values(); }
 
     /** Returns the action group for the passed @a iIndex.
       * @note Only menu actions can have action groups. */
@@ -545,6 +565,7 @@ public:
 
     /** Defines whether shortcuts of menu actions with specified @a iIndex should be visible. */
     virtual void setShortcutsVisible(int iIndex, bool fVisible) { Q_UNUSED(iIndex); Q_UNUSED(fVisible); }
+
     /** Returns extra-data ID to save keyboard shortcuts under. */
     virtual QString shortcutsExtraDataID() const = 0;
 
@@ -568,14 +589,18 @@ protected:
     /** Constructs probably @a fTemporary action-pool of passed @a enmType. */
     UIActionPool(UIActionPoolType enmType, bool fTemporary = false);
 
+    /** Prepares all. */
+    void prepare();
     /** Prepares pool. */
     virtual void preparePool();
     /** Prepares connections. */
     virtual void prepareConnections();
     /** Cleanups connections. */
-    virtual void cleanupConnections();
+    virtual void cleanupConnections() {}
     /** Cleanups pool. */
     virtual void cleanupPool();
+    /** Cleanups all. */
+    void cleanup();
 
     /** Updates configuration. */
     virtual void updateConfiguration();
@@ -584,41 +609,44 @@ protected:
     virtual void updateMenu(int iIndex);
     /** Updates menus. */
     virtual void updateMenus() = 0;
+    /** Updates 'Application' menu. */
+    virtual void updateMenuApplication();
+#ifdef VBOX_WS_MAC
+    /** Mac OS X: Updates 'Window' menu. */
+    virtual void updateMenuWindow();
+#endif
+    /** Updates 'Help' menu. */
+    virtual void updateMenuHelp();
+    /** Updates 'Log Viewer Window' menu. */
+    virtual void updateMenuLogViewerWindow();
+    /** Updates 'Log Viewer' menu. */
+    virtual void updateMenuLogViewer();
+    /** Updates 'Log Viewer' @a pMenu. */
+    virtual void updateMenuLogViewerWrapper(UIMenu *pMenu);
+
+    /** Updates 'File Manager' menu. */
+    virtual void updateMenuFileManager();
+    /** Updates 'File Manager' @a pMenu. */
+    virtual void updateMenuFileManagerWrapper(UIMenu *pMenu);
 
     /** Updates shortcuts. */
     virtual void updateShortcuts();
 
-    /** Handles any Qt @a pEvent */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
-
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
+
+    /** Handles any Qt @a pEvent */
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Adds action into corresponding menu. */
     bool addAction(UIMenu *pMenu, UIAction *pAction, bool fReallyAdd = true);
     /** Adds action's menu into corresponding menu list. */
     bool addMenu(QList<QMenu*> &menuList, UIAction *pAction, bool fReallyAdd = true);
 
-    /** Updates 'Application' menu. */
-    void updateMenuApplication();
-#ifdef VBOX_WS_MAC
-    /** Mac OS X: Updates 'Window' menu. */
-    void updateMenuWindow();
-#endif
-    /** Updates 'Help' menu. */
-    void updateMenuHelp();
-    /** Updates 'Log Viewer Window' menu. */
-    void updateMenuLogViewerWindow();
-    /** Updates 'Log Viewer' menu. */
-    void updateMenuLogViewer();
-    /** Updates 'Log Viewer' @a pMenu. */
-    void updateMenuLogViewerWrapper(UIMenu *pMenu);
-    /** Updates 'Performance Monitor' menu. */
-    void updateMenuVMActivityMonitor();
-    /** Updates 'File Manager' menu. */
-    void updateMenuFileManager();
-    /** Updates 'File Manager' @a pMenu. */
-    void updateMenuFileManagerWrapper(UIMenu *pMenu);
+    /** Holds the action-pool type. */
+    const UIActionPoolType  m_enmType;
+    /** Holds whether this action-pool is temporary. */
+    const bool              m_fTemporary;
 
     /** Holds the map of actions. */
     QMap<int, UIAction*>          m_pool;
@@ -643,18 +671,6 @@ protected:
 #endif
     /** Holds restricted action types of the Help menu. */
     QMap<UIActionRestrictionLevel, UIExtraDataMetaDefs::MenuHelpActionType>         m_restrictedActionsMenuHelp;
-
-private:
-
-    /** Prepares all. */
-    void prepare();
-    /** Cleanups all. */
-    void cleanup();
-
-    /** Holds the action-pool type. */
-    const UIActionPoolType  m_enmType;
-    /** Holds whether this action-pool is temporary. */
-    const bool              m_fTemporary;
 };
 
 

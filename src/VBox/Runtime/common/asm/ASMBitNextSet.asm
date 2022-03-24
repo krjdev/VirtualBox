@@ -1,10 +1,10 @@
-; $Id: ASMBitNextSet.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMBitNextSet.asm $
 ;; @file
 ; IPRT - ASMBitNextSet().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -44,7 +44,7 @@ BEGINCODE
 ; @remarks Not quite sure how much sense it makes to do this in assembly, but
 ;          it started out with the ASMBit* API, so that's why we still have it.
 ;
-RT_BEGINPROC ASMBitNextSet
+BEGINPROC_EXPORTED ASMBitNextSet
 %if ARCH_BITS == 16
         push    bp
         mov     bp, sp

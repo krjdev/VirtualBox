@@ -1,10 +1,10 @@
-/* $Id: VBoxNine.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxNine.c $ */
 /** @file
  * VirtualBox Windows Guest Mesa3D - Direct3D9 state tracker.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

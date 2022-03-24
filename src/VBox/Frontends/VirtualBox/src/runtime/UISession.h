@@ -1,10 +1,10 @@
-/* $Id: UISession.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UISession.h $ */
 /** @file
  * VBox Qt GUI - UISession class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -61,6 +61,31 @@ class QMenuBar;
 class QIcon;
 #endif /* !VBOX_WS_MAC */
 
+/* CConsole callback event types: */
+enum UIConsoleEventType
+{
+    UIConsoleEventType_MousePointerShapeChange = QEvent::User + 1,
+    UIConsoleEventType_MouseCapabilityChange,
+    UIConsoleEventType_KeyboardLedsChange,
+    UIConsoleEventType_StateChange,
+    UIConsoleEventType_AdditionsStateChange,
+    UIConsoleEventType_NetworkAdapterChange,
+    /* Not used: UIConsoleEventType_SerialPortChange, */
+    /* Not used: UIConsoleEventType_ParallelPortChange, */
+    /* Not used: UIConsoleEventType_StorageControllerChange, */
+    UIConsoleEventType_MediumChange,
+    /* Not used: UIConsoleEventType_CPUChange, */
+    UIConsoleEventType_VRDEServerChange,
+    UIConsoleEventType_VRDEServerInfoChange,
+    UIConsoleEventType_USBControllerChange,
+    UIConsoleEventType_USBDeviceStateChange,
+    UIConsoleEventType_SharedFolderChange,
+    UIConsoleEventType_RuntimeError,
+    UIConsoleEventType_CanShowWindow,
+    UIConsoleEventType_ShowWindow,
+    UIConsoleEventType_MAX
+};
+
 class UISession : public QObject
 {
     Q_OBJECT;
@@ -74,16 +99,12 @@ public:
 
     /* API: Runtime UI stuff: */
     bool initialize();
-    /** Powers VM up. */
     bool powerUp();
-    /** Detaches and closes Runtime UI. */
-    void detachUi();
-    /** Saves VM state, then closes Runtime UI. */
-    void saveState();
-    /** Calls for guest shutdown to close Runtime UI. */
-    void shutdown();
-    /** Powers VM off, then closes Runtime UI. */
-    void powerOff(bool fIncludingDiscard);
+    bool detach();
+    bool saveState();
+    bool shutdown();
+    bool powerOff(bool fIncludingDiscard, bool &fServerCrashed);
+    bool restoreCurrentSnapshot();
 
     /** Returns the session instance. */
     CSession& session() { return m_session; }
@@ -157,17 +178,15 @@ public:
     /** Requests visual-state change. */
     void changeVisualState(UIVisualStateType visualStateType);
     /** Requests visual-state to be entered when possible. */
-    void setRequestedVisualState(UIVisualStateType visualStateType);
+    void setRequestedVisualState(UIVisualStateType visualStateType) { m_requestedVisualStateType = visualStateType; }
     /** Returns requested visual-state to be entered when possible. */
-    UIVisualStateType requestedVisualState() const;
+    UIVisualStateType requestedVisualState() const { return m_requestedVisualStateType; }
 
-    bool isSaved() const { return machineState() == KMachineState_Saved ||
-                                  machineState() == KMachineState_AbortedSaved; }
+    bool isSaved() const { return machineState() == KMachineState_Saved; }
     bool isTurnedOff() const { return machineState() == KMachineState_PoweredOff ||
                                       machineState() == KMachineState_Saved ||
                                       machineState() == KMachineState_Teleported ||
-                                      machineState() == KMachineState_Aborted ||
-                                      machineState() == KMachineState_AbortedSaved; }
+                                      machineState() == KMachineState_Aborted; }
     bool isPaused() const { return machineState() == KMachineState_Paused ||
                                    machineState() == KMachineState_TeleportingPausedVM; }
     bool isRunning() const { return machineState() == KMachineState_Running ||
@@ -177,15 +196,9 @@ public:
     bool wasPaused() const { return machineStatePrevious() == KMachineState_Paused ||
                                     machineStatePrevious() == KMachineState_TeleportingPausedVM; }
     bool isInitialized() const { return m_fInitialized; }
+    bool isFirstTimeStarted() const { return m_fIsFirstTimeStarted; }
     bool isGuestResizeIgnored() const { return m_fIsGuestResizeIgnored; }
     bool isAutoCaptureDisabled() const { return m_fIsAutoCaptureDisabled; }
-
-    /** Returns whether VM is in 'manual-override' mode.
-      * @note S.a. #m_fIsManualOverride description for more information. */
-    bool isManualOverrideMode() const { return m_fIsManualOverride; }
-    /** Defines whether VM is in 'manual-override' mode.
-      * @note S.a. #m_fIsManualOverride description for more information. */
-    void setManualOverrideMode(bool fIsManualOverride) { m_fIsManualOverride = fIsManualOverride; }
 
     /* Guest additions state getters: */
     bool isGuestAdditionsActive() const { return (m_ulGuestAdditionsRunLevel > KAdditionsRunLevelType_None); }
@@ -338,12 +351,7 @@ signals:
 
 public slots:
 
-    /** Handles request to install guest additions image.
-      * @param  strSource  Brings the source of image being installed. */
     void sltInstallGuestAdditionsFrom(const QString &strSource);
-    /** Mounts DVD adhoc.
-      * @param  strSource  Brings the source of image being mounted. */
-    void sltMountDVDAdHoc(const QString &strSource);
 
     /** Defines @a iKeyboardState. */
     void setKeyboardState(int iKeyboardState) { m_iKeyboardState = iKeyboardState; emit sigKeyboardStateChange(m_iKeyboardState); }
@@ -351,13 +359,13 @@ public slots:
     /** Defines @a iMouseState. */
     void setMouseState(int iMouseState) { m_iMouseState = iMouseState; emit sigMouseStateChange(m_iMouseState); }
 
-    /** Closes Runtime UI. */
-    void closeRuntimeUI();
-
 private slots:
 
-    /** Detaches COM. */
-    void sltDetachCOM();
+    /** Marks machine started. */
+    void sltMarkInitialized() { m_fInitialized = true; }
+
+    /** Close Runtime UI. */
+    void sltCloseRuntimeUI();
 
 #ifdef RT_OS_DARWIN
     /** Mac OS X: Handles menu-bar configuration-change. */
@@ -400,17 +408,6 @@ private slots:
     /** Handles host-screen available-area change. */
     void sltHandleHostScreenAvailableAreaChange();
 
-    /** Handles signal about machine state saved.
-      * @param  fSuccess  Brings whether state was saved successfully. */
-    void sltHandleMachineStateSaved(bool fSuccess);
-    /** Handles signal about machine powered off.
-      * @param  fSuccess           Brings whether machine was powered off successfully.
-      * @param  fIncludingDiscard  Brings whether machine state should be discarded. */
-    void sltHandleMachinePoweredOff(bool fSuccess, bool fIncludingDiscard);
-    /** Handles signal about snapshot restored.
-      * @param  fSuccess  Brings whether machine was powered off successfully. */
-    void sltHandleSnapshotRestored(bool fSuccess);
-
 private:
 
     /** Constructor. */
@@ -424,27 +421,20 @@ private:
     /* Prepare helpers: */
     bool prepare();
     bool prepareSession();
-    void prepareNotificationCenter();
-    void prepareConsoleEventHandlers();
-    void prepareFramebuffers();
     void prepareActions();
     void prepareConnections();
-    void prepareMachineWindowIcon();
+    void prepareConsoleEventHandlers();
     void prepareScreens();
-    void prepareSignalHandling();
-
-    /* Settings stuff: */
+    void prepareFramebuffers();
     void loadSessionSettings();
 
     /* Cleanup helpers: */
-    //void cleanupSignalHandling();
+    void saveSessionSettings();
+    void cleanupFramebuffers();
     //void cleanupScreens() {}
-    void cleanupMachineWindowIcon();
+    void cleanupConsoleEventHandlers();
     void cleanupConnections();
     void cleanupActions();
-    void cleanupFramebuffers();
-    void cleanupConsoleEventHandlers();
-    void cleanupNotificationCenter();
     void cleanupSession();
     void cleanup();
 
@@ -538,6 +528,16 @@ private:
 #endif
     /** @} */
 
+    /** @name Visual-state configuration variables.
+     ** @{ */
+    /** Determines which visual-state should be entered when possible. */
+    UIVisualStateType m_requestedVisualStateType;
+    /** @} */
+
+#if defined(VBOX_WS_WIN)
+    HCURSOR m_alphaCursor;
+#endif
+
     /** @name Host-screen configuration variables.
      * @{ */
     /** Holds the list of host-screen geometries we currently have. */
@@ -560,12 +560,9 @@ private:
 
     /* Common flags: */
     bool m_fInitialized : 1;
+    bool m_fIsFirstTimeStarted : 1;
     bool m_fIsGuestResizeIgnored : 1;
     bool m_fIsAutoCaptureDisabled : 1;
-    /** Holds whether VM is in 'manual-override' mode
-      * which means there will be no automatic UI shutdowns,
-      * visual representation mode changes and other stuff. */
-    bool m_fIsManualOverride : 1;
 
     /* Guest additions flags: */
     ULONG m_ulGuestAdditionsRunLevel;

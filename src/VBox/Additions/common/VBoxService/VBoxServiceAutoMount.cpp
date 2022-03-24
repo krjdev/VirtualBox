@@ -1,10 +1,10 @@
-/* $Id: VBoxServiceAutoMount.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxServiceAutoMount.cpp $ */
 /** @file
  * VBoxService - Auto-mounting for Shared Folders, only Linux & Solaris atm.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -812,7 +812,7 @@ static int vbsvcAutomounterPopulateTable(PVBSVCAUTOMOUNTERTABLE pMountTable)
     static const char s_szDevicePath[] = "\\Device\\VBoxMiniRdr\\;";
     for (char chDrive = 'Z'; chDrive >= 'A'; chDrive--)
     {
-        RTUTF16 const wszMountPoint[4] = { (RTUTF16)chDrive, ':', '\0', '\0' };
+        RTUTF16 const wszMountPoint[4] = { chDrive, ':', '\0', '\0' };
         RTUTF16       wszTargetPath[RTPATH_MAX];
         DWORD const   cwcResult = QueryDosDeviceW(wszMountPoint, wszTargetPath, RT_ELEMENTS(wszTargetPath));
         if (   cwcResult > sizeof(s_szDevicePath)
@@ -1355,11 +1355,11 @@ static int vbsvcAutomounterMountIt(PVBSVCAUTOMOUNTERENTRY pEntry)
      * Attach the shared folder using WNetAddConnection2W.
      *
      * According to google we should get a drive symlink in \\GLOBAL?? when
-     * we are running under the system account.  Otherwise it will be a session
+     * we are running under the system account.  Otherwise it will a session
      * local link (\\??).
      */
     Assert(RT_C_IS_UPPER(pEntry->pszActualMountPoint[0]) && pEntry->pszActualMountPoint[1] == ':' && pEntry->pszActualMountPoint[2] == '\0');
-    RTUTF16 wszDrive[4] = { (RTUTF16)pEntry->pszActualMountPoint[0], ':', '\0', '\0' };
+    RTUTF16 wszDrive[4] = { pEntry->pszActualMountPoint[0], ':', '\0', '\0' };
 
     RTUTF16 wszPrefixedName[RTPATH_MAX];
     int rc = RTUtf16CopyAscii(wszPrefixedName, RT_ELEMENTS(wszPrefixedName), "\\\\VBoxSvr\\");
@@ -1373,9 +1373,6 @@ static int vbsvcAutomounterMountIt(PVBSVCAUTOMOUNTERENTRY pEntry)
         VGSvcError("vbsvcAutomounterMountIt: RTStrToUtf16Ex failed on '%s': %Rrc\n", pEntry->pszName, rc);
         return rc;
     }
-
-    VGSvcVerbose(3, "vbsvcAutomounterMountIt: wszDrive='%ls', wszPrefixedName='%ls'\n",
-                 wszDrive, wszPrefixedName);
 
     NETRESOURCEW NetRsrc;
     RT_ZERO(NetRsrc);
@@ -1392,8 +1389,8 @@ static int vbsvcAutomounterMountIt(PVBSVCAUTOMOUNTERENTRY pEntry)
                      pEntry->pszName, pEntry->pszActualMountPoint);
         return VINF_SUCCESS;
     }
-    VGSvcError("vbsvcAutomounterMountIt: Failed to attach '%s' to '%s': %Rrc (%u)\n",
-               pEntry->pszName, pEntry->pszActualMountPoint, RTErrConvertFromWin32(dwErr), dwErr);
+    VGSvcError("vbsvcAutomounterMountIt: Failed to attach '%s' to '%s': %u\n",
+               pEntry->pszName, pEntry->pszActualMountPoint, rc);
     return VERR_OPEN_FAILED;
 
 #elif defined(RT_OS_OS2)
@@ -1785,7 +1782,7 @@ static int vbsvcAutomounterUnmount(const char *pszMountPoint, const char *pszNam
          */
 #ifdef RT_OS_WINDOWS
         Assert(RT_C_IS_UPPER(pszMountPoint[0]) && pszMountPoint[1] == ':' && pszMountPoint[2] == '\0');
-        RTUTF16 const wszDrive[4] = { (RTUTF16)pszMountPoint[0], ':', '\0', '\0' };
+        RTUTF16 const wszDrive[4] = { pszMountPoint[0], ':', '\0', '\0' };
         DWORD dwErr = WNetCancelConnection2W(wszDrive, 0 /*dwFlags*/, FALSE /*fForce*/);
         if (dwErr == NO_ERROR)
             return VINF_SUCCESS;

@@ -1,10 +1,10 @@
-/* $Id: UIFileManagerHostTable.cpp 94007 2022-03-01 01:06:31Z vboxsync $ */
+/* $Id: UIFileManagerHostTable.cpp $ */
 /** @file
  * VBox Qt GUI - UIFileManagerHostTable class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,7 +27,7 @@
 #include "UICustomFileSystemModel.h"
 #include "UIFileManagerHostTable.h"
 #include "UIPathOperations.h"
-#include "QIToolBar.h"
+#include "UIToolBar.h"
 
 
 /*********************************************************************************************************************************
@@ -45,7 +45,7 @@ public:
 
 protected:
 
-    virtual void directoryStatisticsRecursive(const QString &path, UIDirectoryStatistics &statistics) RT_OVERRIDE;
+    virtual void directoryStatisticsRecursive(const QString &path, UIDirectoryStatistics &statistics) /* override */;
 };
 
 
@@ -166,13 +166,13 @@ UIFileManagerHostTable::UIFileManagerHostTable(UIActionPool *pActionPool, QWidge
         fileObjects.insert(fileInfo.fileName(), item);
         item->setIsOpened(false);
     }
+
 }
 
 void UIFileManagerHostTable::retranslateUi()
 {
     if (m_pLocationLabel)
-        m_pLocationLabel->setText(UIFileManager::tr("Host File System:"));
-    m_strTableName = UIFileManager::tr("Host");
+        m_pLocationLabel->setText(UIFileManager::tr("Host File System"));
     UIFileManagerTable::retranslateUi();
 }
 
@@ -206,7 +206,9 @@ void UIFileManagerHostTable::prepareToolbar()
         m_pActionPool->action(UIActionIndex_M_FileManager_S_Host_Copy)->setVisible(false);
         m_pActionPool->action(UIActionIndex_M_FileManager_S_Host_Cut)->setVisible(false);
         m_pActionPool->action(UIActionIndex_M_FileManager_S_Host_Paste)->setVisible(false);
+
     }
+
     setSelectionDependentActionsEnabled(false);
 }
 
@@ -264,8 +266,8 @@ void UIFileManagerHostTable::deleteByItem(UICustomFileSystemItem *item)
     /** @todo replace this recursive delete by a better implementation: */
     bool deleteSuccess = itemToDelete.removeRecursively();
 
-    if (!deleteSuccess)
-        emit sigLogOutput(QString(item->path()).append(" could not be deleted"), m_strTableName, FileManagerLogType_Error);
+     if (!deleteSuccess)
+         emit sigLogOutput(QString(item->path()).append(" could not be deleted"), FileManagerLogType_Error);
 }
 
 void UIFileManagerHostTable::deleteByPath(const QStringList &pathList)
@@ -285,7 +287,7 @@ void UIFileManagerHostTable::deleteByPath(const QStringList &pathList)
             deleteSuccess = itemToDelete.removeRecursively();
         }
         if (!deleteSuccess)
-            emit sigLogOutput(QString(strPath).append(" could not be deleted"), m_strTableName, FileManagerLogType_Error);
+            emit sigLogOutput(QString(strPath).append(" could not be deleted"), FileManagerLogType_Error);
     }
 }
 
@@ -320,15 +322,14 @@ bool UIFileManagerHostTable::createDirectory(const QString &path, const QString 
     QDir parentDir(path);
     if (!parentDir.mkdir(directoryName))
     {
-        emit sigLogOutput(UIPathOperations::mergePaths(path, directoryName).append(" could not be created"), m_strTableName, FileManagerLogType_Error);
+        emit sigLogOutput(UIPathOperations::mergePaths(path, directoryName).append(" could not be created"), FileManagerLogType_Error);
         return false;
     }
 
     return true;
 }
 
-/* static */
-KFsObjType UIFileManagerHostTable::fileType(const QFileInfo &fsInfo)
+/* static */ KFsObjType UIFileManagerHostTable::fileType(const QFileInfo &fsInfo)
 {
     if (!fsInfo.exists())
         return KFsObjType_Unknown;
@@ -340,13 +341,8 @@ KFsObjType UIFileManagerHostTable::fileType(const QFileInfo &fsInfo)
         return KFsObjType_File;
     else if (fsInfo.isDir())
         return KFsObjType_Directory;
-    return KFsObjType_Unknown;
-}
 
-/* static */
-KFsObjType  UIFileManagerHostTable::fileType(const QString &strPath)
-{
-    return fileType(QFileInfo(strPath));
+    return KFsObjType_Unknown;
 }
 
 QString UIFileManagerHostTable::fsObjectPropertyString()
@@ -372,17 +368,13 @@ QString UIFileManagerHostTable::fsObjectPropertyString()
         /* Type: */
         propertyStringList << UIFileManager::tr("<b>Type:</b> %1<br/>").arg(fileTypeString(fileType(fileInfo)));
         /* Creation Date: */
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
-        propertyStringList << UIFileManager::tr("<b>Created:</b> %1<br/>").arg(fileInfo.birthTime().toString());
-#else
         propertyStringList << UIFileManager::tr("<b>Created:</b> %1<br/>").arg(fileInfo.created().toString());
-#endif
         /* Last Modification Date: */
         propertyStringList << UIFileManager::tr("<b>Modified:</b> %1<br/>").arg(fileInfo.lastModified().toString());
         /* Owner: */
         propertyStringList << UIFileManager::tr("<b>Owner:</b> %1").arg(fileInfo.owner());
 
-        return propertyStringList.join(QString());
+        return propertyStringList.join(QString());;
     }
 
     int fileCount = 0;

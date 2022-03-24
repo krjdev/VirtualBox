@@ -1,10 +1,10 @@
-/* $Id: UIVisoHostBrowser.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVisoHostBrowser.cpp $ */
 /** @file
  * VBox Qt GUI - UIVisoHostBrowser class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -19,9 +19,9 @@
 #include <QGridLayout>
 #include <QHeaderView>
 #include <QMimeData>
+#include <QTableView>
 #include <QTextEdit>
 #include <QTreeView>
-#include <QTableView>
 
 /* GUI includes: */
 #include "UIVisoHostBrowser.h"
@@ -35,13 +35,12 @@ class UIVisoHostBrowserModel : public QFileSystemModel
     Q_OBJECT;
 
 public:
-
-    virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const RT_OVERRIDE;
+    virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const /* override */;
     UIVisoHostBrowserModel(QObject *pParent);
 
-    virtual QStringList mimeTypes() const RT_OVERRIDE;
+    virtual QStringList mimeTypes() const /* override */;
     /** Prepares the mime data  as a list of text consisting of dragged objects full file path. */
-    QMimeData *mimeData(const QModelIndexList &indexes) const RT_OVERRIDE;
+    QMimeData *mimeData(const QModelIndexList &indexes) const /* override */;
 
 protected:
 
@@ -154,11 +153,11 @@ void UIVisoHostBrowser::prepareObjects()
     {
         m_pTableView->setContextMenuPolicy(Qt::CustomContextMenu);
         m_pMainLayout->addWidget(m_pTableView, 1, 0, 8, 4);
+        m_pTableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
         m_pTableView->setShowGrid(false);
         m_pTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         m_pTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
         m_pTableView->setAlternatingRowColors(true);
-        m_pTableView->setTabKeyNavigation(false);
         QHeaderView *pVerticalHeader = m_pTableView->verticalHeader();
         if (pVerticalHeader)
         {
@@ -259,16 +258,6 @@ void UIVisoHostBrowser::setCurrentPath(const QString &strPath)
         return;
     QModelIndex index = m_pTreeModel->index(strPath);
     setTreeCurrentIndex(index);
-}
-
-bool UIVisoHostBrowser::tableViewHasSelection() const
-{
-    if (!m_pTableView)
-        return false;
-    QItemSelectionModel *pSelectionModel = m_pTableView->selectionModel();
-    if (!pSelectionModel)
-        return false;
-    return pSelectionModel->hasSelection();
 }
 
 void UIVisoHostBrowser::sltHandleAddAction()

@@ -2,7 +2,6 @@
   The driver entry point for RamDiskDxe driver.
 
   Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) Microsoft Corporation.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -93,7 +92,7 @@ RamDiskAcpiCheck (
     return;
   }
 
-  BASE_LIST_FOR_EACH (Entry, &RegisteredRamDisks) {
+  EFI_LIST_FOR_EACH (Entry, &RegisteredRamDisks) {
     PrivateData = RAM_DISK_PRIVATE_FROM_THIS (Entry);
     RamDiskPublishNfit (PrivateData);
   }

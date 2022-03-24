@@ -1,10 +1,10 @@
-; $Id: VBoxGuestAdditionsVista.nsh 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: VBoxGuestAdditionsVista.nsh $
 ;; @file
 ; VBoxGuestAdditionsVista.nsh - Guest Additions installation for Windows Vista/7.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -80,7 +80,7 @@ FunctionEnd
 !macro Vista_UninstallInstDir un
 Function ${un}Vista_UninstallInstDir
 
-!if $%KBUILD_TARGET_ARCH% == "x86"       ; 32-bit
+!if $%BUILD_TARGET_ARCH% == "x86"       ; 32-bit
   Delete /REBOOTOK "$INSTDIR\netamd.inf"
   Delete /REBOOTOK "$INSTDIR\pcntpci5.cat"
   Delete /REBOOTOK "$INSTDIR\PCNTPCI5.sys"
@@ -119,7 +119,7 @@ Function ${un}VBoxMMR_Uninstall
 
   Delete /REBOOTOK "$g_strSystemDir\VBoxMMR.exe"
 
-  !if $%KBUILD_TARGET_ARCH% == "amd64"
+  !if $%BUILD_TARGET_ARCH% == "amd64"
     Delete /REBOOTOK "$g_strSysWow64\VBoxMMRHook.dll"
     Delete /REBOOTOK "$INSTDIR\VBoxMMR-x86.exe"
     Delete /REBOOTOK "$INSTDIR\VBoxMMRHook-x86.dll"

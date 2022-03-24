@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -84,7 +84,7 @@ typedef VDBACKENDREGISTER *PVDBACKENDREGISTER;
  * @param   pvUser             Opaque user data passed in the register callbacks.
  * @param   pRegisterCallbacks Pointer to the register callbacks structure.
  */
-typedef DECLCALLBACKTYPE(int, FNVDPLUGINLOAD,(void *pvUser, PVDBACKENDREGISTER pRegisterCallbacks));
+typedef DECLCALLBACK(int) FNVDPLUGINLOAD(void *pvUser, PVDBACKENDREGISTER pRegisterCallbacks);
 typedef FNVDPLUGINLOAD *PFNVDPLUGINLOAD;
 #define VD_PLUGIN_LOAD_NAME "VDPluginLoad"
 

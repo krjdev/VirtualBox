@@ -1,10 +1,10 @@
-; $Id: ASMAddFlags.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMAddFlags.asm $
 ;; @file
 ; IPRT - ASMSetFlags().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,7 @@ BEGINCODE
 
 ;;
 ; @param rcx/rdi  eflags to add
-RT_BEGINPROC ASMAddFlags
+BEGINPROC_EXPORTED ASMAddFlags
 %if    ARCH_BITS == 64
         pushfq
         mov     rax, [rsp]

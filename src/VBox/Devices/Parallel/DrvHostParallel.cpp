@@ -1,4 +1,4 @@
-/* $Id: DrvHostParallel.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostParallel.cpp $ */
 /** @file
  * VirtualBox Host Parallel Port Driver.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -900,7 +900,7 @@ static DECLCALLBACK(void) drvHostParallelDestruct(PPDMDRVINS pDrvIns)
 
     if (pThis->pszDevicePath)
     {
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszDevicePath);
+        MMR3HeapFree(pThis->pszDevicePath);
         pThis->pszDevicePath = NULL;
     }
 #endif /* !VBOX_WITH_WIN_PARPORT_SUP */
@@ -915,9 +915,8 @@ static DECLCALLBACK(int) drvHostParallelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE 
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVHOSTPARALLEL    pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTPARALLEL);
-    PCPDMDRVHLPR3       pHlp  = pDrvIns->pHlpR3;
     LogFlowFunc(("iInstance=%d\n", pDrvIns->iInstance));
+    PDRVHOSTPARALLEL pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTPARALLEL);
 
 
     /*
@@ -949,13 +948,15 @@ static DECLCALLBACK(int) drvHostParallelConstruct(PPDMDRVINS pDrvIns, PCFGMNODE 
     /*
      * Validate the config.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "DevicePath", "");
+    if (!CFGMR3AreValuesValid(pCfg, "DevicePath\0"))
+        return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES,
+                                N_("Unknown host parallel configuration option, only supports DevicePath"));
 
     /*
      * Query configuration.
      */
     /* Device */
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "DevicePath", &pThis->pszDevicePath);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "DevicePath", &pThis->pszDevicePath);
     if (RT_FAILURE(rc))
     {
         AssertMsgFailed(("Configuration error: query for \"DevicePath\" string returned %Rra.\n", rc));

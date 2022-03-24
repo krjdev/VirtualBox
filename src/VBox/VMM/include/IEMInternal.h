@@ -1,10 +1,10 @@
-/* $Id: IEMInternal.h 94261 2022-03-16 01:34:29Z vboxsync $ */
+/* $Id: IEMInternal.h $ */
 /** @file
  * IEM - Internal header file.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -92,19 +92,13 @@ typedef struct IEMINSTRSTATS IEMINSTRSTATS;
 /** Pointer to IEM instruction statistics. */
 typedef IEMINSTRSTATS *PIEMINSTRSTATS;
 
-
-/** @name IEMTARGETCPU_EFL_BEHAVIOR_XXX - IEMCPU::idxTargetCpuEflFlavour
- * @{ */
-#define IEMTARGETCPU_EFL_BEHAVIOR_NATIVE      0     /**< Native x86 EFLAGS result; Intel EFLAGS when on non-x86 hosts. */
-#define IEMTARGETCPU_EFL_BEHAVIOR_INTEL       1     /**< Intel EFLAGS result. */
-#define IEMTARGETCPU_EFL_BEHAVIOR_AMD         2     /**< AMD EFLAGS result */
-#define IEMTARGETCPU_EFL_BEHAVIOR_RESERVED    3     /**< Reserved/dummy entry slot that's the same as 0. */
-#define IEMTARGETCPU_EFL_BEHAVIOR_MASK        3     /**< For masking the index before use. */
-/** Selects the right variant from a_aArray.
- * pVCpu is implicit in the caller context. */
-#define IEMTARGETCPU_EFL_BEHAVIOR_SELECT(a_aArray) \
-    (a_aArray[pVCpu->iem.s.idxTargetCpuEflFlavour & IEMTARGETCPU_EFL_BEHAVIOR_MASK])
-/** @} */
+/** Finish and move to types.h */
+typedef union
+{
+    uint32_t u32;
+} RTFLOAT32U;
+typedef RTFLOAT32U *PRTFLOAT32U;
+typedef RTFLOAT32U const *PCRTFLOAT32U;
 
 
 /**
@@ -273,7 +267,11 @@ typedef struct IEMTLBENTRY
     /** The guest physical page address. */
     uint64_t                GCPhys;
     /** Pointer to the ring-3 mapping (possibly also valid in ring-0). */
+#ifdef VBOX_WITH_2X_4GB_ADDR_SPACE
     R3PTRTYPE(uint8_t *)    pbMappingR3;
+#else
+    R3R0PTRTYPE(uint8_t *)  pbMappingR3;
+#endif
 #if HC_ARCH_BITS == 32
     uint32_t                u32Padding1;
 #endif
@@ -557,6 +555,8 @@ typedef struct IEMCPU
     uint64_t                uCurXcptCr2;
     /** The error code for the current exception / interrupt. */
     uint32_t                uCurXcptErr;
+    /** The VMX APIC-access page handler type. */
+    PGMPHYSHANDLERTYPE      hVmxApicAccessPage;
 
     /** @name Statistics
      * @{  */
@@ -587,15 +587,10 @@ typedef struct IEMCPU
      * @{ */
 #if IEM_CFG_TARGET_CPU == IEMTARGETCPU_DYNAMIC
     /** The target CPU. */
-    uint8_t                 uTargetCpu;
+    uint32_t                uTargetCpu;
 #else
-    uint8_t                 bTargetCpuPadding;
+    uint32_t                u32TargetCpuPadding;
 #endif
-    /** For selecting assembly works matching the target CPU EFLAGS behaviour, see
-     *  IEMTARGETCPU_EFL_BEHAVIOR_XXX for values.  This is for instance used for the
-     *  BSF & BSR instructions where AMD and Intel CPUs produce different EFLAGS. */
-    uint8_t                 idxTargetCpuEflFlavour;
-
     /** The CPU vendor. */
     CPUMCPUVENDOR           enmCpuVendor;
     /** @} */
@@ -620,12 +615,12 @@ typedef struct IEMCPU
      * @remarks Must be 64-byte aligned. */
     IEMTLB                  CodeTlb;
 
-#if defined(VBOX_WITH_STATISTICS) && !defined(IN_TSTVMSTRUCT) && !defined(DOXYGEN_RUNNING)
-    /** Instruction statistics for ring-0/raw-mode. */
-    IEMINSTRSTATS           StatsRZ;
-    /** Instruction statistics for ring-3. */
-    IEMINSTRSTATS           StatsR3;
-#endif
+    /** Pointer to instruction statistics for ring-0 context. */
+    R0PTRTYPE(PIEMINSTRSTATS) pStatsR0;
+    /** Ring-3 pointer to instruction statistics for non-ring-3 code. */
+    R3PTRTYPE(PIEMINSTRSTATS) pStatsCCR3;
+    /** Pointer to instruction statistics for ring-3 context. */
+    R3PTRTYPE(PIEMINSTRSTATS) pStatsR3;
 } IEMCPU;
 AssertCompileMemberOffset(IEMCPU, fCurXcpt, 0x48);
 AssertCompileMemberAlignment(IEMCPU, DataTlb, 64);
@@ -715,8 +710,7 @@ typedef IEMCPU const *PCIEMCPU;
 
 
 
-/** @def IEM_GET_TARGET_CPU
- * Gets the current IEMTARGETCPU value.
+/** Gets the current IEMTARGETCPU value.
  * @returns IEMTARGETCPU value.
  * @param   a_pVCpu The cross context virtual CPU structure of the calling thread.
  */
@@ -726,24 +720,12 @@ typedef IEMCPU const *PCIEMCPU;
 # define IEM_GET_TARGET_CPU(a_pVCpu)    ((a_pVCpu)->iem.s.uTargetCpu)
 #endif
 
-/** @def IEM_GET_INSTR_LEN
- * Gets the instruction length. */
+/** @def Gets the instruction length. */
 #ifdef IEM_WITH_CODE_TLB
 # define IEM_GET_INSTR_LEN(a_pVCpu)     ((a_pVCpu)->iem.s.offInstrNextByte - (uint32_t)(int32_t)(a_pVCpu)->iem.s.offCurInstrStart)
 #else
 # define IEM_GET_INSTR_LEN(a_pVCpu)     ((a_pVCpu)->iem.s.offOpcode)
 #endif
-
-
-/**
- * Shared per-VM IEM data.
- */
-typedef struct IEM
-{
-    /** The VMX APIC-access page handler type. */
-    PGMPHYSHANDLERTYPE      hVmxApicAccessPage;
-} IEM;
-
 
 
 /** @name IEM_ACCESS_XXX - Access details.
@@ -940,27 +922,9 @@ typedef enum IEMACCESSCRX
     IEMACCESSCRX_SMSW
 } IEMACCESSCRX;
 
-#ifdef VBOX_WITH_NESTED_HWVIRT_VMX
-/** @name IEM_SLAT_FAIL_XXX - Second-level address translation failure information.
- *
- * These flags provide further context to SLAT page-walk failures that could not be
- * determined by PGM (e.g, PGM is not privy to memory access permissions).
- *
- * @{
- */
-/** Translating a nested-guest linear address failed accessing a nested-guest
- *  physical address. */
-# define IEM_SLAT_FAIL_LINEAR_TO_PHYS_ADDR          RT_BIT_32(0)
-/** Translating a nested-guest linear address failed accessing a
- *  paging-structure entry or updating accessed/dirty bits. */
-# define IEM_SLAT_FAIL_LINEAR_TO_PAGE_TABLE         RT_BIT_32(1)
-/** @} */
-
+# ifdef VBOX_WITH_NESTED_HWVIRT_VMX
 PGM_ALL_CB2_PROTO(FNPGMPHYSHANDLER) iemVmxApicAccessPageHandler;
-# ifndef IN_RING3
-DECLCALLBACK(FNPGMRZPHYSPFHANDLER)  iemVmxApicAccessPagePfHandler;
 # endif
-#endif
 
 /**
  * Indicates to the verifier that the given flag set is undefined.
@@ -1010,12 +974,6 @@ DECLCALLBACK(FNPGMRZPHYSPFHANDLER)  iemVmxApicAccessPagePfHandler;
     a_RetType VBOXCALL a_Name a_ArgList
 
 #endif
-
-/** Defined in IEMAllAImplC.cpp but also used by IEMAllAImplA.asm. */
-RT_C_DECLS_BEGIN
-extern uint8_t const g_afParity[256];
-RT_C_DECLS_END
-
 
 /** @name Arithmetic assignment operations on bytes (binary).
  * @{ */
@@ -1087,9 +1045,9 @@ FNIEMAIMPLBINU64 iemAImpl_test_u64;
 
 /** @name Bit operations operations (thrown in with the binary ops).
  * @{ */
-FNIEMAIMPLBINU16 iemAImpl_bt_u16;
-FNIEMAIMPLBINU32 iemAImpl_bt_u32;
-FNIEMAIMPLBINU64 iemAImpl_bt_u64;
+FNIEMAIMPLBINU16 iemAImpl_bt_u16,  iemAImpl_bt_u16_locked;
+FNIEMAIMPLBINU32 iemAImpl_bt_u32,  iemAImpl_bt_u32_locked;
+FNIEMAIMPLBINU64 iemAImpl_bt_u64,  iemAImpl_bt_u64_locked;
 FNIEMAIMPLBINU16 iemAImpl_btc_u16, iemAImpl_btc_u16_locked;
 FNIEMAIMPLBINU32 iemAImpl_btc_u32, iemAImpl_btc_u32_locked;
 FNIEMAIMPLBINU64 iemAImpl_btc_u64, iemAImpl_btc_u64_locked;
@@ -1133,7 +1091,7 @@ IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u16,       (uint16_t *pu16Dst, uint16_t
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u16_locked,(uint16_t *pu16Dst, uint16_t *puAx,  uint16_t uSrcReg, uint32_t *pEFlags));
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u32,       (uint32_t *pu32Dst, uint32_t *puEax, uint32_t uSrcReg, uint32_t *pEFlags));
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u32_locked,(uint32_t *pu32Dst, uint32_t *puEax, uint32_t uSrcReg, uint32_t *pEFlags));
-#if ARCH_BITS == 32
+#ifdef RT_ARCH_X86
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u64,       (uint64_t *pu64Dst, uint64_t *puRax, uint64_t *puSrcReg, uint32_t *pEFlags));
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg_u64_locked,(uint64_t *pu64Dst, uint64_t *puRax, uint64_t *puSrcReg, uint32_t *pEFlags));
 #else
@@ -1148,10 +1106,8 @@ IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg16b,(PRTUINT128U pu128Dst, PRTUINT128U p
                                              uint32_t *pEFlags));
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg16b_locked,(PRTUINT128U pu128Dst, PRTUINT128U pu128RaxRdx, PRTUINT128U pu128RbxRcx,
                                                     uint32_t *pEFlags));
-#ifndef RT_ARCH_ARM64
 IEM_DECL_IMPL_DEF(void, iemAImpl_cmpxchg16b_fallback,(PRTUINT128U pu128Dst, PRTUINT128U pu128RaxRdx,
                                                       PRTUINT128U pu128RbxRcx, uint32_t *pEFlags));
-#endif
 /** @} */
 
 /** @name Memory ordering
@@ -1161,9 +1117,7 @@ typedef FNIEMAIMPLMEMFENCE *PFNIEMAIMPLMEMFENCE;
 IEM_DECL_IMPL_DEF(void, iemAImpl_mfence,(void));
 IEM_DECL_IMPL_DEF(void, iemAImpl_sfence,(void));
 IEM_DECL_IMPL_DEF(void, iemAImpl_lfence,(void));
-#ifndef RT_ARCH_ARM64
 IEM_DECL_IMPL_DEF(void, iemAImpl_alt_mem_fence,(void));
-#endif
 /** @} */
 
 /** @name Double precision shifts
@@ -1174,30 +1128,30 @@ typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTDBLU32,(uint32_t *pu32Dst, uint3
 typedef FNIEMAIMPLSHIFTDBLU32  *PFNIEMAIMPLSHIFTDBLU32;
 typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTDBLU64,(uint64_t *pu64Dst, uint64_t u64Src, uint8_t cShift, uint32_t *pEFlags));
 typedef FNIEMAIMPLSHIFTDBLU64  *PFNIEMAIMPLSHIFTDBLU64;
-FNIEMAIMPLSHIFTDBLU16 iemAImpl_shld_u16, iemAImpl_shld_u16_amd, iemAImpl_shld_u16_intel;
-FNIEMAIMPLSHIFTDBLU32 iemAImpl_shld_u32, iemAImpl_shld_u32_amd, iemAImpl_shld_u32_intel;
-FNIEMAIMPLSHIFTDBLU64 iemAImpl_shld_u64, iemAImpl_shld_u64_amd, iemAImpl_shld_u64_intel;
-FNIEMAIMPLSHIFTDBLU16 iemAImpl_shrd_u16, iemAImpl_shrd_u16_amd, iemAImpl_shrd_u16_intel;
-FNIEMAIMPLSHIFTDBLU32 iemAImpl_shrd_u32, iemAImpl_shrd_u32_amd, iemAImpl_shrd_u32_intel;
-FNIEMAIMPLSHIFTDBLU64 iemAImpl_shrd_u64, iemAImpl_shrd_u64_amd, iemAImpl_shrd_u64_intel;
+FNIEMAIMPLSHIFTDBLU16 iemAImpl_shld_u16;
+FNIEMAIMPLSHIFTDBLU32 iemAImpl_shld_u32;
+FNIEMAIMPLSHIFTDBLU64 iemAImpl_shld_u64;
+FNIEMAIMPLSHIFTDBLU16 iemAImpl_shrd_u16;
+FNIEMAIMPLSHIFTDBLU32 iemAImpl_shrd_u32;
+FNIEMAIMPLSHIFTDBLU64 iemAImpl_shrd_u64;
 /** @}  */
 
 
 /** @name Bit search operations (thrown in with the binary ops).
  * @{ */
-FNIEMAIMPLBINU16 iemAImpl_bsf_u16, iemAImpl_bsf_u16_amd, iemAImpl_bsf_u16_intel;
-FNIEMAIMPLBINU32 iemAImpl_bsf_u32, iemAImpl_bsf_u32_amd, iemAImpl_bsf_u32_intel;
-FNIEMAIMPLBINU64 iemAImpl_bsf_u64, iemAImpl_bsf_u64_amd, iemAImpl_bsf_u64_intel;
-FNIEMAIMPLBINU16 iemAImpl_bsr_u16, iemAImpl_bsr_u16_amd, iemAImpl_bsr_u16_intel;
-FNIEMAIMPLBINU32 iemAImpl_bsr_u32, iemAImpl_bsr_u32_amd, iemAImpl_bsr_u32_intel;
-FNIEMAIMPLBINU64 iemAImpl_bsr_u64, iemAImpl_bsr_u64_amd, iemAImpl_bsr_u64_intel;
+FNIEMAIMPLBINU16 iemAImpl_bsf_u16;
+FNIEMAIMPLBINU32 iemAImpl_bsf_u32;
+FNIEMAIMPLBINU64 iemAImpl_bsf_u64;
+FNIEMAIMPLBINU16 iemAImpl_bsr_u16;
+FNIEMAIMPLBINU32 iemAImpl_bsr_u32;
+FNIEMAIMPLBINU64 iemAImpl_bsr_u64;
 /** @}  */
 
 /** @name Signed multiplication operations (thrown in with the binary ops).
  * @{ */
-FNIEMAIMPLBINU16 iemAImpl_imul_two_u16, iemAImpl_imul_two_u16_amd, iemAImpl_imul_two_u16_intel;
-FNIEMAIMPLBINU32 iemAImpl_imul_two_u32, iemAImpl_imul_two_u32_amd, iemAImpl_imul_two_u32_intel;
-FNIEMAIMPLBINU64 iemAImpl_imul_two_u64, iemAImpl_imul_two_u64_amd, iemAImpl_imul_two_u64_intel;
+FNIEMAIMPLBINU16 iemAImpl_imul_two_u16;
+FNIEMAIMPLBINU32 iemAImpl_imul_two_u32;
+FNIEMAIMPLBINU64 iemAImpl_imul_two_u64;
 /** @}  */
 
 /** @name Arithmetic assignment operations on bytes (unary).
@@ -1245,83 +1199,75 @@ FNIEMAIMPLUNARYU64 iemAImpl_neg_u64, iemAImpl_neg_u64_locked;
  * @{ */
 typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTU8,(uint8_t *pu8Dst, uint8_t cShift, uint32_t *pEFlags));
 typedef FNIEMAIMPLSHIFTU8  *PFNIEMAIMPLSHIFTU8;
-FNIEMAIMPLSHIFTU8 iemAImpl_rol_u8, iemAImpl_rol_u8_amd, iemAImpl_rol_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_ror_u8, iemAImpl_ror_u8_amd, iemAImpl_ror_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_rcl_u8, iemAImpl_rcl_u8_amd, iemAImpl_rcl_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_rcr_u8, iemAImpl_rcr_u8_amd, iemAImpl_rcr_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_shl_u8, iemAImpl_shl_u8_amd, iemAImpl_shl_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_shr_u8, iemAImpl_shr_u8_amd, iemAImpl_shr_u8_intel;
-FNIEMAIMPLSHIFTU8 iemAImpl_sar_u8, iemAImpl_sar_u8_amd, iemAImpl_sar_u8_intel;
+FNIEMAIMPLSHIFTU8 iemAImpl_rol_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_ror_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_rcl_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_rcr_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_shl_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_shr_u8;
+FNIEMAIMPLSHIFTU8 iemAImpl_sar_u8;
 /** @} */
 
 /** @name Shift operations on words (Group 2).
  * @{ */
 typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTU16,(uint16_t *pu16Dst, uint8_t cShift, uint32_t *pEFlags));
 typedef FNIEMAIMPLSHIFTU16  *PFNIEMAIMPLSHIFTU16;
-FNIEMAIMPLSHIFTU16 iemAImpl_rol_u16, iemAImpl_rol_u16_amd, iemAImpl_rol_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_ror_u16, iemAImpl_ror_u16_amd, iemAImpl_ror_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_rcl_u16, iemAImpl_rcl_u16_amd, iemAImpl_rcl_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_rcr_u16, iemAImpl_rcr_u16_amd, iemAImpl_rcr_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_shl_u16, iemAImpl_shl_u16_amd, iemAImpl_shl_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_shr_u16, iemAImpl_shr_u16_amd, iemAImpl_shr_u16_intel;
-FNIEMAIMPLSHIFTU16 iemAImpl_sar_u16, iemAImpl_sar_u16_amd, iemAImpl_sar_u16_intel;
+FNIEMAIMPLSHIFTU16 iemAImpl_rol_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_ror_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_rcl_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_rcr_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_shl_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_shr_u16;
+FNIEMAIMPLSHIFTU16 iemAImpl_sar_u16;
 /** @} */
 
 /** @name Shift operations on double words (Group 2).
  * @{ */
 typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTU32,(uint32_t *pu32Dst, uint8_t cShift, uint32_t *pEFlags));
 typedef FNIEMAIMPLSHIFTU32  *PFNIEMAIMPLSHIFTU32;
-FNIEMAIMPLSHIFTU32 iemAImpl_rol_u32, iemAImpl_rol_u32_amd, iemAImpl_rol_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_ror_u32, iemAImpl_ror_u32_amd, iemAImpl_ror_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_rcl_u32, iemAImpl_rcl_u32_amd, iemAImpl_rcl_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_rcr_u32, iemAImpl_rcr_u32_amd, iemAImpl_rcr_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_shl_u32, iemAImpl_shl_u32_amd, iemAImpl_shl_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_shr_u32, iemAImpl_shr_u32_amd, iemAImpl_shr_u32_intel;
-FNIEMAIMPLSHIFTU32 iemAImpl_sar_u32, iemAImpl_sar_u32_amd, iemAImpl_sar_u32_intel;
+FNIEMAIMPLSHIFTU32 iemAImpl_rol_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_ror_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_rcl_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_rcr_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_shl_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_shr_u32;
+FNIEMAIMPLSHIFTU32 iemAImpl_sar_u32;
 /** @} */
 
 /** @name Shift operations on words (Group 2).
  * @{ */
 typedef IEM_DECL_IMPL_TYPE(void, FNIEMAIMPLSHIFTU64,(uint64_t *pu64Dst, uint8_t cShift, uint32_t *pEFlags));
 typedef FNIEMAIMPLSHIFTU64  *PFNIEMAIMPLSHIFTU64;
-FNIEMAIMPLSHIFTU64 iemAImpl_rol_u64, iemAImpl_rol_u64_amd, iemAImpl_rol_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_ror_u64, iemAImpl_ror_u64_amd, iemAImpl_ror_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_rcl_u64, iemAImpl_rcl_u64_amd, iemAImpl_rcl_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_rcr_u64, iemAImpl_rcr_u64_amd, iemAImpl_rcr_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_shl_u64, iemAImpl_shl_u64_amd, iemAImpl_shl_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_shr_u64, iemAImpl_shr_u64_amd, iemAImpl_shr_u64_intel;
-FNIEMAIMPLSHIFTU64 iemAImpl_sar_u64, iemAImpl_sar_u64_amd, iemAImpl_sar_u64_intel;
+FNIEMAIMPLSHIFTU64 iemAImpl_rol_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_ror_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_rcl_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_rcr_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_shl_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_shr_u64;
+FNIEMAIMPLSHIFTU64 iemAImpl_sar_u64;
 /** @} */
 
 /** @name Multiplication and division operations.
  * @{ */
 typedef IEM_DECL_IMPL_TYPE(int, FNIEMAIMPLMULDIVU8,(uint16_t *pu16AX, uint8_t u8FactorDivisor, uint32_t *pEFlags));
 typedef FNIEMAIMPLMULDIVU8  *PFNIEMAIMPLMULDIVU8;
-FNIEMAIMPLMULDIVU8 iemAImpl_mul_u8,  iemAImpl_mul_u8_amd,  iemAImpl_mul_u8_intel;
-FNIEMAIMPLMULDIVU8 iemAImpl_imul_u8, iemAImpl_imul_u8_amd, iemAImpl_imul_u8_intel;
-FNIEMAIMPLMULDIVU8 iemAImpl_div_u8,  iemAImpl_div_u8_amd,  iemAImpl_div_u8_intel;
-FNIEMAIMPLMULDIVU8 iemAImpl_idiv_u8, iemAImpl_idiv_u8_amd, iemAImpl_idiv_u8_intel;
+FNIEMAIMPLMULDIVU8 iemAImpl_mul_u8, iemAImpl_imul_u8;
+FNIEMAIMPLMULDIVU8 iemAImpl_div_u8, iemAImpl_idiv_u8;
 
 typedef IEM_DECL_IMPL_TYPE(int, FNIEMAIMPLMULDIVU16,(uint16_t *pu16AX, uint16_t *pu16DX, uint16_t u16FactorDivisor, uint32_t *pEFlags));
 typedef FNIEMAIMPLMULDIVU16  *PFNIEMAIMPLMULDIVU16;
-FNIEMAIMPLMULDIVU16 iemAImpl_mul_u16,  iemAImpl_mul_u16_amd,  iemAImpl_mul_u16_intel;
-FNIEMAIMPLMULDIVU16 iemAImpl_imul_u16, iemAImpl_imul_u16_amd, iemAImpl_imul_u16_intel;
-FNIEMAIMPLMULDIVU16 iemAImpl_div_u16,  iemAImpl_div_u16_amd,  iemAImpl_div_u16_intel;
-FNIEMAIMPLMULDIVU16 iemAImpl_idiv_u16, iemAImpl_idiv_u16_amd, iemAImpl_idiv_u16_intel;
+FNIEMAIMPLMULDIVU16 iemAImpl_mul_u16, iemAImpl_imul_u16;
+FNIEMAIMPLMULDIVU16 iemAImpl_div_u16, iemAImpl_idiv_u16;
 
 typedef IEM_DECL_IMPL_TYPE(int, FNIEMAIMPLMULDIVU32,(uint32_t *pu32EAX, uint32_t *pu32EDX, uint32_t u32FactorDivisor, uint32_t *pEFlags));
 typedef FNIEMAIMPLMULDIVU32  *PFNIEMAIMPLMULDIVU32;
-FNIEMAIMPLMULDIVU32 iemAImpl_mul_u32,  iemAImpl_mul_u32_amd,  iemAImpl_mul_u32_intel;
-FNIEMAIMPLMULDIVU32 iemAImpl_imul_u32, iemAImpl_imul_u32_amd, iemAImpl_imul_u32_intel;
-FNIEMAIMPLMULDIVU32 iemAImpl_div_u32,  iemAImpl_div_u32_amd,  iemAImpl_div_u32_intel;
-FNIEMAIMPLMULDIVU32 iemAImpl_idiv_u32, iemAImpl_idiv_u32_amd, iemAImpl_idiv_u32_intel;
+FNIEMAIMPLMULDIVU32 iemAImpl_mul_u32, iemAImpl_imul_u32;
+FNIEMAIMPLMULDIVU32 iemAImpl_div_u32, iemAImpl_idiv_u32;
 
 typedef IEM_DECL_IMPL_TYPE(int, FNIEMAIMPLMULDIVU64,(uint64_t *pu64RAX, uint64_t *pu64RDX, uint64_t u64FactorDivisor, uint32_t *pEFlags));
 typedef FNIEMAIMPLMULDIVU64  *PFNIEMAIMPLMULDIVU64;
-FNIEMAIMPLMULDIVU64 iemAImpl_mul_u64,  iemAImpl_mul_u64_amd,  iemAImpl_mul_u64_intel;
-FNIEMAIMPLMULDIVU64 iemAImpl_imul_u64, iemAImpl_imul_u64_amd, iemAImpl_imul_u64_intel;
-FNIEMAIMPLMULDIVU64 iemAImpl_div_u64,  iemAImpl_div_u64_amd,  iemAImpl_div_u64_intel;
-FNIEMAIMPLMULDIVU64 iemAImpl_idiv_u64, iemAImpl_idiv_u64_amd, iemAImpl_idiv_u64_intel;
+FNIEMAIMPLMULDIVU64 iemAImpl_mul_u64, iemAImpl_imul_u64;
+FNIEMAIMPLMULDIVU64 iemAImpl_div_u64, iemAImpl_idiv_u64;
 /** @} */
 
 /** @name Byte Swap.
@@ -1355,7 +1301,7 @@ FNIEMAIMPLFPUR32    iemAImpl_fsubr_r80_by_r32;
 FNIEMAIMPLFPUR32    iemAImpl_fdiv_r80_by_r32;
 FNIEMAIMPLFPUR32    iemAImpl_fdivr_r80_by_r32;
 
-IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r80_from_r32,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTFLOAT32U pr32Val));
+IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r32_to_r80,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTFLOAT32U pr32Val));
 IEM_DECL_IMPL_DEF(void, iemAImpl_fst_r80_to_r32,(PCX86FXSTATE pFpuState, uint16_t *pu16FSW,
                                                  PRTFLOAT32U pr32Val, PCRTFLOAT80U pr80Val));
 /** @} */
@@ -1375,7 +1321,7 @@ FNIEMAIMPLFPUR64  iemAImpl_fdivr_r80_by_r64;
 
 IEM_DECL_IMPL_DEF(void, iemAImpl_fcom_r80_by_r64,(PCX86FXSTATE pFpuState, uint16_t *pFSW,
                                                   PCRTFLOAT80U pr80Val1, PCRTFLOAT64U pr64Val2));
-IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r80_from_r64,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTFLOAT64U pr64Val));
+IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r64_to_r80,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTFLOAT64U pr64Val));
 IEM_DECL_IMPL_DEF(void, iemAImpl_fst_r80_to_r64,(PCX86FXSTATE pFpuState, uint16_t *pu16FSW,
                                                  PRTFLOAT64U pr32Val, PCRTFLOAT80U pr80Val));
 /** @} */
@@ -1446,10 +1392,6 @@ FNIEMAIMPLFPUR80UNARYTWO    iemAImpl_fsincos_r80_r80;
 IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r80_from_r80,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTFLOAT80U pr80Val));
 IEM_DECL_IMPL_DEF(void, iemAImpl_fst_r80_to_r80,(PCX86FXSTATE pFpuState, uint16_t *pu16FSW,
                                                  PRTFLOAT80U pr80Dst, PCRTFLOAT80U pr80Src));
-
-IEM_DECL_IMPL_DEF(void, iemAImpl_fld_r80_from_d80,(PCX86FXSTATE pFpuState, PIEMFPURESULT pFpuRes, PCRTPBCD80U pd80Val));
-IEM_DECL_IMPL_DEF(void, iemAImpl_fst_r80_to_d80,(PCX86FXSTATE pFpuState, uint16_t *pu16FSW,
-                                                 PRTPBCD80U pd80Dst, PCRTFLOAT80U pr80Src));
 
 /** @} */
 

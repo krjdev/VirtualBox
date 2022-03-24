@@ -1,10 +1,10 @@
-/* $Id: krnlmod-linux.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: krnlmod-linux.cpp $ */
 /** @file
  * IPRT - Kernel module, Linux.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -195,8 +195,7 @@ RTDECL(uint32_t) RTKrnlModLoadedGetCount(void)
 RTDECL(int) RTKrnlModLoadedQueryInfoAll(PRTKRNLMODINFO pahKrnlModInfo, uint32_t cEntriesMax,
                                         uint32_t *pcEntries)
 {
-    if (cEntriesMax > 0)
-        AssertPtrReturn(pahKrnlModInfo, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pahKrnlModInfo) || cEntriesMax == 0, VERR_INVALID_PARAMETER);
 
     uint32_t cKmodsLoaded = RTKrnlModLoadedGetCount();
     if (cEntriesMax < cKmodsLoaded)
@@ -322,28 +321,4 @@ RTDECL(int) RTKrnlModInfoQueryRefModInfo(RTKRNLMODINFO hKrnlModInfo, uint32_t id
 {
     RT_NOREF3(hKrnlModInfo, idx, phKrnlModInfoRef);
     return VERR_NOT_IMPLEMENTED;
-}
-
-
-RTDECL(int) RTKrnlModLoadByName(const char *pszName)
-{
-    AssertPtrReturn(pszName, VERR_INVALID_PARAMETER);
-
-    return VERR_NOT_SUPPORTED;
-}
-
-
-RTDECL(int) RTKrnlModLoadByPath(const char *pszPath)
-{
-    AssertPtrReturn(pszPath, VERR_INVALID_PARAMETER);
-
-    return VERR_NOT_SUPPORTED;
-}
-
-
-RTDECL(int) RTKrnlModUnloadByName(const char *pszName)
-{
-    AssertPtrReturn(pszName, VERR_INVALID_PARAMETER);
-
-    return VERR_NOT_SUPPORTED;
 }

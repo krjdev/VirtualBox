@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 77127 2019-02-01 16:18:33Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for liblzf.
 #

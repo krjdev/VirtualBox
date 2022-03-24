@@ -1,10 +1,10 @@
-/* $Id: VBoxWddmUmHlp.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxWddmUmHlp.h $ */
 /** @file
  * VBox WDDM User Mode Driver Helpers
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,7 +23,7 @@
 
 #include <iprt/win/d3d9.h>
 #include <d3dumddi.h>
-#include <iprt/win/d3dkmthk.h>
+#include <d3dkmthk.h>
 
 #include <iprt/asm.h>
 #include <iprt/cdefs.h>

@@ -1,10 +1,10 @@
-/* $Id: VBox-doc.c 93422 2022-01-24 20:03:33Z vboxsync $ */
+/* $Id: VBox-doc.c $ */
 /** @file
  * VirtualBox Top Level Documentation File.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -124,7 +124,7 @@
  *      - @ref pg_netflt
  *      - @ref pg_rawpci
  *  - Host Services.
- *      - @ref pg_hostclip
+ *      - @ref pg_hostclip Shared Clipboard.
  *      - Shared Folders.
  *      - @ref pg_svc_guest_properties
  *      - @ref pg_svc_guest_control
@@ -142,13 +142,9 @@
  *          - @ref pg_vgsvc_automount
  *          - @ref pg_vgsvc_clipboard
  *      - VBoxControl.
- *      - Linux, Solaris and FreeBSD specific guest services and drivers.
- *          - @ref pg_vboxdrmcliet (Linux only).
- *          - VBoxClient.
- *          - VBoxVideo.
- *      - Windows Guests.
- *          - VBoxTray.
+ *      - VBoxVideo.
  *      - crOpenGL.
+ *      - VBoxClient / VBoxTray.
  *      - pam.
  *      - ...
  *  - Network Services:

@@ -1,10 +1,10 @@
-/* $Id: RTCrStoreCreateSnapshotById-darwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTCrStoreCreateSnapshotById-darwin.cpp $ */
 /** @file
  * IPRT - RTCrStoreCreateSnapshotById, Darwin.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -94,18 +94,9 @@ static bool rtCrStoreIsDarwinCertTrustworthy(SecCertificateRef hCert, SecTrustSe
 static int rtCrStoreAddCertsFromNativeKeychain(RTCRSTORE hStore, SecKeychainRef hKeychain, SecTrustSettingsDomain enmTrustDomain,
                                                int rc, PRTERRINFO pErrInfo)
 {
-    /** @todo The SecKeychainSearchCreateFromAttributes and
-     * SecKeychainSearchCopyNext APIs have been officially deprecated since 10.7
-     * according to the header files.  However, the perferred API,
-     * SecItemCopyMatching (and possibly SecTrustCopyAnchorCertificates) would
-     * require a larger rewrite here and that's just not worth it right now.  We can
-     * do that should these APIs be removed (unlikely given the amount of grep hits
-     * in the public 10.15.3 sources). */
-
     /*
      * Enumerate the certificates in the keychain.
      */
-    RT_GCC_NO_WARN_DEPRECATED_BEGIN
     SecKeychainSearchRef hSearch;
     OSStatus orc = SecKeychainSearchCreateFromAttributes(hKeychain, kSecCertificateItemClass, NULL, &hSearch);
     if (orc == noErr)
@@ -157,7 +148,6 @@ static int rtCrStoreAddCertsFromNativeKeychain(RTCRSTORE hStore, SecKeychainRef 
     else
         rc = RTErrInfoAddF(pErrInfo, -VERR_SEARCH_ERROR,
                            "  SecKeychainSearchCreateFromAttributes failed with %#x", orc);
-    RT_GCC_NO_WARN_DEPRECATED_END
     return rc;
 }
 

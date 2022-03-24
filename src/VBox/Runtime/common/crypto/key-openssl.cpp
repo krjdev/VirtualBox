@@ -1,10 +1,10 @@
-/* $Id: key-openssl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: key-openssl.cpp $ */
 /** @file
  * IPRT - Crypto - Cryptographic Keys, OpenSSL glue.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -39,9 +39,7 @@
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt-openssl.h"
 # include "internal/magics.h"
-# include "internal/openssl-pre.h"
-# include <openssl/evp.h>
-# include "internal/openssl-post.h"
+# include "openssl/evp.h"
 # ifndef OPENSSL_VERSION_NUMBER
 #  error "Missing OPENSSL_VERSION_NUMBER!"
 # endif
@@ -61,68 +59,8 @@
  * @param   ppEvpMdType     Where to optionally return the message digest type.
  * @param   pErrInfo        Where to optionally return more error details.
  */
-DECLHIDDEN(int) rtCrKeyToOpenSslKey(RTCRKEY hKey, bool fNeedPublic, void /*EVP_PKEY*/ **ppEvpKey, PRTERRINFO pErrInfo)
-{
-    *ppEvpKey = NULL;
-    AssertReturn(hKey->u32Magic == RTCRKEYINT_MAGIC, VERR_INVALID_HANDLE);
-    AssertReturn(fNeedPublic == !(hKey->fFlags & RTCRKEYINT_F_PRIVATE), VERR_WRONG_TYPE);
-
-    rtCrOpenSslInit();
-
-    /*
-     * Translate the key type from IPRT to EVP speak.
-     */
-    int         idKeyType;
-    switch (hKey->enmType)
-    {
-        case RTCRKEYTYPE_RSA_PRIVATE:
-        case RTCRKEYTYPE_RSA_PUBLIC:
-            idKeyType = EVP_PKEY_RSA;
-            break;
-        default:
-            return RTErrInfoSetF(pErrInfo, VERR_NOT_SUPPORTED, "Unsupported key type: %d", hKey->enmType);
-    }
-
-    /*
-     * Allocate a new key structure and set its type.
-     */
-    EVP_PKEY *pEvpNewKey = EVP_PKEY_new();
-    if (!pEvpNewKey)
-        return RTErrInfoSetF(pErrInfo, VERR_NO_MEMORY, "EVP_PKEY_new/%d failed", idKeyType);
-
-    /*
-     * Load the key into the structure.
-     */
-    const unsigned char *puchPublicKey = hKey->pbEncoded;
-    EVP_PKEY *pRet;
-    if (fNeedPublic)
-        *ppEvpKey = pRet = d2i_PublicKey(idKeyType, &pEvpNewKey, &puchPublicKey, hKey->cbEncoded);
-    else
-        *ppEvpKey = pRet = d2i_PrivateKey(idKeyType, &pEvpNewKey, &puchPublicKey, hKey->cbEncoded);
-    if (pRet)
-        return VINF_SUCCESS;
-
-    /* Bail out: */
-    EVP_PKEY_free(pEvpNewKey);
-    return RTErrInfoSet(pErrInfo, VERR_CR_PKIX_OSSL_D2I_PUBLIC_KEY_FAILED,
-                        fNeedPublic ? "d2i_PublicKey failed" : "d2i_PrivateKey failed");
-}
-
-
-/**
- * Creates an OpenSSL key for the given IPRT one, returning the message digest
- * algorithm if desired.
- *
- * @returns IRPT status code.
- * @param   hKey            The key to convert to an OpenSSL key.
- * @param   fNeedPublic     Set if we need the public side of the key.
- * @param   pszAlgoObjId    Alogrithm stuff we currently need.
- * @param   ppEvpKey        Where to return the pointer to the key structure.
- * @param   ppEvpMdType     Where to optionally return the message digest type.
- * @param   pErrInfo        Where to optionally return more error details.
- */
-DECLHIDDEN(int) rtCrKeyToOpenSslKeyEx(RTCRKEY hKey, bool fNeedPublic, const char *pszAlgoObjId,
-                                      void /*EVP_PKEY*/ **ppEvpKey, const void /*EVP_MD*/ **ppEvpMdType, PRTERRINFO pErrInfo)
+DECLHIDDEN(int) rtCrKeyToOpenSslKey(RTCRKEY hKey, bool fNeedPublic, const char *pszAlgoObjId,
+                                    void /*EVP_PKEY*/ **ppEvpKey, const void /*EVP_MD*/ **ppEvpMdType, PRTERRINFO pErrInfo)
 {
     *ppEvpKey = NULL;
     if (ppEvpMdType)

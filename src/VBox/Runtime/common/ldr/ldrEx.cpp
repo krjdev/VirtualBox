@@ -1,10 +1,10 @@
-/* $Id: ldrEx.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ldrEx.cpp $ */
 /** @file
  * IPRT - Binary Image Loader, Extended Features.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -278,8 +278,8 @@ RTDECL(int) RTLdrRelocate(RTLDRMOD hLdrMod, void *pvBits, RTLDRADDR NewBaseAddre
      * Validate input.
      */
     AssertMsgReturn(rtldrIsValid(hLdrMod), ("hLdrMod=%p\n", hLdrMod), VERR_INVALID_HANDLE);
-    AssertPtrReturn(pvBits, VERR_INVALID_POINTER);
-    AssertPtrReturn(pfnGetImport, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pvBits), ("pvBits=%p\n", pvBits), VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pfnGetImport), ("pfnGetImport=%p\n", pfnGetImport), VERR_INVALID_PARAMETER);
     PRTLDRMODINTERNAL pMod = (PRTLDRMODINTERNAL)hLdrMod;
     AssertMsgReturn(pMod->eState == LDR_STATE_OPENED, ("eState=%d\n", pMod->eState), VERR_WRONG_ORDER);
 
@@ -393,8 +393,8 @@ RTDECL(int) RTLdrEnumSymbols(RTLDRMOD hLdrMod, unsigned fFlags, const void *pvBi
      * Validate input.
      */
     AssertMsgReturn(rtldrIsValid(hLdrMod), ("hLdrMod=%p\n", hLdrMod), VERR_INVALID_HANDLE);
-    AssertPtrNullReturn(pvBits, VERR_INVALID_POINTER);
-    AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
+    AssertMsgReturn(!pvBits || VALID_PTR(pvBits), ("pvBits=%p\n", pvBits), VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pfnCallback), ("pfnCallback=%p\n", pfnCallback), VERR_INVALID_PARAMETER);
     PRTLDRMODINTERNAL pMod = (PRTLDRMODINTERNAL)hLdrMod;
     //AssertMsgReturn(pMod->eState == LDR_STATE_OPENED, ("eState=%d\n", pMod->eState), VERR_WRONG_ORDER);
 
@@ -417,8 +417,8 @@ RTDECL(int) RTLdrEnumDbgInfo(RTLDRMOD hLdrMod, const void *pvBits, PFNRTLDRENUMD
      * Validate input.
      */
     AssertMsgReturn(rtldrIsValid(hLdrMod), ("hLdrMod=%p\n", hLdrMod), VERR_INVALID_HANDLE);
-    AssertPtrNullReturn(pvBits, VERR_INVALID_POINTER);
-    AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
+    AssertMsgReturn(!pvBits || RT_VALID_PTR(pvBits), ("pvBits=%p\n", pvBits), VERR_INVALID_PARAMETER);
+    AssertMsgReturn(RT_VALID_PTR(pfnCallback), ("pfnCallback=%p\n", pfnCallback), VERR_INVALID_PARAMETER);
     PRTLDRMODINTERNAL pMod = (PRTLDRMODINTERNAL)hLdrMod;
     //AssertMsgReturn(pMod->eState == LDR_STATE_OPENED, ("eState=%d\n", pMod->eState), VERR_WRONG_ORDER);
 
@@ -446,7 +446,7 @@ RTDECL(int) RTLdrEnumSegments(RTLDRMOD hLdrMod, PFNRTLDRENUMSEGS pfnCallback, vo
      * Validate input.
      */
     AssertMsgReturn(rtldrIsValid(hLdrMod), ("hLdrMod=%p\n", hLdrMod), VERR_INVALID_HANDLE);
-    AssertPtrReturn(pfnCallback, VERR_INVALID_POINTER);
+    AssertMsgReturn(RT_VALID_PTR(pfnCallback), ("pfnCallback=%p\n", pfnCallback), VERR_INVALID_PARAMETER);
     PRTLDRMODINTERNAL pMod = (PRTLDRMODINTERNAL)hLdrMod;
     //AssertMsgReturn(pMod->eState == LDR_STATE_OPENED, ("eState=%d\n", pMod->eState), VERR_WRONG_ORDER);
 
@@ -654,10 +654,6 @@ RTDECL(int) RTLdrQueryPropEx(RTLDRMOD hLdrMod, RTLDRPROP enmProp, void *pvBits, 
         case RTLDRPROP_UNWIND_INFO:
             AssertReturn(pvBuf, VERR_INVALID_POINTER);
             AssertReturn(cbBuf >= sizeof(uint32_t), VERR_INVALID_PARAMETER);
-            *pcbRet = 0;
-            break;
-
-        case RTLDRPROP_BUILDID:
             *pcbRet = 0;
             break;
 

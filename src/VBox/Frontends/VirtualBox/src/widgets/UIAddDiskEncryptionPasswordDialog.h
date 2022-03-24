@@ -1,10 +1,10 @@
-/* $Id: UIAddDiskEncryptionPasswordDialog.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIAddDiskEncryptionPasswordDialog.h $ */
 /** @file
  * VBox Qt GUI - UIAddDiskEncryptionPasswordDialog class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -60,7 +60,7 @@ public:
 protected:
 
     /** Translation routine. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

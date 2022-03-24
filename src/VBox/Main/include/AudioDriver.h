@@ -1,10 +1,10 @@
-/* $Id: AudioDriver.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: AudioDriver.h $ */
 /** @file
  * VirtualBox audio base class for Main audio drivers.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -96,8 +96,8 @@ public:
 
     bool IsAttached(void) { return mfAttached; }
 
-    int doAttachDriverViaEmt(PUVM pUVM, PCVMMR3VTABLE pVMM, util::AutoWriteLock *pAutoLock);
-    int doDetachDriverViaEmt(PUVM pUVM, PCVMMR3VTABLE pVMM, util::AutoWriteLock *pAutoLock);
+    int doAttachDriverViaEmt(PUVM pUVM, util::AutoWriteLock *pAutoLock);
+    int doDetachDriverViaEmt(PUVM pUVM, util::AutoWriteLock *pAutoLock);
 
 protected:
     static DECLCALLBACK(int) attachDriverOnEmt(AudioDriver *pThis);
@@ -106,19 +106,14 @@ protected:
     int configure(unsigned uLUN, bool fAttach);
 
     /**
-     * Virtual function for child specific driver configuration.
+     * Optional (virtual) function to give the derived audio driver
+     * class the ability to add (or change) the driver configuration
+     * entries when setting up.
      *
-     * This is called at the end of AudioDriver::configure().
-     *
-     * @returns VBox status code.
-     * @param   pLunCfg          CFGM configuration node of the driver.
-     * @param   pVMM            The VMM ring-3 vtable.
+     * @return VBox status code.
+     * @param  pLunCfg          CFGM configuration node of the driver.
      */
-    virtual int configureDriver(PCFGMNODE pLunCfg, PCVMMR3VTABLE pVMM)
-    {
-        RT_NOREF(pLunCfg, pVMM);
-        return VINF_SUCCESS;
-    }
+    virtual int configureDriver(PCFGMNODE pLunCfg) { RT_NOREF(pLunCfg); return VINF_SUCCESS; }
 
 protected:
 

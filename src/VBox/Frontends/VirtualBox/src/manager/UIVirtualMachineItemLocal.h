@@ -1,10 +1,10 @@
-/* $Id: UIVirtualMachineItemLocal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIVirtualMachineItemLocal.h $ */
 /** @file
  * VBox Qt GUI - UIVirtualMachineItemLocal class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,44 +66,47 @@ public:
 
     /** @name State attributes.
       * @{ */
-        /** Returns cached machine state. */
-        KMachineState machineState() const { return m_enmMachineState; }
         /** Returns cached session state. */
         KSessionState sessionState() const { return m_enmSessionState; }
         /** Returns cached session state name. */
         QString sessionStateName() const { return m_strSessionStateName; }
     /** @} */
 
+    /** @name Console attributes.
+      * @{ */
+        /** Returns whether we can switch to main window of VM process. */
+        bool canSwitchTo() const;
+        /** Tries to switch to the main window of the VM process.
+          * @return true if switched successfully. */
+        bool switchTo();
+    /** @} */
+
     /** @name Update stuff.
       * @{ */
         /** Recaches machine data. */
-        virtual void recache() RT_OVERRIDE;
+        virtual void recache() /* override */;
         /** Recaches machine item pixmap. */
-        virtual void recachePixmap() RT_OVERRIDE;
+        virtual void recachePixmap() /* override */;
     /** @} */
 
     /** @name Validation stuff.
       * @{ */
-        /** Returns whether this item is editable. */
-        virtual bool isItemEditable() const RT_OVERRIDE;
-        /** Returns whether this item is removable. */
-        virtual bool isItemRemovable() const RT_OVERRIDE;
-        /** Returns whether this item is saved. */
-        virtual bool isItemSaved() const RT_OVERRIDE;
-        /** Returns whether this item is powered off. */
-        virtual bool isItemPoweredOff() const RT_OVERRIDE;
-        /** Returns whether this item is started. */
-        virtual bool isItemStarted() const RT_OVERRIDE;
-        /** Returns whether this item is running. */
-        virtual bool isItemRunning() const RT_OVERRIDE;
-        /** Returns whether this item is running headless. */
-        virtual bool isItemRunningHeadless() const RT_OVERRIDE;
-        /** Returns whether this item is paused. */
-        virtual bool isItemPaused() const RT_OVERRIDE;
-        /** Returns whether this item is stuck. */
-        virtual bool isItemStuck() const RT_OVERRIDE;
-        /** Returns whether this item can be switched to. */
-        virtual bool isItemCanBeSwitchedTo() const RT_OVERRIDE;
+        /** Returns whether passed machine @a pItem is editable. */
+        virtual bool isItemEditable() const /* override */;
+        /** Returns whether passed machine @a pItem is saved. */
+        virtual bool isItemSaved() const /* override */;
+        /** Returns whether passed machine @a pItem is powered off. */
+        virtual bool isItemPoweredOff() const /* override */;
+        /** Returns whether passed machine @a pItem is started. */
+        virtual bool isItemStarted() const /* override */;
+        /** Returns whether passed machine @a pItem is running. */
+        virtual bool isItemRunning() const /* override */;
+        /** Returns whether passed machine @a pItem is running headless. */
+        virtual bool isItemRunningHeadless() const /* override */;
+        /** Returns whether passed machine @a pItem is paused. */
+        virtual bool isItemPaused() const /* override */;
+        /** Returns whether passed machine @a pItem is stuck. */
+        virtual bool isItemStuck() const /* override */;
     /** @} */
 
 protected:
@@ -111,7 +114,7 @@ protected:
     /** @name Event handling.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
     /** @} */
 
 private:
@@ -142,8 +145,6 @@ private:
 
     /** @name State attributes.
       * @{ */
-        /** Holds cached machine state. */
-        KMachineState  m_enmMachineState;
         /** Holds cached session state. */
         KSessionState  m_enmSessionState;
         /** Holds cached session state name. */

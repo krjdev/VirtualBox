@@ -1,10 +1,10 @@
-/* $Id: gvm.h 93658 2022-02-08 14:09:43Z vboxsync $ */
+/* $Id: gvm.h $ */
 /** @file
  * GVM - The Global VM Data.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,45 +45,34 @@
  * @{
  */
 
-#if defined(__cplusplus) && !defined(GVM_C_STYLE_STRUCTURES)
+#ifdef __cplusplus
 typedef struct GVMCPU : public VMCPU
 #else
 typedef struct GVMCPU
 #endif
 {
-#if !defined(__cplusplus) || defined(GVM_C_STYLE_STRUCTURES)
+#ifndef __cplusplus
     VMCPU           s;
 #endif
 
     /** VCPU id (0 - (pVM->cCpus - 1). */
-    VMCPUID             idCpu;
+    VMCPUID         idCpu;
     /** Padding. */
-    uint32_t            uPadding0;
+    uint32_t        uPadding;
 
     /** Handle to the EMT thread. */
-    RTNATIVETHREAD      hEMT;
+    RTNATIVETHREAD  hEMT;
 
     /** Pointer to the global (ring-0) VM structure this CPU belongs to. */
-    R0PTRTYPE(PGVM)     pGVM;
+    R0PTRTYPE(PGVM) pGVM;
     /** Pointer to the GVM structure, for CTX_SUFF use in VMMAll code.  */
-    PGVM                pVMR0;
+    PGVM            pVMR0;
     /** The ring-3 address of this structure (only VMCPU part). */
-    PVMCPUR3            pVCpuR3;
-
-    /** Padding so the noisy stuff on a 64 byte boundrary.
-     * @note Keeping this working for 32-bit header syntax checking.  */
-    uint8_t             abPadding1[HC_ARCH_BITS == 32 ? 40 : 24];
-
-    /** Which host CPU ID is this EMT running on.
-     * Only valid when in RC or HMR0 with scheduling disabled. */
-    RTCPUID volatile    idHostCpu;
-    /** The CPU set index corresponding to idHostCpu, UINT32_MAX if not valid.
-     * @remarks Best to make sure iHostCpuSet shares cache line with idHostCpu! */
-    uint32_t volatile   iHostCpuSet;
+    PVMCPUR3        pVCpuR3;
 
     /** Padding so gvmm starts on a 64 byte boundrary.
      * @note Keeping this working for 32-bit header syntax checking.  */
-    uint8_t             abPadding2[56];
+    uint8_t         abPadding[HC_ARCH_BITS == 32 ? 40 : 24];
 
     /** The GVMM per vcpu data. */
     union
@@ -91,17 +80,8 @@ typedef struct GVMCPU
 #ifdef VMM_INCLUDED_SRC_VMMR0_GVMMR0Internal_h
         struct GVMMPERVCPU  s;
 #endif
-        uint8_t             padding[256];
+        uint8_t             padding[64];
     } gvmm;
-
-    /** The HM per vcpu data. */
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_HMInternal_h) && defined(IN_RING0)
-        struct HMR0PERVCPU  s;
-#endif
-        uint8_t             padding[1024];
-    } hmr0;
 
 #ifdef VBOX_WITH_NEM_R0
     /** The NEM per vcpu data. */
@@ -119,22 +99,14 @@ typedef struct GVMCPU
 #if defined(VMM_INCLUDED_SRC_include_VMMInternal_h) && defined(IN_RING0)
         struct VMMR0PERVCPU s;
 #endif
-        uint8_t             padding[896];
-    } vmmr0;
-
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_PGMInternal_h) && defined(IN_RING0)
-        struct PGMR0PERVCPU s;
-#endif
         uint8_t             padding[64];
-    } pgmr0;
+    } vmmr0;
 
     /** Padding the structure size to page boundrary. */
 #ifdef VBOX_WITH_NEM_R0
-    uint8_t                 abPadding3[16384 - 64*2 - 256 - 1024 - 64 - 896 - 64];
+    uint8_t                 abPadding2[4096 - 64 - 64 - 64 - 64];
 #else
-    uint8_t                 abPadding3[16384 - 64*2 - 256 - 1024 - 896 - 64];
+    uint8_t                 abPadding2[4096 - 64 - 64 - 64];
 #endif
 } GVMCPU;
 #if RT_GNUC_PREREQ(4, 6) && defined(__cplusplus)
@@ -143,12 +115,12 @@ typedef struct GVMCPU
 #if RT_GNUC_PREREQ(4, 3) && defined(__cplusplus)
 # pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #endif
-AssertCompileMemberAlignment(GVMCPU, idCpu,  16384);
+AssertCompileMemberAlignment(GVMCPU, idCpu,  4096);
 AssertCompileMemberAlignment(GVMCPU, gvmm,   64);
 #ifdef VBOX_WITH_NEM_R0
-AssertCompileMemberAlignment(GVMCPU, nemr0,  64);
+AssertCompileMemberAlignment(GVMCPU, nem,    64);
 #endif
-AssertCompileSizeAlignment(GVMCPU,           16384);
+AssertCompileSizeAlignment(GVMCPU,           4096);
 #if RT_GNUC_PREREQ(4, 6) && defined(__cplusplus)
 # pragma GCC diagnostic pop
 #endif
@@ -169,13 +141,13 @@ AssertCompileSizeAlignment(GVMCPU,           16384);
  * Unlike VM, there are no special alignment restrictions here. The
  * paddings are checked by compile time assertions.
  */
-#if defined(__cplusplus) && !defined(GVM_C_STYLE_STRUCTURES)
+#ifdef __cplusplus
 typedef struct GVM : public VM
 #else
 typedef struct GVM
 #endif
 {
-#if !defined(__cplusplus) || defined(GVM_C_STYLE_STRUCTURES)
+#ifndef __cplusplus
     VM              s;
 #endif
     /** Magic / eye-catcher (GVM_MAGIC). */
@@ -200,7 +172,7 @@ typedef struct GVM
 #ifdef VMM_INCLUDED_SRC_VMMR0_GVMMR0Internal_h
         struct GVMMPERVM    s;
 #endif
-        uint8_t             padding[4352];
+        uint8_t             padding[256];
     } gvmm;
 
     /** The GMM per vm data. */
@@ -211,15 +183,6 @@ typedef struct GVM
 #endif
         uint8_t             padding[1024];
     } gmm;
-
-    /** The HM per vm data. */
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_HMInternal_h) && defined(IN_RING0)
-        struct HMR0PERVM    s;
-#endif
-        uint8_t             padding[256];
-    } hmr0;
 
 #ifdef VBOX_WITH_NEM_R0
     /** The NEM per vcpu data. */
@@ -246,7 +209,7 @@ typedef struct GVM
 #if defined(VMM_INCLUDED_SRC_include_PDMInternal_h) && defined(IN_RING0)
         struct PDMR0PERVM   s;
 #endif
-        uint8_t             padding[3008];
+        uint8_t             padding[1792];
     } pdmr0;
 
     union
@@ -254,7 +217,7 @@ typedef struct GVM
 #if defined(VMM_INCLUDED_SRC_include_PGMInternal_h) && defined(IN_RING0)
         struct PGMR0PERVM   s;
 #endif
-        uint8_t             padding[1920];
+        uint8_t             padding[640];
     } pgmr0;
 
     union
@@ -273,35 +236,11 @@ typedef struct GVM
         uint8_t             padding[64];
     } apicr0;
 
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_DBGFInternal_h) && defined(IN_RING0)
-        struct DBGFR0PERVM   s;
-#endif
-        uint8_t             padding[1024];
-    } dbgfr0;
-
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_TMInternal_h) && defined(IN_RING0)
-        TMR0PERVM           s;
-#endif
-        uint8_t             padding[192];
-    } tmr0;
-
-    union
-    {
-#if defined(VMM_INCLUDED_SRC_include_VMMInternal_h) && defined(IN_RING0)
-        VMMR0PERVM          s;
-#endif
-        uint8_t             padding[704];
-    } vmmr0;
-
     /** Padding so aCpus starts on a page boundrary.  */
 #ifdef VBOX_WITH_NEM_R0
-    uint8_t         abPadding2[16384 - 64 - 4352 - 1024 - 256 - 256 - 64 - 3008 - 1920 - 512 - 64 - 1024 - 192 - 704 - sizeof(PGVMCPU) * VMM_MAX_CPU_COUNT];
+    uint8_t         abPadding2[4096*2 - 64 - 256 - 1024 - 256 - 64 - 1792 - 640 - 512 - 64 - sizeof(PGVMCPU) * VMM_MAX_CPU_COUNT];
 #else
-    uint8_t         abPadding2[16384 - 64 - 4352 - 1024 - 256 -       64 - 3008 - 1920 - 512 - 64 - 1024 - 192 - 704 - sizeof(PGVMCPU) * VMM_MAX_CPU_COUNT];
+    uint8_t         abPadding2[4096*2 - 64 - 256 - 1024       - 64 - 1792 - 640 - 512 - 64 - sizeof(PGVMCPU) * VMM_MAX_CPU_COUNT];
 #endif
 
     /** For simplifying CPU enumeration in VMMAll code. */
@@ -321,12 +260,12 @@ AssertCompileMemberAlignment(GVM, u32Magic, 64);
 AssertCompileMemberAlignment(GVM, gvmm,     64);
 AssertCompileMemberAlignment(GVM, gmm,      64);
 #ifdef VBOX_WITH_NEM_R0
-AssertCompileMemberAlignment(GVM, nemr0,    64);
+AssertCompileMemberAlignment(GVM, nem,      64);
 #endif
 AssertCompileMemberAlignment(GVM, rawpci,   64);
 AssertCompileMemberAlignment(GVM, pdmr0,    64);
-AssertCompileMemberAlignment(GVM, aCpus,    16384);
-AssertCompileSizeAlignment(GVM,             16384);
+AssertCompileMemberAlignment(GVM, aCpus,    4096);
+AssertCompileSizeAlignment(GVM,             4096);
 #if RT_GNUC_PREREQ(4, 6) && defined(__cplusplus)
 # pragma GCC diagnostic pop
 #endif

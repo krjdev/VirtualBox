@@ -1,10 +1,10 @@
-; $Id: ASMBitLastSetU64.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMBitLastSetU64.asm $
 ;; @file
 ; IPRT - ASMBitLastSetU64().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -43,7 +43,7 @@ BEGINCODE
 ;
 ; @cproto DECLASM(unsigned) ASMBitLastSetU64(uint64_t u64);
 ;
-RT_BEGINPROC ASMBitLastSetU64
+BEGINPROC_EXPORTED ASMBitLastSetU64
 %if ARCH_BITS == 16
         CPU     8086
         push    bp

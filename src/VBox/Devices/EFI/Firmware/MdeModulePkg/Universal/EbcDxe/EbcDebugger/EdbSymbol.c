@@ -2062,7 +2062,7 @@ EdbPrintSource (
                     &RetObject,
                     &RetEntry
                     );
-  if (SymbolAddress == 0 || RetEntry == NULL) {
+  if (SymbolAddress == 0) {
     return 0 ;
   }
 

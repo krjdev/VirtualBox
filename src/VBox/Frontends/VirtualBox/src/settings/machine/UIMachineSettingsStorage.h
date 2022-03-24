@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsStorage.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineSettingsStorage.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsStorage class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,27 +22,13 @@
 #endif
 
 /* GUI includes: */
+#include "UIMachineSettingsStorage.gen.h"
 #include "UIMediumDefs.h"
 #include "UISettingsPage.h"
 
 /* Forward declarations: */
-class QCheckBox;
-class QComboBox;
-class QGridLayout;
-class QHBoxLayout;
-class QLabel;
-class QSpinBox;
-class QStackedWidget;
-class QILabel;
-class QLineEdit;
-class QVBoxLayout;
-class QILabelSeparator;
-class QISplitter;
-class QIToolButton;
 class QITreeView;
 class StorageModel;
-class QIToolBar;
-class UIActionPool;
 class UIMediumIDHolder;
 struct UIDataSettingsMachineStorage;
 struct UIDataSettingsMachineStorageController;
@@ -52,7 +38,8 @@ typedef UISettingsCachePool<UIDataSettingsMachineStorageController, UISettingsCa
 typedef UISettingsCachePool<UIDataSettingsMachineStorage, UISettingsCacheMachineStorageController> UISettingsCacheMachineStorage;
 
 /** Machine settings: Storage page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsStorage : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsStorage : public UISettingsPageMachine,
+                                                      public Ui::UIMachineSettingsStorage
 {
     Q_OBJECT;
 
@@ -69,9 +56,9 @@ public:
     static const QString  s_strAttachmentMimeType;
 
     /** Constructs Storage settings page. */
-    UIMachineSettingsStorage(UIActionPool *pActionPool);
+    UIMachineSettingsStorage();
     /** Destructs Storage settings page. */
-    virtual ~UIMachineSettingsStorage() RT_OVERRIDE;
+    virtual ~UIMachineSettingsStorage() /* override */;
 
     /** Defines chipset @a enmType. */
     void setChipsetType(KChipsetType enmType);
@@ -79,33 +66,36 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
 
     /** Defines the configuration access @a enmLevel. */
-    virtual void setConfigurationAccessLevel(ConfigurationAccessLevel enmLevel) RT_OVERRIDE;
+    virtual void setConfigurationAccessLevel(ConfigurationAccessLevel enmLevel) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
+
+    /** Handles show @a pEvent. */
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
 private slots:
 
@@ -205,22 +195,12 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
-    /** Prepares left pane. */
-    void prepareLeftPane();
-    /** Prepares tree view. */
-    void prepareTreeView();
-    /** Prepares toolbar. */
-    void prepareToolBar();
-    /** Prepares right pane. */
-    void prepareRightPane();
-    /** Prepares empty widget. */
-    void prepareEmptyWidget();
-    /** Prepares controller widget. */
-    void prepareControllerWidget();
-    /** Prepares attachment widget. */
-    void prepareAttachmentWidget();
+    /** Prepares storage tree. */
+    void prepareStorageTree();
+    /** Prepares storage toolbar. */
+    void prepareStorageToolbar();
+    /** Prepares storage widgets. */
+    void prepareStorageWidgets();
     /** Prepares connections. */
     void prepareConnections();
 
@@ -282,12 +262,34 @@ private:
     /** Holds the machine guest OS type ID. */
     QString  m_strMachineGuestOSTypeId;
 
+    /** Holds the storage-tree instance. */
+    QITreeView   *m_pTreeStorage;
     /** Holds the storage-model instance. */
     StorageModel *m_pModelStorage;
+
+    /** Holds the 'Add Controller' action instance. */
+    QAction *m_pActionAddController;
+    /** Holds the 'Remove Controller' action instance. */
+    QAction *m_pActionRemoveController;
+    /** Holds the map of add controller action instances. */
+    QMap<KStorageControllerType, QAction*> m_addControllerActions;
+
+    /** Holds the 'Add Attachment' action instance. */
+    QAction *m_pActionAddAttachment;
+    /** Holds the 'Remove Attachment' action instance. */
+    QAction *m_pActionRemoveAttachment;
+    /** Holds the 'Add HD Attachment' action instance. */
+    QAction *m_pActionAddAttachmentHD;
+    /** Holds the 'Add CD Attachment' action instance. */
+    QAction *m_pActionAddAttachmentCD;
+    /** Holds the 'Add FD Attachment' action instance. */
+    QAction *m_pActionAddAttachmentFD;
 
     /** Holds the medium ID wrapper instance. */
     UIMediumIDHolder *m_pMediumIdHolder;
 
+    /** Holds whether the page is polished. */
+    bool  m_fPolished;
     /** Holds whether the loading is in progress. */
     bool  m_fLoadingInProgress;
 
@@ -296,120 +298,6 @@ private:
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineStorage *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the splitter instance. */
-        QISplitter *m_pSplitter;
-
-        /** Holds the left pane instance. */
-        QWidget                                *m_pWidgetLeftPane;
-        /** Holds the left pane separator instance. */
-        QILabelSeparator                       *m_pLabelSeparatorLeftPane;
-        /** Holds the tree-view layout instance. */
-        QVBoxLayout                            *m_pLayoutTree;
-        /** Holds the tree-view instance. */
-        QITreeView                             *m_pTreeViewStorage;
-        /** Holds the toolbar layout instance. */
-        QHBoxLayout                            *m_pLayoutToolbar;
-        /** Holds the toolbar instance. */
-        QIToolBar                              *m_pToolbar;
-        /** Holds the 'Add Controller' action instance. */
-        QAction                                *m_pActionAddController;
-        /** Holds the 'Remove Controller' action instance. */
-        QAction                                *m_pActionRemoveController;
-        /** Holds the map of add controller action instances. */
-        QMap<KStorageControllerType, QAction*>  m_addControllerActions;
-        /** Holds the 'Add Attachment' action instance. */
-        QAction                                *m_pActionAddAttachment;
-        /** Holds the 'Remove Attachment' action instance. */
-        QAction                                *m_pActionRemoveAttachment;
-        /** Holds the 'Add HD Attachment' action instance. */
-        QAction                                *m_pActionAddAttachmentHD;
-        /** Holds the 'Add CD Attachment' action instance. */
-        QAction                                *m_pActionAddAttachmentCD;
-        /** Holds the 'Add FD Attachment' action instance. */
-        QAction                                *m_pActionAddAttachmentFD;
-
-        /** Holds the right pane instance. */
-        QStackedWidget   *m_pStackRightPane;
-        /** Holds the right pane empty widget separator instance. */
-        QILabelSeparator *m_pLabelSeparatorEmpty;
-        /** Holds the info label instance. */
-        QLabel           *m_pLabelInfo;
-        /** Holds the right pane controller widget separator instance. */
-        QILabelSeparator *m_pLabelSeparatorParameters;
-        /** Holds the name label instance. */
-        QLabel           *m_pLabelName;
-        /** Holds the name editor instance. */
-        QLineEdit        *m_pEditorName;
-        /** Holds the type label instance. */
-        QLabel           *m_pLabelType;
-        /** Holds the type combo instance. */
-        QComboBox        *m_pComboType;
-        /** Holds the port count label instance. */
-        QLabel           *m_pLabelPortCount;
-        /** Holds the port count spinbox instance. */
-        QSpinBox         *m_pSpinboxPortCount;
-        /** Holds the IO cache check-box instance. */
-        QCheckBox        *m_pCheckBoxIoCache;
-        /** Holds the right pane attachment widget separator instance. */
-        QILabelSeparator *m_pLabelSeparatorAttributes;
-        /** Holds the medium label instance. */
-        QLabel           *m_pLabelMedium;
-        /** Holds the slot combo instance. */
-        QComboBox        *m_pComboSlot;
-        /** Holds the open tool-button instance. */
-        QIToolButton     *m_pToolButtonOpen;
-        /** Holds the passthrough check-box instance. */
-        QCheckBox        *m_pCheckBoxPassthrough;
-        /** Holds the temporary eject check-box instance. */
-        QCheckBox        *m_pCheckBoxTempEject;
-        /** Holds the non-rotational check-box instance. */
-        QCheckBox        *m_pCheckBoxNonRotational;
-        /** Holds the hot-pluggable check-box instance. */
-        QCheckBox        *m_pCheckBoxHotPluggable;
-        /** Holds the right pane attachment widget separator instance. */
-        QILabelSeparator *m_pLabelSeparatorInformation;
-        /** Holds the HD format label instance. */
-        QLabel           *m_pLabelHDFormat;
-        /** Holds the HD format field instance. */
-        QILabel          *m_pFieldHDFormat;
-        /** Holds the CD/FD type label instance. */
-        QLabel           *m_pLabelCDFDType;
-        /** Holds the CD/FD type field instance. */
-        QILabel          *m_pFieldCDFDType;
-        /** Holds the HD virtual size label instance. */
-        QLabel           *m_pLabelHDVirtualSize;
-        /** Holds the HD virtual size field instance. */
-        QILabel          *m_pFieldHDVirtualSize;
-        /** Holds the HD actual size label instance. */
-        QLabel           *m_pLabelHDActualSize;
-        /** Holds the HD actual size field instance. */
-        QILabel          *m_pFieldHDActualSize;
-        /** Holds the CD/FD size label instance. */
-        QLabel           *m_pLabelCDFDSize;
-        /** Holds the CD/FD size field instance. */
-        QILabel          *m_pFieldCDFDSize;
-        /** Holds the HD details label instance. */
-        QLabel           *m_pLabelHDDetails;
-        /** Holds the HD details field instance. */
-        QILabel          *m_pFieldHDDetails;
-        /** Holds the location label instance. */
-        QLabel           *m_pLabelLocation;
-        /** Holds the location field instance. */
-        QILabel          *m_pFieldLocation;
-        /** Holds the usage label instance. */
-        QLabel           *m_pLabelUsage;
-        /** Holds the usage field instance. */
-        QILabel          *m_pFieldUsage;
-        /** Holds the encryption label instance. */
-        QLabel           *m_pLabelEncryption;
-        /** Holds the encryption field instance. */
-        QILabel          *m_pFieldEncryption;
-        /** Holds the action pool instance. */
-        UIActionPool     *m_pActionPool;
-   /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsStorage_h */

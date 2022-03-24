@@ -1,10 +1,10 @@
-/* $Id: UIGraphicsScrollArea.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGraphicsScrollArea.h $ */
 /** @file
  * VBox Qt GUI - UIGraphicsScrollArea class declaration.
  */
 
 /*
- * Copyright (C) 2019-2022 Oracle Corporation
+ * Copyright (C) 2019-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,17 +42,13 @@ public:
     UIGraphicsScrollArea(Qt::Orientation enmOrientation, QIGraphicsWidget *pParent = 0);
 
     /** Returns minimum size-hint. */
-    virtual QSizeF minimumSizeHint() const RT_OVERRIDE;
+    virtual QSizeF minimumSizeHint() const /* override */;
 
     /** Defines scroll-area @a pViewport. */
     void setViewport(QIGraphicsWidget *pViewport);
     /** Returns scroll-area viewport. */
     QIGraphicsWidget *viewport() const;
 
-    /** Returns scrolling location value in pixels. */
-    int scrollingValue() const;
-    /** Defines scrolling location @a iValue in pixels. */
-    void setScrollingValue(int iValue);
     /** Performs scrolling by @a iDelta pixels. */
     void scrollBy(int iDelta);
 
@@ -62,10 +58,10 @@ public:
 protected:
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QGraphicsSceneResizeEvent *pEvent) /* override */;
 
 private slots:
 

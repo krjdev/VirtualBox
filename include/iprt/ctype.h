@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -215,7 +215,7 @@ DECL_FORCE_INLINE(bool) RTLocCIsGraph(int ch)
 
 
 /**
- * Converts the character to lower case if applicable.
+ * Converts the character to lower case if applictable.
  *
  * @returns lower cased character or ch.
  * @param   ch      The character to test.
@@ -226,7 +226,7 @@ DECL_FORCE_INLINE(int) RTLocCToLower(int ch)
 }
 
 /**
- * Converts the character to upper case if applicable.
+ * Converts the character to upper case if applictable.
  *
  * @returns upper cased character or ch.
  * @param   ch      The character to test.
@@ -240,3 +240,4 @@ DECL_FORCE_INLINE(int) RTLocCToUpper(int ch)
 /** @} */
 
 #endif /* !IPRT_INCLUDED_ctype_h */
+

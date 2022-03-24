@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93419 2022-01-24 18:13:22Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the Bus Mouse Extension Pack Sample.
 #
 
 #
-# Copyright (C) 2010-2022 Oracle Corporation
+# Copyright (C) 2010-2020 Oracle Corporation
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -83,15 +83,9 @@ DLLS += VBoxBusMouseR3
 VBoxBusMouseR3_TEMPLATE = VBoxR3ExtPackBusMouse
 VBoxBusMouseR3_SOURCES  = DevBusMouse.cpp
 
-ifdef VBOX_WITH_R0_MODULES
- ifdef VBOX_WITH_VBOXR0_AS_DLL
-  DLLS    += VBoxBusMouseR0
- else
-  SYSMODS += VBoxBusMouseR0
- endif
- VBoxBusMouseR0_TEMPLATE = VBoxR0ExtPackBusMouse
- VBoxBusMouseR0_SOURCES  = DevBusMouse.cpp
-endif
+$(if-expr defined(VBOX_WITH_VBOXR0_AS_DLL),DLLS,SYSMODS) += VBoxBusMouseR0
+VBoxBusMouseR0_TEMPLATE = VBoxR0ExtPackBusMouse
+VBoxBusMouseR0_SOURCES  = DevBusMouse.cpp
 
 ifdef VBOX_WITH_RAW_MODE
  SYSMODS += VBoxBusMouseRC

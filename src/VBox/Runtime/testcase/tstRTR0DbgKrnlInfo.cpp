@@ -1,10 +1,10 @@
-/* $Id: tstRTR0DbgKrnlInfo.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstRTR0DbgKrnlInfo.cpp $ */
 /** @file
  * IPRT R0 Testcase - Debug kernel information.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,7 +54,7 @@ DECLEXPORT(int) TSTR0DbgKrnlInfoSrvReqHandler(PSUPDRVSESSION pSession, uint32_t 
     NOREF(pSession);
     if (u64Arg)
         return VERR_INVALID_PARAMETER;
-    if (!RT_VALID_PTR(pReqHdr))
+    if (!VALID_PTR(pReqHdr))
         return VERR_INVALID_PARAMETER;
     char   *pszErr = (char *)(pReqHdr + 1);
     size_t  cchErr = pReqHdr->cbReq - sizeof(*pReqHdr);

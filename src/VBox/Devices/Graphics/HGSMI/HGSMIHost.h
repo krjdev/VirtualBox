@@ -1,10 +1,10 @@
-/* $Id: HGSMIHost.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HGSMIHost.h $ */
 /** @file
  * VBox Host Guest Shared Memory Interface (HGSMI), host part.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,7 +29,7 @@ struct HGSMIINSTANCE;
 typedef struct HGSMIINSTANCE *PHGSMIINSTANCE;
 
 /** Callback for the guest notification about a new host buffer. */
-typedef DECLCALLBACKTYPE(void, FNHGSMINOTIFYGUEST,(void *pvCallback));
+typedef DECLCALLBACK(void) FNHGSMINOTIFYGUEST(void *pvCallback);
 typedef FNHGSMINOTIFYGUEST *PFNHGSMINOTIFYGUEST;
 
 /*
@@ -37,7 +37,7 @@ typedef FNHGSMINOTIFYGUEST *PFNHGSMINOTIFYGUEST;
  */
 
 int   HGSMICreate(PHGSMIINSTANCE *ppIns,
-                  PPDMDEVINS      pDevIns,
+                  PVM             pVM,
                   const char     *pszName,
                   HGSMIOFFSET     offBase,
                   uint8_t        *pu8MemBase,

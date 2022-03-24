@@ -1,10 +1,10 @@
-; $Id: ASMAtomicXchgU16.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMAtomicXchgU16.asm $
 ;; @file
 ; IPRT - ASMAtomicXchgU16().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,7 @@ BEGINCODE
 ;
 ; @returns Current (i.e. old) *pu16 value (AX).
 ;
-RT_BEGINPROC ASMAtomicXchgU16
+BEGINPROC_EXPORTED ASMAtomicXchgU16
 %ifdef RT_ARCH_AMD64
  %ifdef ASM_CALL64_MSC
         mov     ax, dx

@@ -1,4 +1,4 @@
-/* $Id: HostHardwareLinux.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: HostHardwareLinux.h $ */
 /** @file
  * VirtualBox Main - Classes for handling hardware detection under Linux.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -68,21 +68,14 @@ public:
      * until the first time this method is called.
      * @returns iprt status code
      */
-    int updateFloppies() RT_NOEXCEPT;
+    int updateFloppies();
 
     /**
      * Search for host DVD drives and rebuild the list, which remains empty
      * until the first time this method is called.
      * @returns iprt status code
      */
-    int updateDVDs() RT_NOEXCEPT;
-
-    /**
-     * Search for fixed disks (HDDs) and rebuild the list, which remains empty until
-     * the first time this method is called.
-     * @returns iprt status code
-     */
-    int updateFixedDrives() RT_NOEXCEPT;
+    int updateDVDs();
 
     /** Get the first element in the list of floppy drives. */
     DriveInfoList::const_iterator FloppyBegin()
@@ -107,25 +100,11 @@ public:
     {
         return mDVDList.end();
     }
-
-    /** Get the first element in the list of fixed drives. */
-    DriveInfoList::const_iterator FixedDriveBegin()
-    {
-        return mFixedDriveList.begin();
-    }
-
-    /** Get the last element in the list of fixed drives. */
-    DriveInfoList::const_iterator FixedDriveEnd()
-    {
-        return mFixedDriveList.end();
-    }
 private:
     /** The list of currently available floppy drives */
     DriveInfoList mFloppyList;
     /** The list of currently available DVD drives */
     DriveInfoList mDVDList;
-    /** The list of currently available fixed drives */
-    DriveInfoList mFixedDriveList;
 };
 
 /** Convenience typedef. */

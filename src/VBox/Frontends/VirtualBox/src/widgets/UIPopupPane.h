@@ -1,10 +1,10 @@
-/* $Id: UIPopupPane.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIPopupPane.h $ */
 /** @file
  * VBox Qt GUI - UIPopupPane class declaration.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -145,20 +145,20 @@ private:
     void prepareAnimation();
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
     /** Translats tool-tips. */
     void retranslateToolTips();
 
     /** Pre-handles standard Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent); /* override */;
     /** Handles first show @a pEvent. */
     void polishEvent(QShowEvent *pEvent);
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Assigns clipping of @a rect geometry for passed @a painter. */
     void configureClipping(const QRect &rect, QPainter &painter);

@@ -1,10 +1,10 @@
-/* $Id: SUPLib-win.cpp 93515 2022-01-31 22:17:19Z vboxsync $ */
+/* $Id: SUPLib-win.cpp $ */
 /** @file
  * VirtualBox Support Library - Windows NT specific parts.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -66,7 +66,7 @@
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
 /** The support service name. */
-#define SERVICE_NAME    "VBoxSup"
+#define SERVICE_NAME    "VBoxDrv"
 
 
 /*********************************************************************************************************************************
@@ -92,7 +92,7 @@ static int suplibConvertWin32Err(int);
 static bool g_fHardenedVerifyInited = false;
 
 
-DECLHIDDEN(int) suplibOsHardenedVerifyInit(void)
+int suplibOsHardenedVerifyInit(void)
 {
     if (!g_fHardenedVerifyInited)
     {
@@ -109,14 +109,14 @@ DECLHIDDEN(int) suplibOsHardenedVerifyInit(void)
 }
 
 
-DECLHIDDEN(int) suplibOsHardenedVerifyTerm(void)
+int suplibOsHardenedVerifyTerm(void)
 {
     /** @todo free resources...  */
     return VINF_SUCCESS;
 }
 
 
-DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
+int suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, bool fUnrestricted, SUPINITOP *penmWhat, PRTERRINFO pErrInfo)
 {
     /*
      * Make sure the image verifier is fully initialized.
@@ -155,7 +155,7 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
         static const WCHAR  s_wszName[] = L"\\Device\\VBoxDrvU";
         UNICODE_STRING      NtName;
         NtName.Buffer        = (PWSTR)s_wszName;
-        NtName.Length        = sizeof(s_wszName) - sizeof(WCHAR) * (fFlags & SUPR3INIT_F_UNRESTRICTED ? 2 : 1);
+        NtName.Length        = sizeof(s_wszName) - sizeof(WCHAR) * (fUnrestricted ? 2 : 1);
         NtName.MaximumLength = NtName.Length;
 
         OBJECT_ATTRIBUTES   ObjAttr;
@@ -182,7 +182,7 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
              * We're good.
              */
             pThis->hDevice       = hDevice;
-            pThis->fUnrestricted = RT_BOOL(fFlags & SUPR3INIT_F_UNRESTRICTED);
+            pThis->fUnrestricted = fUnrestricted;
             return VINF_SUCCESS;
         }
 
@@ -246,9 +246,10 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
         if (pErrInfo && pErrInfo->cbMsg > 32)
         {
             /* Prefix. */
-            size_t cchPrefix;
-            if (RTErrIsKnown(rc))
-                cchPrefix = RTStrPrintf(pErrInfo->pszMsg, pErrInfo->cbMsg / 2, "Integrity error (%#x/%Rrc): ", rcNt, rc);
+            size_t      cchPrefix;
+            const char *pszDefine = RTErrGetDefine(rc);
+            if (strncmp(pszDefine, RT_STR_TUPLE("Unknown")))
+                cchPrefix = RTStrPrintf(pErrInfo->pszMsg, pErrInfo->cbMsg / 2, "Integrity error (%#x/%s): ", rcNt, pszDefine);
             else
                 cchPrefix = RTStrPrintf(pErrInfo->pszMsg, pErrInfo->cbMsg / 2, "Integrity error (%#x/%d): ", rcNt, rc);
 
@@ -273,7 +274,7 @@ DECLHIDDEN(int) suplibOsInit(PSUPLIBDATA pThis, bool fPreInited, uint32_t fFlags
 
 #ifndef IN_SUP_HARDENED_R3
 
-DECLHIDDEN(int) suplibOsInstall(void)
+int suplibOsInstall(void)
 {
     int rc = suplibOsCreateService();
     if (RT_SUCCESS(rc))
@@ -286,7 +287,7 @@ DECLHIDDEN(int) suplibOsInstall(void)
 }
 
 
-DECLHIDDEN(int) suplibOsUninstall(void)
+int suplibOsUninstall(void)
 {
     int rc = suplibOsStopService();
     if (RT_SUCCESS(rc))
@@ -313,10 +314,10 @@ static int suplibOsCreateService(void)
     if (hSMgrCreate != NULL)
     {
         char szDriver[RTPATH_MAX];
-        rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxSup.sys"));
+        rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxDrv.sys"));
         if (RT_SUCCESS(rc))
         {
-            strcat(szDriver, "\\VBoxSup.sys");
+            strcat(szDriver, "\\VBoxDrv.sys");
             SC_HANDLE hService = CreateService(hSMgrCreate,
                                                SERVICE_NAME,
                                                "VBox Support Driver",
@@ -430,64 +431,47 @@ static int suplibOsStopService(void)
  */
 int suplibOsDeleteService(void)
 {
-    int         rcRet = VINF_SUCCESS;
+    /*
+     * Assume it didn't exist, so we'll create the service.
+     */
+    int         rc;
     SC_HANDLE   hSMgr = OpenSCManager(NULL, NULL, SERVICE_CHANGE_CONFIG);
     DWORD       dwErr = GetLastError();
     AssertMsg(hSMgr, ("OpenSCManager(,,delete) failed rc=%d\n", dwErr));
     if (hSMgr)
     {
-        /*
-         * Old service name.
-         */
-        SC_HANDLE hService = OpenService(hSMgr, "VBoxDrv", DELETE);
+        SC_HANDLE hService = OpenService(hSMgr, SERVICE_NAME, DELETE);
         if (hService)
         {
-            if (!DeleteService(hService))
+            /*
+             * Delete the service.
+             */
+            if (DeleteService(hService))
+                rc = VINF_SUCCESS;
+            else
             {
                 dwErr = GetLastError();
-                AssertMsgFailed(("DeleteService failed for VBoxDrv dwErr=%Rwa\n", dwErr));
-                rcRet = RTErrConvertFromWin32(dwErr);
+                AssertMsgFailed(("DeleteService failed dwErr=%Rwa\n", dwErr));
+                rc = RTErrConvertFromWin32(dwErr);
             }
             CloseServiceHandle(hService);
         }
         else
         {
             dwErr = GetLastError();
-            if (dwErr != ERROR_SERVICE_DOES_NOT_EXIST)
+            if (dwErr == ERROR_SERVICE_DOES_NOT_EXIST)
+                rc = VINF_SUCCESS;
+            else
             {
-                AssertMsgFailed(("OpenService failed for VBoxDrv dwErr=%Rwa\n", dwErr));
-                rcRet = RTErrConvertFromWin32(dwErr);
-            }
-        }
-
-        /*
-         * The new service.
-         */
-        hService = OpenService(hSMgr, SERVICE_NAME, DELETE);
-        if (hService)
-        {
-            if (!DeleteService(hService))
-            {
-                dwErr = GetLastError();
-                AssertMsgFailed(("DeleteService for " SERVICE_NAME " failed dwErr=%Rwa\n", dwErr));
-                rcRet = RTErrConvertFromWin32(dwErr);
-            }
-            CloseServiceHandle(hService);
-        }
-        else
-        {
-            dwErr = GetLastError();
-            if (dwErr != ERROR_SERVICE_DOES_NOT_EXIST)
-            {
-                AssertMsgFailed(("OpenService failed for " SERVICE_NAME " dwErr=%Rwa\n", dwErr));
-                rcRet = RTErrConvertFromWin32(dwErr);
+                AssertMsgFailed(("OpenService failed dwErr=%Rwa\n", dwErr));
+                rc = RTErrConvertFromWin32(dwErr);
             }
         }
         CloseServiceHandle(hSMgr);
     }
     else
-        rcRet = RTErrConvertFromWin32(dwErr);
-    return rcRet;
+        rc = RTErrConvertFromWin32(dwErr);
+    return rc;
 }
 
 #if 0
@@ -511,10 +495,10 @@ static int suplibOsUpdateService(void)
         if (hService)
         {
             char szDriver[RTPATH_MAX];
-            int rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxSup.sys"));
+            int rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxDrv.sys"));
             if (RT_SUCCESS(rc))
             {
-                strcat(szDriver, "\\VBoxSup.sys");
+                strcat(szDriver, "\\VBoxDrv.sys");
 
                 SC_LOCK hLock = LockServiceDatabase(hSMgr);
                 if (ChangeServiceConfig(hService,
@@ -665,7 +649,7 @@ static int suplibOsStartService(void)
 
 #endif /* !IN_SUP_HARDENED_R3 */
 
-DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
+int suplibOsTerm(PSUPLIBDATA pThis)
 {
     /*
      * Check if we're inited at all.
@@ -682,7 +666,7 @@ DECLHIDDEN(int) suplibOsTerm(PSUPLIBDATA pThis)
 
 #ifndef IN_SUP_HARDENED_R3
 
-DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
+int suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvReq, size_t cbReq)
 {
     RT_NOREF1(cbReq);
 
@@ -714,7 +698,7 @@ DECLHIDDEN(int) suplibOsIOCtl(PSUPLIBDATA pThis, uintptr_t uFunction, void *pvRe
 }
 
 
-DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
+int suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintptr_t idCpu)
 {
     /*
      * Issue device I/O control.
@@ -741,9 +725,9 @@ DECLHIDDEN(int) suplibOsIOCtlFast(PSUPLIBDATA pThis, uintptr_t uFunction, uintpt
 }
 
 
-DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFlags, void **ppvPages)
+int suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, void **ppvPages)
 {
-    RT_NOREF(pThis, fFlags);
+    NOREF(pThis);
 
     /*
      * Do some one-time init here wrt large pages.
@@ -751,7 +735,7 @@ DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFl
      * Large pages requires the SeLockMemoryPrivilege, which by default (Win10,
      * Win11) isn't even enabled and must be gpedit'ed to be adjustable here.
      */
-    if (!(cPages & 511) && (fFlags & SUP_PAGE_ALLOC_F_LARGE_PAGES))
+    if (!(cPages & 511))
     {
         static int volatile s_fCanDoLargePages = -1;
         int fCanDoLargePages = s_fCanDoLargePages;
@@ -822,7 +806,7 @@ DECLHIDDEN(int) suplibOsPageAlloc(PSUPLIBDATA pThis, size_t cPages, uint32_t fFl
 }
 
 
-DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
+int suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPages */)
 {
     NOREF(pThis);
     if (VirtualFree(pvPages, 0, MEM_RELEASE))
@@ -831,7 +815,7 @@ DECLHIDDEN(int) suplibOsPageFree(PSUPLIBDATA pThis, void *pvPages, size_t /* cPa
 }
 
 
-DECLHIDDEN(bool) suplibOsIsNemSupportedWhenNoVtxOrAmdV(void)
+bool suplibOsIsNemSupportedWhenNoVtxOrAmdV(void)
 {
 # if ARCH_BITS == 64
     /*
@@ -839,7 +823,7 @@ DECLHIDDEN(bool) suplibOsIsNemSupportedWhenNoVtxOrAmdV(void)
      */
     if (!ASMHasCpuId())
         return false;
-    if (!RTX86IsValidStdRange(ASMCpuId_EAX(0)))
+    if (!ASMIsValidStdRange(ASMCpuId_EAX(0)))
         return false;
     if (!(ASMCpuId_ECX(1) & X86_CPUID_FEATURE_ECX_HVP))
         return false;

@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (C) 2017-2022 Oracle Corporation
+# Copyright (C) 2017-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -29,14 +29,6 @@ MY_EXITCODE=0
 MY_DEBUG="" # "yes"
 GUEST_VERSION=@@VBOX_INSERT_GUEST_OS_VERSION@@
 GUEST_MAJOR_VERSION=@@VBOX_INSERT_GUEST_OS_MAJOR_VERSION@@
-
-@@VBOX_COND_HAS_PROXY@@
-PROXY="@@VBOX_INSERT_PROXY@@"
-export http_proxy="${PROXY}"
-export https_proxy="${PROXY}"
-echo "HTTP proxy is ${http_proxy}" | tee -a "${MY_LOGFILE}"
-echo "HTTPS proxy is ${https_proxy}" | tee -a "${MY_LOGFILE}"
-@@VBOX_COND_END@@
 
 #
 # Do we need to exec using target bash?  If so, we must do that early
@@ -189,7 +181,7 @@ log_command_in_target yum -y install "kernel-headers-$(uname -r)"
 log_command_in_target yum -y install gcc
 log_command_in_target yum -y install binutils
 log_command_in_target yum -y install make
-@@VBOX_COND[${GUEST_OS_VERSION} vgt 8.0.0]@@
+@@VBOX_COND_GUEST_VERSION[>8.0.0]@@
 log_command_in_target yum -y install elfutils-libelf-devel
 @@VBOX_COND_END@@
 log_command_in_target yum -y install dkms
@@ -316,3 +308,4 @@ echo "** Final exit code: ${MY_EXITCODE}" >> "${MY_LOGFILE}"
 echo "******************************************************************************" >> "${MY_LOGFILE}"
 
 exit ${MY_EXITCODE}
+

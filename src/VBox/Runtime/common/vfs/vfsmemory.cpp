@@ -1,10 +1,10 @@
-/* $Id: vfsmemory.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: vfsmemory.cpp $ */
 /** @file
  * IPRT - Virtual File System, Memory Backed VFS.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -185,14 +185,8 @@ static PRTVFSMEMEXTENT rtVfsMemFile_LocateExtentSlow(PRTVFSMEMFILE pThis, uint64
             return pExtent;
         }
 
-        /* Otherwise, start from the head after making sure it is not an
-           offset before the first extent. */
+        /* Otherwise, start from the head. */
         pExtent = RTListGetFirst(&pThis->ExtentHead, RTVFSMEMEXTENT, Entry);
-        if (off < pExtent->off)
-        {
-            *pfHit = false;
-            return pExtent;
-        }
     }
 
     while (off - pExtent->off >= pExtent->cb)
@@ -489,7 +483,6 @@ static DECLCALLBACK(int) rtVfsMemFile_Write(void *pvThis, RTFOFF off, PCRTSGBUF 
                 cbLeftToWrite -= cbZeros;
                 if (!cbLeftToWrite)
                     break;
-                pbSrc += cbZeros;
 
                 Assert(!pExtent || offUnsigned <= pExtent->off);
                 if (pExtent && pExtent->off == offUnsigned)
@@ -691,17 +684,7 @@ static DECLCALLBACK(int) rtVfsMemFile_QuerySize(void *pvThis, uint64_t *pcbFile)
  */
 static DECLCALLBACK(int) rtVfsMemFile_SetSize(void *pvThis, uint64_t cbFile, uint32_t fFlags)
 {
-    AssertReturn(RTVFSFILE_SIZE_F_IS_VALID(fFlags), VERR_INVALID_PARAMETER);
-
-    PRTVFSMEMFILE pThis = (PRTVFSMEMFILE)pvThis;
-    if (   (fFlags & RTVFSFILE_SIZE_F_ACTION_MASK) == RTVFSFILE_SIZE_F_NORMAL
-        && (RTFOFF)cbFile >= pThis->Base.ObjInfo.cbObject)
-    {
-        /* Growing is just a matter of increasing the size of the object. */
-        pThis->Base.ObjInfo.cbObject = cbFile;
-        return VINF_SUCCESS;
-    }
-
+    NOREF(pvThis); NOREF(cbFile); NOREF(fFlags);
     AssertMsgFailed(("Lucky you! You get to implement this (or bug bird about it).\n"));
     return VERR_NOT_IMPLEMENTED;
 }

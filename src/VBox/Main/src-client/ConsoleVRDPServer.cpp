@@ -1,10 +1,10 @@
-/* $Id: ConsoleVRDPServer.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ConsoleVRDPServer.cpp $ */
 /** @file
  * VBox Console VRDP helper class.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2988,8 +2988,8 @@ void ConsoleVRDPServer::MousePointerHide(void)
 
 void ConsoleVRDPServer::Stop(void)
 {
-    AssertPtr(this); /** @todo r=bird: there are(/was) some odd cases where this buster was invalid on
-                      * linux. Just remove this when it's 100% sure that problem has been fixed. */
+    Assert(VALID_PTR(this)); /** @todo r=bird: there are(/was) some odd cases where this buster was invalid on
+                              * linux. Just remove this when it's 100% sure that problem has been fixed. */
 
 #ifdef VBOX_WITH_USB
     remoteUSBThreadStop();
@@ -3199,7 +3199,7 @@ AuthResult ConsoleVRDPServer::Authenticate(const Guid &uuid, AuthGuestJudgement 
         int vrc = AuthLibLoad(&mAuthLibCtx, filename.c_str());
         if (RT_FAILURE(vrc))
         {
-            mConsole->setErrorBoth(E_FAIL, vrc, tr("Could not load the external authentication library '%s' (%Rrc)"),
+            mConsole->setErrorBoth(E_FAIL, vrc, mConsole->tr("Could not load the external authentication library '%s' (%Rrc)"),
                                    filename.c_str(), vrc);
             return AuthResultAccessDenied;
         }

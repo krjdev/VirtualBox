@@ -1,10 +1,10 @@
-/* $Id: UIMainEventListener.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMainEventListener.h $ */
 /** @file
  * VBox Qt GUI - UIMainEventListener class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +25,6 @@
 #include <QList>
 #include <QObject>
 #include <QRect>
-#include <QSet>
 
 /* GUI includes: */
 #include "UILibraryDefs.h"
@@ -72,12 +71,6 @@ class SHARED_LIBRARY_STUFF UIMainEventListener : public QObject
 
 signals:
 
-    /** @name General signals
-      * @{ */
-        /** Notifies about listening has finished. */
-        void sigListeningFinished();
-    /** @} */
-
     /** @name VirtualBoxClient related signals
       * @{ */
         /** Notifies about the VBoxSVC become @a fAvailable. */
@@ -102,14 +95,6 @@ signals:
         void sigSnapshotChange(const QUuid &uId, const QUuid &uSnapshotId);
         /** Notifies about snapshot with @a uSnapshotId was restored for the machine with @a uId. */
         void sigSnapshotRestore(const QUuid &uId, const QUuid &uSnapshotId);
-        /** Notifies about request to uninstall cloud provider with @a uId. */
-        void sigCloudProviderUninstall(const QUuid &uId);
-        /** Notifies about cloud provider list changed. */
-        void sigCloudProviderListChanged();
-        /** Notifies about cloud profile with specified @a strName of provider with specified @a uProviderId is @a fRegistered. */
-        void sigCloudProfileRegistered(const QUuid &uProviderId, const QString &strName, bool fRegistered);
-        /** Notifies about cloud profile with specified @a strName of provider with specified @a uProviderId is changed. */
-        void sigCloudProfileChanged(const QUuid &uProviderId, const QString &strName);
     /** @} */
 
     /** @name VirtualBox Extra-data related signals
@@ -219,13 +204,8 @@ public:
     /** Deinitialization routine. */
     void uninit() {}
 
-    /** Registers event source for passive event listener by creating a listening thread.
-      * @param  comSource         Brings event source we are creating listening thread for.
-      * @param  comListener       Brings event listener we are creating listening thread for.
-      * @param  escapeEventTypes  Brings a set of escape event types which commands listener to finish. */
-    void registerSource(const CEventSource &comSource,
-                        const CEventListener &comListener,
-                        const QSet<KVBoxEventType> &escapeEventTypes = QSet<KVBoxEventType>());
+    /** Registers event @a source for passive event @a listener. */
+    void registerSource(const CEventSource &comSource, const CEventListener &comListener);
     /** Unregisters event sources. */
     void unregisterSources();
 
@@ -234,11 +214,6 @@ public:
 
     /** Holds the list of threads handling passive event listening. */
     QList<UIMainEventListeningThread*> m_threads;
-
-private slots:
-
-    /** Handles thread finished signal. */
-    void sltHandleThreadFinished();
 };
 
 /** Wraps the IListener interface around our implementation class. */

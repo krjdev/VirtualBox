@@ -1,10 +1,10 @@
-/* $Id: UISettingsDefs.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UISettingsDefs.cpp $ */
 /** @file
  * VBox Qt GUI - UISettingsDefs implementation
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,7 +32,6 @@ ConfigurationAccessLevel UISettingsDefs::configurationAccessLevel(KSessionState 
         case KMachineState_Aborted:    return enmSessionState == KSessionState_Unlocked ?
                                               ConfigurationAccessLevel_Full :
                                               ConfigurationAccessLevel_Partial_PoweredOff;
-        case KMachineState_AbortedSaved:
         case KMachineState_Saved:      return ConfigurationAccessLevel_Partial_Saved;
         case KMachineState_Running:
         case KMachineState_Paused:     return ConfigurationAccessLevel_Partial_Running;

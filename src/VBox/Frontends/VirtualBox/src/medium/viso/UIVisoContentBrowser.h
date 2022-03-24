@@ -1,10 +1,10 @@
-/* $Id: UIVisoContentBrowser.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVisoContentBrowser.h $ */
 /** @file
  * VBox Qt GUI - UIVisoContentBrowser class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -56,9 +56,8 @@ public:
     /** Returns the content of the VISO as a string list. Each element of the list becomes a line in the
       * .viso file. */
     QStringList entryList();
-    virtual void showHideHiddenObjects(bool bShow)  override final;
+    virtual void showHideHiddenObjects(bool bShow) /* override */;
     void setVisoName(const QString &strName);
-    virtual bool tableViewHasSelection() const final override;
 
 public slots:
 
@@ -72,16 +71,16 @@ public slots:
 
 protected:
 
-    void retranslateUi() final override;
-    virtual void tableViewItemDoubleClick(const QModelIndex &index)  final override;
+    void retranslateUi();
+    virtual void tableViewItemDoubleClick(const QModelIndex &index) /* override */;
     /** @name Functions to set view root indices explicitly. They block the related signals. @p is converted
         to the correct index before setting.
       * @{ */
-        virtual void setTableRootIndex(QModelIndex index = QModelIndex())  final override;
-        virtual void setTreeCurrentIndex(QModelIndex index = QModelIndex()) final override;
+        virtual void setTableRootIndex(QModelIndex index = QModelIndex()) /* override */;
+        virtual void setTreeCurrentIndex(QModelIndex index = QModelIndex()) /* override */;
     /** @} */
 
-    virtual void treeSelectionChanged(const QModelIndex &selectedTreeIndex) final override;
+    virtual void treeSelectionChanged(const QModelIndex &selectedTreeIndex) /* override */;
 
 private slots:
 

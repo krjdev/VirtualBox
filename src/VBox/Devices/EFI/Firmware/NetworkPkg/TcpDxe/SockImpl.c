@@ -67,13 +67,13 @@ SockBufNext (
 /**
   User provided callback function for NetbufFromExt.
 
-  @param[in] Arg      The Arg parameter forwarded by NetbufFromExt(). Ignored.
+  @param[in] Event    The Event this notify function registered to, ignored.
 
 **/
 VOID
 EFIAPI
 SockFreeFoo (
-  IN VOID      *Arg
+  IN EFI_EVENT Event
   )
 {
   return;
@@ -89,7 +89,7 @@ SockFreeFoo (
   @param[in]  BufLen                The maximum length of the data buffer to
                                     store the received data in the socket layer.
 
-  @return The length of the data can be retrieved.
+  @return The length of the data can be retreived.
 
 **/
 UINT32
@@ -270,7 +270,7 @@ SockProcessSndToken (
       );
 
     //
-    // Process it in the light of SockType
+    // Proceess it in the light of SockType
     //
     SndToken  = (SOCK_IO_TOKEN *) SockToken->Token;
     TxData    = SndToken->Packet.TxData;

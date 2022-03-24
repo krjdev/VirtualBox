@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: config.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: config.py $
 
 """
 Test Manager Configuration.
@@ -7,7 +7,7 @@ Test Manager Configuration.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,14 +26,14 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 import os;
 
 ## Test Manager version string.
 g_ksVersion             = 'v0.1.0';
 ## Test Manager revision string.
-g_ksRevision            = ('$Revision: 94129 $')[11:-2];
+g_ksRevision            = ('$Revision: 135976 $')[11:-2];
 
 ## Enable VBox specific stuff.
 g_kfVBoxSpecific        = True;
@@ -66,7 +66,7 @@ g_kfLoginNameCaseInsensitive = True;
 ## The TestManager directory.
 g_ksTestManagerDir      = os.path.dirname(os.path.abspath(__file__));
 ## The Validation Kit directory.
-g_ksValidationKitDir    = os.path.dirname(g_ksTestManagerDir);
+g_ksValidationKitDir        = os.path.dirname(g_ksTestManagerDir);
 ## The TestManager htdoc directory.
 g_ksTmHtDocDir          = os.path.join(g_ksTestManagerDir, 'htdocs');
 ## The TestManager download directory (under htdoc somewhere), for validationkit zips.
@@ -89,10 +89,6 @@ g_ksBuildBinUrlPrefix   = '/builds/'
 g_ksBuildBinRootDir     = '/mnt/builds/'
 ## File on the build binary share that can be used to check that it's mounted.
 g_ksBuildBinRootFile    = 'builds.txt'
-## Template for paratial database dump output files.  One argument: UID
-g_ksTmDbDumpOutFileTmpl = '/var/tmp/tm-partial-db-dump-for-%u.zip'
-## Template for paratial database dump temporary files.  One argument: UID
-g_ksTmDbDumpTmpFileTmpl = '/var/tmp/tm-partial-db-dump-for-%u.pgtxt'
 ## @}
 
 
@@ -146,62 +142,6 @@ g_kcMbMaxUploadTotal    = 200;
 g_kcMaxUploads          = 256;
 ## @}
 
-
-## @name Bug Trackers and VCS reference tags.
-## @{
-class BugTrackerConfig(object):
-    """ Bug tracker config """
-    def __init__(self, sDbId, sName, sBugUrl, asCommitTags):
-        assert len(sDbId) == 4;
-        self.sDbId        = sDbId;
-        self.sName        = sName;
-        self.sBugUrl      = sBugUrl;
-        self.asCommitTags = asCommitTags;
-
-## The key is the database table
-g_kdBugTrackers = {
-    'xtrk': BugTrackerConfig('xtrk', 'xTracker',        'https://linserv.de.oracle.com/vbox/xTracker/index.php?bug=',
-                             ['bugref:',    '@bugref{',    'bugef:', 'bugrf:', ], ),
-    'bgdb': BugTrackerConfig('bgdb', 'BugDB',           'https://bug.oraclecorp.com/pls/bug/webbug_edit.edit_info_top?rptno=',
-                             ['bugdbref:',  '@bugdbref{',  'bugdb:', ], ),
-    'vorg': BugTrackerConfig('vorg', 'External Trac',   'https://www.virtualbox.org/ticket/',
-                             ['ticketref:', '@ticketref{', 'ticket:', ], ),
-};
-## @}
-
-
-
-## @name Virtual Sheriff email alerts
-## @{
-
-## SMTP server host name.
-g_ksSmtpHost            = 'internal-mail-router.oracle.com';
-## SMTP server port number.
-g_kcSmtpPort            = 25;
-## Default email 'From' for email alert.
-g_ksAlertFrom           = 'vsheriff@oracle.com';
-## Subject for email alert.
-g_ksAlertSubject        = 'Virtual Test Sheriff Alert';
-## List of users to send alerts.
-g_asAlertList           = ['lelik', 'werner'];
-## iLOM password.
-g_ksLomPassword         = 'password';
-
-## @}
-
-
-## @name Partial Database Dump
-## @{
-
-## Minimum number of day.  Set higher than g_kcTmDbDumpMaxDays to disable.
-g_kcTmDbDumpMinDays     = 1;
-## Maximum number of day.  Keep low - consider space and runtime.
-g_kcTmDbDumpMaxDays     = 31;
-## The default number of days.
-g_kcTmDbDumpDefaultDays = 14;
-## @}
-
-
 ## @name Debug Features
 ## @{
 
@@ -210,19 +150,15 @@ g_kfDebugDbXcpt         = True;
 
 ## Where to write the glue debug.
 # None indicates apache error log, string indicates a file.
-#g_ksSrvGlueDebugLogDst  = '/tmp/testmanager-srv-glue.log';
-g_ksSrvGlueDebugLogDst  = None;
+#g_ksSrcGlueDebugLogDst  = '/tmp/testmanager-srv-glue.log';
+g_ksSrcGlueDebugLogDst  = None;
 ## Whether to enable CGI trace back in the server glue.
 g_kfSrvGlueCgiTb        = False;
 ## Enables glue debug output.
 g_kfSrvGlueDebug        = False;
 ## Timestamp and pid prefix the glue debug output.
 g_kfSrvGlueDebugTS      = True;
-## Whether to dumping CGI environment variables.
-g_kfSrvGlueCgiDumpEnv   = False;
-## Whether to dumping CGI script arguments.
-g_kfSrvGlueCgiDumpArgs  = False;
-## Enables task scheduler debug output to g_ksSrvGlueDebugLogDst.
+## Enables task scheduler debug output to g_ksSrcGlueDebugLogDst.
 g_kfSrvGlueDebugScheduler = False;
 
 ## Enables the SQL trace back.
@@ -249,3 +185,20 @@ g_kfProfileIndex        = False;
 g_ksTestBoxDispXpctLog  = '/tmp/testmanager-testboxdisp-xcpt.log'
 ## @}
 
+## @name Virtual Sheriff email alerts
+## @{
+
+## SMTP server host name.
+g_ksSmtpHost            = 'internal-mail-router.oracle.com';
+## SMTP server port number.
+g_kcSmtpPort            = 25;
+## Default email 'From' for email alert.
+g_ksAlertFrom           = 'vsheriff@oracle.com';
+## Subject for email alert.
+g_ksAlertSubject        = 'Virtual Test Sheriff Alert';
+## List of users to send alerts.
+g_asAlertList           = ['lelik', 'werner'];
+## iLOM password.
+g_ksLomPassword         = 'password';
+
+## @}

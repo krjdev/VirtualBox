@@ -1,10 +1,10 @@
-/* $Id: MediumIOImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: MediumIOImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation: MediumIO
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -668,8 +668,7 @@ HRESULT MediumIO::read(LONG64 a_off, ULONG a_cbRead, std::vector<BYTE> &a_rData)
     else
     {
         a_rData.resize(0);
-        hrc = setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error reading %u bytes at %RU64: %Rrc", "", a_cbRead),
-                           a_cbRead, a_off, vrc);
+        hrc = setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error reading %u bytes at %RU64: %Rrc"), a_cbRead, a_off, vrc);
     }
 
     return hrc;
@@ -706,8 +705,7 @@ HRESULT MediumIO::write(LONG64 a_off, const std::vector<BYTE> &a_rData, ULONG *a
         hrc = S_OK;
     }
     else
-        hrc = setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error writing %zu bytes at %RU64: %Rrc", "", cbToWrite),
-                           cbToWrite, a_off, vrc);
+        hrc = setErrorBoth(VBOX_E_FILE_ERROR, vrc, tr("Error writing %zu bytes at %RU64: %Rrc"), cbToWrite, a_off, vrc);
 
     return hrc;
 }

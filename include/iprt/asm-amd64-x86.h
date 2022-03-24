@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,17 +31,20 @@
 
 #include <iprt/types.h>
 #include <iprt/assert.h>
-#include <iprt/x86-helpers.h>
 #if !defined(RT_ARCH_AMD64) && !defined(RT_ARCH_X86)
 # error "Not on AMD64 or x86"
 #endif
 
 #if defined(_MSC_VER) && RT_INLINE_ASM_USES_INTRIN
-/* Emit the intrinsics at all optimization levels. */
-# include <iprt/sanitized/intrin.h>
+# pragma warning(push)
+# pragma warning(disable:4668) /* Several incorrect __cplusplus uses. */
+# pragma warning(disable:4255) /* Incorrect __slwpcb prototype. */
+# include <intrin.h>
+# pragma warning(pop)
+   /* Emit the intrinsics at all optimization levels. */
 # pragma intrinsic(_ReadWriteBarrier)
 # pragma intrinsic(__cpuid)
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2010 /*?*/
+# if RT_INLINE_ASM_USES_INTRIN >= 16 /*?*/
 #  pragma intrinsic(__cpuidex)
 # endif
 # pragma intrinsic(_enable)
@@ -76,25 +79,13 @@
 #  pragma intrinsic(__readcr8)
 #  pragma intrinsic(__writecr8)
 # endif
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2005
+# if RT_INLINE_ASM_USES_INTRIN >= 14
 #  pragma intrinsic(__halt)
 # endif
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# if RT_INLINE_ASM_USES_INTRIN >= 15
 /*#  pragma intrinsic(__readeflags)  - buggy intrinsics in VC++ 2010, reordering/optimizers issues
 #  pragma intrinsic(__writeeflags) */
 #  pragma intrinsic(__rdtscp)
-# endif
-# if defined(RT_ARCH_AMD64) && RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2015 /*?*/
-#  pragma intrinsic(_readfsbase_u64)
-#  pragma intrinsic(_readgsbase_u64)
-#  pragma intrinsic(_writefsbase_u64)
-#  pragma intrinsic(_writegsbase_u64)
-# endif
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-#  pragma intrinsic(__lidt)
-#  pragma intrinsic(__sidt)
-#  pragma intrinsic(_lgdt)
-#  pragma intrinsic(_sgdt)
 # endif
 #endif
 
@@ -198,14 +189,12 @@ typedef RTGDTRALIGNED RT_FAR *PRGDTRALIGNED;
  * Gets the content of the IDTR CPU register.
  * @param   pIdtr   Where to store the IDTR contents.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2013
+#if RT_INLINE_ASM_EXTERNAL
 RT_ASM_DECL_PRAGMA_WATCOM(void) ASMGetIDTR(PRTIDTR pIdtr);
 #else
 DECLINLINE(void) ASMGetIDTR(PRTIDTR pIdtr)
 {
-# if  RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-    __sidt(pIdtr);
-# elif RT_INLINE_ASM_GNU_STYLE
+# if RT_INLINE_ASM_GNU_STYLE
     __asm__ __volatile__("sidt %0" : "=m" (*pIdtr));
 # else
     __asm
@@ -227,15 +216,13 @@ DECLINLINE(void) ASMGetIDTR(PRTIDTR pIdtr)
  * Gets the content of the IDTR.LIMIT CPU register.
  * @returns IDTR limit.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2013
+#if RT_INLINE_ASM_EXTERNAL
 RT_ASM_DECL_PRAGMA_WATCOM(uint16_t) ASMGetIdtrLimit(void);
 #else
 DECLINLINE(uint16_t) ASMGetIdtrLimit(void)
 {
     RTIDTRALIGNED TmpIdtr;
-# if  RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-    __sidt(&TmpIdtr);
-# elif RT_INLINE_ASM_GNU_STYLE
+# if RT_INLINE_ASM_GNU_STYLE
     __asm__ __volatile__("sidt %0" : "=m" (TmpIdtr.s.Idtr));
 # else
     __asm
@@ -252,14 +239,12 @@ DECLINLINE(uint16_t) ASMGetIdtrLimit(void)
  * Sets the content of the IDTR CPU register.
  * @param   pIdtr   Where to load the IDTR contents from
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2013
+#if RT_INLINE_ASM_EXTERNAL
 RT_ASM_DECL_PRAGMA_WATCOM(void) ASMSetIDTR(const RTIDTR RT_FAR *pIdtr);
 #else
 DECLINLINE(void) ASMSetIDTR(const RTIDTR RT_FAR *pIdtr)
 {
-# if  RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-    __lidt((void *)pIdtr);
-# elif RT_INLINE_ASM_GNU_STYLE
+# if RT_INLINE_ASM_GNU_STYLE
     __asm__ __volatile__("lidt %0" : : "m" (*pIdtr));
 # else
     __asm
@@ -281,14 +266,12 @@ DECLINLINE(void) ASMSetIDTR(const RTIDTR RT_FAR *pIdtr)
  * Gets the content of the GDTR CPU register.
  * @param   pGdtr   Where to store the GDTR contents.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2013
+#if RT_INLINE_ASM_EXTERNAL
 RT_ASM_DECL_PRAGMA_WATCOM(void) ASMGetGDTR(PRTGDTR pGdtr);
 #else
 DECLINLINE(void) ASMGetGDTR(PRTGDTR pGdtr)
 {
-# if  RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-    _sgdt(pGdtr);
-# elif RT_INLINE_ASM_GNU_STYLE
+# if RT_INLINE_ASM_GNU_STYLE
     __asm__ __volatile__("sgdt %0" : "=m" (*pGdtr));
 # else
     __asm
@@ -310,14 +293,12 @@ DECLINLINE(void) ASMGetGDTR(PRTGDTR pGdtr)
  * Sets the content of the GDTR CPU register.
  * @param   pGdtr   Where to load the GDTR contents from
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2013
+#if RT_INLINE_ASM_EXTERNAL
 RT_ASM_DECL_PRAGMA_WATCOM(void) ASMSetGDTR(const RTGDTR RT_FAR *pGdtr);
 #else
 DECLINLINE(void) ASMSetGDTR(const RTGDTR RT_FAR *pGdtr)
 {
-# if  RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2013
-    _lgdt((void *)pGdtr);
-# elif RT_INLINE_ASM_GNU_STYLE
+# if RT_INLINE_ASM_GNU_STYLE
     __asm__ __volatile__("lgdt %0" : : "m" (*pGdtr));
 # else
     __asm
@@ -431,46 +412,6 @@ DECLINLINE(RTSEL) ASMGetFS(void)
 }
 # endif
 
-#ifdef RT_ARCH_AMD64
-
-/**
- * Get the FS base register.
- * @returns FS base address.
- */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2015 /*?*/
-DECLASM(uint64_t) ASMGetFSBase(void);
-#else
-DECLINLINE(uint64_t) ASMGetFSBase(void)
-{
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2015
-    return (uint64_t)_readfsbase_u64();
-# elif RT_INLINE_ASM_GNU_STYLE
-    uint64_t uFSBase;
-    __asm__ __volatile__("rdfsbase %0\n\t" : "=r" (uFSBase));
-    return uFSBase;
-# endif
-}
-# endif
-
-
-/**
- * Set the FS base register.
- * @param   uNewBase    The new base value.
- */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2015 /*?*/
-DECLASM(void) ASMSetFSBase(uint64_t uNewBase);
-#else
-DECLINLINE(void) ASMSetFSBase(uint64_t uNewBase)
-{
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2015
-    _writefsbase_u64(uNewBase);
-# elif RT_INLINE_ASM_GNU_STYLE
-    __asm__ __volatile__("wrfsbase %0\n\t" : : "r" (uNewBase));
-# endif
-}
-# endif
-
-#endif /* RT_ARCH_AMD64 */
 
 /**
  * Get the GS register.
@@ -494,47 +435,6 @@ DECLINLINE(RTSEL) ASMGetGS(void)
     return SelGS;
 }
 #endif
-
-#ifdef RT_ARCH_AMD64
-
-/**
- * Get the GS base register.
- * @returns GS base address.
- */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2015 /*?*/
-DECLASM(uint64_t) ASMGetGSBase(void);
-#else
-DECLINLINE(uint64_t) ASMGetGSBase(void)
-{
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2015
-    return (uint64_t)_readgsbase_u64();
-# elif RT_INLINE_ASM_GNU_STYLE
-    uint64_t uGSBase;
-    __asm__ __volatile__("rdgsbase %0\n\t" : "=r" (uGSBase));
-    return uGSBase;
-# endif
-}
-# endif
-
-
-/**
- * Set the GS base register.
- * @param   uNewBase    The new base value.
- */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2015 /*?*/
-DECLASM(void) ASMSetGSBase(uint64_t uNewBase);
-#else
-DECLINLINE(void) ASMSetGSBase(uint64_t uNewBase)
-{
-# if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2015
-    _writegsbase_u64(uNewBase);
-# elif RT_INLINE_ASM_GNU_STYLE
-    __asm__ __volatile__("wrgsbase %0\n\t" : : "r" (uNewBase));
-# endif
-}
-# endif
-
-#endif /* RT_ARCH_AMD64 */
 
 
 /**
@@ -670,7 +570,7 @@ DECLINLINE(RTCCUINTREG) ASMGetFlags(void)
                          "popl  %0\n\t"
                          : "=r" (uFlags));
 #  endif
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# elif RT_INLINE_ASM_USES_INTRIN >= 15
     uFlags = __readeflags();
 # else
     __asm
@@ -708,7 +608,7 @@ DECLINLINE(void) ASMSetFlags(RTCCUINTREG uFlags)
                          "popfl\n\t"
                          : : "g" (uFlags));
 #  endif
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# elif RT_INLINE_ASM_USES_INTRIN >= 15
     __writeeflags(uFlags);
 # else
     __asm
@@ -760,7 +660,7 @@ DECLINLINE(RTCCUINTREG) ASMChangeFlags(RTCCUINTREG fAndEfl, RTCCUINTREG fOrEfl)
                          : "rn" (fAndEfl),
                            "rn" (fOrEfl) );
 #  endif
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# elif RT_INLINE_ASM_USES_INTRIN >= 15
     fOldEfl = __readeflags();
     __writeeflags((fOldEfl & fAndEfl) | fOrEfl);
 # else
@@ -821,7 +721,7 @@ DECLINLINE(RTCCUINTREG) ASMAddFlags(RTCCUINTREG fOrEfl)
                          : "=&r" (fOldEfl)
                          : "rn" (fOrEfl) );
 #  endif
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# elif RT_INLINE_ASM_USES_INTRIN >= 15
     fOldEfl = __readeflags();
     __writeeflags(fOldEfl | fOrEfl);
 # else
@@ -876,7 +776,7 @@ DECLINLINE(RTCCUINTREG) ASMClearFlags(RTCCUINTREG fAndEfl)
                          : "=&r" (fOldEfl)
                          : "rn" (fAndEfl) );
 #  endif
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+# elif RT_INLINE_ASM_USES_INTRIN >= 15
     fOldEfl = __readeflags();
     __writeeflags(fOldEfl & fAndEfl);
 # else
@@ -941,7 +841,7 @@ DECLINLINE(uint64_t) ASMReadTSC(void)
  * @returns TSC.
  * @param   puAux   Where to store the AUX value.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2008
+#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < 15
 RT_ASM_DECL_PRAGMA_WATCOM(uint64_t) ASMReadTscWithAux(uint32_t RT_FAR *puAux);
 #else
 DECLINLINE(uint64_t) ASMReadTscWithAux(uint32_t RT_FAR *puAux)
@@ -952,7 +852,7 @@ DECLINLINE(uint64_t) ASMReadTscWithAux(uint32_t RT_FAR *puAux)
     /*__asm__ __volatile__("rdtscp\n\t" : "=a" (u.s.Lo), "=d" (u.s.Hi), "=c" (*puAux)); */
     __asm__ __volatile__(".byte 0x0f,0x01,0xf9\n\t" : "=a" (u.s.Lo), "=d" (u.s.Hi), "=c" (*puAux));
 # else
-#  if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2008
+#  if RT_INLINE_ASM_USES_INTRIN >= 15
     u.u = __rdtscp(puAux);
 #  else
     __asm
@@ -1492,8 +1392,8 @@ DECLINLINE(uint8_t) ASMGetApicId(void)
  *
  * @returns the APIC ID.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2010 /*?*/
-RT_ASM_DECL_PRAGMA_WATCOM(uint32_t) ASMGetApicIdExt0B(void);
+#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < 16 /*?*/
+RT_ASM_DECL_PRAGMA_WATCOM(uint8_t) ASMGetApicIdExt0B(void);
 #else
 DECLINLINE(uint32_t) ASMGetApicIdExt0B(void)
 {
@@ -1531,7 +1431,7 @@ DECLINLINE(uint32_t) ASMGetApicIdExt0B(void)
 #  endif
     return (uint32_t)xDX;
 
-# elif RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2010 /*?*/
+# elif RT_INLINE_ASM_USES_INTRIN >= 16 /*?*/
 
     int aInfo[4];
     __cpuidex(aInfo, 0xb, 0);
@@ -1566,6 +1466,23 @@ DECLINLINE(uint32_t) ASMGetApicIdExt8000001E(void)
 
 
 /**
+ * Tests if it a genuine Intel CPU based on the ASMCpuId(0) output.
+ *
+ * @returns true/false.
+ * @param   uEBX    EBX return from ASMCpuId(0)
+ * @param   uECX    ECX return from ASMCpuId(0)
+ * @param   uEDX    EDX return from ASMCpuId(0)
+ */
+DECLINLINE(bool) ASMIsIntelCpuEx(uint32_t uEBX, uint32_t uECX, uint32_t uEDX)
+{
+    /* 'GenuineIntel' */
+    return uEBX == UINT32_C(0x756e6547)     /* 'Genu' */
+        && uEDX == UINT32_C(0x49656e69)     /* 'ineI' */
+        && uECX == UINT32_C(0x6c65746e);    /* 'ntel' */
+}
+
+
+/**
  * Tests if this is a genuine Intel CPU.
  *
  * @returns true/false.
@@ -1575,7 +1492,24 @@ DECLINLINE(bool) ASMIsIntelCpu(void)
 {
     uint32_t uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uEAX, &uEBX, &uECX, &uEDX);
-    return RTX86IsIntelCpu(uEBX, uECX, uEDX);
+    return ASMIsIntelCpuEx(uEBX, uECX, uEDX);
+}
+
+
+/**
+ * Tests if it an authentic AMD CPU based on the ASMCpuId(0) output.
+ *
+ * @returns true/false.
+ * @param   uEBX    EBX return from ASMCpuId(0)
+ * @param   uECX    ECX return from ASMCpuId(0)
+ * @param   uEDX    EDX return from ASMCpuId(0)
+ */
+DECLINLINE(bool) ASMIsAmdCpuEx(uint32_t uEBX, uint32_t uECX, uint32_t uEDX)
+{
+    /* 'AuthenticAMD' */
+    return uEBX == UINT32_C(0x68747541)     /* 'Auth' */
+        && uEDX == UINT32_C(0x69746e65)     /* 'enti' */
+        && uECX == UINT32_C(0x444d4163);    /* 'dAMD' */
 }
 
 
@@ -1589,7 +1523,24 @@ DECLINLINE(bool) ASMIsAmdCpu(void)
 {
     uint32_t uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uEAX, &uEBX, &uECX, &uEDX);
-    return RTX86IsAmdCpu(uEBX, uECX, uEDX);
+    return ASMIsAmdCpuEx(uEBX, uECX, uEDX);
+}
+
+
+/**
+ * Tests if it a centaur hauling VIA CPU based on the ASMCpuId(0) output.
+ *
+ * @returns true/false.
+ * @param   uEBX    EBX return from ASMCpuId(0).
+ * @param   uECX    ECX return from ASMCpuId(0).
+ * @param   uEDX    EDX return from ASMCpuId(0).
+ */
+DECLINLINE(bool) ASMIsViaCentaurCpuEx(uint32_t uEBX, uint32_t uECX, uint32_t uEDX)
+{
+    /* 'CentaurHauls' */
+    return uEBX == UINT32_C(0x746e6543)     /* 'Cent' */
+        && uEDX == UINT32_C(0x48727561)     /* 'aurH' */
+        && uECX == UINT32_C(0x736c7561);    /* 'auls' */
 }
 
 
@@ -1603,7 +1554,24 @@ DECLINLINE(bool) ASMIsViaCentaurCpu(void)
 {
     uint32_t uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uEAX, &uEBX, &uECX, &uEDX);
-    return RTX86IsViaCentaurCpu(uEBX, uECX, uEDX);
+    return ASMIsViaCentaurCpuEx(uEBX, uECX, uEDX);
+}
+
+
+/**
+ * Tests if it a Shanghai CPU based on the ASMCpuId(0) output.
+ *
+ * @returns true/false.
+ * @param   uEBX    EBX return from ASMCpuId(0).
+ * @param   uECX    ECX return from ASMCpuId(0).
+ * @param   uEDX    EDX return from ASMCpuId(0).
+ */
+DECLINLINE(bool) ASMIsShanghaiCpuEx(uint32_t uEBX, uint32_t uECX, uint32_t uEDX)
+{
+    /* '  Shanghai  ' */
+    return uEBX == UINT32_C(0x68532020)     /* '  Sh' */
+        && uEDX == UINT32_C(0x68676e61)     /* 'angh' */
+        && uECX == UINT32_C(0x20206961);    /* 'ai  ' */
 }
 
 
@@ -1617,7 +1585,24 @@ DECLINLINE(bool) ASMIsShanghaiCpu(void)
 {
     uint32_t uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uEAX, &uEBX, &uECX, &uEDX);
-    return RTX86IsShanghaiCpu(uEBX, uECX, uEDX);
+    return ASMIsShanghaiCpuEx(uEBX, uECX, uEDX);
+}
+
+
+/**
+ * Tests if it a genuine Hygon CPU based on the ASMCpuId(0) output.
+ *
+ * @returns true/false.
+ * @param   uEBX    EBX return from ASMCpuId(0)
+ * @param   uECX    ECX return from ASMCpuId(0)
+ * @param   uEDX    EDX return from ASMCpuId(0)
+ */
+DECLINLINE(bool) ASMIsHygonCpuEx(uint32_t uEBX, uint32_t uECX, uint32_t uEDX)
+{
+    /* 'HygonGenuine' */
+    return uEBX == UINT32_C(0x6f677948)     /* Hygo */
+        && uECX == UINT32_C(0x656e6975)     /* uine */
+        && uEDX == UINT32_C(0x6e65476e);    /* nGen */
 }
 
 
@@ -1631,7 +1616,129 @@ DECLINLINE(bool) ASMIsHygonCpu(void)
 {
     uint32_t uEAX, uEBX, uECX, uEDX;
     ASMCpuId(0, &uEAX, &uEBX, &uECX, &uEDX);
-    return RTX86IsHygonCpu(uEBX, uECX, uEDX);
+    return ASMIsHygonCpuEx(uEBX, uECX, uEDX);
+}
+
+
+/**
+ * Checks whether ASMCpuId_EAX(0x00000000) indicates a valid range.
+ *
+ *
+ * @returns true/false.
+ * @param   uEAX    The EAX value of CPUID leaf 0x00000000.
+ *
+ * @note    This only succeeds if there are at least two leaves in the range.
+ * @remarks The upper range limit is just some half reasonable value we've
+ *          picked out of thin air.
+ */
+DECLINLINE(bool) ASMIsValidStdRange(uint32_t uEAX)
+{
+    return uEAX >= UINT32_C(0x00000001) && uEAX <= UINT32_C(0x000fffff);
+}
+
+
+/**
+ * Checks whether ASMCpuId_EAX(0x80000000) indicates a valid range.
+ *
+ * This only succeeds if there are at least two leaves in the range.
+ *
+ * @returns true/false.
+ * @param   uEAX    The EAX value of CPUID leaf 0x80000000.
+ *
+ * @note    This only succeeds if there are at least two leaves in the range.
+ * @remarks The upper range limit is just some half reasonable value we've
+ *          picked out of thin air.
+ */
+DECLINLINE(bool) ASMIsValidExtRange(uint32_t uEAX)
+{
+    return uEAX >= UINT32_C(0x80000001) && uEAX <= UINT32_C(0x800fffff);
+}
+
+
+/**
+ * Checks whether ASMCpuId_EAX(0x40000000) indicates a valid range.
+ *
+ * This only succeeds if there are at least two leaves in the range.
+ *
+ * @returns true/false.
+ * @param   uEAX    The EAX value of CPUID leaf 0x40000000.
+ *
+ * @note    Unlike ASMIsValidStdRange() and ASMIsValidExtRange(), a single leaf
+ *          is okay here.  So, you always need to check the range.
+ * @remarks The upper range limit is take from the intel docs.
+ */
+DECLINLINE(bool) ASMIsValidHypervisorRange(uint32_t uEAX)
+{
+    return uEAX >= UINT32_C(0x40000000) && uEAX <= UINT32_C(0x4fffffff);
+}
+
+
+/**
+ * Extracts the CPU family from ASMCpuId(1) or ASMCpuId(0x80000001)
+ *
+ * @returns Family.
+ * @param   uEAX    EAX return from ASMCpuId(1) or ASMCpuId(0x80000001).
+ */
+DECLINLINE(uint32_t) ASMGetCpuFamily(uint32_t uEAX)
+{
+    return ((uEAX >> 8) & 0xf) == 0xf
+         ? ((uEAX >> 20) & 0x7f) + 0xf
+         : ((uEAX >> 8) & 0xf);
+}
+
+
+/**
+ * Extracts the CPU model from ASMCpuId(1) or ASMCpuId(0x80000001), Intel variant.
+ *
+ * @returns Model.
+ * @param   uEAX    EAX from ASMCpuId(1) or ASMCpuId(0x80000001).
+ */
+DECLINLINE(uint32_t) ASMGetCpuModelIntel(uint32_t uEAX)
+{
+    return ((uEAX >> 8) & 0xf) == 0xf || (((uEAX >> 8) & 0xf) == 0x6) /* family! */
+         ? ((uEAX >> 4) & 0xf) | ((uEAX >> 12) & 0xf0)
+         : ((uEAX >> 4) & 0xf);
+}
+
+
+/**
+ * Extracts the CPU model from ASMCpuId(1) or ASMCpuId(0x80000001), AMD variant.
+ *
+ * @returns Model.
+ * @param   uEAX    EAX from ASMCpuId(1) or ASMCpuId(0x80000001).
+ */
+DECLINLINE(uint32_t) ASMGetCpuModelAMD(uint32_t uEAX)
+{
+    return ((uEAX >> 8) & 0xf) == 0xf
+         ? ((uEAX >> 4) & 0xf) | ((uEAX >> 12) & 0xf0)
+         : ((uEAX >> 4) & 0xf);
+}
+
+
+/**
+ * Extracts the CPU model from ASMCpuId(1) or ASMCpuId(0x80000001)
+ *
+ * @returns Model.
+ * @param   uEAX    EAX from ASMCpuId(1) or ASMCpuId(0x80000001).
+ * @param   fIntel  Whether it's an intel CPU. Use ASMIsIntelCpuEx() or ASMIsIntelCpu().
+ */
+DECLINLINE(uint32_t) ASMGetCpuModel(uint32_t uEAX, bool fIntel)
+{
+    return ((uEAX >> 8) & 0xf) == 0xf || (((uEAX >> 8) & 0xf) == 0x6 && fIntel) /* family! */
+         ? ((uEAX >> 4) & 0xf) | ((uEAX >> 12) & 0xf0)
+         : ((uEAX >> 4) & 0xf);
+}
+
+
+/**
+ * Extracts the CPU stepping from ASMCpuId(1) or ASMCpuId(0x80000001)
+ *
+ * @returns Model.
+ * @param   uEAX    EAX from ASMCpuId(1) or ASMCpuId(0x80000001).
+ */
+DECLINLINE(uint32_t) ASMGetCpuStepping(uint32_t uEAX)
+{
+    return uEAX & 0xf;
 }
 
 
@@ -2122,7 +2229,7 @@ DECLINLINE(bool) ASMIntAreEnabled(void)
 /**
  * Halts the CPU until interrupted.
  */
-#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < RT_MSC_VER_VS2005
+#if RT_INLINE_ASM_EXTERNAL && RT_INLINE_ASM_USES_INTRIN < 14
 RT_ASM_DECL_PRAGMA_WATCOM(void) ASMHalt(void);
 #else
 DECLINLINE(void) ASMHalt(void)
@@ -2184,7 +2291,7 @@ DECLINLINE(uint64_t) ASMRdMsr(uint32_t uRegister)
  * @param   u64Val      Value to write.
  */
 #if RT_INLINE_ASM_EXTERNAL && !RT_INLINE_ASM_USES_INTRIN
-RT_ASM_DECL_PRAGMA_WATCOM_386(void) ASMWrMsr(uint32_t uRegister, uint64_t u64Val);
+RT_ASM_DECL_PRAGMA_WATCOM(void) ASMWrMsr(uint32_t uRegister, uint64_t u64Val);
 #else
 DECLINLINE(void) ASMWrMsr(uint32_t uRegister, uint64_t u64Val)
 {
@@ -2221,7 +2328,7 @@ DECLINLINE(void) ASMWrMsr(uint32_t uRegister, uint64_t u64Val)
  * @param   uXDI        RDI/EDI value.
  */
 #if RT_INLINE_ASM_EXTERNAL
-RT_ASM_DECL_PRAGMA_WATCOM_386(uint64_t) ASMRdMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI);
+RT_ASM_DECL_PRAGMA_WATCOM(uint64_t) ASMRdMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI);
 #else
 DECLINLINE(uint64_t) ASMRdMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI)
 {
@@ -2259,7 +2366,7 @@ DECLINLINE(uint64_t) ASMRdMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI)
  * @param   u64Val      Value to write.
  */
 #if RT_INLINE_ASM_EXTERNAL
-RT_ASM_DECL_PRAGMA_WATCOM_386(void) ASMWrMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI, uint64_t u64Val);
+RT_ASM_DECL_PRAGMA_WATCOM(void) ASMWrMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI, uint64_t u64Val);
 #else
 DECLINLINE(void) ASMWrMsrEx(uint32_t uRegister, RTCCUINTXREG uXDI, uint64_t u64Val)
 {

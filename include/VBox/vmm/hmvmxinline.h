@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,8 +34,12 @@
 
 /* In Visual C++ versions prior to 2012, the vmx intrinsics are only available
    when targeting AMD64. */
-#if RT_INLINE_ASM_USES_INTRIN >= RT_MSC_VER_VS2010 && defined(RT_ARCH_AMD64)
-# include <iprt/sanitized/intrin.h>
+#if RT_INLINE_ASM_USES_INTRIN >= 16 && defined(RT_ARCH_AMD64)
+# pragma warning(push)
+# pragma warning(disable:4668) /* Several incorrect __cplusplus uses. */
+# pragma warning(disable:4255) /* Incorrect __slwpcb prototype. */
+# include <intrin.h>
+# pragma warning(pop)
 /* We always want them as intrinsics, no functions. */
 # pragma intrinsic(__vmx_on)
 # pragma intrinsic(__vmx_off)
@@ -343,6 +347,17 @@ DECLINLINE(const char *) VMXGetIdtVectoringInfoTypeDesc(uint8_t uType)
  * @{
  */
 #if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
+
+/**
+ * Restores some host-state fields that need not be done on every VM-exit.
+ *
+ * @returns VBox status code.
+ * @param   fRestoreHostFlags   Flags of which host registers needs to be
+ *                              restored.
+ * @param   pRestoreHost        Pointer to the host-restore structure.
+ */
+DECLASM(int) VMXRestoreHostState(uint32_t fRestoreHostFlags, PVMXRESTOREHOST pRestoreHost);
+
 
 /**
  * Dispatches an NMI to the host.

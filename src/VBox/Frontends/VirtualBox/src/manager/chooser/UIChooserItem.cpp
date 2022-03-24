@@ -1,10 +1,10 @@
-/* $Id: UIChooserItem.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: UIChooserItem.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserItem class definition.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,6 +29,7 @@
 #include <QDrag>
 
 /* GUI includes: */
+#include "UIChooser.h"
 #include "UIChooserItem.h"
 #include "UIChooserItemGroup.h"
 #include "UIChooserItemGlobal.h"
@@ -36,12 +37,30 @@
 #include "UIChooserView.h"
 #include "UIChooserModel.h"
 #include "UIChooserNode.h"
-#include "UIDesktopWidgetWatchdog.h"
 #include "UIImageTools.h"
 
 /* Other VBox includes: */
 #include "iprt/assert.h"
 
+UIChooserDisabledItemEffect::UIChooserDisabledItemEffect(int iBlurRadius, QObject *pParent /* = 0 */)
+    :QGraphicsEffect(pParent)
+    , m_iBlurRadius(iBlurRadius)
+{
+}
+
+void UIChooserDisabledItemEffect::draw(QPainter *painter)
+{
+    QPoint offset;
+    QPixmap pixmap;
+    /* Get the original pixmap: */
+    pixmap = sourcePixmap( Qt::LogicalCoordinates, &offset );
+    QImage resultImage;
+    /* Apply our blur and grayscale filters to the original pixmap: */
+    UIImageTools::blurImage(pixmap.toImage(), resultImage, m_iBlurRadius);
+    pixmap.convertFromImage(UIImageTools::toGray(resultImage));
+    /* Use the filtered pixmap: */
+    painter->drawPixmap( offset, pixmap );
+}
 
 /** QAccessibleObject extension used as an accessibility interface for Chooser-view items. */
 class UIAccessibilityInterfaceForUIChooserItem : public QAccessibleObject
@@ -65,23 +84,23 @@ public:
     {}
 
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE
+    virtual QAccessibleInterface *parent() const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), 0);
 
         /* Return the parent: */
-        return QAccessible::queryAccessibleInterface(item()->model()->view());
+        return QAccessible::queryAccessibleInterface(item()->model()->chooser()->view());
     }
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE
+    virtual int childCount() const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), 0);
 
         /* Return the number of group children: */
-        if (item()->type() == UIChooserNodeType_Group)
+        if (item()->type() == UIChooserItemType_Group)
             return item()->items().size();
 
         /* Zero by default: */
@@ -89,7 +108,7 @@ public:
     }
 
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE
+    virtual QAccessibleInterface *child(int iIndex) const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), 0);
@@ -101,7 +120,7 @@ public:
     }
 
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const /* override */
     {
         /* Search for corresponding child: */
         for (int i = 0; i < childCount(); ++i)
@@ -113,19 +132,19 @@ public:
     }
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE
+    virtual QRect rect() const /* override */
     {
         /* Now goes the mapping: */
         const QSize   itemSize         = item()->size().toSize();
         const QPointF itemPosInScene   = item()->mapToScene(QPointF(0, 0));
-        const QPoint  itemPosInView    = item()->model()->view()->mapFromScene(itemPosInScene);
-        const QPoint  itemPosInScreen  = item()->model()->view()->mapToGlobal(itemPosInView);
+        const QPoint  itemPosInView    = item()->model()->chooser()->view()->mapFromScene(itemPosInScene);
+        const QPoint  itemPosInScreen  = item()->model()->chooser()->view()->mapToGlobal(itemPosInView);
         const QRect   itemRectInScreen = QRect(itemPosInScreen, itemSize);
         return itemRectInScreen;
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), QString());
@@ -142,13 +161,13 @@ public:
     }
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE
+    virtual QAccessible::Role role() const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), QAccessible::NoRole);
 
         /* Return the role of group: */
-        if (item()->type() == UIChooserNodeType_Group)
+        if (item()->type() == UIChooserItemType_Group)
             return QAccessible::List;
 
         /* ListItem by default: */
@@ -156,7 +175,7 @@ public:
     }
 
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE
+    virtual QAccessible::State state() const /* override */
     {
         /* Make sure item still alive: */
         AssertPtrReturn(item(), QAccessible::State());
@@ -175,7 +194,7 @@ public:
         }
 
         /* Compose the state of group: */
-        if (item()->type() == UIChooserNodeType_Group)
+        if (item()->type() == UIChooserItemType_Group)
         {
             state.expandable = true;
             if (!item()->toGroupItem()->isClosed())
@@ -194,45 +213,15 @@ private:
 
 
 /*********************************************************************************************************************************
-*   Class UIChooserDisabledItemEffect implementation.                                                                            *
-*********************************************************************************************************************************/
-
-UIChooserDisabledItemEffect::UIChooserDisabledItemEffect(int iBlurRadius, QObject *pParent /* = 0 */)
-    : QGraphicsEffect(pParent)
-    , m_iBlurRadius(iBlurRadius)
-{
-}
-
-void UIChooserDisabledItemEffect::draw(QPainter *pPainter)
-{
-    QPoint offset;
-    QPixmap pixmap;
-    /* Get the original pixmap: */
-    pixmap = sourcePixmap(Qt::LogicalCoordinates, &offset);
-    QImage resultImage;
-    /* Apply our blur and grayscale filters to the original pixmap: */
-    UIImageTools::blurImage(pixmap.toImage(), resultImage, m_iBlurRadius);
-    pixmap.convertFromImage(UIImageTools::toGray(resultImage));
-    QWidget *pParentWidget = qobject_cast<QWidget*>(parent());
-    pixmap.setDevicePixelRatio(  pParentWidget
-                               ? gpDesktop->devicePixelRatioActual(pParentWidget)
-                               : gpDesktop->devicePixelRatioActual());
-    /* Use the filtered pixmap: */
-    pPainter->drawPixmap(offset, pixmap);
-}
-
-
-/*********************************************************************************************************************************
 *   Class UIChooserItem implementation.                                                                                          *
 *********************************************************************************************************************************/
 
 UIChooserItem::UIChooserItem(UIChooserItem *pParent, UIChooserNode *pNode,
-                             int iDefaultValue /* = 0 */, int iHoveredValue /* = 100 */)
+                             int iDefaultValue /* = 100 */, int iHoveredValue /* = 90 */)
     : QIWithRetranslateUI4<QIGraphicsWidget>(pParent)
     , m_pParent(pParent)
     , m_pNode(pNode)
     , m_fHovered(false)
-    , m_fSelected(false)
     , m_pHoveringMachine(0)
     , m_pHoveringAnimationForward(0)
     , m_pHoveringAnimationBackward(0)
@@ -322,15 +311,11 @@ UIChooserItem::UIChooserItem(UIChooserItem *pParent, UIChooserNode *pNode,
             /* Start state-machine: */
             m_pHoveringMachine->start();
         }
-
-        /* Allocate the effect instance which we use when the item is marked as disabled: */
-        m_pDisabledEffect = new UIChooserDisabledItemEffect(1 /* Blur Radius */, model()->view());
-        if (m_pDisabledEffect)
-        {
-            setGraphicsEffect(m_pDisabledEffect);
-            m_pDisabledEffect->setEnabled(node()->isDisabled());
-        }
     }
+    /* Allocate the effect instance which we use when the item is marked as disablec: */
+    m_pDisabledEffect = new UIChooserDisabledItemEffect(1 /* Blur Radius */);
+    setGraphicsEffect(m_pDisabledEffect);
+    m_pDisabledEffect->setEnabled(false);
 }
 
 UIChooserItemGroup *UIChooserItem::toGroupItem()
@@ -359,6 +344,11 @@ UIChooserModel *UIChooserItem::model() const
     UIChooserModel *pModel = qobject_cast<UIChooserModel*>(QIGraphicsWidget::scene()->parent());
     AssertMsg(pModel, ("Incorrect graphics scene parent set!"));
     return pModel;
+}
+
+UIActionPool *UIChooserItem::actionPool() const
+{
+    return model()->actionPool();
 }
 
 bool UIChooserItem::isRoot() const
@@ -408,20 +398,19 @@ bool UIChooserItem::isHovered() const
     return m_fHovered;
 }
 
-bool UIChooserItem::isSelected() const
+void UIChooserItem::setHovered(bool fHovered)
 {
-    return m_fSelected;
+    m_fHovered = fHovered;
+    if (m_fHovered)
+        emit sigHoverEnter();
+    else
+        emit sigHoverLeave();
 }
 
-void UIChooserItem::setSelected(bool fSelected)
-{
-    m_fSelected = fSelected;
-}
-
-void UIChooserItem::setDisabledEffect(bool fOn)
+void UIChooserItem::disableEnableItem(bool fDisabled)
 {
     if (m_pDisabledEffect)
-        m_pDisabledEffect->setEnabled(fOn);
+        m_pDisabledEffect->setEnabled(fDisabled);
 }
 
 void UIChooserItem::updateGeometry()
@@ -505,12 +494,15 @@ void UIChooserItem::mouseMoveEvent(QGraphicsSceneMouseEvent *pEvent)
         QApplication::startDragDistance())
         return;
 
-    /* Initialize dragging: */
-    QDrag *pDrag = new QDrag(pEvent->widget());
-    model()->setCurrentDragObject(pDrag);
-    pDrag->setPixmap(toPixmap());
-    pDrag->setMimeData(createMimeData());
-    pDrag->exec(Qt::MoveAction | Qt::CopyAction, Qt::MoveAction);
+    /* Initialize dragging for local VMs only: */
+    if (!m_pNode->hasAtLeastOneCloudNode())
+    {
+        QDrag *pDrag = new QDrag(pEvent->widget());
+        model()->setCurrentDragObject(pDrag);
+        pDrag->setPixmap(toPixmap());
+        pDrag->setMimeData(createMimeData());
+        pDrag->exec(Qt::MoveAction | Qt::CopyAction, Qt::MoveAction);
+    }
 }
 
 void UIChooserItem::dragMoveEvent(QGraphicsSceneDragDropEvent *pEvent)
@@ -520,9 +512,9 @@ void UIChooserItem::dragMoveEvent(QGraphicsSceneDragDropEvent *pEvent)
     {
         /* Allow drag tokens only for the same item type as current: */
         bool fAllowDragToken = false;
-        if ((type() == UIChooserNodeType_Group &&
+        if ((type() == UIChooserItemType_Group &&
              pEvent->mimeData()->hasFormat(UIChooserItemGroup::className())) ||
-            (type() == UIChooserNodeType_Machine &&
+            (type() == UIChooserItemType_Machine &&
              pEvent->mimeData()->hasFormat(UIChooserItemMachine::className())))
             fAllowDragToken = true;
         /* Do we need a drag-token? */
@@ -575,11 +567,7 @@ QSize UIChooserItem::textSize(const QFont &font, QPaintDevice *pPaintDevice, con
 
     /* Return text size, based on font-metrics: */
     QFontMetrics fm(font, pPaintDevice);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    return QSize(fm.horizontalAdvance(strText), fm.height());
-#else
     return QSize(fm.width(strText), fm.height());
-#endif
 }
 
 /* static */
@@ -589,11 +577,7 @@ int UIChooserItem::textWidth(const QFont &font, QPaintDevice *pPaintDevice, int 
     QFontMetrics fm(font, pPaintDevice);
     QString strString;
     strString.fill('_', iCount);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    return fm.horizontalAdvance(strString);
-#else
     return fm.width(strString);
-#endif
 }
 
 /* static */
@@ -605,24 +589,14 @@ QString UIChooserItem::compressText(const QFont &font, QPaintDevice *pPaintDevic
 
     /* Check if passed text fits maximum width: */
     QFontMetrics fm(font, pPaintDevice);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    if (fm.horizontalAdvance(strText) <= iWidth)
-#else
     if (fm.width(strText) <= iWidth)
-#endif
         return strText;
 
     /* Truncate otherwise: */
     QString strEllipsis = QString("...");
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    int iEllipsisWidth = fm.horizontalAdvance(strEllipsis + " ");
-    while (!strText.isEmpty() && fm.horizontalAdvance(strText) + iEllipsisWidth > iWidth)
-        strText.truncate(strText.size() - 1);
-#else
     int iEllipsisWidth = fm.width(strEllipsis + " ");
     while (!strText.isEmpty() && fm.width(strText) + iEllipsisWidth > iWidth)
         strText.truncate(strText.size() - 1);
-#endif
     return strText + strEllipsis;
 }
 
@@ -671,11 +645,12 @@ void UIChooserItem::paintFlatButton(QPainter *pPainter, const QRect &rectangle, 
     pPainter->save();
 
     /* Prepare colors: */
-    const QColor color = QApplication::palette().color(QPalette::Active, QPalette::Button);
+    const QPalette pal = QApplication::palette();
+    const QColor color = pal.color(QPalette::Active, QPalette::Mid);
 
     /* Prepare pen: */
     QPen pen;
-    pen.setColor(color);
+    pen.setColor(color.darker(110));
     pen.setWidth(0);
     pPainter->setPen(pen);
 
@@ -686,12 +661,8 @@ void UIChooserItem::paintFlatButton(QPainter *pPainter, const QRect &rectangle, 
 
     /* Paint active background: */
     QRadialGradient grad(rectangle.center(), rectangle.width(), cursorPosition);
-    QColor color1 = color;
-    color1.setAlpha(50);
-    QColor color2 = color;
-    color2.setAlpha(250);
-    grad.setColorAt(0, color1);
-    grad.setColorAt(1, color2);
+    grad.setColorAt(0, color.lighter(150));
+    grad.setColorAt(1, color.lighter(110));
     pPainter->fillRect(rectangle.adjusted(0, 0, -1, -1), grad);
 
     /* Paint frame: */

@@ -1,10 +1,10 @@
-/* $Id: VBoxDnD.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxDnD.cpp $ */
 /** @file
  * VBoxDnD.cpp - Windows-specific bits of the drag and drop service.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -83,8 +83,8 @@ static VBOXDNDCONTEXT           g_Ctx = { 0 };
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static LRESULT CALLBACK vboxDnDWndProcInstance(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) RT_NOTHROW_PROTO;
-static LRESULT CALLBACK vboxDnDWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) RT_NOTHROW_PROTO;
+static LRESULT CALLBACK vboxDnDWndProcInstance(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK vboxDnDWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 
 
@@ -607,12 +607,6 @@ LRESULT CALLBACK VBoxDnDWnd::WndProc(HWND a_hWnd, UINT a_uMsg, WPARAM a_wParam, 
                 {
                     rc = OnHgCancel();
                     break;
-                }
-
-                case VBGLR3DNDEVENTTYPE_QUIT:
-                {
-                    LogRel(("DnD: Received quit message, shutting down ...\n"));
-                    PostQuitMessage(0);
                 }
 
 #ifdef VBOX_WITH_DRAG_AND_DROP_GH
@@ -1552,7 +1546,7 @@ int VBoxDnDWnd::mouseMove(int x, int y, DWORD dwMouseInputFlags)
     int iScreenX = GetSystemMetrics(SM_CXSCREEN) - 1;
     int iScreenY = GetSystemMetrics(SM_CYSCREEN) - 1;
 
-    INPUT Input[1] = { {0} };
+    INPUT Input[1] = { 0 };
     Input[0].type       = INPUT_MOUSE;
     Input[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
                         | dwMouseInputFlags;
@@ -1598,7 +1592,7 @@ int VBoxDnDWnd::mouseRelease(void)
 
     /* Release mouse button in the guest to start the "drop"
      * action at the current mouse cursor position. */
-    INPUT Input[1] = { {0} };
+    INPUT Input[1] = { 0 };
     Input[0].type       = INPUT_MOUSE;
     Input[0].mi.dwFlags = MOUSEEVENTF_LEFTUP;
     if (!g_pfnSendInput(1, Input, sizeof(INPUT)))
@@ -1657,7 +1651,7 @@ int VBoxDnDWnd::setMode(Mode enmMode)
  * Static helper function for having an own WndProc for proxy
  * window instances.
  */
-static LRESULT CALLBACK vboxDnDWndProcInstance(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) RT_NOTHROW_DEF
+static LRESULT CALLBACK vboxDnDWndProcInstance(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LONG_PTR pUserData = GetWindowLongPtr(hWnd, GWLP_USERDATA);
     AssertPtrReturn(pUserData, 0);
@@ -1673,7 +1667,7 @@ static LRESULT CALLBACK vboxDnDWndProcInstance(HWND hWnd, UINT uMsg, WPARAM wPar
  * Static helper function for routing Windows messages to a specific
  * proxy window instance.
  */
-static LRESULT CALLBACK vboxDnDWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) RT_NOTHROW_DEF
+static LRESULT CALLBACK vboxDnDWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     /* Note: WM_NCCREATE is not the first ever message which arrives, but
      *       early enough for us. */
@@ -1881,6 +1875,12 @@ DECLCALLBACK(int) VBoxDnDWorker(void *pInstance, bool volatile *pfShutdown)
             }
             else
                 LogRel(("DnD: Processing proxy window event %RU32 failed with %Rrc\n", pVbglR3Event->enmType, rc));
+        }
+        else if (rc == VERR_INTERRUPTED) /* Disconnected from service. */
+        {
+            LogRel(("DnD: Received quit message, shutting down ...\n"));
+            pWnd->PostMessage(WM_QUIT, 0 /* wParm */, 0 /* lParm */);
+            rc = VINF_SUCCESS;
         }
 
         if (RT_FAILURE(rc))

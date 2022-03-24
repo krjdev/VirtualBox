@@ -1,10 +1,10 @@
-/* $Id: utf-16-latin-1.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: utf-16-latin-1.cpp $ */
 /** @file
  * IPRT - Latin-1 and UTF-16.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -184,8 +184,8 @@ RTDECL(int)  RTUtf16ToLatin1Tag(PCRTUTF16 pwszString, char **ppszString, const c
     /*
      * Validate input.
      */
-    AssertPtr(ppszString);
-    AssertPtr(pwszString);
+    Assert(VALID_PTR(ppszString));
+    Assert(VALID_PTR(pwszString));
     *ppszString = NULL;
 
     /*
@@ -363,8 +363,8 @@ RTDECL(int) RTLatin1ToUtf16Tag(const char *pszString, PRTUTF16 *ppwszString, con
     /*
      * Validate input.
      */
-    AssertPtr(ppwszString);
-    AssertPtr(pszString);
+    Assert(VALID_PTR(ppwszString));
+    Assert(VALID_PTR(pszString));
     *ppwszString = NULL;
 
     /*
@@ -405,9 +405,9 @@ RTDECL(int)  RTLatin1ToUtf16ExTag(const char *pszString, size_t cchString,
     /*
      * Validate input.
      */
-    AssertPtr(pszString);
-    AssertPtr(ppwsz);
-    AssertPtrNull(pcwc);
+    Assert(VALID_PTR(pszString));
+    Assert(VALID_PTR(ppwsz));
+    Assert(!pcwc || VALID_PTR(pcwc));
 
     /*
      * Validate the input and calculate the length of the UTF-16 string.

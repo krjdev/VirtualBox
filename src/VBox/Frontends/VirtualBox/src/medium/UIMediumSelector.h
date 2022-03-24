@@ -1,10 +1,10 @@
-/* $Id: UIMediumSelector.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMediumSelector.h $ */
 /** @file
  * VBox Qt GUI - UIMediumSelector class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,7 +24,6 @@
 /* GUI includes: */
 #include "QIMainDialog.h"
 #include "QIWithRetranslateUI.h"
-#include "QIWithRestorableGeometry.h"
 #include "UIMedium.h"
 #include "UIMediumDefs.h"
 
@@ -36,13 +35,13 @@ class QITreeWidget;
 class QITreeWidgetItem;
 class QVBoxLayout;
 class QIDialogButtonBox;
-class QIToolBar;
-class UIActionPool;
 class UIMediumItem;
 class UIMediumSearchWidget;
+class UIToolBar;
+
 
 /** QIDialog extension providing GUI with a dialog to select an existing medium. */
-class SHARED_LIBRARY_STUFF UIMediumSelector : public QIWithRetranslateUI<QIWithRestorableGeometry<QIMainDialog> >
+class SHARED_LIBRARY_STUFF UIMediumSelector : public QIWithRetranslateUI<QIMainDialog>
 {
 
     Q_OBJECT;
@@ -51,9 +50,9 @@ signals:
 
 public:
 
-    UIMediumSelector(const QUuid &uCurrentMediumId, UIMediumDeviceType enmMediumType, const QString &machineName,
+    UIMediumSelector(UIMediumDeviceType enmMediumType, const QString &machineName,
                      const QString &machineSettingsFilePath, const QString &strMachineGuestOSTypeId,
-                     const QUuid &uMachineID, QWidget *pParent, UIActionPool *pActionPool);
+                     const QUuid &uMachineID, QWidget *pParent);
     /** Disables/enables the create action and controls its visibility. */
     void         setEnableCreateAction(bool fEnable);
     QList<QUuid> selectedMediumIds() const;
@@ -66,33 +65,10 @@ public:
         ReturnCode_Max
     };
 
-    /** Creates and shows a UIMediumSelector dialog.
-      * @param  parent                   Passes the parent of the dialog,
-      * @param  enmMediumType            Passes the medium type,
-      * @param  uCurrentMediumId         Passes  the id of the currently selected medium,
-      * @param  uSelectedMediumUuid      Gets  the selected medium id from selection dialog,
-      * @param  strMachineFolder         Passes the machine folder,
-      * @param  strMachineName           Passes the name of the machine,
-      * @param  strMachineGuestOSTypeId  Passes the type ID of machine's guest os,
-      * @param  fEnableCreate            Passes whether to show/enable create action in the medium selector dialog,
-      * @param  uMachineID               Passes the machine UUID,
-      * @param  pActionPool              Passes the action pool instance pointer,
-      * returns the return code of the UIMediumSelector::ReturnCode as int. In case of a medium selection
-      *         UUID of the selected medium is returned in @param uSelectedMediumUuid.*/
-    static int openMediumSelectorDialog(QWidget *pParent, UIMediumDeviceType  enmMediumType, const QUuid &uCurrentMediumId,
-                                        QUuid &uSelectedMediumUuid, const QString &strMachineFolder, const QString &strMachineName,
-                                        const QString &strMachineGuestOSTypeId, bool fEnableCreate, const QUuid &uMachineID,
-                                        UIActionPool *pActionPool);
-
 protected:
 
-    /** @name Event-handling stuff.
-      * @{ */
-        /** Handles translation event. */
-        virtual void retranslateUi() final override;
-        void showEvent(QShowEvent *pEvent) final override;
-        bool event(QEvent *pEvent) final override;
-    /** @} */
+    void showEvent(QShowEvent *pEvent);
+
 
 private slots:
 
@@ -103,7 +79,6 @@ private slots:
     void sltCreateMedium();
     void sltHandleItemSelectionChanged();
     void sltHandleTreeWidgetDoubleClick(QTreeWidgetItem * item, int column);
-    void sltHandleMediumCreated(const QUuid &uMediumId);
     void sltHandleMediumEnumerationStart();
     void sltHandleMediumEnumerated();
     void sltHandleMediumEnumerationFinish();
@@ -113,7 +88,14 @@ private slots:
     void sltHandleTreeExpandAllSignal();
     void sltHandleTreeCollapseAllSignal();
 
-private:
+ private:
+
+
+    /** @name Event-handling stuff.
+      * @{ */
+        /** Handles translation event. */
+        virtual void retranslateUi() /* override */;
+    /** @} */
 
     /** @name Prepare/cleanup cascade.
       * @{ */
@@ -138,9 +120,8 @@ private:
     /** Remember the default foreground brush of the tree so that we can reset tree items' foreground later */
     void          saveDefaultForeground();
     void          selectMedium(const QUuid &uMediumID);
+    void          scrollToItem(UIMediumItem* pItem);
     void          setTitle();
-    void          saveDialogGeometry();
-    void          loadSettings();
     QWidget              *m_pCentralWidget;
     QVBoxLayout          *m_pMainLayout;
     QITreeWidget         *m_pTreeWidget;
@@ -150,7 +131,7 @@ private:
     QPushButton          *m_pChooseButton;
     QPushButton          *m_pLeaveEmptyButton;
     QMenu                *m_pMainMenu;
-    QIToolBar            *m_pToolBar;
+    UIToolBar            *m_pToolBar;
     QAction              *m_pActionAdd;
     QAction              *m_pActionCreate;
     QAction              *m_pActionRefresh;
@@ -171,9 +152,6 @@ private:
     QString               m_strMachineName;
     QString               m_strMachineGuestOSTypeId;
     QUuid                 m_uMachineID;
-    QUuid                 m_uCurrentMediumId;
-    UIActionPool         *m_pActionPool;
-    int                   m_iGeometrySaveTimerId;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_medium_UIMediumSelector_h */

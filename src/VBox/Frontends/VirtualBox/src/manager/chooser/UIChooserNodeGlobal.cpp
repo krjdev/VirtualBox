@@ -1,10 +1,10 @@
-/* $Id: UIChooserNodeGlobal.cpp 93867 2022-02-21 12:14:42Z vboxsync $ */
+/* $Id: UIChooserNodeGlobal.cpp $ */
 /** @file
  * VBox Qt GUI - UIChooserNodeGlobal class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 /* GUI includes: */
-#include "UIChooserAbstractModel.h"
 #include "UIChooserNodeGlobal.h"
 
 /* Other VBox includes: */
@@ -24,38 +23,29 @@
 
 
 UIChooserNodeGlobal::UIChooserNodeGlobal(UIChooserNode *pParent,
-                                         int iPosition,
                                          bool fFavorite,
+                                         int iPosition,
                                          const QString &)
     : UIChooserNode(pParent, fFavorite)
 {
-    /* Add to parent: */
     if (parentNode())
         parentNode()->addNode(this, iPosition);
-
-    /* Apply language settings: */
     retranslateUi();
 }
 
 UIChooserNodeGlobal::UIChooserNodeGlobal(UIChooserNode *pParent,
-                                         int iPosition,
-                                         UIChooserNodeGlobal *pCopyFrom)
+                                         UIChooserNodeGlobal *pCopyFrom,
+                                         int iPosition)
     : UIChooserNode(pParent, pCopyFrom->isFavorite())
 {
-    /* Add to parent: */
     if (parentNode())
         parentNode()->addNode(this, iPosition);
-
-    /* Apply language settings: */
     retranslateUi();
 }
 
 UIChooserNodeGlobal::~UIChooserNodeGlobal()
 {
-    /* Delete item: */
     delete item();
-
-    /* Remove from parent: */
     if (parentNode())
         parentNode()->removeNode(this);
 }
@@ -72,26 +62,21 @@ QString UIChooserNodeGlobal::fullName() const
 
 QString UIChooserNodeGlobal::description() const
 {
-    return m_strDescription;
+    return name();
 }
 
-QString UIChooserNodeGlobal::definition(bool fFull /* = false */) const
+QString UIChooserNodeGlobal::definition() const
 {
-    const QString strNodePrefix = UIChooserAbstractModel::prefixToString(UIChooserNodeDataPrefixType_Global);
-    const QString strNodeOptionFavorite = UIChooserAbstractModel::optionToString(UIChooserNodeDataOptionType_GlobalFavorite);
-    const QString strNodeValueDefault = UIChooserAbstractModel::valueToString(UIChooserNodeDataValueType_GlobalDefault);
-    return   fFull
-           ? QString("%1%2=%3").arg(strNodePrefix).arg(isFavorite() ? strNodeOptionFavorite : "").arg(strNodeValueDefault)
-           : QString("%1=%2").arg(strNodePrefix).arg(strNodeValueDefault);
+    return QString("n=%1").arg("GLOBAL");
 }
 
-bool UIChooserNodeGlobal::hasNodes(UIChooserNodeType enmType /* = UIChooserNodeType_Any */) const
+bool UIChooserNodeGlobal::hasNodes(UIChooserItemType enmType /* = UIChooserItemType_Any */) const
 {
     Q_UNUSED(enmType);
     AssertFailedReturn(false);
 }
 
-QList<UIChooserNode*> UIChooserNodeGlobal::nodes(UIChooserNodeType enmType /* = UIChooserNodeType_Any */) const
+QList<UIChooserNode*> UIChooserNodeGlobal::nodes(UIChooserItemType enmType /* = UIChooserItemType_Any */) const
 {
     Q_UNUSED(enmType);
     AssertFailedReturn(QList<UIChooserNode*>());
@@ -123,35 +108,37 @@ void UIChooserNodeGlobal::updateAllNodes(const QUuid &)
     item()->updateItem();
 }
 
+bool UIChooserNodeGlobal::hasAtLeastOneCloudNode() const
+{
+    return false;
+}
+
 int UIChooserNodeGlobal::positionOf(UIChooserNode *pNode)
 {
     Q_UNUSED(pNode);
     AssertFailedReturn(0);
 }
 
-void UIChooserNodeGlobal::searchForNodes(const QString &strSearchTerm, int iSearchFlags, QList<UIChooserNode*> &matchedItems)
+void UIChooserNodeGlobal::searchForNodes(const QString &strSearchTerm, int iItemSearchFlags, QList<UIChooserNode*> &matchedItems)
 {
-    /* Ignore if we are not searching for the global-node: */
-    if (!(iSearchFlags & UIChooserItemSearchFlag_Global))
+    if (!(iItemSearchFlags & UIChooserItemSearchFlag_Global))
         return;
 
-    /* If the search term is empty we just add the node to the matched list: */
     if (strSearchTerm.isEmpty())
+    {
         matchedItems << this;
+        return;
+    }
+
+    if (iItemSearchFlags & UIChooserItemSearchFlag_ExactName)
+    {
+        if (name() == strSearchTerm)
+            matchedItems << this;
+    }
     else
     {
-        /* If exact name flag specified => check full node name: */
-        if (iSearchFlags & UIChooserItemSearchFlag_ExactName)
-        {
-            if (name() == strSearchTerm)
-                matchedItems << this;
-        }
-        /* Otherwise check if name contains search term: */
-        else
-        {
-            if (name().contains(strSearchTerm, Qt::CaseInsensitive))
-                matchedItems << this;
-        }
+        if (name().contains(strSearchTerm, Qt::CaseInsensitive))
+            matchedItems << this;
     }
 }
 
@@ -162,9 +149,8 @@ void UIChooserNodeGlobal::sortNodes()
 
 void UIChooserNodeGlobal::retranslateUi()
 {
-    /* Translate name & description: */
+    /* Translate name: */
     m_strName = tr("Tools");
-    m_strDescription = tr("Item");
 
     /* Update global-item: */
     if (item())

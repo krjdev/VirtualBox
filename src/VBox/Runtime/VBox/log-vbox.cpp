@@ -1,10 +1,10 @@
-/* $Id: log-vbox.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: log-vbox.cpp $ */
 /** @file
  * VirtualBox Runtime - Logging configuration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -667,8 +667,9 @@ RTDECL(PRTLOGGER) RTLogDefaultInit(void)
 # if defined(DEBUG_bird)
         /*RTLogGroupSettings(pLogger, "all=~0 -default.l6.l5.l4.l3");*/
         RTLogFlags(pLogger, "enabled unbuffered pid tid");
-        RTLogDestinations(pLogger, "debugger stdout");
-#  ifdef IN_GUEST
+#  ifndef IN_GUEST
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
+#  else
         /*RTLogGroupSettings(pLogger, "all=~0 -default.l6.l5.l4.l3");*/
         RTLogGroupSettings(pLogger, "all=~0");
 #  endif
@@ -676,36 +677,36 @@ RTDECL(PRTLOGGER) RTLogDefaultInit(void)
 # if defined(DEBUG_sandervl) && !defined(IN_GUEST)
         RTLogGroupSettings(pLogger, "+all");
         RTLogFlags(pLogger, "enabled unbuffered");
-        RTLogDestinations(pLogger, "debugger");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER;
 # endif
 # if defined(DEBUG_ramshankar)  /* Guest ring-0 as well */
         RTLogGroupSettings(pLogger, "+all.e.l.f");
         RTLogFlags(pLogger, "enabled unbuffered");
-        RTLogDestinations(pLogger, "debugger");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER;
 # endif
 # if defined(DEBUG_aleksey)  /* Guest ring-0 as well */
         RTLogGroupSettings(pLogger, "net_flt_drv.e.l.f.l3.l4.l5.l6 +net_adp_drv.e.l.f.l3.l4.l5.l6");
         RTLogFlags(pLogger, "enabled unbuffered");
-        RTLogDestinations(pLogger, "debugger stdout");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
 # endif
 # if defined(DEBUG_andy)  /* Guest ring-0 as well */
         RTLogGroupSettings(pLogger, "+all.e.l.f");
         RTLogFlags(pLogger, "enabled unbuffered pid tid");
-        RTLogDestinations(pLogger, "debugger stdout");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
 # endif
 # if defined(DEBUG_misha) /* Guest ring-0 as well */
         RTLogFlags(pLogger, "enabled unbuffered");
-        RTLogDestinations(pLogger, "debugger");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER;
 # endif
 # if defined(DEBUG_michael) && defined(IN_GUEST)
         RTLogGroupSettings(pLogger, "+vga.e.l.f");
         RTLogFlags(pLogger, "enabled unbuffered");
-        RTLogDestinations(pLogger, "debugger stdout");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
 # endif
 # if 0 /* vboxdrv logging - ATTENTION: this is what we're referring to guys! Change to '# if 1'. */
         RTLogGroupSettings(pLogger, "all=~0 -default.l6.l5.l4.l3");
         RTLogFlags(pLogger, "enabled unbuffered tid");
-        RTLogDestinations(pLogger, "debugger stdout");
+        pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
 # endif
     }
 #endif /* IN_RING0 */

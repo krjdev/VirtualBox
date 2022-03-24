@@ -1,10 +1,10 @@
-/* $Id: initterm-r0drv-nt.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: initterm-r0drv-nt.cpp $ */
 /** @file
  * IPRT - Initialization & Termination, R0 Driver, NT.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,14 +48,6 @@ decltype(ExAllocatePoolWithTag)        *g_pfnrtExAllocatePoolWithTag;
 decltype(ExFreePoolWithTag)            *g_pfnrtExFreePoolWithTag;
 /** ExSetTimerResolution, introduced in W2K. */
 PFNMYEXSETTIMERRESOLUTION               g_pfnrtNtExSetTimerResolution;
-/** ExAllocateTimer, introduced in Windows 8.1 */
-PFNEXALLOCATETIMER                      g_pfnrtExAllocateTimer;
-/** ExDeleteTimer, introduced in Windows 8.1 */
-PFNEXDELETETIMER                        g_pfnrtExDeleteTimer;
-/** ExSetTimer, introduced in Windows 8.1 */
-PFNEXSETTIMER                           g_pfnrtExSetTimer;
-/** ExCancelTimer, introduced in Windows 8.1 */
-PFNEXCANCELTIMER                        g_pfnrtExCancelTimer;
 /** KeFlushQueuedDpcs, introduced in XP. */
 PFNMYKEFLUSHQUEUEDDPCS                  g_pfnrtNtKeFlushQueuedDpcs;
 /** HalRequestIpi, version introduced with windows 7. */
@@ -121,8 +113,6 @@ decltype(MmAllocateContiguousMemorySpecifyCache) *g_pfnrtMmAllocateContiguousMem
 decltype(MmSecureVirtualMemory)        *g_pfnrtMmSecureVirtualMemory;
 /** MmUnsecureVirtualMemory - Introduced in NT 3.51.   */
 decltype(MmUnsecureVirtualMemory)      *g_pfnrtMmUnsecureVirtualMemory;
-/** PsIsThreadTerminating - Introduced in NT 3.50. */
-decltype(PsIsThreadTerminating)        *g_pfnrtPsIsThreadTerminating;
 /** RtlGetVersion, introduced in ??. */
 PFNRTRTLGETVERSION                      g_pfnrtRtlGetVersion;
 #ifdef RT_ARCH_X86
@@ -310,10 +300,6 @@ DECLHIDDEN(int) rtR0InitNative(void)
     GET_SYSTEM_ROUTINE(ExAllocatePoolWithTag);
     GET_SYSTEM_ROUTINE(ExFreePoolWithTag);
     GET_SYSTEM_ROUTINE_PRF(Nt,ExSetTimerResolution);
-    GET_SYSTEM_ROUTINE_TYPE(ExAllocateTimer, PFNEXALLOCATETIMER);
-    GET_SYSTEM_ROUTINE_TYPE(ExDeleteTimer, PFNEXDELETETIMER);
-    GET_SYSTEM_ROUTINE_TYPE(ExSetTimer, PFNEXSETTIMER);
-    GET_SYSTEM_ROUTINE_TYPE(ExCancelTimer, PFNEXCANCELTIMER);
     GET_SYSTEM_ROUTINE_PRF(Nt,KeFlushQueuedDpcs);
     GET_SYSTEM_ROUTINE(KeIpiGenericCall);
     GET_SYSTEM_ROUTINE(KeSetTargetProcessorDpcEx);
@@ -377,7 +363,7 @@ DECLHIDDEN(int) rtR0InitNative(void)
 
 
     /*
-     * HACK ALERT! (and d√©j√† vu warning - remember win32k.sys on OS/2?)
+     * HACK ALERT! (and dÈj‡ vu warning - remember win32k.sys on OS/2?)
      *
      * Try find _KPRCB::QuantumEnd and _KPRCB::[DpcData.]DpcQueueDepth.
      * For purpose of verification we use the VendorString member (12+1 chars).

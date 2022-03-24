@@ -1,10 +1,10 @@
-; $Id: __U4M.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: __U4M.asm $
 ;; @file
 ; Compiler support routines.
 ;
 
 ;
-; Copyright (C) 2012-2022 Oracle Corporation
+; Copyright (C) 2012-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -21,11 +21,7 @@
 ;*******************************************************************************
 public          __U4M
 
-; MASM (ML.EXE) is used for PXE and no longer understands the .8086 directive.
-; WASM is used for the BIOS and understands it just fine.
-ifdef __WASM__
                 .8086
-endif
 
 _TEXT           segment public 'CODE' use16
                 assume cs:_TEXT
@@ -63,9 +59,7 @@ if VBOX_BIOS_CPU ge 80386
                 add     sp, 2
                 pop     ax
                 rol     eax, 16
-ifdef __WASM__
                 .8086
-endif
 
 else
                 push    si              ; high result

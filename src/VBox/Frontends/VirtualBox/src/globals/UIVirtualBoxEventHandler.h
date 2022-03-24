@@ -1,10 +1,10 @@
-/* $Id: UIVirtualBoxEventHandler.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIVirtualBoxEventHandler.h $ */
 /** @file
  * VBox Qt GUI - UIVirtualBoxEventHandler class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,12 +35,16 @@
 /* Forward declarations: */
 class UIVirtualBoxEventHandlerProxy;
 
-/** Singleton QObject extension providing GUI with CVirtualBox event-source. */
+/** Singleton QObject extension
+  * providing GUI with the CVirtualBoxClient and CVirtualBox event-sources. */
 class SHARED_LIBRARY_STUFF UIVirtualBoxEventHandler : public QObject
 {
     Q_OBJECT;
 
 signals:
+
+    /** Notifies about the VBoxSVC become @a fAvailable. */
+    void sigVBoxSVCAvailabilityChange(bool fAvailable);
 
     /** Notifies about @a state change event for the machine with @a uId. */
     void sigMachineStateChange(const QUuid &uId, const KMachineState state);
@@ -58,14 +62,6 @@ signals:
     void sigSnapshotChange(const QUuid &uId, const QUuid &uSnapshotId);
     /** Notifies about snapshot with @a uSnapshotId was restored for the machine with @a uId. */
     void sigSnapshotRestore(const QUuid &uId, const QUuid &uSnapshotId);
-    /** Notifies about request to uninstall cloud provider with @a uId. */
-    void sigCloudProviderUninstall(const QUuid &uId);
-    /** Notifies about cloud provider list changed. */
-    void sigCloudProviderListChanged();
-    /** Notifies about cloud profile with specified @a strName of provider with specified @a uProviderId is @a fRegistered. */
-    void sigCloudProfileRegistered(const QUuid &uProviderId, const QString &strName, bool fRegistered);
-    /** Notifies about cloud profile with specified @a strName of provider with specified @a uProviderId is changed. */
-    void sigCloudProfileChanged(const QUuid &uProviderId, const QString &strName);
 
     /** Notifies about storage controller change.
       * @param  uMachineId         Brings the ID of machine corresponding controller belongs to.
@@ -116,3 +112,4 @@ private:
 #define gVBoxEvents UIVirtualBoxEventHandler::instance()
 
 #endif /* !FEQT_INCLUDED_SRC_globals_UIVirtualBoxEventHandler_h */
+

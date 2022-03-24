@@ -1,10 +1,10 @@
-/* $Id: UISnapshotDetailsWidget.cpp 93996 2022-02-28 22:04:49Z vboxsync $ */
+/* $Id: UISnapshotDetailsWidget.cpp $ */
 /** @file
  * VBox Qt GUI - UISnapshotDetailsWidget class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,7 +24,6 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QScrollArea>
 #include <QTabWidget>
 #include <QTextBrowser>
@@ -34,14 +33,12 @@
 /* GUI includes: */
 #include "QIDialogButtonBox.h"
 #include "QIFlowLayout.h"
-#include "UICommon.h"
 #include "UIConverter.h"
-#include "UICursor.h"
 #include "UIDesktopWidgetWatchdog.h"
 #include "UIIconPool.h"
 #include "UISnapshotDetailsWidget.h"
 #include "UIMessageCenter.h"
-#include "UITranslator.h"
+#include "UICommon.h"
 #include "VBoxUtils.h"
 
 /* COM includes: */
@@ -94,10 +91,10 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 
@@ -139,20 +136,20 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
     /** Handles polish @a pEvent. */
     virtual void polishEvent(QShowEvent *pEvent);
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
     /** Handles mouse press @a pEvent. */
-    virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QMouseEvent *pEvent) /* override */;
     /** Handles key press @a pEvent. */
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
 
 private:
 
@@ -254,7 +251,7 @@ void UISnapshotDetailsElement::paintEvent(QPaintEvent * /* pEvent */)
     QPainter painter(this);
 
     /* Prepare palette colors: */
-    const QPalette pal = QApplication::palette();
+    const QPalette pal = palette();
     QColor color0 = pal.color(QPalette::Window);
     QColor color1 = pal.color(QPalette::Window).lighter(110);
     color1.setAlpha(0);
@@ -464,7 +461,7 @@ void UIScreenshotViewer::prepare()
     /* Screenshot viewer is an application-modal window: */
     setWindowModality(Qt::ApplicationModal);
     /* With the pointing-hand cursor: */
-    UICursor::setCursor(this, Qt::PointingHandCursor);
+    UICommon::setCursor(this, Qt::PointingHandCursor);
     /* And it's being deleted when closed: */
     setAttribute(Qt::WA_DeleteOnClose);
 
@@ -502,7 +499,7 @@ void UIScreenshotViewer::prepare()
     adjustWindowSize();
 
     /* Center according requested widget: */
-    UIDesktopWidgetWatchdog::centerWidget(this, parentWidget(), false);
+    UICommon::centerWidget(this, parentWidget(), false);
 }
 
 void UIScreenshotViewer::adjustWindowSize()
@@ -1720,8 +1717,13 @@ QString UISnapshotDetailsWidget::displayAccelerationReport(CGraphicsAdapter comG
 {
     /* Prepare report: */
     QStringList aReport;
+#ifdef VBOX_WITH_VIDEOHWACCEL
+    /* 2D Video Acceleration? */
+    if (comGraphics.GetAccelerate2DVideoEnabled())
+        aReport << QApplication::translate("UIDetails", "2D Video", "details (display)");
+#endif
     /* 3D Acceleration? */
-    if (comGraphics.GetAccelerate3DEnabled())
+    if (comGraphics.GetAccelerate3DEnabled() && uiCommon().is3DAvailable())
         aReport << QApplication::translate("UIDetails", "3D", "details (display)");
     /* Compose and return report: */
     return aReport.isEmpty() ? QString() : aReport.join(", ");
@@ -1795,7 +1797,7 @@ QPair<QStringList, QList<QMap<QString, QString> > > UISnapshotDetailsWidget::sto
 
             /* Prepare current medium information: */
             const QString strMediumInfo = comAttachment.isOk()
-                                        ? wipeHtmlStuff(uiCommon().storageDetails(comAttachment.GetMedium(), false))
+                                        ? wipeHtmlStuff(uiCommon().details(comAttachment.GetMedium(), false))
                                         : QString();
 
             /* Cache current slot/medium information: */
@@ -1854,7 +1856,7 @@ QStringList UISnapshotDetailsWidget::networkReport(CMachine comMachine)
         if (comAdapter.GetEnabled())
         {
             /* Use adapter type string as template: */
-            QString strInfo = gpConverter->toString(comAdapter.GetAdapterType()).replace(QRegularExpression("\\s\\(.+\\)"), " (%1)");
+            QString strInfo = gpConverter->toString(comAdapter.GetAdapterType()).replace(QRegExp("\\s\\(.+\\)"), " (%1)");
             /* Don't use the adapter type string for types that have an additional
              * symbolic network/interface name field, use this name instead: */
             const KNetworkAttachmentType enmType = comAdapter.GetAttachmentType();
@@ -1915,7 +1917,7 @@ QStringList UISnapshotDetailsWidget::serialReport(CMachine comMachine)
             const KPortMode enmMode = comPort.GetHostMode();
             /* Compose the data: */
             QStringList aInfo;
-            aInfo << UITranslator::toCOMPortName(comPort.GetIRQ(), comPort.GetIOBase());
+            aInfo << uiCommon().toCOMPortName(comPort.GetIRQ(), comPort.GetIOBase());
             if (   enmMode == KPortMode_HostPipe
                 || enmMode == KPortMode_HostDevice
                 || enmMode == KPortMode_TCP
@@ -1970,7 +1972,7 @@ QStringList UISnapshotDetailsWidget::usbReport(CMachine comMachine)
 /* static */
 QString UISnapshotDetailsWidget::wipeHtmlStuff(const QString &strString)
 {
-    return QString(strString).remove(QRegularExpression("<i>|</i>|<b>|</b>"));
+    return QString(strString).remove(QRegExp("<i>|</i>|<b>|</b>"));
 }
 
 /* static */

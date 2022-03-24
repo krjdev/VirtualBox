@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 118412 2017-10-17 14:26:02Z bird $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the libcurl library.
 #
@@ -38,8 +38,8 @@ VBox-libcurl_CLEAN          = $(VBox-libcurl_DEPS)
 VBox-libcurl_CFLAGS.win    += -wd4826 # formdata.c(390) : warning C4826: Conversion from 'char *' to 'curl_off_t' is sign-extended. This may cause unexpected runtime behavior.
 VBox-libcurl_CFLAGS.win    += -wd4310 # warnless.c(189) : warning C4310: cast truncates constant value
 VBox-libcurl_CFLAGS.win    += -wd4090 # openssl/lhash.h(198) : warning C4090: 'function' : different 'const' qualifiers
-if "$(VBOX_VCC_TOOL_STEM)" >= "VCC140"
- VBox-libcurl_CFLAGS.win   += -wd4774 # mprintf.c(949): warning C4774: 'sprintf' : format string expected in argument 2 is not a string literal
+if1of ($(VBOX_VCC_TOOL_STEM), VCC120)
+ VBox-libcurl_CFLAGS.win   += -wd4005 # sdk\v7.1\include\sal_supp.h(57) : warning C4005: '__useHeader' : macro redefinition
 endif
 VBox-libcurl_INCS           = include $(VBox-libcurl_0_OUTDIR)/lib $(VBOX_PATH_LIBCURL)/lib
 VBox-libcurl_SOURCES        = \

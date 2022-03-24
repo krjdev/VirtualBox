@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -398,20 +398,6 @@ typedef struct PDMIMOUSECONNECTOR
 #define PDMIMOUSECONNECTOR_IID                  "ce64d7bd-fa8f-41d1-a6fb-d102a2d6bffe"
 
 
-/** Flags for PDMIKEYBOARDPORT::pfnPutEventHid.
- * @{ */
-#define PDMIKBDPORT_KEY_UP          RT_BIT(31)  /** Key release event if set. */
-#define PDMIKBDPORT_RELEASE_KEYS    RT_BIT(30)  /** Force all keys to be released. */
-/** @} */
-
-/** USB HID usage pages understood by PDMIKEYBOARDPORT::pfnPutEventHid.
- * @{ */
-#define USB_HID_DC_PAGE             1       /** USB HID Generic Desktop Control Usage Page. */
-#define USB_HID_KB_PAGE             7       /** USB HID Keyboard Usage Page. */
-#define USB_HID_CC_PAGE             12      /** USB HID Consumer Control Usage Page. */
-/** @} */
-
-
 /** Pointer to a keyboard port interface. */
 typedef struct PDMIKEYBOARDPORT *PPDMIKEYBOARDPORT;
 /**
@@ -447,19 +433,6 @@ typedef struct PDMIKEYBOARDPORT
      * @param   idUsage             The HID usage code event to queue.
      */
     DECLR3CALLBACKMEMBER(int, pfnPutEventHid,(PPDMIKEYBOARDPORT pInterface, uint32_t idUsage));
-
-    /**
-     * Forcibly releases any pressed keys.
-     *
-     * This is called by the source of keyboard events in situations when a full
-     * release of all currently pressed keys must be forced, e.g. when activating
-     * a different keyboard, or when key-up events may have been lost.
-     *
-     * @returns VBox status code.
-     *
-     * @param   pInterface          Pointer to this interface structure.
-     */
-    DECLR3CALLBACKMEMBER(int, pfnReleaseKeys,(PPDMIKEYBOARDPORT pInterface));
 } PDMIKEYBOARDPORT;
 /** PDMIKEYBOARDPORT interface ID. */
 #define PDMIKEYBOARDPORT_IID                    "2a0844f0-410b-40ab-a6ed-6575f3aa3e29"
@@ -547,7 +520,7 @@ typedef struct PDMIDISPLAYPORT
      * @returns VBox status code.
      * @param   pInterface          Pointer to this interface.
      * @param   fFailOnResize       Fail is a resize is pending.
-     * @thread  The emulation thread - bird sees no need for EMT here!
+     * @thread  The emulation thread.
      */
     DECLR3CALLBACKMEMBER(int, pfnUpdateDisplayAll,(PPDMIDISPLAYPORT pInterface, bool fFailOnResize));
 
@@ -672,7 +645,7 @@ typedef struct PDMIDISPLAYPORT
      * @param   cyDst               The height of the destination frame buffer.
      * @param   cbDstLine           The line length of the destination frame buffer.
      * @param   cDstBitsPerPixel    The pixel depth of the destination.
-     * @thread  The emulation thread - bird sees no need for EMT here!
+     * @thread  The emulation thread.
      */
     DECLR3CALLBACKMEMBER(int, pfnCopyRect,(PPDMIDISPLAYPORT pInterface, uint32_t cx, uint32_t cy,
         const uint8_t *pbSrc, int32_t xSrc, int32_t ySrc, uint32_t cxSrc, uint32_t cySrc, uint32_t cbSrcLine, uint32_t cSrcBitsPerPixel,
@@ -738,19 +711,15 @@ typedef struct PDMIDISPLAYPORT
     DECLR3CALLBACKMEMBER(void, pfnReportHostCursorPosition, (PPDMIDISPLAYPORT pInterface, uint32_t x, uint32_t y, bool fOutOfRange));
 
     /**
-     * Notify the graphics device about the monitor positions since the ones we get
-     * from vmwgfx FIFO are not correct.
+     * Notify the graphics device about the monitor positions since the ones we get from vmwgfx FIFO are not correct. In an ideal
+     * universe this method should not be here.
      *
-     * In an ideal universe this method should not be here.
-     *
-     * @param   pInterface      Pointer to this interface.
-     * @param   cPositions      Number of monitor positions.
-     * @param   paPositions     Monitor positions (offsets/origins) array.
-     * @thread  Any (EMT).
-     * @sa      PDMIVMMDEVCONNECTOR::pfnUpdateMonitorPositions
+     * @param   pInterface   Pointer to this interface.
+     * @param   cPositions   Number of monitor positions
+     * @param   pPosition    Monitor positions (offsets/origins) array
+     * @thread  Any.
      */
-    DECLR3CALLBACKMEMBER(void, pfnReportMonitorPositions, (PPDMIDISPLAYPORT pInterface, uint32_t cPositions,
-                                                           PCRTPOINT paPositions));
+    DECLR3CALLBACKMEMBER(void, pfnReportMonitorPositions, (PPDMIDISPLAYPORT pInterface, uint32_t cPositions, PRTPOINT pPosition));
 
 } PDMIDISPLAYPORT;
 /** PDMIDISPLAYPORT interface ID. */
@@ -834,7 +803,7 @@ typedef struct PDMIDISPLAYCONNECTOR
      * the changed rectangles.
      *
      * @param   pInterface          Pointer to this interface.
-     * @thread  The emulation thread or timer queue thread.
+     * @thread  The emulation thread.
      */
     DECLR3CALLBACKMEMBER(void, pfnRefresh,(PPDMIDISPLAYCONNECTOR pInterface));
 
@@ -1171,7 +1140,7 @@ typedef struct PDMISTREAM
      * @retval  VERR_TIMEOUT     if the maximum waiting time was reached.
      * @param   pInterface      Pointer to the interface structure containing the called function pointer.
      * @param   fEvts           The events to poll for, see RTPOLL_EVT_XXX.
-     * @param   pfEvts          Where to return details about the events that occurred.
+     * @param   *pfEvts         Where to return details about the events that occurred.
      * @param   cMillies        Number of milliseconds to wait.  Use
      *                          RT_INDEFINITE_WAIT to wait for ever.
      */
@@ -1868,21 +1837,18 @@ typedef struct PDMIVMMDEVCONNECTOR
     DECLR3CALLBACKMEMBER(int, pfnSetVisibleRegion,(PPDMIVMMDEVCONNECTOR pInterface, uint32_t cRect, PRTRECT pRect));
 
     /**
-     * Update monitor positions (offsets).
-     *
-     * Passing monitor positions from the guest to host exclusively since vmwgfx
-     * (linux driver) fails to do so thru the FIFO.
+     * Update monitor positions (offsets). Passing monitor positions from the guest to host
+     * exclusively since vmwgfx fails to do so (thru FIFO).
      *
      * @returns VBox status code.
      * @param   pInterface          Pointer to this interface.
      * @param   cPositions          Number of monitor positions
-     * @param   paPositions         Positions array
-     * @remarks Is allowed to be NULL.
+     * @param   pPosition           Positions array
      * @thread  The emulation thread.
-     * @sa      PDMIDISPLAYPORT::pfnReportMonitorPositions
+     *
+     * @remarks Is allowed to be NULL.
      */
-    DECLR3CALLBACKMEMBER(int, pfnUpdateMonitorPositions,(PPDMIVMMDEVCONNECTOR pInterface,
-                                                         uint32_t cPositions, PCRTPOINT paPositions));
+    DECLR3CALLBACKMEMBER(int, pfnUpdateMonitorPositions,(PPDMIVMMDEVCONNECTOR pInterface, uint32_t cPositions, PRTPOINT pPosition));
 
     /**
      * Query the visible region of the display
@@ -2252,72 +2218,6 @@ typedef struct PDMIPCIRAWCONNECTOR
 } PDMIPCIRAWCONNECTOR;
 /** PDMIPCIRAWCONNECTOR interface ID. */
 #define PDMIPCIRAWCONNECTOR_IID                 "14aa9c6c-8869-4782-9dfc-910071a6aebf"
-
-
-/** Pointer to a VFS connector interface. */
-typedef struct PDMIVFSCONNECTOR *PPDMIVFSCONNECTOR;
-/**
- * VFS connector interface (up).
- */
-typedef struct PDMIVFSCONNECTOR
-{
-    /**
-     * Queries the size of the given path.
-     *
-     * @returns VBox status code.
-     * @retval  VERR_NOT_FOUND if the path is not available.
-     * @param   pInterface          Pointer to this interface.
-     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
-     * @param   pszPath             The path to query the size for.
-     * @param   pcb                 Where to store the size of the path in bytes on success.
-     */
-    DECLR3CALLBACKMEMBER(int, pfnQuerySize, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
-                                             uint64_t *pcb));
-
-    /**
-     * Reads everything from the given path and stores the data into the supplied buffer.
-     *
-     * @returns VBox status code.
-     * @retval  VERR_NOT_FOUND if the path is not available.
-     * @retval  VERR_BUFFER_OVERFLOW if the supplied buffer is too small to read everything.
-     * @retval  VINF_BUFFER_UNDERFLOW if the supplied buffer is too large.
-     * @param   pInterface          Pointer to this interface.
-     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
-     * @param   pszPath             The path to read everything for.
-     * @param   pvBuf               Where to store the data.
-     * @param   cbRead              How much to read.
-     */
-    DECLR3CALLBACKMEMBER(int, pfnReadAll, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
-                                           void *pvBuf, size_t cbRead));
-
-    /**
-     * Writes the supplied data to the given path, overwriting any previously existing data.
-     *
-     * @returns VBox status code.
-     * @param   pInterface          Pointer to this interface.
-     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
-     * @param   pszPath             The path to write everything to.
-     * @param   pvBuf               The data to store.
-     * @param   cbWrite             How many bytes to write.
-     */
-    DECLR3CALLBACKMEMBER(int, pfnWriteAll, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
-                                            const void *pvBuf, size_t cbWrite));
-
-    /**
-     * Deletes the given path.
-     *
-     * @returns VBox status code.
-     * @retval  VERR_NOT_FOUND if the path is not available.
-     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
-     * @param   pszPath             The path to delete.
-     */
-    DECLR3CALLBACKMEMBER(int, pfnDelete, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath));
-
-    /** @todo Add standard open/read/write/close callbacks when the need arises. */
-
-} PDMIVFSCONNECTOR;
-/** PDMIVFSCONNECTOR interface ID. */
-#define PDMIVFSCONNECTOR_IID               "a1fc51e0-414a-4e78-8388-8053b9dc6521"
 
 /** @} */
 

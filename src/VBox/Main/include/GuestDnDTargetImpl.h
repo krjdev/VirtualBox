@@ -1,10 +1,10 @@
-/* $Id: GuestDnDTargetImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDnDTargetImpl.h $ */
 /** @file
  * VBox Console COM Class implementation - Guest drag'n drop target.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ class ATL_NO_VTABLE GuestDnDTarget :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(GuestDnDTarget)
+    DECLARE_EMPTY_CTOR_DTOR(GuestDnDTarget)
 
     HRESULT init(const ComObjPtr<Guest>& pGuest);
     void    uninit(void);
@@ -54,6 +54,8 @@ private:
     HRESULT getFormats(GuestDnDMIMEList &aFormats);
     HRESULT addFormats(const GuestDnDMIMEList &aFormats);
     HRESULT removeFormats(const GuestDnDMIMEList &aFormats);
+
+    HRESULT getProtocolVersion(ULONG *aProtocolVersion);
     /** @}  */
 
     /** Private wrapped @name IDnDTarget methods.

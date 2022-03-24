@@ -1,7 +1,7 @@
 /** @file
   PPTT table parser
 
-  Copyright (c) 2019 - 2020, ARM Limited. All rights reserved.
+  Copyright (c) 2019, ARM Limited. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Reference(s):
@@ -13,7 +13,6 @@
 #include <Library/UefiLib.h>
 #include "AcpiParser.h"
 #include "AcpiView.h"
-#include "AcpiViewConfig.h"
 #include "PpttParser.h"
 
 // Local variables
@@ -265,17 +264,6 @@ DumpProcessorHierarchyNodeStructure (
              PARSER_PARAMS (ProcessorHierarchyNodeStructureParser)
              );
 
-  // Check if the values used to control the parsing logic have been
-  // successfully read.
-  if (NumberOfPrivateResources == NULL) {
-    IncrementErrorCount ();
-    Print (
-      L"ERROR: Insufficient Processor Hierarchy Node length. Length = %d.\n",
-      Length
-      );
-    return;
-  }
-
   // Make sure the Private Resource array lies inside this structure
   if (Offset + (*NumberOfPrivateResources * sizeof (UINT32)) > Length) {
     IncrementErrorCount ();
@@ -399,7 +387,6 @@ ParseAcpiPptt (
              AcpiTableLength,
              PARSER_PARAMS (PpttParser)
              );
-
   ProcessorTopologyStructurePtr = Ptr + Offset;
 
   while (Offset < AcpiTableLength) {
@@ -413,29 +400,15 @@ ParseAcpiPptt (
       PARSER_PARAMS (ProcessorTopologyStructureHeaderParser)
       );
 
-    // Check if the values used to control the parsing logic have been
-    // successfully read.
-    if ((ProcessorTopologyStructureType == NULL) ||
-        (ProcessorTopologyStructureLength == NULL)) {
+    // Make sure the PPTT structure lies inside the table
+    if ((Offset + *ProcessorTopologyStructureLength) > AcpiTableLength) {
       IncrementErrorCount ();
       Print (
-        L"ERROR: Insufficient remaining table buffer length to read the " \
-          L"processor topology structure header. Length = %d.\n",
-        AcpiTableLength - Offset
-        );
-      return;
-    }
-
-    // Validate Processor Topology Structure length
-    if ((*ProcessorTopologyStructureLength == 0) ||
-        ((Offset + (*ProcessorTopologyStructureLength)) > AcpiTableLength)) {
-      IncrementErrorCount ();
-      Print (
-        L"ERROR: Invalid Processor Topology Structure length. " \
-          L"Length = %d. Offset = %d. AcpiTableLength = %d.\n",
+        L"ERROR: Invalid PPTT structure length. " \
+          L"ProcessorTopologyStructureLength = %d. " \
+          L"RemainingTableBufferLength = %d. PPTT parsing aborted.\n",
         *ProcessorTopologyStructureLength,
-        Offset,
-        AcpiTableLength
+        AcpiTableLength - Offset
         );
       return;
     }

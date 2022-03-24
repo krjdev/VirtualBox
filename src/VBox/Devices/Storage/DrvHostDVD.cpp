@@ -1,10 +1,10 @@
-/* $Id: DrvHostDVD.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvHostDVD.cpp $ */
 /** @file
  * DrvHostDVD - Host DVD block driver.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -407,7 +407,7 @@ static DECLCALLBACK(int) drvHostDvdIoReqSendScsiCmd(PPDMIMEDIAEX pInterface, PDM
      * it is CHECK CONDITION.
      */
     if (   *pu8ScsiSts == SCSI_STATUS_CHECK_CONDITION
-        && RT_VALID_PTR(pabSense)
+        && VALID_PTR(pabSense)
         && cbSense > 0)
     {
         size_t cbSenseCpy = RT_MIN(cbSense, sizeof(pThis->abATAPISense));
@@ -467,18 +467,16 @@ static DECLCALLBACK(void) drvHostDvdDestruct(PPDMDRVINS pDrvIns)
 static DECLCALLBACK(int) drvHostDvdConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg, uint32_t fFlags)
 {
     RT_NOREF(fFlags);
-    PDRVHOSTDVD     pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTDVD);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
-
+    PDRVHOSTDVD pThis = PDMINS_2_DATA(pDrvIns, PDRVHOSTDVD);
     LogFlow(("drvHostDvdConstruct: iInstance=%d\n", pDrvIns->iInstance));
 
-    int rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "InquiryOverwrite", &pThis->fInquiryOverwrite, true);
+    int rc = CFGMR3QueryBoolDef(pCfg, "InquiryOverwrite", &pThis->fInquiryOverwrite, true);
     if (RT_FAILURE(rc))
         return PDMDRV_SET_ERROR(pDrvIns, rc,
                                 N_("HostDVD configuration error: failed to read \"InquiryOverwrite\" as boolean"));
 
     bool fPassthrough;
-    rc = pHlp->pfnCFGMQueryBool(pCfg, "Passthrough", &fPassthrough);
+    rc = CFGMR3QueryBool(pCfg, "Passthrough", &fPassthrough);
     if (RT_SUCCESS(rc) && fPassthrough)
     {
         pThis->Core.IMedia.pfnSendCmd            = drvHostDvdSendCmd;

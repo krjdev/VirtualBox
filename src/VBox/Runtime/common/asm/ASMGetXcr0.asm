@@ -1,10 +1,10 @@
-; $Id: ASMGetXcr0.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMGetXcr0.asm $
 ;; @file
 ; IPRT - ASMGetXcr0().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -36,7 +36,7 @@ BEGINCODE
 ; Gets the content of the XCR0 CPU register.
 ; @returns XCR0 value in rax (amd64) / edx:eax (x86).
 ;
-RT_BEGINPROC ASMGetXcr0
+BEGINPROC_EXPORTED ASMGetXcr0
 SEH64_END_PROLOGUE
         xor     ecx, ecx                ; XCR0
         xgetbv

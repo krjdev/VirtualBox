@@ -1,10 +1,10 @@
-/* $Id: PGMSharedPage.cpp 93716 2022-02-14 10:36:21Z vboxsync $ */
+/* $Id: PGMSharedPage.cpp $ */
 /** @file
  * PGM - Page Manager and Monitor, Shared page handling
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,12 +20,11 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_PGM_SHARED
-#define VBOX_WITHOUT_PAGING_BIT_FIELDS /* 64-bit bitfields are just asking for trouble. See @bugref{9841} and others. */
 #include <VBox/vmm/pgm.h>
 #include <VBox/vmm/stam.h>
 #include <VBox/vmm/uvm.h>
 #include "PGMInternal.h"
-#include <VBox/vmm/vmcc.h>
+#include <VBox/vmm/vm.h>
 #include <VBox/sup.h>
 #include <VBox/param.h>
 #include <VBox/err.h>
@@ -231,11 +230,11 @@ static DECLCALLBACK(VBOXSTRICTRC) pgmR3SharedModuleRegRendezvous(PVM pVM, PVMCPU
      */
     LogFlow(("pgmR3SharedModuleRegRendezvous: start (%d)\n", pVM->pgm.s.cSharedPages));
 
-    PGM_LOCK_VOID(pVM);
+    pgmLock(pVM);
     pgmR3PhysAssertSharedPageChecksums(pVM);
     rc = GMMR3CheckSharedModules(pVM);
     pgmR3PhysAssertSharedPageChecksums(pVM);
-    PGM_UNLOCK(pVM);
+    pgmUnlock(pVM);
     AssertLogRelRC(rc);
 
     LogFlow(("pgmR3SharedModuleRegRendezvous: done (%d)\n", pVM->pgm.s.cSharedPages));
@@ -287,20 +286,21 @@ VMMR3DECL(int) PGMR3SharedModuleCheckAll(PVM pVM)
 VMMR3DECL(int) PGMR3SharedModuleGetPageState(PVM pVM, RTGCPTR GCPtrPage, bool *pfShared, uint64_t *pfPageFlags)
 {
     /* Debug only API for the page fusion testcase. */
-    PGMPTWALK Walk;
+    RTGCPHYS GCPhys;
+    uint64_t fFlags;
 
-    PGM_LOCK_VOID(pVM);
+    pgmLock(pVM);
 
-    int rc = PGMGstGetPage(VMMGetCpu(pVM), GCPtrPage, &Walk);
+    int rc = PGMGstGetPage(VMMGetCpu(pVM), GCPtrPage, &fFlags, &GCPhys);
     switch (rc)
     {
         case VINF_SUCCESS:
         {
-            PPGMPAGE pPage = pgmPhysGetPage(pVM, Walk.GCPhys);
+            PPGMPAGE pPage = pgmPhysGetPage(pVM, GCPhys);
             if (pPage)
             {
                 *pfShared    = PGM_PAGE_IS_SHARED(pPage);
-                *pfPageFlags = Walk.fEffective;
+                *pfPageFlags = fFlags;
             }
             else
                 rc = VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS;
@@ -320,7 +320,7 @@ VMMR3DECL(int) PGMR3SharedModuleGetPageState(PVM pVM, RTGCPTR GCPtrPage, bool *p
             break;
     }
 
-    PGM_UNLOCK(pVM);
+    pgmUnlock(pVM);
     return rc;
 }
 # endif /* DEBUG */
@@ -343,13 +343,13 @@ DECLCALLBACK(int) pgmR3CmdCheckDuplicatePages(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHl
     PVM      pVM = pUVM->pVM;
     VM_ASSERT_VALID_EXT_RETURN(pVM, VERR_INVALID_VM_HANDLE);
 
-    PGM_LOCK_VOID(pVM);
+    pgmLock(pVM);
 
     for (PPGMRAMRANGE pRam = pVM->pgm.s.pRamRangesXR3; pRam; pRam = pRam->pNextR3)
     {
         PPGMPAGE    pPage  = &pRam->aPages[0];
         RTGCPHYS    GCPhys = pRam->GCPhys;
-        uint32_t    cLeft  = pRam->cb >> GUEST_PAGE_SHIFT;
+        uint32_t    cLeft  = pRam->cb >> PAGE_SHIFT;
         while (cLeft-- > 0)
         {
             if (PGM_PAGE_GET_TYPE(pPage) == PGMPAGETYPE_RAM)
@@ -376,7 +376,7 @@ DECLCALLBACK(int) pgmR3CmdCheckDuplicatePages(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHl
                         const void    *pvPage;
                         int rc = pgmPhysGCPhys2CCPtrInternalReadOnly(pVM, pPage, GCPhys, &pvPage, &PgMpLck);
                         if (    RT_SUCCESS(rc)
-                            &&  ASMMemIsZero(pvPage, GUEST_PAGE_SIZE))
+                            &&  ASMMemIsZeroPage(pvPage))
                             cAllocZero++;
                         else if (GMMR3IsDuplicatePage(pVM, PGM_PAGE_GET_PAGEID(pPage)))
                             cDuplicate++;
@@ -395,14 +395,14 @@ DECLCALLBACK(int) pgmR3CmdCheckDuplicatePages(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHl
 
             /* next */
             pPage++;
-            GCPhys += GUEST_PAGE_SIZE;
+            GCPhys += PAGE_SIZE;
             cPages++;
             /* Give some feedback for every processed megabyte. */
             if ((cPages & 0x7f) == 0)
                 pCmdHlp->pfnPrintf(pCmdHlp, NULL, ".");
         }
     }
-    PGM_UNLOCK(pVM);
+    pgmUnlock(pVM);
 
     pCmdHlp->pfnPrintf(pCmdHlp, NULL, "\nNumber of zero pages      %08x (%d MB)\n", cZero, cZero / 256);
     pCmdHlp->pfnPrintf(pCmdHlp, NULL, "Number of alloczero pages %08x (%d MB)\n", cAllocZero, cAllocZero / 256);
@@ -423,7 +423,7 @@ DECLCALLBACK(int) pgmR3CmdShowSharedModules(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHlp,
     PVM pVM = pUVM->pVM;
     VM_ASSERT_VALID_EXT_RETURN(pVM, VERR_INVALID_VM_HANDLE);
 
-    PGM_LOCK_VOID(pVM);
+    pgmLock(pVM);
     for (unsigned i = 0; i < RT_ELEMENTS(g_apSharedModules); i++)
     {
         if (g_apSharedModules[i])
@@ -433,7 +433,7 @@ DECLCALLBACK(int) pgmR3CmdShowSharedModules(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHlp,
                 pCmdHlp->pfnPrintf(pCmdHlp, NULL, "--- Region %d: base %RGv size %x\n", j, g_apSharedModules[i]->aRegions[j].GCRegionAddr, g_apSharedModules[i]->aRegions[j].cbRegion);
         }
     }
-    PGM_UNLOCK(pVM);
+    pgmUnlock(pVM);
 
     return VINF_SUCCESS;
 }

@@ -3,7 +3,7 @@
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,7 @@ BEGINCODE
 ; Get the cs register.
 ; @returns cs.
 ;
-RT_BEGINPROC ASMGetCS
+BEGINPROC_EXPORTED ASMGetCS
         mov     eax, cs
         ret
 ENDPROC ASMGetCS

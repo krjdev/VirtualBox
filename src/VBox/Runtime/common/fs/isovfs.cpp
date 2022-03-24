@@ -1,10 +1,10 @@
-/* $Id: isovfs.cpp 93510 2022-01-31 19:51:43Z vboxsync $ */
+/* $Id: isovfs.cpp $ */
 /** @file
  * IPRT - ISO 9660 and UDF Virtual Filesystem (read only).
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -827,9 +827,9 @@ static int rtFsIsoCore_InitFrom9660DirRec(PRTFSISOCORE pCore, PCISO9660DIRREC pD
             }
             else
             {
-                uint64_t cbSkip = (offDirRec + pVol->cbSector) & ~(uint64_t)(pVol->cbSector - 1U);
+                size_t cbSkip = (offDirRec + pVol->cbSector) & ~(pVol->cbSector - 1U);
                 offDirRec += cbSkip;
-                pDirRec = (PCISO9660DIRREC)((uintptr_t)pDirRec + (size_t)cbSkip);
+                pDirRec = (PCISO9660DIRREC)((uintptr_t)pDirRec + cbSkip);
             }
         }
     }
@@ -2095,9 +2095,13 @@ static DECLCALLBACK(int) rtFsIsoFile_Seek(void *pvThis, RTFOFF offSeek, unsigned
     }
     if (offNew >= 0)
     {
-        pThis->offFile = offNew;
-        *poffActual    = offNew;
-        return VINF_SUCCESS;
+        if (offNew <= _4G)
+        {
+            pThis->offFile = offNew;
+            *poffActual    = offNew;
+            return VINF_SUCCESS;
+        }
+        return VERR_OUT_OF_RANGE;
     }
     return VERR_NEGATIVE_SEEK;
 }
@@ -5128,8 +5132,7 @@ static int rtFsIsoVolHandleUdfDetection(PRTFSISOVOL pThis, uint8_t *puUdfLevel, 
      * again when alternative AVDP sectors points to the same sequences.
      */
     pThis->Udf.uLevel = *puUdfLevel;
-    RTFSISOSEENSEQENCES SeenSequences;
-    RT_ZERO(SeenSequences);
+    RTFSISOSEENSEQENCES SeenSequences = { 0 };
     int rc1 = rtFsIsoVolReadAndHandleUdfAvdp(pThis, 256 * pThis->cbSector, pbBuf, cbBuf,
                                              &SeenSequences, pErrInfo);
     if (RT_SUCCESS(rc1))

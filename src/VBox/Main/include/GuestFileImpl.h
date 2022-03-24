@@ -1,10 +1,10 @@
-/* $Id: GuestFileImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestFileImpl.h $ */
 /** @file
  * VirtualBox Main - Guest file handling implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@ class ATL_NO_VTABLE GuestFile :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(GuestFile)
+    DECLARE_EMPTY_CTOR_DTOR(GuestFile)
 
     int     init(Console *pConsole, GuestSession *pSession, ULONG uFileID, const GuestFileOpenInfo &openInfo);
     void    uninit(void);

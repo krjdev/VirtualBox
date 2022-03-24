@@ -1,10 +1,10 @@
-/* $Id: tcp_input.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tcp_input.c $ */
 /** @file
  * NAT - TCP input.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -501,18 +501,6 @@ findso:
         QSOCKET_UNLOCK(tcb);
     }
     LogFlowFunc(("(leave) findso: %R[natsock]\n", so));
-
-    /*
-     * Check whether the packet is targeting CTL_ALIAS and drop it if the connection wasn't
-     * initiated by localhost (so == NULL), see @bugref{9896}.
-     */
-    if (   (RT_N2H_U32(ti->ti_dst.s_addr) & ~pData->netmask) == CTL_ALIAS
-        && !pData->fLocalhostReachable
-        && !so)
-    {
-        LogFlowFunc(("Packet for CTL_ALIAS and fLocalhostReachable=false so=NULL -> drop\n"));
-        goto drop;
-    }
 
     /*
      * If the state is CLOSED (i.e., TCB does not exist) then

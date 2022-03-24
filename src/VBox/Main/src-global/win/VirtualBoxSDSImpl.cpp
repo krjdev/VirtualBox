@@ -1,10 +1,10 @@
-/* $Id: VirtualBoxSDSImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VirtualBoxSDSImpl.cpp $ */
 /** @file
  * VBox Global COM Class implementation.
  */
 
 /*
- * Copyright (C) 2015-2022 Oracle Corporation
+ * Copyright (C) 2015-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -87,11 +87,11 @@ public:
     VBoxSDSPerUserData(com::Utf8Str const &a_rStrUserSid, com::Utf8Str const &a_rStrUsername)
         : m_strUserSid(a_rStrUserSid)
         , m_strUsername(a_rStrUsername)
-        , m_pidTheChosenOne(NIL_RTPROCESS)
 #ifdef WITH_WATCHER
         , m_iWatcher(UINT32_MAX)
         , m_iTheChosenOneRevision(0)
 #endif
+        , m_pidTheChosenOne(NIL_RTPROCESS)
         , m_cRefs(1)
     {
         RTCritSectInit(&m_Lock);
@@ -725,19 +725,19 @@ typedef struct VBoxSDSWatcher
 
 
     /** Helper for removing a handle & data table entry. */
-    uint32_t removeHandle(uint32_t a_iEntry, uint32_t a_cHandles)
+    uint32_t removeHandle(uint32_t iEntry, uint32_t cHandles)
     {
-        uint32_t cToShift = a_cHandles - a_iEntry - 1;
+        uint32_t cToShift = cHandles - iEntry - 1;
         if (cToShift > 0)
         {
-            memmove(&aData[a_iEntry], &aData[a_iEntry + 1], sizeof(aData[0]) * cToShift);
-            memmove(&aHandles[a_iEntry], &aHandles[a_iEntry + 1], sizeof(aHandles[0]) * cToShift);
+            memmove(&aData[iEntry], &aData[iEntry + 1], sizeof(aData[0]) * cToShift);
+            memmove(&aHandles[iEntry], &aHandles[iEntry + 1], sizeof(aHandles[0]) * cToShift);
         }
-        a_cHandles--;
-        aHandles[a_cHandles] = NULL;
-        aData[a_cHandles].setNull();
+        cHandles--;
+        aHandles[cHandles] = NULL;
+        aData[cHandles].setNull();
 
-        return a_cHandles;
+        return cHandles;
     }
 } VBoxSDSWatcher;
 

@@ -36,7 +36,7 @@
 #include <Library/UefiHiiServicesLib.h>
 #include <Library/PerformanceLib.h>
 
-extern EFI_HII_HANDLE mDpHiiHandle;
+extern EFI_HANDLE mDpHiiHandle;
 
 #define DP_MAJOR_VERSION        2
 #define DP_MINOR_VERSION        5
@@ -127,13 +127,13 @@ RunDp (
   );
 
 /**
-  Retrieve HII package list from ImageHandle and publish to HII database.
+  Retrive HII package list from ImageHandle and publish to HII database.
 
   @param ImageHandle            The image handle of the process.
 
   @return HII handle.
 **/
-EFI_HII_HANDLE
+EFI_HANDLE
 InitializeHiiPackage (
   EFI_HANDLE                  ImageHandle
   );

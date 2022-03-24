@@ -1,10 +1,10 @@
-/* $Id: VBoxBusMouseMainVM.cpp 93452 2022-01-26 20:01:52Z vboxsync $ */
+/* $Id: VBoxBusMouseMainVM.cpp $ */
 /** @file
  * Bus Mouse main VM module.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -36,7 +36,7 @@
 
 #include <VBox/err.h>
 #include <VBox/version.h>
-#include <VBox/vmm/vmmr3vtable.h>
+#include <VBox/vmm/cfgm.h>
 #include <iprt/string.h>
 #include <iprt/param.h>
 #include <iprt/path.h>
@@ -62,8 +62,7 @@ static PCVBOXEXTPACKHLP g_pHlp;
 /**
  * @interface_method_impl{VBOXEXTPACKVMREG,pfnVMConfigureVMM
  */
-static DECLCALLBACK(int)  vboxBusMouseExtPackVM_VMConfigureVMM(PCVBOXEXTPACKVMREG pThis, VBOXEXTPACK_IF_CS(IConsole) *pConsole,
-                                                               PVM pVM, PCVMMR3VTABLE pVMM)
+static DECLCALLBACK(int)  vboxBusMouseExtPackVM_VMConfigureVMM(PCVBOXEXTPACKVMREG pThis, VBOXEXTPACK_IF_CS(IConsole) *pConsole, PVM pVM)
 {
     RT_NOREF(pThis, pConsole);
 
@@ -76,16 +75,16 @@ static DECLCALLBACK(int)  vboxBusMouseExtPackVM_VMConfigureVMM(PCVBOXEXTPACKVMRE
     if (RT_FAILURE(rc))
         return rc;
 
-    PCFGMNODE pCfgRoot = pVMM->pfnCFGMR3GetRoot(pVM);
+    PCFGMNODE pCfgRoot = CFGMR3GetRoot(pVM);
     AssertReturn(pCfgRoot, VERR_INTERNAL_ERROR_3);
 
-    PCFGMNODE pCfgDevices = pVMM->pfnCFGMR3GetChild(pCfgRoot, "PDM/Devices");
+    PCFGMNODE pCfgDevices = CFGMR3GetChild(pCfgRoot, "PDM/Devices");
     AssertReturn(pCfgDevices, VERR_INTERNAL_ERROR_3);
 
     PCFGMNODE pCfgMine;
-    rc = pVMM->pfnCFGMR3InsertNode(pCfgDevices, "VBoxBusMouse", &pCfgMine);
+    rc = CFGMR3InsertNode(pCfgDevices, "VBoxBusMouse", &pCfgMine);
     AssertRCReturn(rc, rc);
-    rc = pVMM->pfnCFGMR3InsertString(pCfgMine, "Path", szPath);
+    rc = CFGMR3InsertString(pCfgMine, "Path", szPath);
     AssertRCReturn(rc, rc);
 
     /*
@@ -95,14 +94,14 @@ static DECLCALLBACK(int)  vboxBusMouseExtPackVM_VMConfigureVMM(PCVBOXEXTPACKVMRE
     rc = g_pHlp->pfnFindModule(g_pHlp, "VBoxBusMouseRC", NULL, VBOXEXTPACKMODKIND_RC, szPath, sizeof(szPath), NULL);
     AssertRCReturn(rc, rc);
     RTPathStripFilename(szPath);
-    rc = pVMM->pfnCFGMR3InsertString(pCfgMine, "RCSearchPath", szPath);
+    rc = CFGMR3InsertString(pCfgMine, "RCSearchPath", szPath);
     AssertRCReturn(rc, rc);
 #endif
 
     rc = g_pHlp->pfnFindModule(g_pHlp, "VBoxBusMouseR0", NULL, VBOXEXTPACKMODKIND_R0, szPath, sizeof(szPath), NULL);
     AssertRCReturn(rc, rc);
     RTPathStripFilename(szPath);
-    rc = pVMM->pfnCFGMR3InsertString(pCfgMine, "R0SearchPath", szPath);
+    rc = CFGMR3InsertString(pCfgMine, "R0SearchPath", szPath);
     AssertRCReturn(rc, rc);
 
     return VINF_SUCCESS;
@@ -128,7 +127,6 @@ static const VBOXEXTPACKVMREG g_vboxBusMouseExtPackVMReg =
 {
     VBOXEXTPACKVMREG_VERSION,
     /* .uVBoxFullVersion =  */  VBOX_FULL_VERSION,
-    /* .pszNlsBaseName =    */  NULL,
     /* .pfnConsoleReady =   */  NULL,
     /* .pfnUnload =         */  NULL,
     /* .pfnVMConfigureVMM = */  vboxBusMouseExtPackVM_VMConfigureVMM,

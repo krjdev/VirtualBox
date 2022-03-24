@@ -4,7 +4,6 @@
   stores the interface context for the NIC that snp is trying to talk.
 
 Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
-Copyright (c) Microsoft Corporation.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -54,7 +53,7 @@ SnpUndi32CallbackBlock (
   @param UniqueId      This was supplied to UNDI at Undi_Start, SNP uses this to
                        store Undi interface context (Undi does not read or write
                        this variable).
-  @param MicroSeconds  Number of micro seconds to pause, usually multiple of 10.
+  @param MicroSeconds  Number of micro seconds to pause, ususlly multiple of 10.
 
 **/
 VOID
@@ -116,59 +115,47 @@ SnpUndi32CallbackMemio (
 
   switch (ReadOrWrite) {
   case PXE_IO_READ:
-    ASSERT (Snp->IoBarIndex < PCI_MAX_BAR);
-    if (Snp->IoBarIndex < PCI_MAX_BAR) {
-      Snp->PciIo->Io.Read (
-                       Snp->PciIo,
-                       Width,
-                       Snp->IoBarIndex,      // BAR 1 (for 32bit regs), IO base address
-                       MemOrPortAddr,
-                       1,                    // count
-                       (VOID *) (UINTN) BufferPtr
-                       );
-    }
+    Snp->PciIo->Io.Read (
+                     Snp->PciIo,
+                     Width,
+                     Snp->IoBarIndex,      // BAR 1 (for 32bit regs), IO base address
+                     MemOrPortAddr,
+                     1,                    // count
+                     (VOID *) (UINTN) BufferPtr
+                     );
     break;
 
   case PXE_IO_WRITE:
-    ASSERT (Snp->IoBarIndex < PCI_MAX_BAR);
-    if (Snp->IoBarIndex < PCI_MAX_BAR) {
-      Snp->PciIo->Io.Write (
-                       Snp->PciIo,
-                       Width,
-                       Snp->IoBarIndex,      // BAR 1 (for 32bit regs), IO base address
-                       MemOrPortAddr,
-                       1,                    // count
-                       (VOID *) (UINTN) BufferPtr
-                       );
-    }
+    Snp->PciIo->Io.Write (
+                     Snp->PciIo,
+                     Width,
+                     Snp->IoBarIndex,      // BAR 1 (for 32bit regs), IO base address
+                     MemOrPortAddr,
+                     1,                    // count
+                     (VOID *) (UINTN) BufferPtr
+                     );
     break;
 
   case PXE_MEM_READ:
-    ASSERT (Snp->MemoryBarIndex < PCI_MAX_BAR);
-    if (Snp->MemoryBarIndex < PCI_MAX_BAR) {
-      Snp->PciIo->Mem.Read (
-                        Snp->PciIo,
-                        Width,
-                        Snp->MemoryBarIndex,  // BAR 0, Memory base address
-                        MemOrPortAddr,
-                        1,                    // count
-                        (VOID *) (UINTN) BufferPtr
-                        );
-    }
+    Snp->PciIo->Mem.Read (
+                      Snp->PciIo,
+                      Width,
+                      Snp->MemoryBarIndex,  // BAR 0, Memory base address
+                      MemOrPortAddr,
+                      1,                    // count
+                      (VOID *) (UINTN) BufferPtr
+                      );
     break;
 
   case PXE_MEM_WRITE:
-    ASSERT (Snp->MemoryBarIndex < PCI_MAX_BAR);
-    if (Snp->MemoryBarIndex < PCI_MAX_BAR) {
-      Snp->PciIo->Mem.Write (
-                        Snp->PciIo,
-                        Width,
-                        Snp->MemoryBarIndex,  // BAR 0, Memory base address
-                        MemOrPortAddr,
-                        1,                    // count
-                        (VOID *) (UINTN) BufferPtr
-                        );
-    }
+    Snp->PciIo->Mem.Write (
+                      Snp->PciIo,
+                      Width,
+                      Snp->MemoryBarIndex,  // BAR 0, Memory base address
+                      MemOrPortAddr,
+                      1,                    // count
+                      (VOID *) (UINTN) BufferPtr
+                      );
     break;
   }
 

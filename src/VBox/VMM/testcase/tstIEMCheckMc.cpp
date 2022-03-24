@@ -1,10 +1,10 @@
-/* $Id: tstIEMCheckMc.cpp 94163 2022-03-11 00:56:22Z vboxsync $ */
+/* $Id: tstIEMCheckMc.cpp $ */
 /** @file
  * IEM Testcase - Check the "Microcode".
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -196,11 +196,25 @@ IEMOPBINSIZES g_iemAImpl_btr;
 IEMOPBINSIZES g_iemAImpl_bts;
 IEMOPBINSIZES g_iemAImpl_bsf;
 IEMOPBINSIZES g_iemAImpl_bsr;
+IEMOPBINSIZES g_iemAImpl_imul_two;
 PCIEMOPBINSIZES g_apIemImplGrp1[8];
 IEMOPUNARYSIZES g_iemAImpl_inc;
 IEMOPUNARYSIZES g_iemAImpl_dec;
 IEMOPUNARYSIZES g_iemAImpl_neg;
 IEMOPUNARYSIZES g_iemAImpl_not;
+IEMOPSHIFTSIZES g_iemAImpl_rol;
+IEMOPSHIFTSIZES g_iemAImpl_ror;
+IEMOPSHIFTSIZES g_iemAImpl_rcl;
+IEMOPSHIFTSIZES g_iemAImpl_rcr;
+IEMOPSHIFTSIZES g_iemAImpl_shl;
+IEMOPSHIFTSIZES g_iemAImpl_shr;
+IEMOPSHIFTSIZES g_iemAImpl_sar;
+IEMOPMULDIVSIZES g_iemAImpl_mul;
+IEMOPMULDIVSIZES g_iemAImpl_imul;
+IEMOPMULDIVSIZES g_iemAImpl_div;
+IEMOPMULDIVSIZES g_iemAImpl_idiv;
+IEMOPSHIFTDBLSIZES g_iemAImpl_shld;
+IEMOPSHIFTDBLSIZES g_iemAImpl_shrd;
 IEMOPMEDIAF1L1 g_iemAImpl_punpcklbw;
 IEMOPMEDIAF1L1 g_iemAImpl_punpcklwd;
 IEMOPMEDIAF1L1 g_iemAImpl_punpckldq;
@@ -214,8 +228,11 @@ IEMOPMEDIAF2 g_iemAImpl_pcmpeqb;
 IEMOPMEDIAF2 g_iemAImpl_pcmpeqw;
 IEMOPMEDIAF2 g_iemAImpl_pcmpeqd;
 
-#undef  IEMTARGETCPU_EFL_BEHAVIOR_SELECT
-#define IEMTARGETCPU_EFL_BEHAVIOR_SELECT(a_aArray) NULL
+
+#define iemAImpl_idiv_u8    ((PFNIEMAIMPLMULDIVU8)0)
+#define iemAImpl_div_u8     ((PFNIEMAIMPLMULDIVU8)0)
+#define iemAImpl_imul_u8    ((PFNIEMAIMPLMULDIVU8)0)
+#define iemAImpl_mul_u8     ((PFNIEMAIMPLMULDIVU8)0)
 
 #define iemAImpl_fpu_r32_to_r80         NULL
 #define iemAImpl_fcom_r80_by_r32        NULL
@@ -588,7 +605,6 @@ IEMOPMEDIAF2 g_iemAImpl_pcmpeqd;
 #define IEM_MC_STORE_MEM_NEG_QNAN_R32_BY_REF(a_pr32Dst)                 do { CHK_TYPE(PRTFLOAT32U, a_pr32Dst); (void)fMcBegin; } while (0)
 #define IEM_MC_STORE_MEM_NEG_QNAN_R64_BY_REF(a_pr64Dst)                 do { CHK_TYPE(PRTFLOAT64U, a_pr64Dst); (void)fMcBegin; } while (0)
 #define IEM_MC_STORE_MEM_NEG_QNAN_R80_BY_REF(a_pr80Dst)                 do { CHK_TYPE(PRTFLOAT80U, a_pr80Dst); (void)fMcBegin; } while (0)
-#define IEM_MC_STORE_MEM_INDEF_D80_BY_REF(a_pd80Dst)                    do { CHK_TYPE(PRTPBCD80U, a_pd80Dst); (void)fMcBegin; } while (0)
 #define IEM_MC_STORE_MEM_U128(a_iSeg, a_GCPtrMem, a_u128Src)            do { CHK_GCPTR(a_GCPtrMem); CHK_TYPE(RTUINT128U, a_u128Src); CHK_SEG_IDX(a_iSeg); (void)fMcBegin; } while (0)
 #define IEM_MC_STORE_MEM_U128_ALIGN_SSE(a_iSeg, a_GCPtrMem, a_u128Src)  do { CHK_GCPTR(a_GCPtrMem); CHK_TYPE(RTUINT128U, a_u128Src); CHK_SEG_IDX(a_iSeg); (void)fMcBegin; } while (0)
 #define IEM_MC_STORE_MEM_U256(a_iSeg, a_GCPtrMem, a_u256Src)            do { CHK_GCPTR(a_GCPtrMem); CHK_TYPE(RTUINT256U, a_u256Src); CHK_SEG_IDX(a_iSeg); (void)fMcBegin; } while (0)
@@ -687,7 +703,7 @@ IEMOPMEDIAF2 g_iemAImpl_pcmpeqd;
     do { (void)fSseHost; (void)fSseWrite; CHK_CALL_ARG(a0, 0); CHK_CALL_ARG(a1, 1); (void)fMcBegin; } while (0)
 #define IEM_MC_CALL_SSE_AIMPL_3(a_pfnAImpl, a0, a1, a2) \
     do { (void)fSseHost; (void)fSseWrite; CHK_CALL_ARG(a0, 0); CHK_CALL_ARG(a1, 1); CHK_CALL_ARG(a2, 2); (void)fMcBegin; } while (0)
-#define IEM_MC_IMPLICIT_AVX_AIMPL_ARGS() do { IEM_MC_ARG_CONST(PX86XSAVEAREA, pXState, &pVCpu->cpum.GstCtx.XState, 0); (void)fMcBegin; } while (0)
+#define IEM_MC_IMPLICIT_AVX_AIMPL_ARGS() do { IEM_MC_ARG_CONST(PX86XSAVEAREA, pXState, pVCpu->cpum.GstCtx.CTX_SUFF(pXState), 0); (void)fMcBegin; } while (0)
 #define IEM_MC_CALL_AVX_AIMPL_2(a_pfnAImpl, a1, a2) \
     do { (void)fAvxHost; (void)fAvxWrite; CHK_CALL_ARG(a1, 1); CHK_CALL_ARG(a2, 2); (void)fMcBegin; } while (0)
 #define IEM_MC_CALL_AVX_AIMPL_3(a_pfnAImpl, a1, a2, a3) \

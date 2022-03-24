@@ -1,10 +1,10 @@
-; $Id: VBoxGuestAdditionsNT4.nsh 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: VBoxGuestAdditionsNT4.nsh $
 ;; @file
 ; VBoxGuestAdditionsNT4.nsh - Guest Additions installation for NT4.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -116,9 +116,6 @@ Function NT4_CopyFiles
   AccessControl::SetOnFile "$INSTDIR\VBoxGuestDrvInst.exe" "(BU)" "GenericRead"
   FILE "$%PATH_OUT%\bin\additions\RegCleanup.exe"
   AccessControl::SetOnFile "$INSTDIR\RegCleanup.exe" "(BU)" "GenericRead"
-!ifdef VBOX_WITH_ADDITIONS_SHIPPING_AUDIO_TEST
-  FILE "$%PATH_OUT%\bin\additions\VBoxAudioTest.exe"
-!endif
 
   ; The files to install for NT 4, they go into the system directories
   SetOutPath "$SYSDIR"

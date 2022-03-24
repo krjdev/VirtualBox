@@ -1,5 +1,5 @@
 /** @file
-Common Library  for PEI USB.
+Common Libarary  for PEI USB.
 
 Copyright (c) 1999 - 2018, Intel Corporation. All rights reserved.<BR>
 

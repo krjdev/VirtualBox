@@ -1,10 +1,10 @@
-/* $Id: UIChooserNodeMachine.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserNodeMachine.h $ */
 /** @file
  * VBox Qt GUI - UIChooserNodeMachine class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,11 +23,10 @@
 
 /* GUI includes: */
 #include "UIChooserNode.h"
-#include "UIManagerDefs.h"
 
 /* Forward declarations: */
+class UICloudMachine;
 class UIVirtualMachineItem;
-class CCloudMachine;
 class CMachine;
 
 
@@ -39,86 +38,83 @@ class UIChooserNodeMachine : public UIChooserNode
 public:
 
     /** Constructs chooser node for local VM passing @a pParent to the base-class.
+      * @param  fFavorite   Brings whether the node is favorite.
       * @param  iPosition   Brings initial node position.
       * @param  comMachine  Brings COM machine object. */
     UIChooserNodeMachine(UIChooserNode *pParent,
+                         bool fFavorite,
                          int iPosition,
                          const CMachine &comMachine);
     /** Constructs chooser node for real cloud VM passing @a pParent to the base-class.
+      * @param  fFavorite        Brings whether the node is favorite.
       * @param  iPosition        Brings initial node position.
-      * @param  comCloudMachine  Brings COM cloud machine object. */
+      * @param  guiCloudMachine  Brings cloud VM object. */
     UIChooserNodeMachine(UIChooserNode *pParent,
+                         bool fFavorite,
                          int iPosition,
-                         const CCloudMachine &comCloudMachine);
+                         const UICloudMachine &guiCloudMachine);
     /** Constructs chooser node for fake cloud VM passing @a pParent to the base-class.
-      * @param  iPosition  Brings the initial node position.
-      * @param  enmState   Brings fake item type. */
+      * @param  fFavorite  Brings whether the node is favorite.
+      * @param  iPosition  Brings the initial node position. */
     UIChooserNodeMachine(UIChooserNode *pParent,
-                         int iPosition,
-                         UIFakeCloudVirtualMachineItemState enmState);
+                         bool fFavorite,
+                         int iPosition);
     /** Constructs chooser node passing @a pParent to the base-class.
-      * @param  iPosition  Brings the initial node position.
-      * @param  pCopyFrom  Brings the node to copy data from. */
+      * @param  pCopyFrom  Brings the node to copy data from.
+      * @param  iPosition  Brings the initial node position. */
     UIChooserNodeMachine(UIChooserNode *pParent,
-                         int iPosition,
-                         UIChooserNodeMachine *pCopyFrom);
+                         UIChooserNodeMachine *pCopyFrom,
+                         int iPosition);
     /** Destructs chooser node. */
-    virtual ~UIChooserNodeMachine() RT_OVERRIDE;
+    virtual ~UIChooserNodeMachine() /* override */;
 
     /** Returns RTTI node type. */
-    virtual UIChooserNodeType type() const RT_OVERRIDE { return UIChooserNodeType_Machine; }
+    virtual UIChooserItemType type() const /* override */ { return UIChooserItemType_Machine; }
 
     /** Returns item name. */
-    virtual QString name() const RT_OVERRIDE;
+    virtual QString name() const /* override */;
     /** Returns item full-name. */
-    virtual QString fullName() const RT_OVERRIDE;
+    virtual QString fullName() const /* override */;
     /** Returns item description. */
-    virtual QString description() const RT_OVERRIDE;
-    /** Returns item definition.
-      * @param  fFull  Brings whether full definition is required
-      *                which is used while saving group definitions,
-      *                otherwise short definition will be returned,
-      *                which is used while saving last chosen node. */
-    virtual QString definition(bool fFull = false) const RT_OVERRIDE;
+    virtual QString description() const /* override */;
+    /** Returns item definition. */
+    virtual QString definition() const /* override */;
 
     /** Returns whether there are children of certain @a enmType. */
-    virtual bool hasNodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+    virtual bool hasNodes(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
     /** Returns a list of nodes of certain @a enmType. */
-    virtual QList<UIChooserNode*> nodes(UIChooserNodeType enmType = UIChooserNodeType_Any) const RT_OVERRIDE;
+    virtual QList<UIChooserNode*> nodes(UIChooserItemType enmType = UIChooserItemType_Any) const /* override */;
 
     /** Adds passed @a pNode to specified @a iPosition. */
-    virtual void addNode(UIChooserNode *pNode, int iPosition) RT_OVERRIDE;
+    virtual void addNode(UIChooserNode *pNode, int iPosition) /* override */;
     /** Removes passed @a pNode. */
-    virtual void removeNode(UIChooserNode *pNode) RT_OVERRIDE;
+    virtual void removeNode(UIChooserNode *pNode) /* override */;
 
     /** Removes all children with specified @a uId recursively. */
-    virtual void removeAllNodes(const QUuid &uId) RT_OVERRIDE;
+    virtual void removeAllNodes(const QUuid &uId) /* override */;
     /** Updates all children with specified @a uId recursively. */
-    virtual void updateAllNodes(const QUuid &uId) RT_OVERRIDE;
+    virtual void updateAllNodes(const QUuid &uId) /* override */;
+
+    /** Returns whether this node is a cloud node itself
+      * or contains at least one cloud VM node child. */
+    virtual bool hasAtLeastOneCloudNode() const /* override */;
 
     /** Returns position of specified node inside this one. */
-    virtual int positionOf(UIChooserNode *pNode) RT_OVERRIDE;
+    virtual int positionOf(UIChooserNode *pNode) /* override */;
 
-    /** Checks if this instance matches to search  wrt. @a strSearchTerm and @a iSearchFlags and updates @a matchedItems. */
-    virtual void searchForNodes(const QString &strSearchTerm, int iSearchFlags, QList<UIChooserNode*> &matchedItems) RT_OVERRIDE;
+    /** Checks if this instance matches to search  wrt. @a strSearchTerm and @a iItemSearchFlags and updates @a matchedItems. */
+    virtual void searchForNodes(const QString &strSearchTerm, int iItemSearchFlags, QList<UIChooserNode*> &matchedItems) /* override */;
 
     /** Performs sorting of children nodes. */
-    virtual void sortNodes() RT_OVERRIDE;
+    virtual void sortNodes() /* override */;
 
     /** Returns virtual machine cache instance. */
-    UIVirtualMachineItem *cache() const;
-    /** Returns virtual machine cache instance. */
-    UIVirtualMachineItemType cacheType() const;
-
-    /** Returns node machine id. */
-    QUuid id() const;
-    /** Returns whether node accessible. */
-    bool accessible() const;
+    UIVirtualMachineItem *cache() const { return m_pCache; }
 
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

@@ -1,10 +1,10 @@
-/* $Id: SELM.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: SELM.cpp $ */
 /** @file
  * SELM - The Selector Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -567,9 +567,7 @@ VMMR3DECL(void) SELMR3DumpDescriptor(X86DESC Desc, RTSEL Sel, const char *pszMsg
 static DECLCALLBACK(void) selmR3InfoGdtGuest(PVM pVM, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     /** @todo SMP support! */
-    PVMCPU      pVCpu = VMMGetCpu(pVM);
-    CPUMImportGuestStateOnDemand(pVCpu, CPUMCTX_EXTRN_CR0  | CPUMCTX_EXTRN_CR3 | CPUMCTX_EXTRN_CR4
-                                      | CPUMCTX_EXTRN_EFER | CPUMCTX_EXTRN_GDTR);
+    PVMCPU      pVCpu = pVM->apCpusR3[0];
 
     VBOXGDTR    GDTR;
     CPUMGetGuestGDTR(pVCpu, &GDTR);
@@ -592,7 +590,7 @@ static DECLCALLBACK(void) selmR3InfoGdtGuest(PVM pVM, PCDBGFINFOHLP pHlp, const 
         }
         else if (rc == VERR_PAGE_NOT_PRESENT)
         {
-            if ((GCPtrGDT & GUEST_PAGE_OFFSET_MASK) + sizeof(X86DESC) - 1 < sizeof(X86DESC))
+            if ((GCPtrGDT & PAGE_OFFSET_MASK) + sizeof(X86DESC) - 1 < sizeof(X86DESC))
                 pHlp->pfnPrintf(pHlp, "%04x - page not present (GCAddr=%RGv)\n", iGDT << X86_SEL_SHIFT, GCPtrGDT);
         }
         else
@@ -612,9 +610,7 @@ static DECLCALLBACK(void) selmR3InfoGdtGuest(PVM pVM, PCDBGFINFOHLP pHlp, const 
 static DECLCALLBACK(void) selmR3InfoLdtGuest(PVM pVM, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     /** @todo SMP support! */
-    PVMCPU   pVCpu = VMMGetCpu(pVM);
-    CPUMImportGuestStateOnDemand(pVCpu, CPUMCTX_EXTRN_CR0  | CPUMCTX_EXTRN_CR3  | CPUMCTX_EXTRN_CR4
-                                      | CPUMCTX_EXTRN_EFER | CPUMCTX_EXTRN_GDTR | CPUMCTX_EXTRN_LDTR);
+    PVMCPU   pVCpu = pVM->apCpusR3[0];
 
     uint64_t GCPtrLdt;
     uint32_t cbLdt;
@@ -642,7 +638,7 @@ static DECLCALLBACK(void) selmR3InfoLdtGuest(PVM pVM, PCDBGFINFOHLP pHlp, const 
         }
         else if (rc == VERR_PAGE_NOT_PRESENT)
         {
-            if ((GCPtrLdt & GUEST_PAGE_OFFSET_MASK) + sizeof(X86DESC) - 1 < sizeof(X86DESC))
+            if ((GCPtrLdt & PAGE_OFFSET_MASK) + sizeof(X86DESC) - 1 < sizeof(X86DESC))
                 pHlp->pfnPrintf(pHlp, "%04x - page not present (GCAddr=%RGv)\n", (iLdt << X86_SEL_SHIFT) | X86_SEL_LDT, GCPtrLdt);
         }
         else

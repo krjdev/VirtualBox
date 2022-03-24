@@ -1,10 +1,10 @@
-/* $Id: randadv.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: randadv.cpp $ */
 /** @file
  * IPRT - Random Numbers, Generic Glue.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -213,7 +213,7 @@ RTDECL(uint64_t) RTRandAdvU64(RTRAND hRand) RT_NO_THROW_DEF
 RT_EXPORT_SYMBOL(RTRandAdvU64);
 
 
-DECL_HIDDEN_CALLBACK(void)  rtRandAdvSynthesizeBytesFromU32(PRTRANDINT pThis, uint8_t *pb, size_t cb)
+DECLHIDDEN(DECLCALLBACK(void))  rtRandAdvSynthesizeBytesFromU32(PRTRANDINT pThis, uint8_t *pb, size_t cb)
 {
     while (cb > 0)
     {
@@ -245,7 +245,7 @@ DECL_HIDDEN_CALLBACK(void)  rtRandAdvSynthesizeBytesFromU32(PRTRANDINT pThis, ui
 }
 
 
-DECL_HIDDEN_CALLBACK(void)  rtRandAdvSynthesizeBytesFromU64(PRTRANDINT pThis, uint8_t *pb, size_t cb)
+DECLHIDDEN(DECLCALLBACK(void))  rtRandAdvSynthesizeBytesFromU64(PRTRANDINT pThis, uint8_t *pb, size_t cb)
 {
     while (cb > 0)
     {
@@ -289,7 +289,7 @@ DECL_HIDDEN_CALLBACK(void)  rtRandAdvSynthesizeBytesFromU64(PRTRANDINT pThis, ui
 }
 
 
-DECL_HIDDEN_CALLBACK(uint32_t)  rtRandAdvSynthesizeU32FromBytes(PRTRANDINT pThis, uint32_t u32First, uint32_t u32Last)
+DECLHIDDEN(DECLCALLBACK(uint32_t))  rtRandAdvSynthesizeU32FromBytes(PRTRANDINT pThis, uint32_t u32First, uint32_t u32Last)
 {
     union
     {
@@ -323,13 +323,13 @@ DECL_HIDDEN_CALLBACK(uint32_t)  rtRandAdvSynthesizeU32FromBytes(PRTRANDINT pThis
 }
 
 
-DECL_HIDDEN_CALLBACK(uint32_t)  rtRandAdvSynthesizeU32FromU64(PRTRANDINT pThis, uint32_t u32First, uint32_t u32Last)
+DECLHIDDEN(DECLCALLBACK(uint32_t))  rtRandAdvSynthesizeU32FromU64(PRTRANDINT pThis, uint32_t u32First, uint32_t u32Last)
 {
     return (uint32_t)pThis->pfnGetU64(pThis, u32First, u32Last);
 }
 
 
-DECL_HIDDEN_CALLBACK(uint64_t)  rtRandAdvSynthesizeU64FromBytes(PRTRANDINT pThis, uint64_t u64First, uint64_t u64Last)
+DECLHIDDEN(DECLCALLBACK(uint64_t))  rtRandAdvSynthesizeU64FromBytes(PRTRANDINT pThis, uint64_t u64First, uint64_t u64Last)
 {
     union
     {
@@ -364,7 +364,7 @@ DECL_HIDDEN_CALLBACK(uint64_t)  rtRandAdvSynthesizeU64FromBytes(PRTRANDINT pThis
 }
 
 
-DECL_HIDDEN_CALLBACK(uint64_t)  rtRandAdvSynthesizeU64FromU32(PRTRANDINT pThis, uint64_t u64First, uint64_t u64Last)
+DECLHIDDEN(DECLCALLBACK(uint64_t))  rtRandAdvSynthesizeU64FromU32(PRTRANDINT pThis, uint64_t u64First, uint64_t u64Last)
 {
     uint64_t off = u64Last - u64First;
     if (off <= UINT32_MAX)
@@ -377,7 +377,7 @@ DECL_HIDDEN_CALLBACK(uint64_t)  rtRandAdvSynthesizeU64FromU32(PRTRANDINT pThis, 
 
 
 /** @copydoc RTRANDINT::pfnSeed */
-DECL_HIDDEN_CALLBACK(int) rtRandAdvStubSeed(PRTRANDINT pThis, uint64_t u64Seed)
+DECLHIDDEN(DECLCALLBACK(int)) rtRandAdvStubSeed(PRTRANDINT pThis, uint64_t u64Seed)
 {
     NOREF(pThis);
     NOREF(u64Seed);
@@ -386,7 +386,7 @@ DECL_HIDDEN_CALLBACK(int) rtRandAdvStubSeed(PRTRANDINT pThis, uint64_t u64Seed)
 
 
 /** @copydoc RTRANDINT::pfnSaveState */
-DECL_HIDDEN_CALLBACK(int) rtRandAdvStubSaveState(PRTRANDINT pThis, char *pszState, size_t *pcbState)
+DECLHIDDEN(DECLCALLBACK(int)) rtRandAdvStubSaveState(PRTRANDINT pThis, char *pszState, size_t *pcbState)
 {
     NOREF(pThis);
     NOREF(pszState);
@@ -396,7 +396,7 @@ DECL_HIDDEN_CALLBACK(int) rtRandAdvStubSaveState(PRTRANDINT pThis, char *pszStat
 
 
 /** @copydoc RTRANDINT::pfnRestoreState */
-DECL_HIDDEN_CALLBACK(int) rtRandAdvStubRestoreState(PRTRANDINT pThis, char const *pszState)
+DECLHIDDEN(DECLCALLBACK(int)) rtRandAdvStubRestoreState(PRTRANDINT pThis, char const *pszState)
 {
     NOREF(pThis);
     NOREF(pszState);
@@ -405,7 +405,7 @@ DECL_HIDDEN_CALLBACK(int) rtRandAdvStubRestoreState(PRTRANDINT pThis, char const
 
 
 /** @copydoc RTRANDINT::pfnDestroy */
-DECL_HIDDEN_CALLBACK(int) rtRandAdvDefaultDestroy(PRTRANDINT pThis)
+DECLHIDDEN(DECLCALLBACK(int)) rtRandAdvDefaultDestroy(PRTRANDINT pThis)
 {
     pThis->u32Magic = ~RTRANDINT_MAGIC;
     RTMemFree(pThis);

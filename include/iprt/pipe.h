@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,16 +69,6 @@ RTDECL(int)  RTPipeCreate(PRTPIPE phPipeRead, PRTPIPE phPipeWrite, uint32_t fFla
 RTDECL(int)  RTPipeClose(RTPIPE hPipe);
 
 /**
- * Closes one end of a pipe created by RTPipeCreate, extended version.
- *
- * @returns IPRT status code.
- * @param   hPipe           The pipe end to close.
- * @param   fLeaveOpen      Wheter to leave the underlying native handle open
- *                          (for RTPipeClose() this is @c false).
- */
-RTDECL(int)  RTPipeCloseEx(RTPIPE hPipe, bool fLeaveOpen);
-
-/**
  * Creates an IPRT pipe handle from a native one.
  *
  * Do NOT use the native handle after passing it to this function, IPRT owns it
@@ -100,12 +90,8 @@ RTDECL(int)  RTPipeFromNative(PRTPIPE phPipe, RTHCINTPTR hNativePipe, uint32_t f
 #define RTPIPE_N_WRITE              RT_BIT(1)
 /** Make sure the pipe is inheritable if set and not inheritable when clear. */
 #define RTPIPE_N_INHERIT            RT_BIT(2)
-/** Mask of valid flags for . */
+/** Mask of valid flags. */
 #define RTPIPE_N_VALID_MASK         UINT32_C(0x00000007)
-/** RTPipeFromNative: Leave the native pipe handle open on close. */
-#define RTPIPE_N_LEAVE_OPEN         RT_BIT(3)
-/** Mask of valid flags for RTPipeFromNative(). */
-#define RTPIPE_N_VALID_MASK_FN      UINT32_C(0x0000000f)
 /** @} */
 
 /**

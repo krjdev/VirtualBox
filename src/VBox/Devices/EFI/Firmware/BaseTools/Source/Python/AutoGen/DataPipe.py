@@ -72,10 +72,9 @@ class MemoryDataPipe(DataPipe):
         #Platform Module Pcds
         ModulePcds = {}
         for m in PlatformInfo.Platform.Modules:
-            module = PlatformInfo.Platform.Modules[m]
-            m_pcds =  module.Pcds
+            m_pcds =  PlatformInfo.Platform.Modules[m].Pcds
             if m_pcds:
-                ModulePcds[module.Guid] = [PCD_DATA(
+                ModulePcds[(m.File,m.Root,m.Arch)] = [PCD_DATA(
             pcd.TokenCName,pcd.TokenSpaceGuidCName,pcd.Type,
             pcd.DatumType,pcd.SkuInfoList,pcd.DefaultValue,
             pcd.MaxDatumSize,pcd.UserDefinedDefaultStoresFlag,pcd.validateranges,
@@ -159,8 +158,6 @@ class MemoryDataPipe(DataPipe):
         self.DataContainer = {"FdfParser": True if GlobalData.gFdfParser else False}
 
         self.DataContainer = {"LogLevel": EdkLogger.GetLevel()}
-
-        self.DataContainer = {"UseHashCache":GlobalData.gUseHashCache}
 
         self.DataContainer = {"BinCacheSource":GlobalData.gBinCacheSource}
 

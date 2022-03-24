@@ -1,4 +1,4 @@
-/* $Id: DevHPET.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DevHPET.cpp $ */
 /** @file
  * HPET virtual device - High Precision Event Timer emulation.
  *
@@ -23,7 +23,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -178,7 +178,7 @@
  */
 #define DEVHPET_LOCK_RETURN(a_pDevIns, a_pThis, a_rcBusy)  \
     do { \
-        int const rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, (a_rcBusy)); \
+        int rcLock = PDMDevHlpCritSectEnter((a_pDevIns), &(a_pThis)->CritSect, (a_rcBusy)); \
         if (RT_LIKELY(rcLock == VINF_SUCCESS)) \
         { /* likely */ } \
         else \
@@ -1295,11 +1295,15 @@ DECLINLINE(uint32_t) hpetR3TimerGetIrq(PHPET pThis, PCHPETTIMER pHpetTimer, uint
 
 
 /**
- * @callback_method_impl{FNTMTIMERDEV, Device timer callback function.}
+ * Device timer callback function.
+ *
+ * @param   pDevIns         Device instance of the device which registered the timer.
+ * @param   pTimer          The timer handle.
+ * @param   pvUser          Pointer to the HPET timer state.
  *
  * @note    Only the virtual sync lock is held when called.
  */
-static DECLCALLBACK(void) hpetR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, void *pvUser)
+static DECLCALLBACK(void) hpetR3Timer(PPDMDEVINS pDevIns, PTMTIMER pTimer, void *pvUser)
 {
     PHPET           pThis      = PDMDEVINS_2_DATA(pDevIns, PHPET);
     PHPETTIMER      pHpetTimer = (HPETTIMER *)pvUser;
@@ -1314,7 +1318,7 @@ static DECLCALLBACK(void) hpetR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, 
     uint64_t        uCmp       = ASMAtomicUoReadU64(&pHpetTimer->u64Cmp);
     uint64_t const  uPeriod    = ASMAtomicUoReadU64(&pHpetTimer->u64Period);
     uint64_t const  fConfig    = ASMAtomicUoReadU64(&pHpetTimer->u64Config);
-    Assert(hTimer == pHpetTimer->hTimer);
+    RT_NOREF(pTimer);
 
     if (fConfig & HPET_TN_PERIODIC)
     {
@@ -1329,7 +1333,7 @@ static DECLCALLBACK(void) hpetR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, 
             {
                 uint64_t const tsDeadline = tsNow + hpetTicksToNs(pThis, cTicksDiff);
                 Log4(("HPET[%u]: periodic: next in %llu\n", pHpetTimer->idxTimer, tsDeadline));
-                PDMDevHlpTimerSet(pDevIns, hTimer, tsDeadline);
+                PDMDevHlpTimerSet(pDevIns, pHpetTimer->hTimer, tsDeadline);
                 STAM_REL_COUNTER_INC(&pHpetTimer->StatSetTimer);
             }
             else
@@ -1341,7 +1345,7 @@ static DECLCALLBACK(void) hpetR3Timer(PPDMDEVINS pDevIns, TMTIMERHANDLE hTimer, 
     else if (pHpetTimer->u8Wrap && hpet32bitTimerEx(fConfig))
     {
         pHpetTimer->u8Wrap = 0;         /* (only modified while owning the virtual sync lock) */
-        uint64_t const tsNow      = PDMDevHlpTimerGet(pDevIns, hTimer);
+        uint64_t const tsNow      = PDMDevHlpTimerGet(pDevIns, pHpetTimer->hTimer);
         uint64_t const uHpetNow   = nsToHpetTicks(pThis, tsNow + pThis->u64HpetOffset);
         uint64_t const cTicksDiff = hpetComputeDiff(fConfig, uCmp, uHpetNow);
         uint64_t const tsDeadline = tsNow + hpetTicksToNs(pThis, cTicksDiff);
@@ -1580,16 +1584,13 @@ static DECLCALLBACK(int) hpetR3LoadExec(PPDMDEVINS pDevIns, PSSMHANDLE pSSM, uin
     /*
      * Set the timer frequency hints.
      */
-    rc = PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
-    AssertRCReturn(rc, rc);
-
+    PDMDevHlpCritSectEnter(pDevIns, &pThis->CritSect, VERR_IGNORED);
     for (uint32_t iTimer = 0; iTimer < cTimers; iTimer++)
     {
         PHPETTIMER pHpetTimer = &pThis->aTimers[iTimer];
         if (PDMDevHlpTimerIsActive(pDevIns, pHpetTimer->hTimer))
             hpetTimerSetFrequencyHint(pDevIns, pThis, pHpetTimer, pHpetTimer->u64Config, pHpetTimer->u64Period);
     }
-
     PDMDevHlpCritSectLeave(pDevIns, &pThis->CritSect);
     return VINF_SUCCESS;
 }
@@ -1727,8 +1728,7 @@ static DECLCALLBACK(int) hpetR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFG
     {
         PHPETTIMER pHpetTimer = &pThis->aTimers[i];
         rc = PDMDevHlpTimerCreate(pDevIns, TMCLOCK_VIRTUAL_SYNC, hpetR3Timer, pHpetTimer,
-                                  TMTIMER_FLAGS_NO_CRIT_SECT | TMTIMER_FLAGS_RING0,
-                                  s_apszTimerNames[i], &pThis->aTimers[i].hTimer);
+                                  TMTIMER_FLAGS_NO_CRIT_SECT, s_apszTimerNames[i], &pThis->aTimers[i].hTimer);
         AssertRCReturn(rc, rc);
         uint64_t const cTicksPerSec = PDMDevHlpTimerGetFreq(pDevIns, pThis->aTimers[i].hTimer);
         if (cTicksPerSec != RT_NS_1SEC)

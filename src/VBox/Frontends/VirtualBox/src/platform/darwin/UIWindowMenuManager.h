@@ -1,10 +1,10 @@
-/* $Id: UIWindowMenuManager.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIWindowMenuManager.h $ */
 /** @file
  * VBox Qt GUI - UIWindowMenuManager class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -58,7 +58,7 @@ public:
     void removeWindow(QWidget *pWindow);
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 protected:
 
@@ -68,7 +68,7 @@ protected:
     ~UIWindowMenuManager();
 
     /** Preprocesses any Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
 private:
 

@@ -1,10 +1,10 @@
-/* $Id: coredumper-solaris.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: coredumper-solaris.cpp $ */
 /** @file
  * IPRT - Custom Core Dumper, Solaris.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

@@ -1,10 +1,10 @@
-/* $Id: rc4-openssl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: rc4-openssl.cpp $ */
 /** @file
  * IPRT - Crypto - Alleged RC4 via OpenSSL.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,9 +31,7 @@
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt.h"
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
-# include <openssl/rc4.h>
-# include "internal/openssl-post.h"
+# include "openssl/rc4.h"
 # include <iprt/crypto/rc4.h>
 
 # include <iprt/assert.h>

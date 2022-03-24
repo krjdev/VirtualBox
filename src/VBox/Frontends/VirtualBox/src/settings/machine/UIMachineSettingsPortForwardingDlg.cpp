@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsPortForwardingDlg.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineSettingsPortForwardingDlg.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsPortForwardingDlg class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,6 @@
 #include <QPushButton>
 
 /* GUI includes: */
-#include "UIDesktopWidgetWatchdog.h"
 #include "UIMachineSettingsPortForwardingDlg.h"
 #include "UIIconPool.h"
 #include "UIMessageCenter.h"
@@ -61,9 +60,6 @@ UIMachineSettingsPortForwardingDlg::UIMachineSettingsPortForwardingDlg(QWidget *
 
     /* Retranslate dialog: */
     retranslateUi();
-
-    /* Limit the minimum size to 33% of screen size: */
-    setMinimumSize(gpDesktop->screenGeometry(this).size() / 3);
 }
 
 const UIPortForwardingDataList UIMachineSettingsPortForwardingDlg::rules() const

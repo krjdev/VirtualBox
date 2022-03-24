@@ -1,10 +1,10 @@
-/* $Id: UIFrameBuffer.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIFrameBuffer.h $ */
 /** @file
  * VBox Qt GUI - UIFrameBuffer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -44,8 +44,15 @@ class UIFrameBuffer : public QObject
 
 public:
 
+#ifdef VBOX_WITH_VIDEOHWACCEL
+    /** Frame-buffer constructor.
+      * @param m_fAccelerate2DVideo defines whether we should use VBoxOverlayFrameBuffer
+      *                             instead of the default one. */
+    UIFrameBuffer(bool m_fAccelerate2DVideo);
+#else /* !VBOX_WITH_VIDEOHWACCEL */
     /** Frame-buffer constructor. */
     UIFrameBuffer();
+#endif /* !VBOX_WITH_VIDEOHWACCEL */
 
     /** Frame-buffer destructor. */
     ~UIFrameBuffer();
@@ -132,8 +139,14 @@ public:
     /** Performs frame-buffer rescaling. */
     void performRescale();
 
+#ifdef VBOX_WITH_VIDEOHWACCEL
+    /** Performs Video HW Acceleration command. */
+    void doProcessVHWACommand(QEvent *pEvent);
     /** Handles viewport resize-event. */
     void viewportResized(QResizeEvent *pEvent);
+    /** Handles viewport scroll-event. */
+    void viewportScrolled(int iX, int iY);
+#endif /* VBOX_WITH_VIDEOHWACCEL */
 
 private:
 

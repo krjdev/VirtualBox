@@ -1,10 +1,10 @@
-/* $Id: UIPopupBox.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIPopupBox.h $ */
 /** @file
  * VBox Qt GUI - UIPopupBox/UIPopupBoxGroup classes declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,7 +69,7 @@ public:
     /** Construct popup-box passing @a pParent to the base-class. */
     UIPopupBox(QWidget *pParent);
     /** Destruct popup-box. */
-    virtual ~UIPopupBox() RT_OVERRIDE;
+    virtual ~UIPopupBox() /* override */;
 
     /** Defines title @a icon. */
     void setTitleIcon(const QIcon &icon);
@@ -113,19 +113,19 @@ public:
 protected:
 
     /** Handles any Qt @a pEvent. */
-    virtual bool event(QEvent *pEvent) RT_OVERRIDE;
+    virtual bool event(QEvent *pEvent) /* override */;
 
     /** Pre-handles standard Qt @a pEvent for passed @a pObject. */
-    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
+    virtual bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
     /** Handles mouse double-click @a pEvent. */
-    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) /* override */;
 
 private:
 
@@ -194,7 +194,7 @@ public:
     /** Construct popup-box passing @a pParent to the base-class. */
     UIPopupBoxGroup(QObject *pParent);
     /** Destruct popup-box. */
-    virtual ~UIPopupBoxGroup() RT_OVERRIDE;
+    virtual ~UIPopupBoxGroup() /* override */;
 
     /** Adds @a pPopupBox into group. */
     void addPopupBox(UIPopupBox *pPopupBox);

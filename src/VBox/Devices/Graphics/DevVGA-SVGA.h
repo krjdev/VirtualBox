@@ -1,9 +1,9 @@
-/* $Id: DevVGA-SVGA.h 94205 2022-03-12 20:12:21Z vboxsync $ */
+/* $Id: DevVGA-SVGA.h $ */
 /** @file
  * VMware SVGA device
  */
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,118 +24,9 @@
 # error "VBOX_WITH_VMSVGA is not defined"
 #endif
 
-#define VMSVGA_USE_EMT_HALT_CODE
-
-#include <VBox/pci.h>
-#include <VBox/vmm/pdmifs.h>
 #include <VBox/vmm/pdmthread.h>
-#include <VBox/vmm/stam.h>
-#ifdef VMSVGA_USE_EMT_HALT_CODE
-# include <VBox/vmm/vmapi.h>
-# include <VBox/vmm/vmcpuset.h>
-#endif
 
-#include <iprt/avl.h>
-#include <iprt/list.h>
-
-
-/*
- * PCI device IDs.
- */
-#ifndef PCI_VENDOR_ID_VMWARE
-# define PCI_VENDOR_ID_VMWARE            0x15AD
-#endif
-#ifndef PCI_DEVICE_ID_VMWARE_SVGA2
-# define PCI_DEVICE_ID_VMWARE_SVGA2      0x0405
-#endif
-
-/* For "svga_overlay.h" */
-#ifndef TRUE
-# define TRUE 1
-#endif
-#ifndef FALSE
-# define FALSE 0
-#endif
-
-/* VMSVGA headers. */
-#include "vmsvga_headers_begin.h"
-#pragma pack(1) /* VMSVGA structures are '__packed'. */
-#include <svga3d_caps.h>
-#include <svga3d_reg.h>
-#include <svga3d_shaderdefs.h>
-#include <svga_escape.h>
-#include <svga_overlay.h>
-#pragma pack()
-#include "vmsvga_headers_end.h"
-
-/**@def FLOAT_FMT_STR
- * Format string bits to go with FLOAT_FMT_ARGS. */
-#define FLOAT_FMT_STR                  "%s%u.%06u"
-/** @def FLOAT_FMT_ARGS
- * Format arguments for a float value, corresponding to FLOAT_FMT_STR.
- * @param   r       The floating point value to format.  */
-#define FLOAT_FMT_ARGS(r)              (r) >= 0.0f ? "" : "-", (unsigned)RT_ABS(r) \
-                                       , (unsigned)(RT_ABS((r) - (float)(unsigned)(r)) * 1000000.0f)
-
-/* Deprecated commands. They are not included in the VMSVGA headers anymore. */
-#define SVGA_CMD_RECT_FILL             2
-#define SVGA_CMD_DISPLAY_CURSOR        20
-#define SVGA_CMD_MOVE_CURSOR           21
-
-/*
- * SVGA_CMD_RECT_FILL --
- *
- *    Fill a rectangular area in the the GFB, and copy the result
- *    to any screens which intersect it.
- *
- *    Deprecated?
- *
- * Availability:
- *    SVGA_CAP_RECT_FILL
- */
-
-typedef
-struct {
-   uint32_t pixel;
-   uint32_t destX;
-   uint32_t destY;
-   uint32_t width;
-   uint32_t height;
-} SVGAFifoCmdRectFill;
-
-/*
- * SVGA_CMD_DISPLAY_CURSOR --
- *
- *    Turn the cursor on or off.
- *
- *    Deprecated.
- *
- * Availability:
- *    SVGA_CAP_CURSOR?
- */
-
-typedef
-struct {
-   uint32_t id;             // Reserved, must be zero.
-   uint32_t state;          // 0=off
-} SVGAFifoCmdDisplayCursor;
-
-/*
- * SVGA_CMD_MOVE_CURSOR --
- *
- *    Set the cursor position.
- *
- *    Deprecated.
- *
- * Availability:
- *    SVGA_CAP_CURSOR?
- */
-
-typedef
-struct {
-    SVGASignedPoint     pos;
-} SVGAFifoCmdMoveCursor;
-
+#include "vmsvga/svga3d_reg.h"
 
 /** Default FIFO size. */
 #define VMSVGA_FIFO_SIZE                _2M
@@ -260,11 +151,8 @@ typedef struct VMSVGASCREENOBJECT
     uint32_t    cbPitch;
     /** Bits per pixel. */
     uint32_t    cBpp;
-    /** The physical DPI that the guest expects for this screen. Zero, if the guest is not DPI aware. */
-    uint32_t    cDpi;
     bool        fDefined;
     bool        fModified;
-    void       *pvScreenBitmap;
 #ifdef VBOX_WITH_VMSVGA3D
     /** Pointer to the HW accelerated (3D) screen data. */
     R3PTRTYPE(PVMSVGAHWSCREEN) pHwScreen;
@@ -318,8 +206,8 @@ typedef struct VMSVGAState
     uint32_t                    u32PitchLock;
     /** Current GMR id. (SVGA_REG_GMR_ID) */
     uint32_t                    u32CurrentGMRId;
-    /** SVGA device capabilities. */
-    uint32_t                    u32DeviceCaps;
+    /** Register caps. */
+    uint32_t                    u32RegCaps;
     uint32_t                    Padding0; /* Used to be I/O port base address. */
     /** Port io index register. */
     uint32_t                    u32IndexReg;
@@ -335,14 +223,11 @@ typedef struct VMSVGAState
     bool                        fGFBRegisters;
     /** SVGA 3D overlay enabled or not. */
     bool                        f3DOverlayEnabled;
-    /** Indicates that the guest behaves incorrectly. */
-    bool volatile               fBadGuest;
-    bool                        afPadding[4];
+    bool                        afPadding[1];
     uint32_t                    uWidth;
     uint32_t                    uHeight;
     uint32_t                    uBpp;
     uint32_t                    cbScanline;
-    uint32_t                    uHostBpp;
     /** Maximum width supported. */
     uint32_t                    u32MaxWidth;
     /** Maximum height supported. */
@@ -369,36 +254,20 @@ typedef struct VMSVGAState
 #if defined(VMSVGA_USE_FIFO_ACCESS_HANDLER) || defined(DEBUG_FIFO_ACCESS)
     /** FIFO debug access handler type handle. */
     PGMPHYSHANDLERTYPE          hFifoAccessHandlerType;
+#elif defined(DEBUG_GMR_ACCESS)
+    uint32_t                    uPadding1;
 #endif
-    /** Number of GMRs (VMSVGA_MAX_GMR_IDS, count of elements in VMSVGAR3STATE::paGMR array). */
+    /** Number of GMRs. */
     uint32_t                    cGMR;
     uint32_t                    uScreenOffset; /* Used only for loading older saved states. */
-
-    /** Legacy cursor state. */
-    uint32_t                    uCursorX;
-    uint32_t                    uCursorY;
-    uint32_t                    uCursorID;
-    uint32_t                    uCursorOn;
 
     /** Scratch array.
      * Putting this at the end since it's big it probably not . */
     uint32_t                    au32ScratchRegion[VMSVGA_SCRATCH_SIZE];
 
-    /** Array of SVGA3D_DEVCAP values, which are accessed via SVGA_REG_DEV_CAP. */
-    uint32_t                    au32DevCaps[SVGA3D_DEVCAP_MAX];
-    /** Index written to the SVGA_REG_DEV_CAP register. */
-    uint32_t                    u32DevCapIndex;
-    /** Low 32 bit of a command buffer address written to the SVGA_REG_COMMAND_LOW register. */
-    uint32_t                    u32RegCommandLow;
-    /** High 32 bit of a command buffer address written to the SVGA_REG_COMMAND_HIGH register. */
-    uint32_t                    u32RegCommandHigh;
-
     STAMCOUNTER                 StatRegBitsPerPixelWr;
     STAMCOUNTER                 StatRegBusyWr;
-    STAMCOUNTER                 StatRegCursorXWr;
-    STAMCOUNTER                 StatRegCursorYWr;
-    STAMCOUNTER                 StatRegCursorIdWr;
-    STAMCOUNTER                 StatRegCursorOnWr;
+    STAMCOUNTER                 StatRegCursorXxxxWr;
     STAMCOUNTER                 StatRegDepthWr;
     STAMCOUNTER                 StatRegDisplayHeightWr;
     STAMCOUNTER                 StatRegDisplayIdWr;
@@ -424,11 +293,6 @@ typedef struct VMSVGAState
     STAMCOUNTER                 StatRegTracesWr;
     STAMCOUNTER                 StatRegUnknownWr;
     STAMCOUNTER                 StatRegWidthWr;
-    STAMCOUNTER                 StatRegCommandLowWr;
-    STAMCOUNTER                 StatRegCommandHighWr;
-    STAMCOUNTER                 StatRegDevCapWr;
-    STAMCOUNTER                 StatRegCmdPrependLowWr;
-    STAMCOUNTER                 StatRegCmdPrependHighWr;
 
     STAMCOUNTER                 StatRegBitsPerPixelRd;
     STAMCOUNTER                 StatRegBlueMaskRd;
@@ -436,10 +300,7 @@ typedef struct VMSVGAState
     STAMCOUNTER                 StatRegBytesPerLineRd;
     STAMCOUNTER                 StatRegCapabilitesRd;
     STAMCOUNTER                 StatRegConfigDoneRd;
-    STAMCOUNTER                 StatRegCursorXRd;
-    STAMCOUNTER                 StatRegCursorYRd;
-    STAMCOUNTER                 StatRegCursorIdRd;
-    STAMCOUNTER                 StatRegCursorOnRd;
+    STAMCOUNTER                 StatRegCursorXxxxRd;
     STAMCOUNTER                 StatRegDepthRd;
     STAMCOUNTER                 StatRegDisplayHeightRd;
     STAMCOUNTER                 StatRegDisplayIdRd;
@@ -482,16 +343,6 @@ typedef struct VMSVGAState
     STAMCOUNTER                 StatRegVramSizeRd;
     STAMCOUNTER                 StatRegWidthRd;
     STAMCOUNTER                 StatRegWriteOnlyRd;
-    STAMCOUNTER                 StatRegCommandLowRd;
-    STAMCOUNTER                 StatRegCommandHighRd;
-    STAMCOUNTER                 StatRegMaxPrimBBMemRd;
-    STAMCOUNTER                 StatRegGBMemSizeRd;
-    STAMCOUNTER                 StatRegDevCapRd;
-    STAMCOUNTER                 StatRegCmdPrependLowRd;
-    STAMCOUNTER                 StatRegCmdPrependHighRd;
-    STAMCOUNTER                 StatRegScrnTgtMaxWidthRd;
-    STAMCOUNTER                 StatRegScrnTgtMaxHeightRd;
-    STAMCOUNTER                 StatRegMobMaxSizeRd;
 } VMSVGAState, VMSVGASTATE;
 
 
@@ -552,7 +403,7 @@ DECLCALLBACK(VBOXSTRICTRC) vmsvgaIOWrite(PPDMDEVINS pDevIns, void *pvUser, RTIOP
 
 DECLCALLBACK(void) vmsvgaR3PortSetViewport(PPDMIDISPLAYPORT pInterface, uint32_t uScreenId,
                                          uint32_t x, uint32_t y, uint32_t cx, uint32_t cy);
-DECLCALLBACK(void) vmsvgaR3PortReportMonitorPositions(PPDMIDISPLAYPORT pInterface, uint32_t cPositions, PCRTPOINT paPositions);
+DECLCALLBACK(void) vmsvgaR3PortReportMonitorPositions(PPDMIDISPLAYPORT pInterface, uint32_t cPositions, PRTPOINT pPosition);
 
 int vmsvgaR3Init(PPDMDEVINS pDevIns);
 int vmsvgaR3Reset(PPDMDEVINS pDevIns);
@@ -577,86 +428,5 @@ int vmsvgaR3GmrTransfer(PVGASTATE pThis, PVGASTATECC pThisCC, const SVGA3dTransf
 void vmsvgaR3ClipCopyBox(const SVGA3dSize *pSizeSrc, const SVGA3dSize *pSizeDest, SVGA3dCopyBox *pBox);
 void vmsvgaR3ClipBox(const SVGA3dSize *pSize, SVGA3dBox *pBox);
 void vmsvgaR3ClipRect(SVGASignedRect const *pBound, SVGASignedRect *pRect);
-void vmsvgaR3Clip3dRect(SVGA3dRect const *pBound, SVGA3dRect RT_UNTRUSTED_GUEST *pRect);
-
-/*
- * GBO (Guest Backed Object).
- * A GBO is a list of the guest pages. GBOs are used for VMSVGA MOBs (Memory OBjects)
- * and Object Tables which the guest shares with the host.
- *
- * A GBO is similar to a GMR. Nevertheless I'll create a new code for GBOs in order
- * to avoid tweaking and possibly breaking existing code. Moreover it will be probably possible to
- * map the guest pages into the host R3 memory and access them directly.
- */
-
-/* GBO descriptor. */
-typedef struct VMSVGAGBODESCRIPTOR
-{
-   RTGCPHYS                 GCPhys;
-   uint64_t                 cPages;
-} VMSVGAGBODESCRIPTOR, *PVMSVGAGBODESCRIPTOR;
-typedef VMSVGAGBODESCRIPTOR const *PCVMSVGAGBODESCRIPTOR;
-
-/* GBO.
- */
-typedef struct VMSVGAGBO
-{
-    uint32_t                fGboFlags;
-    uint32_t                cTotalPages;
-    uint32_t                cbTotal;
-    uint32_t                cDescriptors;
-    PVMSVGAGBODESCRIPTOR    paDescriptors;
-    void                   *pvHost; /* Pointer to cbTotal bytes on the host if VMSVGAGBO_F_HOST_BACKED is set. */
-} VMSVGAGBO, *PVMSVGAGBO;
-typedef VMSVGAGBO const *PCVMSVGAGBO;
-
-#define VMSVGAGBO_F_WRITE_PROTECTED 0x1
-#define VMSVGAGBO_F_HOST_BACKED     0x2
-
-#define VMSVGA_IS_GBO_CREATED(a_Gbo) ((a_Gbo)->paDescriptors != NULL)
-
-int vmsvgaR3OTableReadSurface(PVMSVGAR3STATE pSvgaR3State, uint32_t sid, SVGAOTableSurfaceEntry *pEntrySurface);
-
-/* MOB is also a GBO.
- */
-typedef struct VMSVGAMOB
-{
-    AVLU32NODECORE          Core; /* Key is the mobid. */
-    RTLISTNODE              nodeLRU;
-    VMSVGAGBO               Gbo;
-} VMSVGAMOB, *PVMSVGAMOB;
-typedef VMSVGAMOB const *PCVMSVGAMOB;
-
-PVMSVGAMOB vmsvgaR3MobGet(PVMSVGAR3STATE pSvgaR3State, SVGAMobId RT_UNTRUSTED_GUEST mobid);
-int vmsvgaR3MobBackingStoreCreate(PVMSVGAR3STATE pSvgaR3State, PVMSVGAMOB pMob, uint32_t cbValid);
-void vmsvgaR3MobBackingStoreDelete(PVMSVGAR3STATE pSvgaR3State, PVMSVGAMOB pMob);
-int vmsvgaR3MobBackingStoreWriteToGuest(PVMSVGAR3STATE pSvgaR3State, PVMSVGAMOB pMob);
-int vmsvgaR3MobBackingStoreReadFromGuest(PVMSVGAR3STATE pSvgaR3State, PVMSVGAMOB pMob);
-void *vmsvgaR3MobBackingStorePtr(PVMSVGAMOB pMob, uint32_t off);
-
-DECLINLINE(uint32_t) vmsvgaR3MobSize(PVMSVGAMOB pMob)
-{
-    if (pMob)
-        return pMob->Gbo.cbTotal;
-    return 0;
-}
-
-DECLINLINE(uint32_t) vmsvgaR3MobId(PVMSVGAMOB pMob)
-{
-    if (pMob)
-        return pMob->Core.Key;
-    return SVGA_ID_INVALID;
-}
-
-#ifdef DEBUG
-#define DEBUG_BREAKPOINT_TEST() do { ASMBreakpoint(); } while (0)
-#else
-#define DEBUG_BREAKPOINT_TEST() do { } while (0)
-#endif
-
-#ifdef VBOX_WITH_VMSVGA3D
-int vmsvgaR3UpdateGBSurface(PVGASTATECC pThisCC, SVGA3dSurfaceImageId const *pImageId, SVGA3dBox const *pBox);
-int vmsvgaR3UpdateGBSurfaceEx(PVGASTATECC pThisCC, SVGA3dSurfaceImageId const *pImageId, SVGA3dBox const *pBoxDst, SVGA3dPoint const *pPtSrc);
-#endif
 
 #endif /* !VBOX_INCLUDED_SRC_Graphics_DevVGA_SVGA_h */

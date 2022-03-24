@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,14 +54,10 @@ RTDECL(int) RTHandleClose(PRTHANDLE ph);
  *
  * @returns IPRT status code.
  * @param   enmStdHandle    The standard handle.
- * @param   fLeaveOpen      Whether closing the returned handle should leave the
- *                          native standard handle open or not.
- *                          Note! This currently only works with pipes and
- *                                sockets!
  * @param   ph              Pointer to the generic handle.  This will contain
  *                          the most appropriate IPRT handle on success.
  */
-RTDECL(int) RTHandleGetStandard(RTHANDLESTD enmStdHandle, bool fLeaveOpen, PRTHANDLE ph);
+RTDECL(int) RTHandleGetStandard(RTHANDLESTD enmStdHandle, PRTHANDLE ph);
 
 /** @} */
 

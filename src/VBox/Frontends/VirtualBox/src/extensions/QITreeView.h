@@ -1,10 +1,10 @@
-/* $Id: QITreeView.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QITreeView.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QITreeView class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -137,25 +137,25 @@ protected:
       * @param  pPainter  Brings the painter to draw branches.
       * @param  rect      Brings the rectangle embedding branches.
       * @param  index     Brings the index of the item for which branches will be painted. */
-    virtual void drawBranches(QPainter *pPainter, const QRect &rect, const QModelIndex &index) const RT_OVERRIDE;
+    virtual void drawBranches(QPainter *pPainter, const QRect &rect, const QModelIndex &index) const /* override */;
 
     /** Handles mouse move @a pEvent. */
-    virtual void mouseMoveEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseMoveEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse press @a pEvent. */
-    virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mousePressEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse release @a pEvent. */
-    virtual void mouseReleaseEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseReleaseEvent(QMouseEvent *pEvent) /* override */;
     /** Handles mouse double-click @a pEvent. */
-    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) RT_OVERRIDE;
+    virtual void mouseDoubleClickEvent(QMouseEvent *pEvent) /* override */;
 
     /** Handles mouse drag enter @a pEvent. */
-    virtual void dragEnterEvent(QDragEnterEvent *pEvent) RT_OVERRIDE;
+    virtual void dragEnterEvent(QDragEnterEvent *pEvent) /* override */;
     /** Handles mouse drag move @a pEvent. */
-    virtual void dragMoveEvent(QDragMoveEvent *pEvent) RT_OVERRIDE;
+    virtual void dragMoveEvent(QDragMoveEvent *pEvent) /* override */;
     /** Handles mouse drag leave @a pEvent. */
-    virtual void dragLeaveEvent(QDragLeaveEvent *pEvent) RT_OVERRIDE;
+    virtual void dragLeaveEvent(QDragLeaveEvent *pEvent) /* override */;
     /** Handles mouse drop @a pEvent. */
-    virtual void dropEvent(QDropEvent *pEvent) RT_OVERRIDE;
+    virtual void dropEvent(QDropEvent *pEvent) /* override */;
 
 private:
 

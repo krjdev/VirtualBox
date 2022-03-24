@@ -1,10 +1,10 @@
-/* $Id: PDMBlkCacheInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PDMBlkCacheInternal.h $ */
 /** @file
  * PDM Block Cache.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -133,7 +133,7 @@ typedef struct PDMBLKCACHEGLOBAL
     /** Flag whether a commit is currently in progress. */
     volatile bool       fCommitInProgress;
     /** Commit interval timer */
-    TMTIMERHANDLE       hTimerCommit;
+    PTMTIMERR3          pTimerCommit;
     /** Number of endpoints using the cache. */
     uint32_t            cRefs;
     /** List of all users of this cache. */

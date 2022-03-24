@@ -1,10 +1,10 @@
-/* $Id: proxy_rtadvd.c 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: proxy_rtadvd.c $ */
 /** @file
  * NAT Network - IPv6 router advertisement daemon.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

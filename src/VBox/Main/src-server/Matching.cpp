@@ -1,4 +1,4 @@
-/* $Id: Matching.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Matching.cpp $ */
 /** @file
  * @todo r=bird: brief description, please.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -111,7 +111,7 @@ size_t ParsedIntervalFilter_base::parseValue (
 
     AssertReturn(endptr, 0);
 
-    size_t parsed = (size_t)(endptr - aFilter);
+    size_t parsed = endptr - aFilter;
 
     // return parsed if not able to parse to the end
     if (parsed != aEnd)

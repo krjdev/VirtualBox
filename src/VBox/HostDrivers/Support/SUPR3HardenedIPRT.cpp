@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedIPRT.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPR3HardenedIPRT.cpp $ */
 /** @file
  * VirtualBox Support Library - Hardened Support Routines using IPRT.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,36 +41,54 @@
 #include "SUPLibInternal.h"
 
 
+/**
+ * @copydoc RTPathFilename
+ */
 DECLHIDDEN(char *) supR3HardenedPathFilename(const char *pszPath)
 {
     return RTPathFilename(pszPath);
 }
 
 
+/**
+ * @copydoc RTPathAppPrivateNoArch
+ */
 DECLHIDDEN(int) supR3HardenedPathAppPrivateNoArch(char *pszPath, size_t cchPath)
 {
     return RTPathAppPrivateNoArch(pszPath, cchPath);
 }
 
 
+/**
+ * @copydoc RTPathAppPrivateArch
+ */
 DECLHIDDEN(int) supR3HardenedPathAppPrivateArch(char *pszPath, size_t cchPath)
 {
     return RTPathAppPrivateArch(pszPath, cchPath);
 }
 
 
+/**
+ * @copydoc RTPathSharedLibs
+ */
 DECLHIDDEN(int) supR3HardenedPathAppSharedLibs(char *pszPath, size_t cchPath)
 {
     return RTPathSharedLibs(pszPath, cchPath);
 }
 
 
+/**
+ * @copydoc RTPathAppDocs
+ */
 DECLHIDDEN(int) supR3HardenedPathAppDocs(char *pszPath, size_t cchPath)
 {
     return RTPathAppDocs(pszPath, cchPath);
 }
 
 
+/**
+ * @copydoc RTPathExecDir
+ */
 DECLHIDDEN(int) supR3HardenedPathAppBin(char *pszPath, size_t cchPath)
 {
     return RTPathExecDir(pszPath, cchPath);

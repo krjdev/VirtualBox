@@ -1,10 +1,10 @@
-/* $Id: UIMachineWindowFullscreen.cpp 93366 2022-01-20 17:13:31Z vboxsync $ */
+/* $Id: UIMachineWindowFullscreen.cpp $ */
 /** @file
  * VBox Qt GUI - UIMachineWindowFullscreen class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,7 +31,6 @@
 #include "UIMachineLogicFullscreen.h"
 #include "UIMachineWindowFullscreen.h"
 #include "UIMachineView.h"
-#include "UINotificationCenter.h"
 #if   defined(VBOX_WS_WIN) || defined(VBOX_WS_X11)
 # include "UIMachineDefs.h"
 # include "UIMiniToolBar.h"
@@ -149,12 +148,6 @@ void UIMachineWindowFullscreen::sltRevokeWindowActivation()
 #endif /* VBOX_WS_X11 */
     activateWindow();
 }
-
-void UIMachineWindowFullscreen::sltHandleMiniToolBarAutoHideToggled(bool fEnabled)
-{
-    /* Save mini-toolbar settings: */
-    gEDataManager->setAutoHideMiniToolbar(fEnabled, uiCommon().managedVMUuid());
-}
 #endif /* VBOX_WS_WIN || VBOX_WS_X11 */
 
 #ifdef VBOX_WS_MAC
@@ -216,12 +209,6 @@ void UIMachineWindowFullscreen::sltShowMinimized()
 #endif
 
     showMinimized();
-}
-
-void UIMachineWindowFullscreen::prepareNotificationCenter()
-{
-    if (gpNotificationCenter && (m_uScreenId == 0))
-        gpNotificationCenter->setParent(centralWidget());
 }
 
 void UIMachineWindowFullscreen::prepareVisualState()
@@ -294,8 +281,6 @@ void UIMachineWindowFullscreen::prepareMiniToolbar()
                 actionPool()->action(UIActionIndex_M_Application_S_Close), &UIAction::trigger);
         connect(m_pMiniToolBar, &UIMiniToolBar::sigNotifyAboutWindowActivationStolen,
                 this, &UIMachineWindowFullscreen::sltRevokeWindowActivation, Qt::QueuedConnection);
-        connect(m_pMiniToolBar, &UIMiniToolBar::sigAutoHideToggled,
-                this, &UIMachineWindowFullscreen::sltHandleMiniToolBarAutoHideToggled);
     }
 }
 #endif /* VBOX_WS_WIN || VBOX_WS_X11 */
@@ -303,6 +288,12 @@ void UIMachineWindowFullscreen::prepareMiniToolbar()
 #if defined(VBOX_WS_WIN) || defined(VBOX_WS_X11)
 void UIMachineWindowFullscreen::cleanupMiniToolbar()
 {
+    /* Make sure mini-toolbar was created: */
+    if (!m_pMiniToolBar)
+        return;
+
+    /* Save mini-toolbar settings: */
+    gEDataManager->setAutoHideMiniToolbar(m_pMiniToolBar->autoHide(), uiCommon().managedVMUuid());
     /* Delete mini-toolbar: */
     delete m_pMiniToolBar;
     m_pMiniToolBar = 0;
@@ -331,12 +322,6 @@ void UIMachineWindowFullscreen::cleanupVisualState()
 
     /* Call to base-class: */
     UIMachineWindow::cleanupVisualState();
-}
-
-void UIMachineWindowFullscreen::cleanupNotificationCenter()
-{
-    if (gpNotificationCenter && (gpNotificationCenter->parent() == centralWidget()))
-        gpNotificationCenter->setParent(0);
 }
 
 void UIMachineWindowFullscreen::placeOnScreen()
@@ -380,7 +365,7 @@ void UIMachineWindowFullscreen::placeOnScreen()
             geo = QRect(QPoint(0, 0), QSize(800, 600).boundedTo(workingArea.size()));
         /* Move window to the center of working-area: */
         geo.moveCenter(workingArea.center());
-        UIDesktopWidgetWatchdog::setTopLevelGeometry(this, geo);
+        UICommon::setTopLevelGeometry(this, geo);
     }
 
 #elif defined(VBOX_WS_WIN)
@@ -393,12 +378,12 @@ void UIMachineWindowFullscreen::placeOnScreen()
 #elif defined(VBOX_WS_X11)
 
     /* Determine whether we should use the native full-screen mode: */
-    const bool fUseNativeFullScreen =    NativeWindowSubsystem::X11SupportsFullScreenMonitorsProtocol()
-                                      && !gEDataManager->legacyFullscreenModeRequested();
+    const bool fUseNativeFullScreen = UICommon::supportsFullScreenMonitorsProtocolX11() &&
+                                      !gEDataManager->legacyFullscreenModeRequested();
     if (fUseNativeFullScreen)
     {
         /* Tell recent window managers which host-screen this window should be mapped to: */
-        NativeWindowSubsystem::X11SetFullScreenMonitor(this, pFullscreenLogic->hostScreenForGuestScreen(m_uScreenId));
+        UICommon::setFullScreenMonitorX11(this, pFullscreenLogic->hostScreenForGuestScreen(m_uScreenId));
     }
 
     /* Set appropriate window geometry: */

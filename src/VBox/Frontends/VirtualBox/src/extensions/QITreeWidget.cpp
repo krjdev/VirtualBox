@@ -1,10 +1,10 @@
-/* $Id: QITreeWidget.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QITreeWidget.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QITreeWidget class implementation.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -49,24 +49,24 @@ public:
     {}
 
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE;
+    virtual QAccessibleInterface *parent() const /* override */;
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const /* override */;
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE;
+    virtual QRect rect() const /* override */;
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE;
+    virtual QAccessible::Role role() const /* override */;
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE;
+    virtual QAccessible::State state() const /* override */;
 
 private:
 
@@ -97,12 +97,12 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    virtual int childCount() const /* override */;
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE;
+    virtual QAccessibleInterface *child(int iIndex) const /* override */;
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE;
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */;
 
 private:
 
@@ -437,11 +437,26 @@ QModelIndex QITreeWidget::itemIndex(QTreeWidgetItem *pItem)
     return indexFromItem(pItem);
 }
 
-QList<QTreeWidgetItem*> QITreeWidget::filterItems(const QITreeWidgetItemFilter &filter, QTreeWidgetItem *pParent /* = 0 */)
+QList<QTreeWidgetItem*> QITreeWidget::filterItems(const QITreeWidgetItemFilter &filter, QTreeWidgetItem* pParent /* = 0 */)
 {
     QList<QTreeWidgetItem*> filteredItemList;
-    filterItemsInternal(filter, pParent ? pParent : invisibleRootItem(), filteredItemList);
+    if (!pParent)
+        filterItemsInternal(filter, invisibleRootItem(), filteredItemList);
+    else
+        filterItemsInternal(filter, pParent, filteredItemList);
     return filteredItemList;
+}
+
+void QITreeWidget::filterItemsInternal(const QITreeWidgetItemFilter &filter,
+                                           QTreeWidgetItem* pParent, QList<QTreeWidgetItem*> &filteredItemList)
+{
+    if (!pParent)
+        return;
+    if (filter(pParent))
+        filteredItemList.append(pParent);
+
+    for (int i = 0; i < pParent->childCount(); ++i)
+        filterItemsInternal(filter, pParent->child(i), filteredItemList);
 }
 
 void QITreeWidget::paintEvent(QPaintEvent *pEvent)
@@ -472,16 +487,4 @@ void QITreeWidget::resizeEvent(QResizeEvent *pEvent)
 
     /* Notify listeners about resizing: */
     emit resized(pEvent->size(), pEvent->oldSize());
-}
-
-void QITreeWidget::filterItemsInternal(const QITreeWidgetItemFilter &filter, QTreeWidgetItem *pParent,
-                                       QList<QTreeWidgetItem*> &filteredItemList)
-{
-    if (!pParent)
-        return;
-    if (filter(pParent))
-        filteredItemList.append(pParent);
-
-    for (int i = 0; i < pParent->childCount(); ++i)
-        filterItemsInternal(filter, pParent->child(i), filteredItemList);
 }

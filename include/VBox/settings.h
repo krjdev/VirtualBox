@@ -17,7 +17,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -221,7 +221,6 @@ class ConfigFileBase
 {
 public:
     bool fileExists();
-    SettingsVersion_T getSettingsVersion();
 
     void copyBaseFrom(const ConfigFileBase &b);
 
@@ -325,12 +324,6 @@ struct SystemProperties
     uint32_t                uProxyMode; /**< ProxyMode_T */
     uint32_t                uLogHistoryCount;
     bool                    fExclusiveHwVirt;
-    bool                    fVBoxUpdateEnabled;
-    uint32_t                uVBoxUpdateCount;
-    uint32_t                uVBoxUpdateFrequency;
-    uint32_t                uVBoxUpdateTarget; /**< VBoxUpdateTarget_T */
-    com::Utf8Str            strVBoxUpdateLastCheckDate;
-    com::Utf8Str            strLanguageId;
 };
 
 struct MachineRegistryEntry
@@ -436,25 +429,6 @@ struct NATNetwork
 
 typedef std::list<NATNetwork> NATNetworksList;
 
-#ifdef VBOX_WITH_VMNET
-/**
- * HostOnly Networking settings.
- */
-struct HostOnlyNetwork
-{
-    HostOnlyNetwork();
-
-    com::Guid    uuid;
-    com::Utf8Str strNetworkName;
-    com::Utf8Str strNetworkMask;
-    com::Utf8Str strIPLower;
-    com::Utf8Str strIPUpper;
-    bool         fEnabled;
-};
-
-typedef std::list<HostOnlyNetwork> HostOnlyNetworksList;
-#endif /* VBOX_WITH_VMNET */
-
 #ifdef VBOX_WITH_CLOUD_NET
 /**
  * Cloud Networking settings.
@@ -481,9 +455,6 @@ public:
 
     void readMachineRegistry(const xml::ElementNode &elmMachineRegistry);
     void readNATNetworks(const xml::ElementNode &elmNATNetworks);
-#ifdef VBOX_WITH_VMNET
-    void readHostOnlyNetworks(const xml::ElementNode &elmHostOnlyNetworks);
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
     void readCloudNetworks(const xml::ElementNode &elmCloudNetworks);
 #endif /* VBOX_WITH_CLOUD_NET */
@@ -496,9 +467,6 @@ public:
     MachinesRegistry        llMachines;
     DHCPServersList         llDhcpServers;
     NATNetworksList         llNATNetworks;
-#ifdef VBOX_WITH_VMNET
-    HostOnlyNetworksList    llHostOnlyNetworks;
-#endif /* VBOX_WITH_VMNET */
 #ifdef VBOX_WITH_CLOUD_NET
     CloudNetworksList       llCloudNetworks;
 #endif /* VBOX_WITH_CLOUD_NET */
@@ -568,39 +536,7 @@ struct BIOSSettings
     APICMode_T      apicMode;           // requires settings version 1.16 (VirtualBox 5.1)
     int64_t         llTimeOffset;
     com::Utf8Str    strLogoImagePath;
-};
-
-/**
- * NOTE: If you add any fields in here, you must update a) the constructor and b)
- * the operator== which is used by MachineConfigFile::operator==(), or otherwise
- * your settings might never get saved.
- */
-struct TpmSettings
-{
-    TpmSettings();
-
-    bool areDefaultSettings() const;
-
-    bool operator==(const TpmSettings &d) const;
-
-    TpmType_T       tpmType;
-    com::Utf8Str    strLocation;
-};
-
-/**
- * NOTE: If you add any fields in here, you must update a) the constructor and b)
- * the operator== which is used by MachineConfigFile::operator==(), or otherwise
- * your settings might never get saved.
- */
-struct NvramSettings
-{
-    NvramSettings();
-
-    bool areDefaultSettings() const;
-
-    bool operator==(const NvramSettings &d) const;
-
-    com::Utf8Str    strNvramPath;
+    com::Utf8Str    strNVRAMPath;
 };
 
 /** List for keeping a recording feature list. */
@@ -774,8 +710,7 @@ struct NAT
     bool areDNSDefaultSettings() const;
     bool areAliasDefaultSettings() const;
     bool areTFTPDefaultSettings() const;
-    bool areLocalhostReachableDefaultSettings(SettingsVersion_T sv) const;
-    bool areDefaultSettings(SettingsVersion_T sv) const;
+    bool areDefaultSettings() const;
 
     bool operator==(const NAT &n) const;
 
@@ -795,7 +730,6 @@ struct NAT
     bool                    fAliasLog;
     bool                    fAliasProxyOnly;
     bool                    fAliasUseSamePorts;
-    bool                    fLocalhostReachable;
     NATRulesMap             mapRules;
 };
 
@@ -810,7 +744,7 @@ struct NetworkAdapter
 
     bool areGenericDriverDefaultSettings() const;
     bool areDefaultSettings(SettingsVersion_T sv) const;
-    bool areDisabledDefaultSettings(SettingsVersion_T sv) const;
+    bool areDisabledDefaultSettings() const;
 
     bool operator==(const NetworkAdapter &n) const;
 
@@ -829,9 +763,6 @@ struct NetworkAdapter
     NAT                                 nat;
     com::Utf8Str                        strBridgedName;
     com::Utf8Str                        strHostOnlyName;
-#ifdef VBOX_WITH_VMNET
-    com::Utf8Str                        strHostOnlyNetworkName;
-#endif /* VBOX_WITH_VMNET */
     com::Utf8Str                        strInternalNetworkName;
     com::Utf8Str                        strGenericDriver;
     StringsMap                          genericProperties;
@@ -1184,7 +1115,6 @@ struct Hardware
     bool                fMDSClearOnSched;       //< added out of cycle, after 1.16 was out.
     bool                fMDSClearOnVMEntry;     //< added out of cycle, after 1.16 was out.
     bool                fNestedHWVirt;          //< requires settings version 1.17 (VirtualBox 6.0)
-    bool                fVirtVmsaveVmload;      //< requires settings version 1.18 (VirtualBox 6.1)
     typedef enum LongModeType { LongMode_Enabled, LongMode_Disabled, LongMode_Legacy } LongModeType;
     LongModeType        enmLongMode;
     uint32_t            cCPUs;
@@ -1207,7 +1137,6 @@ struct Hardware
     KeyboardHIDType_T   keyboardHIDType;        // requires settings version 1.10 (VirtualBox 3.2)
 
     ChipsetType_T       chipsetType;            // requires settings version 1.11 (VirtualBox 4.0)
-    IommuType_T         iommuType;              // requires settings version 1.19 (VirtualBox 6.2)
     ParavirtProvider_T  paravirtProvider;       // requires settings version 1.15 (VirtualBox 4.4)
     com::Utf8Str        strParavirtDebug;       // requires settings version 1.16 (VirtualBox 5.1)
 
@@ -1216,11 +1145,9 @@ struct Hardware
     VRDESettings        vrdeSettings;
 
     BIOSSettings        biosSettings;
-    NvramSettings       nvramSettings;
     RecordingSettings   recordingSettings;
     GraphicsAdapter     graphicsAdapter;
     USB                 usbSettings;
-    TpmSettings         tpmSettings;            // requires settings version 1.19 (VirtualBox 6.2)
     NetworkAdaptersList llNetworkAdapters;
     SerialPortsList     llSerialPorts;
     ParallelPortsList   llParallelPorts;

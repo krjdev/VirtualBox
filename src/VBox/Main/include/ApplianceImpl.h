@@ -1,10 +1,10 @@
-/* $Id: ApplianceImpl.h 93480 2022-01-28 16:09:52Z vboxsync $ */
+/* $Id: ApplianceImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,7 +67,7 @@ class ATL_NO_VTABLE Appliance :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(Appliance)
+    DECLARE_EMPTY_CTOR_DTOR(Appliance)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -78,13 +78,10 @@ public:
 
     /* public methods only for internal purposes */
 
-    static HRESULT i_setErrorStatic(HRESULT aResultCode, const char *aText, ...)
+    static HRESULT i_setErrorStatic(HRESULT aResultCode,
+                                    const Utf8Str &aText)
     {
-        va_list va;
-        va_start(va, aText);
-        HRESULT hrc = setErrorInternalV(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, va, false, true);
-        va_end(va);
-        return hrc;
+        return setErrorInternal(aResultCode, getStaticClassIID(), getStaticComponentName(), aText, false, true);
     }
 
     /* private instance data */
@@ -133,8 +130,8 @@ private:
      * @{
      */
     bool i_isApplianceIdle();
-    HRESULT i_searchUniqueVMName(Utf8Str &aName) const;
-    HRESULT i_ensureUniqueImageFilePath(const Utf8Str &aMachineFolder,
+    HRESULT i_searchUniqueVMName(Utf8Str& aName) const;
+    HRESULT i_searchUniqueImageFilePath(const Utf8Str &aMachineFolder,
                                         DeviceType_T aDeviceType,
                                         Utf8Str &aName) const;
     HRESULT i_setUpProgress(ComObjPtr<Progress> &pProgress,
@@ -174,18 +171,8 @@ private:
     HRESULT i_readManifestFile(TaskOVF *pTask, RTVFSIOSTREAM hIosMf, const char *pszSubFileNm);
     HRESULT i_readSignatureFile(TaskOVF *pTask, RTVFSIOSTREAM hIosCert, const char *pszSubFileNm);
     HRESULT i_readTailProcessing(TaskOVF *pTask);
-    HRESULT i_readTailProcessingGetManifestData(void **ppvData, size_t *pcbData);
-    HRESULT i_readTailProcessingSignedData(PRTERRINFOSTATIC pErrInfo);
-    HRESULT i_readTailProcessingVerifySelfSignedOvfCert(TaskOVF *pTask, RTCRSTORE hTrustedCerts, PRTERRINFOSTATIC pErrInfo);
-    HRESULT i_readTailProcessingVerifyIssuedOvfCert(TaskOVF *pTask, RTCRSTORE hTrustedStore, PRTERRINFOSTATIC pErrInfo);
-    HRESULT i_readTailProcessingVerifyContentInfoCerts(void const *pvData, size_t cbData,
-                                                       RTCRSTORE hTrustedStore, PRTERRINFOSTATIC pErrInfo);
-    HRESULT i_readTailProcessingVerifyAnalyzeSignerInfo(void const *pvData, size_t cbData, RTCRSTORE hTrustedStore,
-                                                        uint32_t iSigner, PRTTIMESPEC pNow, int vrc,
-                                                        PRTERRINFOSTATIC pErrInfo, PRTCRSTORE phTrustedStore2);
-    HRESULT i_readTailProcessingVerifyContentInfoFailOne(const char *pszSignature, int vrc, PRTERRINFOSTATIC pErrInfo);
-
     HRESULT i_gettingCloudData(TaskCloud *pTask);
+
     /** @}  */
 
     /** @name Import stuff
@@ -213,15 +200,12 @@ private:
 
     void i_importMachineGeneric(const ovf::VirtualSystem &vsysThis,
                                 ComObjPtr<VirtualSystemDescription> &vsdescThis,
-                                ComPtr<IMachine> &pNewMachineRet,
+                                ComPtr<IMachine> &pNewMachine,
                                 ImportStack &stack);
     void i_importVBoxMachine(ComObjPtr<VirtualSystemDescription> &vsdescThis,
                              ComPtr<IMachine> &pNewMachine,
                              ImportStack &stack);
     void i_importMachines(ImportStack &stack);
-    HRESULT i_verifyStorageControllerPortValid(const StorageControllerType_T aStorageControllerType,
-                                               const uint32_t aControllerPort,
-                                               ULONG *ulMaxPorts);
 
     HRESULT i_preCheckImageAvailability(ImportStack &stack);
     bool    i_importEnsureOvaLookAhead(ImportStack &stack);
@@ -294,7 +278,7 @@ class ATL_NO_VTABLE VirtualSystemDescription :
 
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(VirtualSystemDescription)
+    DECLARE_EMPTY_CTOR_DTOR(VirtualSystemDescription)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -311,8 +295,7 @@ public:
                     const Utf8Str &strExtraConfig = "");
 
     std::list<VirtualSystemDescriptionEntry*> i_findByType(VirtualSystemDescriptionType_T aType);
-    const VirtualSystemDescriptionEntry* i_findControllerFromID(const Utf8Str &id);
-    const VirtualSystemDescriptionEntry* i_findByIndex(const uint32_t aIndex);
+    const VirtualSystemDescriptionEntry* i_findControllerFromID(uint32_t id);
 
     void i_importVBoxMachineXML(const xml::ElementNode &elmMachine);
     const settings::MachineConfigFile* i_getMachineConfig() const;

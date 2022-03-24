@@ -1,10 +1,10 @@
-/* $Id: GuestDirectoryImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestDirectoryImpl.h $ */
 /** @file
  * VirtualBox Main - Guest directory handling implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,7 +37,7 @@ class ATL_NO_VTABLE GuestDirectory :
 public:
     /** @name COM and internal init/term/mapping cruft.
      * @{ */
-    DECLARE_COMMON_CLASS_METHODS(GuestDirectory)
+    DECLARE_EMPTY_CTOR_DTOR(GuestDirectory)
 
     int     init(Console *pConsole, GuestSession *pSession, ULONG aObjectID, const GuestDirectoryOpenInfo &openInfo);
     void    uninit(void);

@@ -1,4 +1,4 @@
-/** $Id: VBoxSFFind.cpp 93073 2021-12-24 01:44:58Z vboxsync $ */
+/** $Id: VBoxSFFind.cpp $ */
 /** @file
  * VBoxSF - OS/2 Shared Folders, Find File IFS EPs.
  */

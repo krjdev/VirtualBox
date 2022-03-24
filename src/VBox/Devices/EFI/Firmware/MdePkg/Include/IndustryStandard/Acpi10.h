@@ -2,7 +2,6 @@
   ACPI 1.0b definitions from the ACPI Specification, revision 1.0b
 
 Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
-Copyright (c) 2020, Arm Limited. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
@@ -38,7 +37,7 @@ typedef struct {
 #pragma pack()
 
 //
-// Define for Descriptor
+// Define for Desriptor
 //
 #define ACPI_SMALL_ITEM_FLAG                   0x00
 #define ACPI_LARGE_ITEM_FLAG                   0x01
@@ -110,7 +109,7 @@ typedef struct {
 #pragma pack(1)
 
 ///
-/// The common definition of QWORD, DWORD, and WORD
+/// The commond definition of QWORD, DWORD, and WORD
 /// Address Space Descriptors.
 ///
 typedef PACKED struct {
@@ -359,7 +358,7 @@ typedef struct {
 #define EFI_ACPI_DMA_TRANSFER_TYPE_MASK                 0x03
 #define   EFI_ACPI_DMA_TRANSFER_TYPE_8_BIT              0x00
 #define   EFI_ACPI_DMA_TRANSFER_TYPE_8_BIT_AND_16_BIT   0x01
-#define   EFI_ACPI_DMA_TRANSFER_TYPE_16_BIT             0x02
+#define   EFI_ACPI_DMA_TRANSFER_TYPE_16_BIT             0x10
 
 //
 // IO Information
@@ -376,16 +375,6 @@ typedef struct {
 #define EFI_ACPI_MEMORY_WRITE_STATUS_MASK               0x01
 #define   EFI_ACPI_MEMORY_WRITABLE                      0x01
 #define   EFI_ACPI_MEMORY_NON_WRITABLE                  0x00
-
-//
-// Interrupt Vector Flags definitions for Extended Interrupt Descriptor
-// Ref ACPI specification 6.4.3.6
-//
-#define EFI_ACPI_EXTENDED_INTERRUPT_FLAG_PRODUCER_CONSUMER_MASK   BIT0
-#define EFI_ACPI_EXTENDED_INTERRUPT_FLAG_MODE_MASK                BIT1
-#define EFI_ACPI_EXTENDED_INTERRUPT_FLAG_POLARITY_MASK            BIT2
-#define EFI_ACPI_EXTENDED_INTERRUPT_FLAG_SHARABLE_MASK            BIT3
-#define EFI_ACPI_EXTENDED_INTERRUPT_FLAG_WAKE_CAPABLITY_MASK      BIT4
 
 //
 // Ensure proper structure formats

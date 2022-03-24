@@ -1,10 +1,10 @@
-/* $Id: PGMR0SharedPage.cpp 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: PGMR0SharedPage.cpp $ */
 /** @file
  * PGM - Page Manager and Monitor, Page Sharing, Ring-0.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,6 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_PGM_SHARED
-#define VBOX_WITHOUT_PAGING_BIT_FIELDS /* 64-bit bitfields are just asking for trouble. See @bugref{9841} and others. */
 #include <VBox/vmm/pgm.h>
 #include <VBox/vmm/gmm.h>
 #include "PGMInternal.h"
@@ -66,19 +65,20 @@ VMMR0DECL(int) PGMR0SharedModuleCheck(PVMCC pVM, PGVM pGVM, VMCPUID idCpu, PGMMS
      */
     for (uint32_t idxRegion = 0; idxRegion < pModule->cRegions; idxRegion++)
     {
-        RTGCPTR  GCPtrPage  = paRegionsGCPtrs[idxRegion] & ~(RTGCPTR)GUEST_PAGE_OFFSET_MASK;
-        uint32_t cbLeft     = pModule->aRegions[idxRegion].cb; Assert(!(cbLeft & GUEST_PAGE_OFFSET_MASK));
+        RTGCPTR  GCPtrPage  = paRegionsGCPtrs[idxRegion] & ~(RTGCPTR)PAGE_OFFSET_MASK;
+        uint32_t cbLeft     = pModule->aRegions[idxRegion].cb; Assert(!(cbLeft & PAGE_OFFSET_MASK));
         uint32_t idxPage    = 0;
 
         while (cbLeft)
         {
             /** @todo inefficient to fetch each guest page like this... */
-            PGMPTWALK Walk;
-            rc = PGMGstGetPage(pVCpu, GCPtrPage, &Walk);
+            RTGCPHYS GCPhys;
+            uint64_t fFlags;
+            rc = PGMGstGetPage(pVCpu, GCPtrPage, &fFlags, &GCPhys);
             if (    rc == VINF_SUCCESS
-                &&  !(Walk.fEffective & X86_PTE_RW)) /* important as we make assumptions about this below! */
+                &&  !(fFlags & X86_PTE_RW)) /* important as we make assumptions about this below! */
             {
-                PPGMPAGE pPage = pgmPhysGetPage(pVM, Walk.GCPhys);
+                PPGMPAGE pPage = pgmPhysGetPage(pVM, GCPhys);
                 Assert(!pPage || !PGM_PAGE_IS_BALLOONED(pPage));
                 if (    pPage
                     &&  PGM_PAGE_GET_STATE(pPage) == PGM_PAGE_STATE_ALLOCATED
@@ -87,7 +87,7 @@ VMMR0DECL(int) PGMR0SharedModuleCheck(PVMCC pVM, PGVM pGVM, VMCPUID idCpu, PGMMS
                 {
                     PageDesc.idPage = PGM_PAGE_GET_PAGEID(pPage);
                     PageDesc.HCPhys = PGM_PAGE_GET_HCPHYS(pPage);
-                    PageDesc.GCPhys = Walk.GCPhys;
+                    PageDesc.GCPhys = GCPhys;
 
                     rc = GMMR0SharedModuleCheckPage(pGVM, pModule, idxRegion, idxPage, &PageDesc);
                     if (RT_FAILURE(rc))
@@ -150,8 +150,8 @@ VMMR0DECL(int) PGMR0SharedModuleCheck(PVMCC pVM, PGVM pGVM, VMCPUID idCpu, PGMMS
             }
 
             idxPage++;
-            GCPtrPage += HOST_PAGE_SIZE;
-            cbLeft    -= HOST_PAGE_SIZE;
+            GCPtrPage += PAGE_SIZE;
+            cbLeft    -= PAGE_SIZE;
         }
     }
 

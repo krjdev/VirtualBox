@@ -1,10 +1,10 @@
-/* $Id: DBGPlugInDiggers.cpp 93470 2022-01-27 23:51:28Z vboxsync $ */
+/* $Id: DBGPlugInDiggers.cpp $ */
 /** @file
  * DbfPlugInDiggers - Debugger and Guest OS Digger Plug-in.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,13 +21,13 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_DBGC
 #include <VBox/dbg.h>
-#include <VBox/vmm/vmmr3vtable.h>
+#include <VBox/vmm/dbgf.h>
 #include "DBGPlugIns.h"
 #include <VBox/version.h>
 #include <iprt/errcore.h>
 
 
-DECLEXPORT(int) DbgPlugInEntry(DBGFPLUGINOP enmOperation, PUVM pUVM, PCVMMR3VTABLE pVMM, uintptr_t uArg)
+DECLEXPORT(int) DbgPlugInEntry(DBGFPLUGINOP enmOperation, PUVM pUVM, uintptr_t uArg)
 {
     static PCDBGFOSREG s_aPlugIns[] =
     {
@@ -48,12 +48,12 @@ DECLEXPORT(int) DbgPlugInEntry(DBGFPLUGINOP enmOperation, PUVM pUVM, PCVMMR3VTAB
 
             for (unsigned i = 0; i < RT_ELEMENTS(s_aPlugIns); i++)
             {
-                int rc = pVMM->pfnDBGFR3OSRegister(pUVM, s_aPlugIns[i]);
+                int rc = DBGFR3OSRegister(pUVM, s_aPlugIns[i]);
                 if (RT_FAILURE(rc))
                 {
                     AssertRC(rc);
                     while (i-- > 0)
-                        pVMM->pfnDBGFR3OSDeregister(pUVM, s_aPlugIns[i]);
+                        DBGFR3OSDeregister(pUVM, s_aPlugIns[i]);
                     return rc;
                 }
             }
@@ -64,7 +64,7 @@ DECLEXPORT(int) DbgPlugInEntry(DBGFPLUGINOP enmOperation, PUVM pUVM, PCVMMR3VTAB
         {
             for (unsigned i = 0; i < RT_ELEMENTS(s_aPlugIns); i++)
             {
-                int rc = pVMM->pfnDBGFR3OSDeregister(pUVM, s_aPlugIns[i]);
+                int rc = DBGFR3OSDeregister(pUVM, s_aPlugIns[i]);
                 AssertRC(rc);
             }
             return VINF_SUCCESS;

@@ -1,10 +1,10 @@
-/* $Id: GuestCtrlImplPrivate.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GuestCtrlImplPrivate.h $ */
 /** @file
  * Internal helpers/structures for guest control functionality.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -734,44 +734,6 @@ struct GuestFileOpenInfo
         , mCreationMode(0)
         , mfOpenEx(0) { }
 
-    /**
-     * Validates a file open info.
-     *
-     * @returns \c true if valid, \c false if not.
-     */
-    bool IsValid(void) const
-    {
-        if (mfOpenEx) /** @todo Open flags not implemented yet. */
-            return false;
-
-        switch (mOpenAction)
-        {
-            case FileOpenAction_OpenExisting:
-                break;
-            case FileOpenAction_OpenOrCreate:
-                break;
-            case FileOpenAction_CreateNew:
-                break;
-            case FileOpenAction_CreateOrReplace:
-                break;
-            case FileOpenAction_OpenExistingTruncated:
-            {
-                if (   mAccessMode == FileAccessMode_ReadOnly
-                    || mAccessMode == FileAccessMode_AppendOnly
-                    || mAccessMode == FileAccessMode_AppendRead)
-                    return false;
-                break;
-            }
-            case FileOpenAction_AppendOrCreate: /* Deprecated, do not use. */
-                break;
-            default:
-                AssertFailedReturn(false);
-                break;
-        }
-
-        return true; /** @todo Do we need more checks here? */
-    }
-
     /** The filename. */
     Utf8Str                 mFilename;
     /** The file access mode. */
@@ -1276,6 +1238,10 @@ public:
     int registerWaitEventEx(uint32_t uSessionID, uint32_t uObjectID, const GuestEventTypes &lstEvents, GuestWaitEvent **ppEvent);
     int unregisterWaitEvent(GuestWaitEvent *pEvent);
     int waitForEvent(GuestWaitEvent *pEvent, uint32_t uTimeoutMS, VBoxEventType_T *pType, IEvent **ppEvent);
+
+#ifndef VBOX_GUESTCTRL_TEST_CASE
+    HRESULT setErrorExternal(VirtualBoxBase *pInterface, const Utf8Str &strAction, const GuestErrorInfo &guestErrorInfo);
+#endif
 
 public:
 

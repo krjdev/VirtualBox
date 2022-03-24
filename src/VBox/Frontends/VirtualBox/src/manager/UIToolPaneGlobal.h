@@ -1,10 +1,10 @@
-/* $Id: UIToolPaneGlobal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIToolPaneGlobal.h $ */
 /** @file
  * VBox Qt GUI - UIToolPaneGlobal class declaration.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,10 +33,8 @@ class QStackedLayout;
 class QVBoxLayout;
 class UIActionPool;
 class UICloudProfileManagerWidget;
-class UIExtensionPackManagerWidget;
+class UIHostNetworkManagerWidget;
 class UIMediumManagerWidget;
-class UINetworkManagerWidget;
-class UIVMActivityOverviewWidget;
 class UIVirtualMachineItem;
 class UIWelcomePane;
 class CMachine;
@@ -49,20 +47,15 @@ class UIToolPaneGlobal : public QWidget
 
 signals:
 
-    /** Notifies listeners about request to switch to Activity pane of machine with @a uMachineId. */
-    void sigSwitchToMachineActivityPane(const QUuid &uMachineId);
+    /** Notifies listeners about Cloud Profile Manager change. */
+    void sigCloudProfileManagerChange();
 
 public:
 
     /** Constructs tools pane passing @a pParent to the base-class. */
     UIToolPaneGlobal(UIActionPool *pActionPool, QWidget *pParent = 0);
     /** Destructs tools pane. */
-    virtual ~UIToolPaneGlobal() RT_OVERRIDE;
-
-    /** Defines whether this pane is @a fActive. */
-    void setActive(bool fActive);
-    /** Returns whether this pane is active. */
-    bool active() const { return m_fActive; }
+    virtual ~UIToolPaneGlobal() /* override */;
 
     /** Returns type of tool currently opened. */
     UIToolType currentTool() const;
@@ -72,8 +65,6 @@ public:
     void openTool(UIToolType enmType);
     /** Closes tool of passed @a enmType, deletes one if exists. */
     void closeTool(UIToolType enmType);
-    /** Returns the help keyword of the current tool's widget. */
-    QString currentHelpKeyword() const;
 
 private:
 
@@ -84,29 +75,20 @@ private:
     /** Cleanups all. */
     void cleanup();
 
-    /** Handles token change. */
-    void handleTokenChange();
-
     /** Holds the action pool reference. */
     UIActionPool *m_pActionPool;
 
     /** Holds the stacked-layout instance. */
-    QStackedLayout               *m_pLayout;
+    QStackedLayout              *m_pLayout;
     /** Holds the Welcome pane instance. */
-    UIWelcomePane                *m_pPaneWelcome;
-    /** Holds the Extension Pack Manager instance. */
-    UIExtensionPackManagerWidget *m_pPaneExtensions;
+    UIWelcomePane               *m_pPaneWelcome;
     /** Holds the Virtual Media Manager instance. */
-    UIMediumManagerWidget        *m_pPaneMedia;
-    /** Holds the Network Manager instance. */
-    UINetworkManagerWidget       *m_pPaneNetwork;
+    UIMediumManagerWidget       *m_pPaneMedia;
+    /** Holds the Host Network Manager instance. */
+    UIHostNetworkManagerWidget  *m_pPaneNetwork;
     /** Holds the Cloud Profile Manager instance. */
-    UICloudProfileManagerWidget  *m_pPaneCloud;
-    /** Holds the VM Activity Overview instance. */
-    UIVMActivityOverviewWidget   *m_pPaneVMActivityOverview;
-
-    /** Holds whether this pane is active. */
-    bool  m_fActive;
+    UICloudProfileManagerWidget *m_pPaneCloud;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_manager_UIToolPaneGlobal_h */
+

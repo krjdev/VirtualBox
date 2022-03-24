@@ -1,11 +1,11 @@
-/* $Id: vboximgCrypto.cpp 93115 2022-01-01 11:31:46Z vboxsync $ $Revision: 93115 $ */
+/* $Id: vboximgCrypto.cpp $ */
 
 /** @file
  * vboximgCypto.cpp - Disk Image Flattening FUSE Program.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -293,7 +293,7 @@ DECLCALLBACK(int) vboximgVdCryptoConfigQuerySize(void *pvUser, const char *pszNa
 {
     VDISKCRYPTOSETTINGS *pSettings = (VDISKCRYPTOSETTINGS *)pvUser;
     AssertPtrReturn(pSettings, VERR_GENERAL_FAILURE);
-    AssertPtrReturn(pcbValue, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pcbValue), VERR_INVALID_POINTER);
 
     size_t cbValue = 0;
     if (!strcmp(pszName, "Algorithm"))
@@ -321,7 +321,7 @@ DECLCALLBACK(int) vboximgVdCryptoConfigQuery(void *pvUser, const char *pszName,
 {
     VDISKCRYPTOSETTINGS *pSettings = (VDISKCRYPTOSETTINGS *)pvUser;
     AssertPtrReturn(pSettings, VERR_GENERAL_FAILURE);
-    AssertPtrReturn(pszValue, VERR_INVALID_POINTER);
+    AssertReturn(VALID_PTR(pszValue), VERR_INVALID_POINTER);
 
     const char *psz = NULL;
     if (!strcmp(pszName, "Algorithm"))

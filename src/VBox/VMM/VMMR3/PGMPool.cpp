@@ -1,10 +1,10 @@
-/* $Id: PGMPool.cpp 93931 2022-02-24 16:02:00Z vboxsync $ */
+/* $Id: PGMPool.cpp $ */
 /** @file
  * PGM Shadow Page Pool.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -71,10 +71,10 @@
  *
  * @section sec_pgm_pool_monitoring Monitoring
  *
- * We always monitor GUEST_PAGE_SIZE chunks of memory. When we've got multiple
- * shadow pages for the same GUEST_PAGE_SIZE of guest memory (PAE and mixed
- * PD/PT) the pages sharing the monitor get linked using the
- * iMonitoredNext/Prev. The head page is the pvUser to the access handlers.
+ * We always monitor PAGE_SIZE chunks of memory. When we've got multiple shadow
+ * pages for the same PAGE_SIZE of guest memory (PAE and mixed PD/PT) the pages
+ * sharing the monitor get linked using the iMonitoredNext/Prev. The head page
+ * is the pvUser to the access handlers.
  *
  *
  * @section sec_pgm_pool_impl       Implementation
@@ -96,11 +96,10 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_PGM_POOL
-#define VBOX_WITHOUT_PAGING_BIT_FIELDS /* 64-bit bitfields are just asking for trouble. See @bugref{9841} and others. */
 #include <VBox/vmm/pgm.h>
 #include <VBox/vmm/mm.h>
 #include "PGMInternal.h"
-#include <VBox/vmm/vmcc.h>
+#include <VBox/vmm/vm.h>
 #include <VBox/vmm/uvm.h>
 #include "PGMInline.h"
 
@@ -152,12 +151,11 @@ int pgmR3PoolInit(PVM pVM)
     /* Adjust it up relative to the RAM size, using the nested paging formula. */
     uint64_t cbRam;
     rc = CFGMR3QueryU64Def(CFGMR3GetRoot(pVM), "RamSize", &cbRam, 0); AssertRCReturn(rc, rc);
-    /** @todo guest x86 specific */
     uint64_t u64MaxPages = (cbRam >> 9)
                          + (cbRam >> 18)
                          + (cbRam >> 27)
-                         + 32 * GUEST_PAGE_SIZE;
-    u64MaxPages >>= GUEST_PAGE_SHIFT;
+                         + 32 * PAGE_SIZE;
+    u64MaxPages >>= PAGE_SHIFT;
     if (u64MaxPages > PGMPOOL_IDX_LAST)
         cMaxPages = PGMPOOL_IDX_LAST;
     else
@@ -232,13 +230,11 @@ int pgmR3PoolInit(PVM pVM)
     cb += cMaxUsers * sizeof(PGMPOOLUSER);
     cb += cMaxPhysExts * sizeof(PGMPOOLPHYSEXT);
     PPGMPOOL pPool;
-    RTR0PTR  pPoolR0;
-    rc = SUPR3PageAllocEx(RT_ALIGN_32(cb, HOST_PAGE_SIZE) >> HOST_PAGE_SHIFT, 0 /*fFlags*/, (void **)&pPool, &pPoolR0, NULL);
+    rc = MMR3HyperAllocOnceNoRel(pVM, cb, 0, MM_TAG_PGM_POOL, (void **)&pPool);
     if (RT_FAILURE(rc))
         return rc;
-    Assert(ASMMemIsZero(pPool, cb));
-    pVM->pgm.s.pPoolR3 = pPool->pPoolR3 = pPool;
-    pVM->pgm.s.pPoolR0 = pPool->pPoolR0 = pPoolR0;
+    pVM->pgm.s.pPoolR3 = pPool;
+    pVM->pgm.s.pPoolR0 = MMHyperR3ToR0(pVM, pPool);
 
     /*
      * Initialize it.
@@ -251,7 +247,7 @@ int pgmR3PoolInit(PVM pVM)
     pPool->cMaxUsers = cMaxUsers;
     PPGMPOOLUSER paUsers = (PPGMPOOLUSER)&pPool->aPages[pPool->cMaxPages];
     pPool->paUsersR3 = paUsers;
-    pPool->paUsersR0 = pPoolR0 + (uintptr_t)paUsers - (uintptr_t)pPool;
+    pPool->paUsersR0 = MMHyperR3ToR0(pVM, paUsers);
     for (unsigned i = 0; i < cMaxUsers; i++)
     {
         paUsers[i].iNext = i + 1;
@@ -263,7 +259,7 @@ int pgmR3PoolInit(PVM pVM)
     pPool->cMaxPhysExts = cMaxPhysExts;
     PPGMPOOLPHYSEXT paPhysExts = (PPGMPOOLPHYSEXT)&paUsers[cMaxUsers];
     pPool->paPhysExtsR3 = paPhysExts;
-    pPool->paPhysExtsR0 = pPoolR0 + (uintptr_t)paPhysExts - (uintptr_t)pPool;
+    pPool->paPhysExtsR0 = MMHyperR3ToR0(pVM, paPhysExts);
     for (unsigned i = 0; i < cMaxPhysExts; i++)
     {
         paPhysExts[i].iNext = i + 1;
@@ -282,8 +278,12 @@ int pgmR3PoolInit(PVM pVM)
     pPool->fCacheEnabled = fCacheEnabled;
 
     pPool->hAccessHandlerType = NIL_PGMPHYSHANDLERTYPE;
-    rc = PGMR3HandlerPhysicalTypeRegister(pVM, PGMPHYSHANDLERKIND_WRITE, PGMPHYSHANDLER_F_KEEP_PGM_LOCK,
-                                          pgmPoolAccessHandler, "Guest Paging Access Handler", &pPool->hAccessHandlerType);
+    rc = PGMR3HandlerPhysicalTypeRegister(pVM, PGMPHYSHANDLERKIND_WRITE, true /*fKeepPgmLock*/,
+                                          pgmPoolAccessHandler,
+                                          NULL, "pgmPoolAccessHandler", "pgmRZPoolAccessPfHandler",
+                                          NULL, "pgmPoolAccessHandler", "pgmRZPoolAccessPfHandler",
+                                          "Guest Paging Access Handler",
+                                          &pPool->hAccessHandlerType);
     AssertLogRelRCReturn(rc, rc);
 
     pPool->HCPhysTree = 0;
@@ -318,7 +318,7 @@ int pgmR3PoolInit(PVM pVM)
     /*
      * Register statistics.
      */
-    STAM_REL_REG(pVM, &pPool->StatGrow,                 STAMTYPE_PROFILE,   "/PGM/Pool/Grow",           STAMUNIT_TICKS_PER_CALL,    "Profiling PGMR0PoolGrow");
+    STAM_REL_REG(pVM, &pPool->StatGrow,                 STAMTYPE_PROFILE,   "/PGM/Pool/Grow",           STAMUNIT_TICKS, "Profiling PGMR0PoolGrow");
 #ifdef VBOX_WITH_STATISTICS
     STAM_REG(pVM, &pPool->cCurPages,                    STAMTYPE_U16,       "/PGM/Pool/cCurPages",      STAMUNIT_PAGES,             "Current pool size.");
     STAM_REG(pVM, &pPool->cMaxPages,                    STAMTYPE_U16,       "/PGM/Pool/cMaxPages",      STAMUNIT_PAGES,             "Max pool size.");
@@ -360,32 +360,32 @@ int pgmR3PoolInit(PVM pVM)
 
     STAM_REG(pVM, &pPool->StatMonitorRZ,                  STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM",                 STAMUNIT_TICKS_PER_CALL, "Profiling the regular access handler.");
     STAM_REG(pVM, &pPool->StatMonitorRZFlushPage,         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/FlushPage",       STAMUNIT_TICKS_PER_CALL, "Profiling the pgmPoolFlushPage calls made from the regular access handler.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[0],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size01",          STAMUNIT_OCCURENCES,     "Number of 1 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[1],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size02",          STAMUNIT_OCCURENCES,     "Number of 2 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[2],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size03",          STAMUNIT_OCCURENCES,     "Number of 3 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[3],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size04",          STAMUNIT_OCCURENCES,     "Number of 4 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[4],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size05",          STAMUNIT_OCCURENCES,     "Number of 5 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[5],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size06",          STAMUNIT_OCCURENCES,     "Number of 6 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[6],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size07",          STAMUNIT_OCCURENCES,     "Number of 7 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[7],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size08",          STAMUNIT_OCCURENCES,     "Number of 8 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[8],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size09",          STAMUNIT_OCCURENCES,     "Number of 9 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[9],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0a",          STAMUNIT_OCCURENCES,     "Number of 10 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[10],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0b",          STAMUNIT_OCCURENCES,     "Number of 11 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[11],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0c",          STAMUNIT_OCCURENCES,     "Number of 12 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[12],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0d",          STAMUNIT_OCCURENCES,     "Number of 13 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[13],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0e",          STAMUNIT_OCCURENCES,     "Number of 14 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[14],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size0f",          STAMUNIT_OCCURENCES,     "Number of 15 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[15],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size10",          STAMUNIT_OCCURENCES,     "Number of 16 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[16],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size11-2f",       STAMUNIT_OCCURENCES,     "Number of 17-31 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[17],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size20-3f",       STAMUNIT_OCCURENCES,     "Number of 32-63 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[18],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Size40+",         STAMUNIT_OCCURENCES,     "Number of 64+ byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[0],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned1",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 1.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[1],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned2",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 2.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[2],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned3",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 3.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[3],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned4",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 4.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[4],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned5",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 5.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[5],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned6",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 6.");
-    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[6],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/IEM/Misaligned7",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 7.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[0],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size01",          STAMUNIT_OCCURENCES,     "Number of 1 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[1],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size02",          STAMUNIT_OCCURENCES,     "Number of 2 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[2],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size03",          STAMUNIT_OCCURENCES,     "Number of 3 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[3],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size04",          STAMUNIT_OCCURENCES,     "Number of 4 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[4],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size05",          STAMUNIT_OCCURENCES,     "Number of 5 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[5],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size06",          STAMUNIT_OCCURENCES,     "Number of 6 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[6],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size07",          STAMUNIT_OCCURENCES,     "Number of 7 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[7],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size08",          STAMUNIT_OCCURENCES,     "Number of 8 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[8],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size09",          STAMUNIT_OCCURENCES,     "Number of 9 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[9],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0a",          STAMUNIT_OCCURENCES,     "Number of 10 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[10],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0b",          STAMUNIT_OCCURENCES,     "Number of 11 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[11],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0c",          STAMUNIT_OCCURENCES,     "Number of 12 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[12],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0d",          STAMUNIT_OCCURENCES,     "Number of 13 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[13],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0e",          STAMUNIT_OCCURENCES,     "Number of 14 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[14],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size0f",          STAMUNIT_OCCURENCES,     "Number of 15 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[15],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size10",          STAMUNIT_OCCURENCES,     "Number of 16 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[16],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size11-2f",       STAMUNIT_OCCURENCES,     "Number of 17-31 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[17],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size20-3f",       STAMUNIT_OCCURENCES,     "Number of 32-63 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZSizes[18],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Size40+",         STAMUNIT_OCCURENCES,     "Number of 64+ byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[0],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned1",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 1.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[1],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned2",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 2.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[2],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned3",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 3.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[3],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned4",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 4.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[4],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned5",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 5.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[5],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned6",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 6.");
+    STAM_REG(pVM, &pPool->aStatMonitorRZMisaligned[6],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/RZ/IEM/Misaligned7",     STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 7.");
 
     STAM_REG(pVM, &pPool->StatMonitorRZFaultPT,           STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/Fault/PT",            STAMUNIT_OCCURENCES,     "Nr of handled PT faults.");
     STAM_REG(pVM, &pPool->StatMonitorRZFaultPD,           STAMTYPE_COUNTER, "/PGM/Pool/Monitor/RZ/Fault/PD",            STAMUNIT_OCCURENCES,     "Nr of handled PD faults.");
@@ -394,32 +394,32 @@ int pgmR3PoolInit(PVM pVM)
 
     STAM_REG(pVM, &pPool->StatMonitorR3,                  STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3",                     STAMUNIT_TICKS_PER_CALL, "Profiling the R3 access handler.");
     STAM_REG(pVM, &pPool->StatMonitorR3FlushPage,         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/FlushPage",           STAMUNIT_TICKS_PER_CALL, "Profiling the pgmPoolFlushPage calls made from the R3 access handler.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[0],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size01",              STAMUNIT_OCCURENCES,     "Number of 1 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[1],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size02",              STAMUNIT_OCCURENCES,     "Number of 2 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[2],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size03",              STAMUNIT_OCCURENCES,     "Number of 3 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[3],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size04",              STAMUNIT_OCCURENCES,     "Number of 4 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[4],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size05",              STAMUNIT_OCCURENCES,     "Number of 5 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[5],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size06",              STAMUNIT_OCCURENCES,     "Number of 6 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[6],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size07",              STAMUNIT_OCCURENCES,     "Number of 7 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[7],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size08",              STAMUNIT_OCCURENCES,     "Number of 8 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[8],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size09",              STAMUNIT_OCCURENCES,     "Number of 9 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[9],         STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0a",              STAMUNIT_OCCURENCES,     "Number of 10 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[10],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0b",              STAMUNIT_OCCURENCES,     "Number of 11 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[11],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0c",              STAMUNIT_OCCURENCES,     "Number of 12 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[12],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0d",              STAMUNIT_OCCURENCES,     "Number of 13 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[13],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0e",              STAMUNIT_OCCURENCES,     "Number of 14 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[14],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size0f",              STAMUNIT_OCCURENCES,     "Number of 15 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[15],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size10",              STAMUNIT_OCCURENCES,     "Number of 16 byte accesses (R3).");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[16],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size11-2f",           STAMUNIT_OCCURENCES,     "Number of 17-31 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[17],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size20-3f",           STAMUNIT_OCCURENCES,     "Number of 32-63 byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[18],        STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Size40+",             STAMUNIT_OCCURENCES,     "Number of 64+ byte accesses.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[0],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned1",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 1 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[1],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned2",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 2 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[2],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned3",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 3 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[3],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned4",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 4 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[4],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned5",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 5 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[5],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned6",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 6 in R3.");
-    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[6],    STAMTYPE_COUNTER, "/PGM/Pool/Monitor/R3/Misaligned7",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 7 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[0],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size01",              STAMUNIT_OCCURENCES,     "Number of 1 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[1],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size02",              STAMUNIT_OCCURENCES,     "Number of 2 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[2],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size03",              STAMUNIT_OCCURENCES,     "Number of 3 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[3],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size04",              STAMUNIT_OCCURENCES,     "Number of 4 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[4],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size05",              STAMUNIT_OCCURENCES,     "Number of 5 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[5],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size06",              STAMUNIT_OCCURENCES,     "Number of 6 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[6],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size07",              STAMUNIT_OCCURENCES,     "Number of 7 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[7],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size08",              STAMUNIT_OCCURENCES,     "Number of 8 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[8],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size09",              STAMUNIT_OCCURENCES,     "Number of 9 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[9],         STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0a",              STAMUNIT_OCCURENCES,     "Number of 10 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[10],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0b",              STAMUNIT_OCCURENCES,     "Number of 11 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[11],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0c",              STAMUNIT_OCCURENCES,     "Number of 12 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[12],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0d",              STAMUNIT_OCCURENCES,     "Number of 13 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[13],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0e",              STAMUNIT_OCCURENCES,     "Number of 14 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[14],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size0f",              STAMUNIT_OCCURENCES,     "Number of 15 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[15],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size10",              STAMUNIT_OCCURENCES,     "Number of 16 byte accesses (R3).");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[16],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size11-2f",           STAMUNIT_OCCURENCES,     "Number of 17-31 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[17],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size20-3f",           STAMUNIT_OCCURENCES,     "Number of 32-63 byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Sizes[18],        STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Size40+",             STAMUNIT_OCCURENCES,     "Number of 64+ byte accesses.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[0],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned1",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 1 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[1],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned2",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 2 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[2],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned3",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 3 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[3],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned4",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 4 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[4],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned5",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 5 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[5],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned6",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 6 in R3.");
+    STAM_REG(pVM, &pPool->aStatMonitorR3Misaligned[6],    STAMTYPE_PROFILE, "/PGM/Pool/Monitor/R3/Misaligned7",         STAMUNIT_OCCURENCES,     "Number of misaligned access with offset 7 in R3.");
 
     STAM_REG(pVM, &pPool->StatMonitorR3FaultPT,         STAMTYPE_COUNTER,   "/PGM/Pool/Monitor/R3/Fault/PT",        STAMUNIT_OCCURENCES,     "Nr of handled PT faults.");
     STAM_REG(pVM, &pPool->StatMonitorR3FaultPD,         STAMTYPE_COUNTER,   "/PGM/Pool/Monitor/R3/Fault/PD",        STAMUNIT_OCCURENCES,     "Nr of handled PD faults.");
@@ -512,7 +512,7 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
     STAM_PROFILE_START(&pPool->StatClearAll, c);
     NOREF(pVCpu);
 
-    PGM_LOCK_VOID(pVM);
+    pgmLock(pVM);
     Log(("pgmR3PoolClearAllRendezvous: cUsedPages=%d fpvFlushRemTlb=%RTbool\n", pPool->cUsedPages, !!fpvFlushRemTlb));
 
     /*
@@ -533,15 +533,16 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
                  * We only care about shadow page tables that reference physical memory
                  */
 #ifdef PGM_WITH_LARGE_PAGES
-                case PGMPOOLKIND_PAE_PD_PHYS:   /* Large pages reference 2 MB of physical memory, so we must clear them. */
+                case PGMPOOLKIND_EPT_PD_FOR_PHYS: /* Large pages reference 2 MB of physical memory, so we must clear them. */
                     if (pPage->cPresent)
                     {
                         PX86PDPAE pShwPD = (PX86PDPAE)PGMPOOL_PAGE_2_PTR_V2(pPool->CTX_SUFF(pVM), pVCpu, pPage);
                         for (unsigned i = 0; i < RT_ELEMENTS(pShwPD->a); i++)
                         {
-                            //Assert((pShwPD->a[i].u & UINT64_C(0xfff0000000000f80)) == 0); - bogus, includes X86_PDE_PS.
-                            if ((pShwPD->a[i].u & (X86_PDE_P | X86_PDE_PS)) == (X86_PDE_P | X86_PDE_PS))
+                            if (    pShwPD->a[i].n.u1Present
+                                &&  pShwPD->a[i].b.u1Size)
                             {
+                                Assert(!(pShwPD->a[i].u & PGM_PDFLAGS_MAPPING));
                                 pShwPD->a[i].u = 0;
                                 Assert(pPage->cPresent);
                                 pPage->cPresent--;
@@ -552,14 +553,17 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
                     }
                     goto default_case;
 
-                case PGMPOOLKIND_EPT_PD_FOR_PHYS: /* Large pages reference 2 MB of physical memory, so we must clear them. */
+                case PGMPOOLKIND_PAE_PD_PHYS:   /* Large pages reference 2 MB of physical memory, so we must clear them. */
                     if (pPage->cPresent)
                     {
                         PEPTPD pShwPD = (PEPTPD)PGMPOOL_PAGE_2_PTR_V2(pPool->CTX_SUFF(pVM), pVCpu, pPage);
                         for (unsigned i = 0; i < RT_ELEMENTS(pShwPD->a); i++)
                         {
-                            if ((pShwPD->a[i].u & (EPT_E_READ | EPT_E_LEAF)) == (EPT_E_READ | EPT_E_LEAF))
+                            Assert((pShwPD->a[i].u & UINT64_C(0xfff0000000000f80)) == 0);
+                            if (    pShwPD->a[i].n.u1Present
+                                &&  pShwPD->a[i].b.u1Size)
                             {
+                                Assert(!(pShwPD->a[i].u & PGM_PDFLAGS_MAPPING));
                                 pShwPD->a[i].u = 0;
                                 Assert(pPage->cPresent);
                                 pPage->cPresent--;
@@ -630,10 +634,10 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
                     }
                 }
                 RT_FALL_THRU();
-                default:
 #ifdef PGM_WITH_LARGE_PAGES
                 default_case:
 #endif
+                default:
                     Assert(!pPage->cModifications || ++cModifiedPages);
                     Assert(pPage->iModifiedNext == NIL_PGMPOOL_IDX || pPage->cModifications);
                     Assert(pPage->iModifiedPrev == NIL_PGMPOOL_IDX || pPage->cModifications);
@@ -661,7 +665,7 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
          pRam;
          pRam = pRam->CTX_SUFF(pNext))
     {
-        iPage = pRam->cb >> GUEST_PAGE_SHIFT;
+        iPage = pRam->cb >> PAGE_SHIFT;
         while (iPage-- > 0)
             PGM_PAGE_SET_TRACKING(pVM, &pRam->aPages[iPage], 0);
     }
@@ -702,7 +706,7 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
         Log(("Reactivate dirty page %RGp\n", pPage->GCPhys));
 
         /* First write protect the page again to catch all write accesses. (before checking for changes -> SMP) */
-        int rc = PGMHandlerPhysicalReset(pVM, pPage->GCPhys & ~(RTGCPHYS)GUEST_PAGE_OFFSET_MASK);
+        int rc = PGMHandlerPhysicalReset(pVM, pPage->GCPhys & PAGE_BASE_GC_MASK);
         AssertRCSuccess(rc);
         pPage->fDirty = false;
 
@@ -721,7 +725,7 @@ DECLCALLBACK(VBOXSTRICTRC) pgmR3PoolClearAllRendezvous(PVM pVM, PVMCPU pVCpu, vo
     /* Flush job finished. */
     VM_FF_CLEAR(pVM, VM_FF_PGM_POOL_FLUSH_PENDING);
     pPool->cPresent = 0;
-    PGM_UNLOCK(pVM);
+    pgmUnlock(pVM);
 
     PGM_INVL_ALL_VCPU_TLBS(pVM);
 
@@ -785,8 +789,10 @@ void pgmR3PoolWriteProtectPages(PVM pVM)
                 case PGMPOOLKIND_32BIT_PT_FOR_32BIT_4MB:
                 case PGMPOOLKIND_32BIT_PT_FOR_PHYS:
                     for (unsigned iShw = 0; iShw < RT_ELEMENTS(uShw.pPT->a); iShw++)
-                        if (uShw.pPT->a[iShw].u & X86_PTE_P)
-                            uShw.pPT->a[iShw].u = ~(X86PGUINT)X86_PTE_RW;
+                    {
+                        if (uShw.pPT->a[iShw].n.u1Present)
+                            uShw.pPT->a[iShw].n.u1Write = 0;
+                    }
                     break;
 
                 case PGMPOOLKIND_PAE_PT_FOR_32BIT_PT:
@@ -795,14 +801,18 @@ void pgmR3PoolWriteProtectPages(PVM pVM)
                 case PGMPOOLKIND_PAE_PT_FOR_PAE_2MB:
                 case PGMPOOLKIND_PAE_PT_FOR_PHYS:
                     for (unsigned iShw = 0; iShw < RT_ELEMENTS(uShw.pPTPae->a); iShw++)
+                    {
                         if (PGMSHWPTEPAE_IS_P(uShw.pPTPae->a[iShw]))
                             PGMSHWPTEPAE_SET_RO(uShw.pPTPae->a[iShw]);
+                    }
                     break;
 
                 case PGMPOOLKIND_EPT_PT_FOR_PHYS:
                     for (unsigned iShw = 0; iShw < RT_ELEMENTS(uShw.pPTEpt->a); iShw++)
-                        if (uShw.pPTEpt->a[iShw].u & EPT_E_READ)
-                            uShw.pPTEpt->a[iShw].u &= ~(X86PGPAEUINT)EPT_E_WRITE;
+                    {
+                        if (uShw.pPTEpt->a[iShw].n.u1Present)
+                            uShw.pPTEpt->a[iShw].n.u1Write = 0;
+                    }
                     break;
 
                 default:
@@ -861,7 +871,7 @@ static DECLCALLBACK(int) pgmR3PoolCmdCheck(PCDBGCCMD pCmd, PDBGCCMDHLP pCmdHlp, 
                             cErrors++;
                         }
                         else if (   PGMSHWPTEPAE_IS_RW(pShwPT->a[j])
-                                 && !(pGstPT->a[j].u & X86_PTE_RW))
+                                 && !pGstPT->a[j].n.u1Write)
                         {
                             if (fFirstMsg)
                             {

@@ -1,10 +1,10 @@
-/* $Id: tstVD.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstVD.cpp $ */
 /** @file
  * Simple VBox HDD container test utility.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,9 +22,7 @@
 #include <VBox/vd.h>
 #include <iprt/errcore.h>
 #include <VBox/log.h>
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
-# include <iprt/asm-amd64-x86.h>
-#endif
+#include <iprt/asm-amd64-x86.h>
 #include <iprt/dir.h>
 #include <iprt/string.h>
 #include <iprt/stream.h>
@@ -245,11 +243,7 @@ typedef RNDCTX *PRNDCTX;
 RTDECL(int) RTPRandInit(PRNDCTX pCtx, uint32_t u32Seed)
 {
     if (u32Seed == 0)
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
         u32Seed = (uint32_t)(ASMReadTSC() >> 8);
-#else
-        u32Seed = (uint32_t)(RTTimeNanoTS() >> 19);
-#endif
     /* Zero is not a good seed. */
     if (u32Seed == 0)
         u32Seed = 362436069;
@@ -367,7 +361,7 @@ static void initializeRandomGenerator(PRNDCTX pCtx, uint32_t u32Seed)
     }
 }
 
-static int compareSegments(const void *left, const void *right) RT_NOTHROW_DEF
+static int compareSegments(const void *left, const void *right)
 {
     /* Note that no duplicates are allowed in the array being sorted. */
     return ((PSEGMENT)left)->u64Offset < ((PSEGMENT)right)->u64Offset ? -1 : 1;

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,15 +48,58 @@ RT_C_DECLS_BEGIN
 
 
 /**
- * Ring-0 assertion notification callback.
+ * VMMRZCallRing3 operations.
+ */
+typedef enum VMMCALLRING3
+{
+    /** Invalid operation.  */
+    VMMCALLRING3_INVALID = 0,
+    /** Acquire the PDM lock. */
+    VMMCALLRING3_PDM_LOCK,
+    /** Acquire the critical section specified as argument.  */
+    VMMCALLRING3_PDM_CRIT_SECT_ENTER,
+    /** Enter the R/W critical section (in argument) exclusively.  */
+    VMMCALLRING3_PDM_CRIT_SECT_RW_ENTER_EXCL,
+    /** Enter the R/W critical section (in argument) shared.  */
+    VMMCALLRING3_PDM_CRIT_SECT_RW_ENTER_SHARED,
+    /** Acquire the PGM lock. */
+    VMMCALLRING3_PGM_LOCK,
+    /** Grow the PGM shadow page pool. */
+    VMMCALLRING3_PGM_POOL_GROW,
+    /** Maps a chunk into ring-3. */
+    VMMCALLRING3_PGM_MAP_CHUNK,
+    /** Allocates more handy pages. */
+    VMMCALLRING3_PGM_ALLOCATE_HANDY_PAGES,
+    /** Allocates a large (2MB) page. */
+    VMMCALLRING3_PGM_ALLOCATE_LARGE_HANDY_PAGE,
+    /** Acquire the MM hypervisor heap lock. */
+    VMMCALLRING3_MMHYPER_LOCK,
+    /** Flush the GC/R0 logger. */
+    VMMCALLRING3_VMM_LOGGER_FLUSH,
+    /** Set the VM error message. */
+    VMMCALLRING3_VM_SET_ERROR,
+    /** Set the VM runtime error message. */
+    VMMCALLRING3_VM_SET_RUNTIME_ERROR,
+    /** Signal a ring 0 assertion. */
+    VMMCALLRING3_VM_R0_ASSERTION,
+    /** Ring switch to force preemption.  This is also used by PDMCritSect to
+     *  handle VERR_INTERRUPTED in kernel context. */
+    VMMCALLRING3_VM_R0_PREEMPT,
+    /** The usual 32-bit hack. */
+    VMMCALLRING3_32BIT_HACK = 0x7fffffff
+} VMMCALLRING3;
+
+/**
+ * VMMRZCallRing3 notification callback.
  *
  * @returns VBox status code.
  * @param   pVCpu           The cross context virtual CPU structure.
+ * @param   enmOperation    The operation causing the ring-3 jump.
  * @param   pvUser          The user argument.
  */
-typedef DECLCALLBACKTYPE(int, FNVMMR0ASSERTIONNOTIFICATION,(PVMCPUCC pVCpu, void *pvUser));
-/** Pointer to a FNVMMR0ASSERTIONNOTIFICATION(). */
-typedef FNVMMR0ASSERTIONNOTIFICATION *PFNVMMR0ASSERTIONNOTIFICATION;
+typedef DECLCALLBACK(int) FNVMMR0CALLRING3NOTIFICATION(PVMCPUCC pVCpu, VMMCALLRING3 enmOperation, void *pvUser);
+/** Pointer to a FNRTMPNOTIFICATION(). */
+typedef FNVMMR0CALLRING3NOTIFICATION *PFNVMMR0CALLRING3NOTIFICATION;
 
 /**
  * Rendezvous callback.
@@ -69,7 +112,7 @@ typedef FNVMMR0ASSERTIONNOTIFICATION *PFNVMMR0ASSERTIONNOTIFICATION;
  * @param   pVCpu   The cross context virtual CPU structure of the calling EMT.
  * @param   pvUser  The user argument.
  */
-typedef DECLCALLBACKTYPE(VBOXSTRICTRC, FNVMMEMTRENDEZVOUS,(PVM pVM, PVMCPU pVCpu, void *pvUser));
+typedef DECLCALLBACK(VBOXSTRICTRC) FNVMMEMTRENDEZVOUS(PVM pVM, PVMCPU pVCpu, void *pvUser);
 /** Pointer to a rendezvous callback function. */
 typedef FNVMMEMTRENDEZVOUS *PFNVMMEMTRENDEZVOUS;
 
@@ -202,6 +245,7 @@ VMMDECL(PVMCPUCC)           VMMGetCpu0(PVMCC pVM);
 VMMDECL(PVMCPUCC)           VMMGetCpuById(PVMCC pVM, VMCPUID idCpu);
 VMMR3DECL(PVMCPUCC)         VMMR3GetCpuByIdU(PUVM pVM, VMCPUID idCpu);
 VMM_INT_DECL(uint32_t)      VMMGetSvnRev(void);
+VMM_INT_DECL(bool)          VMMIsInRing3Call(PVMCPUCC pVCpu);
 VMM_INT_DECL(void)          VMMTrashVolatileXMMRegs(void);
 
 
@@ -231,10 +275,6 @@ typedef enum VMMR0OPERATION
     VMMR0_DO_GVMM_REGISTER_VMCPU,
     /** Call GVMMR0DeregisterVCpu(). */
     VMMR0_DO_GVMM_DEREGISTER_VMCPU,
-    /** Call GVMMR0RegisterWorkerThread(). */
-    VMMR0_DO_GVMM_REGISTER_WORKER_THREAD,
-    /** Call GVMMR0DeregisterWorkerThread(). */
-    VMMR0_DO_GVMM_DEREGISTER_WORKER_THREAD,
     /** Call GVMMR0SchedHalt(). */
     VMMR0_DO_GVMM_SCHED_HALT,
     /** Call GVMMR0SchedWakeUp(). */
@@ -256,12 +296,6 @@ typedef enum VMMR0OPERATION
     VMMR0_DO_VMMR0_INIT_EMT,
     /** Call VMMR0 Per VM Termination. */
     VMMR0_DO_VMMR0_TERM,
-    /** Copy logger settings from userland, VMMR0UpdateLoggersReq(). */
-    VMMR0_DO_VMMR0_UPDATE_LOGGERS,
-    /** Used by the log flusher, VMMR0LogFlusher.  */
-    VMMR0_DO_VMMR0_LOG_FLUSHER,
-    /** Used by EMTs to wait for the log flusher to finish, VMMR0LogWaitFlushed.  */
-    VMMR0_DO_VMMR0_LOG_WAIT_FLUSHED,
 
     /** Setup hardware-assisted VM session. */
     VMMR0_DO_HM_SETUP_VM = 128,
@@ -273,13 +307,11 @@ typedef enum VMMR0OPERATION
     /** Call PGMR0PhysFlushHandyPages(). */
     VMMR0_DO_PGM_FLUSH_HANDY_PAGES,
     /** Call PGMR0AllocateLargePage(). */
-    VMMR0_DO_PGM_ALLOCATE_LARGE_PAGE,
+    VMMR0_DO_PGM_ALLOCATE_LARGE_HANDY_PAGE,
     /** Call PGMR0PhysSetupIommu(). */
     VMMR0_DO_PGM_PHYS_SETUP_IOMMU,
     /** Call PGMR0PoolGrow(). */
     VMMR0_DO_PGM_POOL_GROW,
-    /** Call PGMR0PhysHandlerInitReqHandler(). */
-    VMMR0_DO_PGM_PHYS_HANDLER_INIT,
 
     /** Call GMMR0InitialReservation(). */
     VMMR0_DO_GMM_INITIAL_RESERVATION = 256,
@@ -299,6 +331,8 @@ typedef enum VMMR0OPERATION
     VMMR0_DO_GMM_BALLOONED_PAGES,
     /** Call GMMR0MapUnmapChunk(). */
     VMMR0_DO_GMM_MAP_UNMAP_CHUNK,
+    /** Call GMMR0SeedChunk(). */
+    VMMR0_DO_GMM_SEED_CHUNK,
     /** Call GMMR0RegisterSharedModule. */
     VMMR0_DO_GMM_REGISTER_SHARED_MODULE,
     /** Call GMMR0UnregisterSharedModule. */
@@ -322,8 +356,6 @@ typedef enum VMMR0OPERATION
     VMMR0_DO_PDM_DEVICE_GEN_CALL,
     /** Old style device compat: Set ring-0 critical section. */
     VMMR0_DO_PDM_DEVICE_COMPAT_SET_CRITSECT,
-    /** Call PDMR0QueueCreateReqHandler. */
-    VMMR0_DO_PDM_QUEUE_CREATE,
 
     /** Set a GVMM or GMM configuration value. */
     VMMR0_DO_GCFGM_SET_VALUE = 400,
@@ -391,26 +423,8 @@ typedef enum VMMR0OPERATION
     /** Synchronize statistics indices for I/O ports and MMIO regions. */
     VMMR0_DO_IOM_SYNC_STATS_INDICES,
 
-    /** Call DBGFR0TraceCreateReqHandler. */
-    VMMR0_DO_DBGF_TRACER_CREATE = 704,
-    /** Call DBGFR0TraceCallReqHandler. */
-    VMMR0_DO_DBGF_TRACER_CALL_REQ_HANDLER,
-    /** Call DBGFR0BpInitReqHandler(). */
-    VMMR0_DO_DBGF_BP_INIT,
-    /** Call DBGFR0BpChunkAllocReqHandler(). */
-    VMMR0_DO_DBGF_BP_CHUNK_ALLOC,
-    /** Call DBGFR0BpL2TblChunkAllocReqHandler(). */
-    VMMR0_DO_DBGF_BP_L2_TBL_CHUNK_ALLOC,
-    /** Call DBGFR0BpOwnerInitReqHandler(). */
-    VMMR0_DO_DBGF_BP_OWNER_INIT,
-    /** Call DBGFR0BpPortIoInitReqHandler(). */
-    VMMR0_DO_DBGF_BP_PORTIO_INIT,
-
-    /** Grow a timer queue. */
-    VMMR0_DO_TM_GROW_TIMER_QUEUE = 768,
-
     /** Official call we use for testing Ring-0 APIs. */
-    VMMR0_DO_TESTS = 2048,
+    VMMR0_DO_TESTS = 704,
 
     /** The usual 32-bit type blow up. */
     VMMR0_DO_32BIT_HACK = 0x7fffffff
@@ -439,79 +453,29 @@ typedef struct GCFGMVALUEREQ
  */
 typedef GCFGMVALUEREQ *PGCFGMVALUEREQ;
 
-
-/**
- * Request package for VMMR0_DO_VMMR0_UPDATE_LOGGERS.
- *
- * In addition the u64Arg selects the logger sets: @c false for debug, @c true
- * for release.
- */
-typedef struct VMMR0UPDATELOGGERSREQ
-{
-    /** The request header. */
-    SUPVMMR0REQHDR      Hdr;
-    /** The current logger flags (RTLOGFLAGS). */
-    uint64_t            fFlags;
-    /** Groups, assuming same group layout as ring-3. */
-    uint32_t            cGroups;
-    /** CRC32 of the group names. */
-    uint32_t            uGroupCrc32;
-    /** Per-group settings, variable size. */
-    RT_FLEXIBLE_ARRAY_EXTENSION
-    uint32_t            afGroups[RT_FLEXIBLE_ARRAY];
-} VMMR0UPDATELOGGERSREQ;
-/** Pointer to a VMMR0_DO_VMMR0_UPDATE_LOGGERS request. */
-typedef VMMR0UPDATELOGGERSREQ *PVMMR0UPDATELOGGERSREQ;
-
 #if defined(IN_RING0) || defined(DOXYGEN_RUNNING)
-
-/**
- * Structure VMMR0EmtPrepareToBlock uses to pass info to
- * VMMR0EmtResumeAfterBlocking.
- */
-typedef struct VMMR0EMTBLOCKCTX
-{
-    /** Magic value (VMMR0EMTBLOCKCTX_MAGIC). */
-    uint32_t    uMagic;
-    /** Set if we were in HM context, clear if not. */
-    bool        fWasInHmContext;
-} VMMR0EMTBLOCKCTX;
-/** Pointer to a VMMR0EmtPrepareToBlock context structure. */
-typedef VMMR0EMTBLOCKCTX *PVMMR0EMTBLOCKCTX;
-/** Magic value for VMMR0EMTBLOCKCTX::uMagic (Paul Desmond). */
-#define VMMR0EMTBLOCKCTX_MAGIC          UINT32_C(0x19261125)
-/** Magic value for VMMR0EMTBLOCKCTX::uMagic when its out of context. */
-#define VMMR0EMTBLOCKCTX_MAGIC_DEAD     UINT32_C(0x19770530)
-
 VMMR0DECL(void)      VMMR0EntryFast(PGVM pGVM, PVMCC pVM, VMCPUID idCpu, VMMR0OPERATION enmOperation);
 VMMR0DECL(int)       VMMR0EntryEx(PGVM pGVM, PVMCC pVM, VMCPUID idCpu, VMMR0OPERATION enmOperation,
                                   PSUPVMMR0REQHDR pReq, uint64_t u64Arg, PSUPDRVSESSION);
-VMMR0_INT_DECL(int)  VMMR0InitPerVMData(PGVM pGVM);
 VMMR0_INT_DECL(int)  VMMR0TermVM(PGVM pGVM, VMCPUID idCpu);
-VMMR0_INT_DECL(void) VMMR0CleanupVM(PGVM pGVM);
 VMMR0_INT_DECL(bool) VMMR0IsLongJumpArmed(PVMCPUCC pVCpu);
+VMMR0_INT_DECL(bool) VMMR0IsInRing3LongJump(PVMCPUCC pVCpu);
 VMMR0_INT_DECL(int)  VMMR0ThreadCtxHookCreateForEmt(PVMCPUCC pVCpu);
 VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDestroyForEmt(PVMCPUCC pVCpu);
 VMMR0_INT_DECL(void) VMMR0ThreadCtxHookDisable(PVMCPUCC pVCpu);
 VMMR0_INT_DECL(bool) VMMR0ThreadCtxHookIsEnabled(PVMCPUCC pVCpu);
-VMMR0_INT_DECL(int)  VMMR0EmtPrepareToBlock(PVMCPUCC pVCpu, int rcBusy, const char *pszCaller, void *pvLock,
-                                            PVMMR0EMTBLOCKCTX pCtx);
-VMMR0_INT_DECL(void) VMMR0EmtResumeAfterBlocking(PVMCPUCC pVCpu, PVMMR0EMTBLOCKCTX pCtx);
-VMMR0_INT_DECL(int)  VMMR0EmtWaitEventInner(PGVMCPU pGVCpu, uint32_t fFlags, RTSEMEVENT hEvent, RTMSINTERVAL cMsTimeout);
-VMMR0_INT_DECL(int)  VMMR0EmtSignalSupEvent(PGVM pGVM, PGVMCPU pGVCpu, SUPSEMEVENT hEvent);
-VMMR0_INT_DECL(int)  VMMR0EmtSignalSupEventByGVM(PGVM pGVM, SUPSEMEVENT hEvent);
-VMMR0_INT_DECL(int)  VMMR0AssertionSetNotification(PVMCPUCC pVCpu, PFNVMMR0ASSERTIONNOTIFICATION pfnCallback, RTR0PTR pvUser);
-VMMR0_INT_DECL(void) VMMR0AssertionRemoveNotification(PVMCPUCC pVCpu);
-VMMR0_INT_DECL(bool) VMMR0AssertionIsNotificationSet(PVMCPUCC pVCpu);
 
-/** @name VMMR0EMTWAIT_F_XXX - flags for VMMR0EmtWaitEventInner and friends.
- * @{ */
-/** Try suppress VERR_INTERRUPTED for a little while (~10 sec). */
-#define VMMR0EMTWAIT_F_TRY_SUPPRESS_INTERRUPTED     RT_BIT_32(0)
-/** @} */
+# ifdef LOG_ENABLED
+VMMR0_INT_DECL(void) VMMR0LogFlushDisable(PVMCPUCC pVCpu);
+VMMR0_INT_DECL(void) VMMR0LogFlushEnable(PVMCPUCC pVCpu);
+VMMR0_INT_DECL(bool) VMMR0IsLogFlushDisabled(PVMCPUCC pVCpu);
+# else
+#  define            VMMR0LogFlushDisable(pVCpu)     do { } while(0)
+#  define            VMMR0LogFlushEnable(pVCpu)      do { } while(0)
+#  define            VMMR0IsLogFlushDisabled(pVCpu)  (true)
+# endif /* LOG_ENABLED */
 #endif /* IN_RING0 */
 
-VMMR0_INT_DECL(PRTLOGGER) VMMR0GetReleaseLogger(PVMCPUCC pVCpu);
 /** @} */
 
 
@@ -519,7 +483,6 @@ VMMR0_INT_DECL(PRTLOGGER) VMMR0GetReleaseLogger(PVMCPUCC pVCpu);
 /** @defgroup grp_vmm_api_r3    The VMM Host Context Ring 3 API
  * @{
  */
-VMMR3DECL(PCVMMR3VTABLE) VMMR3GetVTable(void);
 VMMR3_INT_DECL(int)     VMMR3Init(PVM pVM);
 VMMR3_INT_DECL(int)     VMMR3InitR0(PVM pVM);
 VMMR3_INT_DECL(int)     VMMR3InitCompleted(PVM pVM, VMINITCOMPLETED enmWhat);
@@ -583,31 +546,17 @@ VMMR3_INT_DECL(void)    VMMR3InitR0StackUnwindState(PUVM pUVM, VMCPUID idCpu, PR
 /** @defgroup grp_vmm_api_rz    The VMM Raw-Mode and Ring-0 Context API
  * @{
  */
+VMMRZDECL(int)      VMMRZCallRing3(PVMCC pVMCC, PVMCPUCC pVCpu, VMMCALLRING3 enmOperation, uint64_t uArg);
+VMMRZDECL(int)      VMMRZCallRing3NoCpu(PVMCC pVM, VMMCALLRING3 enmOperation, uint64_t uArg);
 VMMRZDECL(void)     VMMRZCallRing3Disable(PVMCPUCC pVCpu);
 VMMRZDECL(void)     VMMRZCallRing3Enable(PVMCPUCC pVCpu);
 VMMRZDECL(bool)     VMMRZCallRing3IsEnabled(PVMCPUCC pVCpu);
+VMMRZDECL(int)      VMMRZCallRing3SetNotification(PVMCPUCC pVCpu, R0PTRTYPE(PFNVMMR0CALLRING3NOTIFICATION) pfnCallback, RTR0PTR pvUser);
+VMMRZDECL(void)     VMMRZCallRing3RemoveNotification(PVMCPUCC pVCpu);
+VMMRZDECL(bool)     VMMRZCallRing3IsNotificationSet(PVMCPUCC pVCpu);
 /** @} */
 #endif
 
-
-/** Wrapper around AssertReleaseMsgReturn that avoid tripping up in the
- *  kernel when we don't have a setjmp in place. */
-#ifdef IN_RING0
-# define VMM_ASSERT_RELEASE_MSG_RETURN(a_pVM, a_Expr, a_Msg, a_rc) do { \
-        if (RT_LIKELY(a_Expr)) { /* likely */ } \
-        else \
-        { \
-            PVMCPUCC pVCpuAssert = VMMGetCpu(a_pVM); \
-            if (pVCpuAssert && VMMR0IsLongJumpArmed(pVCpuAssert)) \
-                AssertReleaseMsg(a_Expr, a_Msg); \
-            else \
-                AssertLogRelMsg(a_Expr, a_Msg); \
-            return (a_rc); \
-        } \
-    } while (0)
-#else
-# define VMM_ASSERT_RELEASE_MSG_RETURN(a_pVM, a_Expr, a_Msg, a_rc) AssertReleaseMsgReturn(a_Expr, a_Msg, a_rc)
-#endif
 
 /** @} */
 

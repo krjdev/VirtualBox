@@ -101,7 +101,7 @@ UsbHcClearRootHubPortFeature (
   @param  UsbResult        The result of transfer.
 
   @retval EFI_SUCCESS      The control transfer finished without error.
-  @retval Others           The control transfer failed, reason returned in UsbResult.
+  @retval Others           The control transfer failed, reason returned in UsbReslt.
 
 **/
 EFI_STATUS

@@ -1,10 +1,10 @@
-/* $Id: tstUsbMouse.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstUsbMouse.cpp $ */
 /** @file
  * tstUsbMouse.cpp - testcase USB mouse and tablet devices.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -139,7 +139,6 @@ static int tstMouseConstruct(RTTEST hTest, int iInstance, const char *pcszMode,
                 pUsbIns->iInstance          = iInstance;
                 pUsbIns->pHlpR3             = &g_tstUsbHlp;
                 pUsbIns->pvInstanceDataR3   = pUsbIns->achInstanceData;
-                pUsbIns->pCfg               = pCfg;
                 rc = g_UsbHidMou.pfnConstruct(pUsbIns, iInstance, pCfg, NULL);
                 if (RT_SUCCESS(rc))
                 {
@@ -156,17 +155,6 @@ static int tstMouseConstruct(RTTEST hTest, int iInstance, const char *pcszMode,
 }
 
 
-static void tstMouseDestruct(RTTEST hTest, PPDMUSBINS pUsbIns)
-{
-    if (pUsbIns)
-    {
-        g_UsbHidMou.pfnDestruct(pUsbIns);
-        CFGMR3DestroyTree(pUsbIns->pCfg);
-        RTTestGuardedFree(hTest, pUsbIns);
-    }
-}
-
-
 static void testConstructAndDestruct(RTTEST hTest)
 {
     RTTestSub(hTest, "simple construction and destruction");
@@ -176,7 +164,11 @@ static void testConstructAndDestruct(RTTEST hTest)
      */
     PPDMUSBINS pUsbIns = NULL;
     RTTEST_CHECK_RC(hTest, tstMouseConstruct(hTest, 0, "relative", 1, &pUsbIns), VINF_SUCCESS);
-    tstMouseDestruct(hTest, pUsbIns);
+    if (pUsbIns)
+    {
+        g_UsbHidMou.pfnDestruct(pUsbIns);
+        RTTestGuardedFree(hTest, pUsbIns);
+    }
 
     /*
      * Modify the dev hlp version.
@@ -212,7 +204,8 @@ static void testConstructAndDestruct(RTTEST hTest)
         pUsbIns = NULL;
         RTTEST_CHECK_RC(hTest, tstMouseConstruct(hTest, 0, "relative", 1, &pUsbIns, s_aVersionTests[i].uInsVersion),
                         s_aVersionTests[i].rc);
-        tstMouseDestruct(hTest, pUsbIns);
+        if (pUsbIns)
+            RTTestGuardedFree(hTest, pUsbIns);
     }
     RTAssertSetMayPanic(fSavedMayPanic);
     RTAssertSetQuiet(fSavedQuiet);
@@ -237,8 +230,6 @@ static void testSendPositionRel(RTTEST hTest)
     {
         g_drvTstMouse.pDrv->pfnPutEvent(g_drvTstMouse.pDrv, 123, -16, 1, -1, 3);
         Urb.EndPt = 0x01;
-        Urb.enmType = VUSBXFERTYPE_INTR;
-        Urb.cbData = 4;
         rc = g_UsbHidMou.pfnUrbQueue(pUsbIns, &Urb);
     }
     if (RT_SUCCESS(rc))
@@ -261,7 +252,11 @@ static void testSendPositionRel(RTTEST hTest)
             rc = VERR_GENERAL_FAILURE;
     }
     RTTEST_CHECK_RC_OK(hTest, rc);
-    tstMouseDestruct(hTest, pUsbIns);
+    if (pUsbIns)
+    {
+        g_UsbHidMou.pfnDestruct(pUsbIns);
+        RTTestGuardedFree(hTest, pUsbIns);
+    }
 }
 
 
@@ -273,19 +268,20 @@ static void testSendPositionAbs(RTTEST hTest)
     int rc = tstMouseConstruct(hTest, 0, "absolute", 1, &pUsbIns);
     RT_ZERO(Urb);
     if (RT_SUCCESS(rc))
+    {
         rc = g_UsbHidMou.pfnUsbReset(pUsbIns, false);
+    }
     if (RT_SUCCESS(rc))
     {
         if (g_drvTstMouse.pDrv)
-            g_drvTstMouse.pDrv->pfnPutEventAbs(g_drvTstMouse.pDrv, 300, 200, 1, 3, 3);
+            g_drvTstMouse.pDrv->pfnPutEventAbs(g_drvTstMouse.pDrv, 300, 200, 1,
+                                               3, 3);
         else
             rc = VERR_PDM_MISSING_INTERFACE;
     }
     if (RT_SUCCESS(rc))
     {
         Urb.EndPt = 0x01;
-        Urb.enmType = VUSBXFERTYPE_INTR;
-        Urb.cbData = 8;
         rc = g_UsbHidMou.pfnUrbQueue(pUsbIns, &Urb);
     }
     if (RT_SUCCESS(rc))
@@ -309,7 +305,11 @@ static void testSendPositionAbs(RTTEST hTest)
             rc = VERR_GENERAL_FAILURE;
     }
     RTTEST_CHECK_RC_OK(hTest, rc);
-    tstMouseDestruct(hTest, pUsbIns);
+    if (pUsbIns)
+    {
+        g_UsbHidMou.pfnDestruct(pUsbIns);
+        RTTestGuardedFree(hTest, pUsbIns);
+    }
 }
 
 #if 0
@@ -336,8 +336,6 @@ static void testSendPositionMT(RTTEST hTest)
     if (RT_SUCCESS(rc))
     {
         Urb.EndPt = 0x01;
-        Urb.enmType = VUSBXFERTYPE_INTR;
-        Urb.cbData = 8;
         rc = g_UsbHidMou.pfnUrbQueue(pUsbIns, &Urb);
     }
     if (RT_SUCCESS(rc))
@@ -361,7 +359,11 @@ static void testSendPositionMT(RTTEST hTest)
             rc = VERR_GENERAL_FAILURE;
     }
     RTTEST_CHECK_RC_OK(hTest, rc);
-    tstMouseDestruct(hTest, pUsbIns);
+    if (pUsbIns)
+    {
+        g_UsbHidMou.pfnDestruct(pUsbIns);
+        RTTestGuardedFree(hTest, pUsbIns);
+    }
 }
 #endif
 
@@ -379,9 +381,6 @@ int main()
     g_tstUsbHlp.u32Version      = PDM_USBHLP_VERSION;
     g_tstUsbHlp.pfnVMSetErrorV  = tstVMSetErrorV;
     g_tstUsbHlp.pfnDriverAttach = tstDriverAttach;
-    g_tstUsbHlp.pfnCFGMValidateConfig = CFGMR3ValidateConfig;
-    g_tstUsbHlp.pfnCFGMQueryStringDef = CFGMR3QueryStringDef;
-    g_tstUsbHlp.pfnCFGMQueryU8Def     = CFGMR3QueryU8Def;
     g_tstUsbHlp.u32TheEnd       = PDM_USBHLP_VERSION;
     /* Set up our global mouse driver */
     g_drvTstMouse.IBase.pfnQueryInterface = tstMouseQueryInterface;

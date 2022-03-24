@@ -1,10 +1,10 @@
-/* $Id: USBProxyDevice-linux.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBProxyDevice-linux.cpp $ */
 /** @file
  * USB device proxy - the Linux backend.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -129,9 +129,9 @@ typedef struct USBPROXYDEVLNX
     RTLISTANCHOR        ListInFlight;
     /** Are we using sysfs to find the active configuration? */
     bool                fUsingSysfs;
-    /** Pipe handle for waking up - writing end. */
+    /** Pipe handle for waiking up - writing end. */
     RTPIPE              hPipeWakeupW;
-    /** Pipe handle for waking up - reading end. */
+    /** Pipe handle for waiking up - reading end. */
     RTPIPE              hPipeWakeupR;
     /** The device node/sysfs path of the device.
      * Used to figure out the configuration after a reset. */
@@ -667,7 +667,8 @@ static DECLCALLBACK(int) usbProxyLinuxOpen(PUSBPROXYDEV pProxyDev, const char *p
     else if (rc == VERR_ACCESS_DENIED)
         rc = VERR_VUSB_USBFS_PERMISSION;
 
-    Log(("usbProxyLinuxOpen(%p, %s) failed, rc=%Rrc!\n", pProxyDev, pszAddress, rc));
+    Log(("usbProxyLinuxOpen(%p, %s) failed, rc=%s!\n", pProxyDev, pszAddress,
+         RTErrGetShort(rc)));
 
     NOREF(pvBackend);
     return rc;
@@ -829,7 +830,8 @@ static DECLCALLBACK(int) usbProxyLinuxReset(PUSBPROXYDEV pProxyDev, bool fResetO
     if (usbProxyLinuxDoIoCtl(pProxyDev, USBDEVFS_RESET, NULL, false, 10))
     {
         int rc = errno;
-        LogRel(("usb-linux: Reset failed, rc=%Rrc errno=%d.\n", RTErrConvertFromErrno(rc), rc));
+        LogRel(("usb-linux: Reset failed, rc=%s errno=%d.\n",
+               RTErrGetShort(RTErrConvertFromErrno(rc)), rc));
         pProxyDev->iActiveCfg = -1;
         return RTErrConvertFromErrno(rc);
     }

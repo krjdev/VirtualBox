@@ -1,10 +1,10 @@
-/* $Id: GIMMinimal.cpp 93725 2022-02-14 13:46:16Z vboxsync $ */
+/* $Id: GIMMinimal.cpp $ */
 /** @file
  * GIM - Guest Interface Manager, Minimal implementation.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,6 +29,7 @@
 
 #include <iprt/assert.h>
 #include <iprt/err.h>
+#include <iprt/asm-amd64-x86.h>
 #include <iprt/string.h>
 
 

@@ -66,7 +66,7 @@ Mtftp6ParseMcastOption (
 
 
 /**
-  Parse the MTFTP6 extension options.
+  Parse the MTFTP6 extesion options.
 
   @param[in]  Options       The pointer to the extension options list.
   @param[in]  Count         The num of the extension options.

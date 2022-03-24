@@ -1,10 +1,10 @@
-; $Id: ASMXRstor.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMXRstor.asm $
 ;; @file
 ; IPRT - ASMXRstor().
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -39,7 +39,7 @@ BEGINCODE
 ; @param    fMask       The 64-bit state component mask.
 ;                       msc=rdx, gcc=rsi, x86=[esp+8]
 ;
-RT_BEGINPROC ASMXRstor
+BEGINPROC_EXPORTED ASMXRstor
 SEH64_END_PROLOGUE
 %ifdef ASM_CALL64_MSC
         mov     eax, edx

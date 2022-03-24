@@ -1,10 +1,10 @@
-/* $Id: UIChooserHandlerKeyboard.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIChooserHandlerKeyboard.h $ */
 /** @file
  * VBox Qt GUI - UIChooserHandlerKeyboard class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -29,14 +29,14 @@
 class UIChooserModel;
 class QKeyEvent;
 
-/** Keyboard event type. */
+/* Keyboard event type: */
 enum UIKeyboardEventType
 {
     UIKeyboardEventType_Press,
     UIKeyboardEventType_Release
 };
 
-/** Item shift direction. */
+/* Item shift direction: */
 enum UIItemShiftDirection
 {
     UIItemShiftDirection_Up,
@@ -50,34 +50,35 @@ enum UIItemShiftType
     UIItemShiftSize_Full
 };
 
-/** Keyboard handler for graphics selector. */
+/* Keyboard handler for graphics selector: */
 class UIChooserHandlerKeyboard : public QObject
 {
     Q_OBJECT;
 
 public:
 
-    /** Constructor. */
+    /* Constructor: */
     UIChooserHandlerKeyboard(UIChooserModel *pParent);
 
-    /** API: Model keyboard-event handler delegate. */
+    /* API: Model keyboard-event handler delegate: */
     bool handle(QKeyEvent *pEvent, UIKeyboardEventType type) const;
 
 private:
 
-    /** API: Model wrapper. */
+    /* API: Model wrapper: */
     UIChooserModel* model() const;
 
-    /** Helpers: Model keyboard-event handler delegates. */
+    /* Helpers: Model keyboard-event handler delegates: */
     bool handleKeyPress(QKeyEvent *pEvent) const;
     bool handleKeyRelease(QKeyEvent *pEvent) const;
 
-    /** Helper: Item shift delegate. */
+    /* Helper: Item shift delegate: */
     void shift(UIItemShiftDirection enmDirection, UIItemShiftType enmShiftType) const;
 
-    /** Variables. */
+    /* Variables: */
     UIChooserModel *m_pModel;
     QMap<int, UIItemShiftType> m_shiftMap;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_manager_chooser_UIChooserHandlerKeyboard_h */
+

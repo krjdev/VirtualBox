@@ -1,10 +1,10 @@
-/* $Id: dir-posix.cpp 93230 2022-01-14 02:04:20Z vboxsync $ */
+/* $Id: dir-posix.cpp $ */
 /** @file
  * IPRT - Directory manipulation, POSIX.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -161,17 +161,13 @@ RTDECL(int) RTDirRemove(const char *pszPath)
                 char       *pszFree = NULL;
                 const char *pszStat = pszNativePath;
                 size_t      cch     = strlen(pszNativePath);
-                if (cch > 2 && RTPATH_IS_SLASH(pszNativePath[cch - 1]))
+                if (cch > 2 && pszNativePath[cch - 1] == '/')
                 {
-                    pszFree = (char *)RTMemTmpAlloc(cch);
-                    if (pszFree)
-                    {
-                        memcpy(pszFree, pszNativePath, cch);
-                        do
-                            pszFree[--cch] = '\0';
-                        while (cch > 2 && RTPATH_IS_SLASH(pszFree[cch - 1]));
-                        pszStat = pszFree;
-                    }
+                    pszStat = pszFree = (char *)RTMemTmpAlloc(cch);
+                    memcpy(pszFree, pszNativePath, cch);
+                    do
+                        pszFree[--cch] = '\0';
+                    while (cch > 2 && pszFree[cch - 1] == '/');
                 }
 
                 struct stat st;
@@ -504,12 +500,12 @@ RTDECL(int) RTDirRead(RTDIR hDir, PRTDIRENTRY pDirEntry, size_t *pcbDirEntry)
      */
     if (!rtDirValidHandle(pDir))
         return VERR_INVALID_PARAMETER;
-    AssertPtrReturn(pDirEntry, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pDirEntry), ("%p\n", pDirEntry), VERR_INVALID_POINTER);
 
     size_t cbDirEntry = sizeof(*pDirEntry);
     if (pcbDirEntry)
     {
-        AssertPtrReturn(pcbDirEntry, VERR_INVALID_POINTER);
+        AssertMsgReturn(VALID_PTR(pcbDirEntry), ("%p\n", pcbDirEntry), VERR_INVALID_POINTER);
         cbDirEntry = *pcbDirEntry;
         AssertMsgReturn(cbDirEntry >= RT_UOFFSETOF(RTDIRENTRY, szName[2]),
                         ("Invalid *pcbDirEntry=%d (min %zu)\n", *pcbDirEntry, RT_UOFFSETOF(RTDIRENTRYEX, szName[2])),
@@ -604,7 +600,7 @@ RTDECL(int) RTDirReadEx(RTDIR hDir, PRTDIRENTRYEX pDirEntry, size_t *pcbDirEntry
      */
     if (!rtDirValidHandle(pDir))
         return VERR_INVALID_PARAMETER;
-    AssertPtrReturn(pDirEntry, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pDirEntry), ("%p\n", pDirEntry), VERR_INVALID_POINTER);
     AssertMsgReturn(    enmAdditionalAttribs >= RTFSOBJATTRADD_NOTHING
                     &&  enmAdditionalAttribs <= RTFSOBJATTRADD_LAST,
                     ("Invalid enmAdditionalAttribs=%p\n", enmAdditionalAttribs),
@@ -613,7 +609,7 @@ RTDECL(int) RTDirReadEx(RTDIR hDir, PRTDIRENTRYEX pDirEntry, size_t *pcbDirEntry
     size_t cbDirEntry = sizeof(*pDirEntry);
     if (pcbDirEntry)
     {
-        AssertPtrReturn(pcbDirEntry, VERR_INVALID_POINTER);
+        AssertMsgReturn(VALID_PTR(pcbDirEntry), ("%p\n", pcbDirEntry), VERR_INVALID_POINTER);
         cbDirEntry = *pcbDirEntry;
         AssertMsgReturn(cbDirEntry >= RT_UOFFSETOF(RTDIRENTRYEX, szName[2]),
                         ("Invalid *pcbDirEntry=%zu (min %zu)\n", *pcbDirEntry, RT_UOFFSETOF(RTDIRENTRYEX, szName[2])),
@@ -705,8 +701,8 @@ RTDECL(int) RTDirRename(const char *pszSrc, const char *pszDst, unsigned fRename
     /*
      * Validate input.
      */
-    AssertPtrReturn(pszSrc, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszDst, VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszSrc), ("%p\n", pszSrc), VERR_INVALID_POINTER);
+    AssertMsgReturn(VALID_PTR(pszDst), ("%p\n", pszDst), VERR_INVALID_POINTER);
     AssertMsgReturn(*pszSrc, ("%p\n", pszSrc), VERR_INVALID_PARAMETER);
     AssertMsgReturn(*pszDst, ("%p\n", pszDst), VERR_INVALID_PARAMETER);
     AssertMsgReturn(!(fRename & ~RTPATHRENAME_FLAGS_REPLACE), ("%#x\n", fRename), VERR_INVALID_PARAMETER);

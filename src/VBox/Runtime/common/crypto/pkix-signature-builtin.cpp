@@ -1,10 +1,10 @@
-/* $Id: pkix-signature-builtin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pkix-signature-builtin.cpp $ */
 /** @file
  * IPRT - Crypto - Public Key Signature Schemas, Built-in providers.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -36,9 +36,7 @@
 
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
 # include <openssl/evp.h>
-# include "internal/openssl-post.h"
 #endif
 
 #include "pkix-signature-builtin.h"

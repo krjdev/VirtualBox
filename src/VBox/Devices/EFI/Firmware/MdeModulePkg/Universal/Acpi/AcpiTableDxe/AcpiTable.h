@@ -55,21 +55,18 @@
 //  Link is the linked list data.
 //  Version is the versions of the ACPI tables that this table belongs in.
 //  Table is a pointer to the table.
-//  TableSize is the size of the table
+//  PageAddress is the address of the pages allocated for the table.
+//  NumberOfPages is the number of pages allocated at PageAddress.
 //  Handle is used to identify a particular table.
-//  PoolAllocation carries the allocation type:
-//    FALSE: Table points to EFI_SIZE_TO_PAGES(TableSize) pages allocated using
-//           gBS->AllocatePages ()
-//    TRUE:  Table points to TableSize bytes allocated using gBS->AllocatePool ()
 //
 typedef struct {
   UINT32                  Signature;
   LIST_ENTRY              Link;
   EFI_ACPI_TABLE_VERSION  Version;
   EFI_ACPI_COMMON_HEADER  *Table;
-  UINTN                   TableSize;
+  EFI_PHYSICAL_ADDRESS    PageAddress;
+  UINTN                   NumberOfPages;
   UINTN                   Handle;
-  BOOLEAN                 PoolAllocation;
 } EFI_ACPI_TABLE_LIST;
 
 //

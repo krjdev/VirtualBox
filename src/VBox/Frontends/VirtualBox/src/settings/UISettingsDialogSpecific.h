@@ -1,10 +1,10 @@
-/* $Id: UISettingsDialogSpecific.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISettingsDialogSpecific.h $ */
 /** @file
  * VBox Qt GUI - UISettingsDialogSpecific class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,9 +21,6 @@
 # pragma once
 #endif
 
-/* Qt includes: */
-#include <QPointer>
-
 /* GUI includes: */
 #include "UISettingsDialog.h"
 
@@ -33,8 +30,6 @@
 #include "CMachine.h"
 #include "CSession.h"
 
-/* Forward declarations: */
-class UIActionPool;
 
 /** UISettingsDialog extension encapsulating all the specific functionality of the Global Preferences. */
 class SHARED_LIBRARY_STUFF UISettingsDialogGlobal : public UISettingsDialog
@@ -53,17 +48,17 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Loads the data from the corresponding source. */
-    virtual void loadOwnData() RT_OVERRIDE;
+    virtual void loadOwnData() /* override */;
     /** Saves the data to the corresponding source. */
-    virtual void saveOwnData() RT_OVERRIDE;
+    virtual void saveOwnData() /* override */;
 
     /** Returns the dialog title extension. */
-    virtual QString titleExtension() const RT_OVERRIDE;
+    virtual QString titleExtension() const /* override */;
     /** Returns the dialog title. */
-    virtual QString title() const RT_OVERRIDE;
+    virtual QString title() const /* override */;
 
 private:
 
@@ -79,9 +74,6 @@ private:
     QString  m_strControl;
 };
 
-/** Safe pointer to cloud machine settings dialog. */
-typedef QPointer<UISettingsDialogGlobal> UISafePointerSettingsDialogGlobal;
-
 
 /** UISettingsDialog extension encapsulating all the specific functionality of the Machine Settings. */
 class SHARED_LIBRARY_STUFF UISettingsDialogMachine : public UISettingsDialog
@@ -93,38 +85,37 @@ public:
     /** Constructs settings dialog passing @a pParent to the base-class.
       * @param  uMachineId    Brings the machine ID.
       * @param  strCategory   Brings the name of category to be opened.
-      * @param  strControl    Brings the name of control to be focused.
-      * @param  pActionPool   Brings the action pool instance.  */
+      * @param  strControl    Brings the name of control to be focused. */
     UISettingsDialogMachine(QWidget *pParent, const QUuid &uMachineId,
-                            const QString &strCategory, const QString &strControl, UIActionPool *pActionPool);
+                            const QString &strCategory, const QString &strControl);
 
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Loads the data from the corresponding source. */
-    virtual void loadOwnData() RT_OVERRIDE;
+    virtual void loadOwnData() /* override */;
     /** Saves the data to the corresponding source. */
-    virtual void saveOwnData() RT_OVERRIDE;
+    virtual void saveOwnData() /* override */;
 
     /** Returns the dialog title extension. */
-    virtual QString titleExtension() const RT_OVERRIDE;
+    virtual QString titleExtension() const /* override */;
     /** Returns the dialog title. */
-    virtual QString title() const RT_OVERRIDE;
+    virtual QString title() const /* override */;
 
     /** Verifies data integrity between certain @a pSettingsPage and other pages. */
-    virtual void recorrelate(UISettingsPage *pSettingsPage) RT_OVERRIDE;
+    virtual void recorrelate(UISettingsPage *pSettingsPage) /* override */;
 
 protected slots:
 
     /** Handles category change to @a cId. */
-    virtual void sltCategoryChanged(int cId) RT_OVERRIDE;
+    virtual void sltCategoryChanged(int cId) /* override */;
 
     /** Marks dialog loaded. */
-    virtual void sltMarkLoaded() RT_OVERRIDE;
+    virtual void sltMarkLoaded() /* override */;
     /** Marks dialog saved. */
-    virtual void sltMarkSaved() RT_OVERRIDE;
+    virtual void sltMarkSaved() /* override */;
 
 private slots:
 
@@ -134,6 +125,11 @@ private slots:
     void sltMachineStateChanged(const QUuid &uMachineId, const KMachineState enmMachineState);
     /** Handles machine data change for machine with certain @a uMachineId. */
     void sltMachineDataChanged(const QUuid &uMachineId);
+
+    /** Handles request to allow to reset first run flag. */
+    void sltAllowResetFirstRunFlag();
+    /** Handles request to reset first run flag. */
+    void sltResetFirstRunFlag();
 
 private:
 
@@ -168,11 +164,11 @@ private:
     /** Holds the console reference. */
     CConsole  m_console;
 
-    UIActionPool *m_pActionPool;
+    /** Holds whether we are allowed to reset first run flag. */
+    bool  m_fAllowResetFirstRunFlag : 1;
+    /** Holds whether we have request to reset first run flag. */
+    bool  m_fResetFirstRunFlag : 1;
 };
-
-/** Safe pointer to cloud machine settings dialog. */
-typedef QPointer<UISettingsDialogMachine> UISafePointerSettingsDialogMachine;
 
 
 #endif /* !FEQT_INCLUDED_SRC_settings_UISettingsDialogSpecific_h */

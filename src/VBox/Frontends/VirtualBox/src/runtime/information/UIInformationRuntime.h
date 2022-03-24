@@ -1,10 +1,10 @@
-/* $Id: UIInformationRuntime.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIInformationRuntime.h $ */
 /** @file
  * VBox Qt GUI - UIInformationRuntime class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,6 @@
 #include "QIWithRetranslateUI.h"
 
 /* Forward declarations: */
-class QAction;
 class QVBoxLayout;
 class UISession;
 class UIRuntimeInfoWidget;
@@ -66,8 +65,6 @@ private slots:
         void sltClipboardChange(KClipboardMode enmMode);
         void sltDnDModeChange(KDnDMode enmMode);
     /** @} */
-    void sltHandleTableContextMenuRequest(const QPoint &position);
-    void sltHandleCopyWholeTable();
 
 private:
 
@@ -80,7 +77,6 @@ private:
     /** Holds the instance of layout we create. */
     QVBoxLayout *m_pMainLayout;
     UIRuntimeInfoWidget *m_pRuntimeInfoWidget;
-    QAction *m_pCopyWholeTableAction;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_runtime_information_UIInformationRuntime_h */

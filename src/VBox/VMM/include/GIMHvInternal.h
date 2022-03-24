@@ -1,10 +1,10 @@
-/* $Id: GIMHvInternal.h 93554 2022-02-02 22:57:02Z vboxsync $ */
+/* $Id: GIMHvInternal.h $ */
 /** @file
  * GIM - Hyper-V, Internal header file.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1242,7 +1242,7 @@ typedef struct GIMHV
     uint64_t                    uDbgPendingBufferMsr;
     /** Debug status MSR. */
     uint64_t                    uDbgStatusMsr;
-    /** Intermediate debug I/O buffer (GIM_HV_PAGE_SIZE). */
+    /** Intermediate debug I/O buffer. */
     R3PTRTYPE(void *)           pvDbgBuffer;
     R3PTRTYPE(void *)           pvAlignment0;
     /** @} */
@@ -1262,8 +1262,10 @@ AssertCompileMemberAlignment(GIMHV, hSpinlockR0, sizeof(uintptr_t));
  */
 typedef struct GIMHVSTIMER
 {
-    /** Synthetic timer handle. */
-    TMTIMERHANDLE               hTimer;
+    /** Synthetic timer object - R0 ptr. */
+    PTMTIMERR0                  pTimerR0;
+    /** Synthetic timer object - R3 ptr. */
+    PTMTIMERR3                  pTimerR3;
     /** Virtual CPU ID this timer belongs to (for reverse mapping). */
     VMCPUID                     idCpu;
     /** The index of this timer in the auStimers array (for reverse mapping). */
@@ -1272,6 +1274,9 @@ typedef struct GIMHVSTIMER
     uint64_t                    uStimerConfigMsr;
     /** Synthetic timer count MSR. */
     uint64_t                    uStimerCountMsr;
+    /** Timer description. */
+    char                        szTimerDesc[24];
+
 } GIMHVSTIMER;
 /** Pointer to per-VCPU Hyper-V synthetic timer. */
 typedef GIMHVSTIMER *PGIMHVSTIMER;

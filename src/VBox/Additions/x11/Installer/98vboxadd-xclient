@@ -4,7 +4,7 @@
 #
 
 #
-# Copyright (C) 2007-2022 Oracle Corporation
+# Copyright (C) 2007-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -34,5 +34,5 @@ elif test -z "${SSH_CONNECTION}"; then
   /usr/bin/VBoxClient --checkhostversion
   /usr/bin/VBoxClient --seamless
   /usr/bin/VBoxClient --draganddrop
-  /usr/bin/VBoxClient --vmsvga-session # In case VMSVGA emulation is enabled
+  /usr/bin/VBoxClient --vmsvga  # In case VMSVGA emulation is enabled
 fi

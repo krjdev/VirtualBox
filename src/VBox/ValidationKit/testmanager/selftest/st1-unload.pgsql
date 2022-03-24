@@ -1,10 +1,10 @@
--- $Id: st1-unload.pgsql 93115 2022-01-01 11:31:46Z vboxsync $
+-- $Id: st1-unload.pgsql $
 --- @file
 -- VBox Test Manager - Self Test #1 Database Unload File.
 --
 
 --
--- Copyright (C) 2012-2022 Oracle Corporation
+-- Copyright (C) 2012-2020 Oracle Corporation
 --
 -- This file is part of VirtualBox Open Source Edition (OSE), as
 -- available from http://www.virtualbox.org. This file is free software;

@@ -1,10 +1,10 @@
-/* $Id: UITask.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UITask.h $ */
 /** @file
  * VBox Qt GUI - UITask class declaration.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,11 +43,10 @@ public:
     /** Task types. */
     enum Type
     {
-        Type_MediumEnumeration       = 1,
-        Type_DetailsPopulation       = 2,
-        Type_CloudListMachines       = 3,
-        Type_CloudRefreshMachineInfo = 4,
-        Type_CloudGetSettingsForm    = 5,
+        Type_MediumEnumeration     = 1,
+        Type_DetailsPopulation     = 2,
+        Type_CloudAcquireInstances = 3,
+        Type_CloudGetInstanceState = 4,
     };
 
     /** Constructs the task of passed @a enmType. */

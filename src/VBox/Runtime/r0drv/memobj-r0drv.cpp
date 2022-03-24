@@ -1,10 +1,10 @@
-/* $Id: memobj-r0drv.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: memobj-r0drv.cpp $ */
 /** @file
  * IPRT - Ring-0 Memory Objects, Common Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -54,9 +54,8 @@
  * @param   enmType     The memory object type.
  * @param   pv          The memory object mapping.
  * @param   cb          The size of the memory object.
- * @param   pszTag      The tag string.
  */
-DECLHIDDEN(PRTR0MEMOBJINTERNAL) rtR0MemObjNew(size_t cbSelf, RTR0MEMOBJTYPE enmType, void *pv, size_t cb, const char *pszTag)
+DECLHIDDEN(PRTR0MEMOBJINTERNAL) rtR0MemObjNew(size_t cbSelf, RTR0MEMOBJTYPE enmType, void *pv, size_t cb)
 {
     PRTR0MEMOBJINTERNAL pNew;
 
@@ -79,11 +78,6 @@ DECLHIDDEN(PRTR0MEMOBJINTERNAL) rtR0MemObjNew(size_t cbSelf, RTR0MEMOBJTYPE enmT
         pNew->fFlags    = 0;
         pNew->cb        = cb;
         pNew->pv        = pv;
-#ifdef DEBUG
-        pNew->pszTag    = pszTag;
-#else
-        RT_NOREF_PV(pszTag);
-#endif
     }
     return pNew;
 }
@@ -312,48 +306,11 @@ RT_EXPORT_SYMBOL(RTR0MemObjGetPagePhysAddr);
 
 
 /**
- * Checks whether the allocation was zero initialized or not.
- *
- * This only works on allocations.  It is not meaningful for mappings, reserved
- * memory and entered physical address, and will return false for these.
- *
- * @returns true if the allocation was initialized to zero at allocation time,
- *          false if not or query not meaningful to the object type.
- * @param   hMemObj             The ring-0 memory object to be freed.
- *
- * @remarks It can be expected that memory allocated in the same fashion will
- *          have the same initialization state.  So, if this returns true for
- *          one allocation it will return true for all other similarly made
- *          allocations.
- */
-RTR0DECL(bool) RTR0MemObjWasZeroInitialized(RTR0MEMOBJ hMemObj)
-{
-    PRTR0MEMOBJINTERNAL pMem;
-
-    /* Validate the object handle. */
-    if (RT_UNLIKELY(hMemObj == NIL_RTR0MEMOBJ))
-        return false;
-    AssertPtrReturn(hMemObj, false);
-    pMem = (PRTR0MEMOBJINTERNAL)hMemObj;
-    AssertMsgReturn(pMem->u32Magic == RTR0MEMOBJ_MAGIC, ("%p: %#x\n", pMem, pMem->u32Magic), false);
-    AssertMsgReturn(pMem->enmType > RTR0MEMOBJTYPE_INVALID && pMem->enmType < RTR0MEMOBJTYPE_END, ("%p: %d\n", pMem, pMem->enmType), false);
-    Assert(   (pMem->fFlags & (RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC | RTR0MEMOBJ_FLAGS_UNINITIALIZED_AT_ALLOC))
-           !=                 (RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC | RTR0MEMOBJ_FLAGS_UNINITIALIZED_AT_ALLOC));
-
-    /* return the alloc init state. */
-    return (pMem->fFlags & (RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC | RTR0MEMOBJ_FLAGS_UNINITIALIZED_AT_ALLOC))
-        ==                  RTR0MEMOBJ_FLAGS_ZERO_AT_ALLOC;
-}
-RT_EXPORT_SYMBOL(RTR0MemObjWasZeroInitialized);
-
-
-/**
  * Frees a ring-0 memory object.
  *
  * @returns IPRT status code.
  * @retval  VERR_INVALID_HANDLE if
- * @param   MemObj          The ring-0 memory object to be freed. NIL is
- *                          accepted.
+ * @param   MemObj          The ring-0 memory object to be freed. NULL is accepted.
  * @param   fFreeMappings   Whether or not to free mappings of the object.
  */
 RTR0DECL(int) RTR0MemObjFree(RTR0MEMOBJ MemObj, bool fFreeMappings)
@@ -473,8 +430,10 @@ RTR0DECL(int) RTR0MemObjAllocPageTag(PRTR0MEMOBJ pMemObj, size_t cb, bool fExecu
     AssertReturn(cb <= cbAligned, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocPage(pMemObj, cbAligned, fExecutable, pszTag);
+    return rtR0MemObjNativeAllocPage(pMemObj, cbAligned, fExecutable);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocPageTag);
 
@@ -513,7 +472,7 @@ DECLHIDDEN(int) rtR0MemObjFallbackAllocLarge(PPRTR0MEMOBJINTERNAL ppMem, size_t 
 {
     RT_NOREF(pszTag, fFlags);
     if (cb == cbLargePage)
-        return rtR0MemObjNativeAllocPhys(ppMem, cb, NIL_RTHCPHYS, cbLargePage, pszTag);
+        return rtR0MemObjNativeAllocPhys(ppMem, cb, NIL_RTHCPHYS, cbLargePage);
     return VERR_NOT_SUPPORTED;
 }
 
@@ -528,8 +487,10 @@ RTR0DECL(int) RTR0MemObjAllocLowTag(PRTR0MEMOBJ pMemObj, size_t cb, bool fExecut
     AssertReturn(cb <= cbAligned, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocLow(pMemObj, cbAligned, fExecutable, pszTag);
+    return rtR0MemObjNativeAllocLow(pMemObj, cbAligned, fExecutable);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocLowTag);
 
@@ -544,8 +505,10 @@ RTR0DECL(int) RTR0MemObjAllocContTag(PRTR0MEMOBJ pMemObj, size_t cb, bool fExecu
     AssertReturn(cb <= cbAligned, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocCont(pMemObj, cbAligned, fExecutable, pszTag);
+    return rtR0MemObjNativeAllocCont(pMemObj, cbAligned, fExecutable);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocContTag);
 
@@ -566,8 +529,10 @@ RTR0DECL(int) RTR0MemObjLockUserTag(PRTR0MEMOBJ pMemObj, RTR3PTR R3Ptr, size_t c
     AssertReturn(fAccess, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the locking. */
-    return rtR0MemObjNativeLockUser(pMemObj, R3PtrAligned, cbAligned, fAccess, R0Process, pszTag);
+    return rtR0MemObjNativeLockUser(pMemObj, R3PtrAligned, cbAligned, fAccess, R0Process);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjLockUserTag);
 
@@ -586,8 +551,10 @@ RTR0DECL(int) RTR0MemObjLockKernelTag(PRTR0MEMOBJ pMemObj, void *pv, size_t cb, 
     AssertReturn(fAccess, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeLockKernel(pMemObj, pvAligned, cbAligned, fAccess, pszTag);
+    return rtR0MemObjNativeLockKernel(pMemObj, pvAligned, cbAligned, fAccess);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjLockKernelTag);
 
@@ -603,8 +570,10 @@ RTR0DECL(int) RTR0MemObjAllocPhysTag(PRTR0MEMOBJ pMemObj, size_t cb, RTHCPHYS Ph
     AssertReturn(PhysHighest >= cb, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocPhys(pMemObj, cbAligned, PhysHighest, PAGE_SIZE /* page aligned */, pszTag);
+    return rtR0MemObjNativeAllocPhys(pMemObj, cbAligned, PhysHighest, PAGE_SIZE /* page aligned */);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocPhysTag);
 
@@ -633,8 +602,10 @@ RTR0DECL(int) RTR0MemObjAllocPhysExTag(PRTR0MEMOBJ pMemObj, size_t cb, RTHCPHYS 
 #endif
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocPhys(pMemObj, cbAligned, PhysHighest, uAlignment, pszTag);
+    return rtR0MemObjNativeAllocPhys(pMemObj, cbAligned, PhysHighest, uAlignment);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocPhysExTag);
 
@@ -650,8 +621,10 @@ RTR0DECL(int) RTR0MemObjAllocPhysNCTag(PRTR0MEMOBJ pMemObj, size_t cb, RTHCPHYS 
     AssertReturn(PhysHighest >= cb, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeAllocPhysNC(pMemObj, cbAligned, PhysHighest, pszTag);
+    return rtR0MemObjNativeAllocPhysNC(pMemObj, cbAligned, PhysHighest);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjAllocPhysNCTag);
 
@@ -671,8 +644,10 @@ RTR0DECL(int) RTR0MemObjEnterPhysTag(PRTR0MEMOBJ pMemObj, RTHCPHYS Phys, size_t 
                  VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the allocation. */
-    return rtR0MemObjNativeEnterPhys(pMemObj, PhysAligned, cbAligned, uCachePolicy, pszTag);
+    return rtR0MemObjNativeEnterPhys(pMemObj, PhysAligned, cbAligned, uCachePolicy);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjEnterPhysTag);
 
@@ -692,8 +667,10 @@ RTR0DECL(int) RTR0MemObjReserveKernelTag(PRTR0MEMOBJ pMemObj, void *pvFixed, siz
         AssertReturn(!((uintptr_t)pvFixed & (uAlignment - 1)), VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the reservation. */
-    return rtR0MemObjNativeReserveKernel(pMemObj, pvFixed, cbAligned, uAlignment, pszTag);
+    return rtR0MemObjNativeReserveKernel(pMemObj, pvFixed, cbAligned, uAlignment);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjReserveKernelTag);
 
@@ -716,8 +693,10 @@ RTR0DECL(int) RTR0MemObjReserveUserTag(PRTR0MEMOBJ pMemObj, RTR3PTR R3PtrFixed, 
         R0Process = RTR0ProcHandleSelf();
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* do the reservation. */
-    return rtR0MemObjNativeReserveUser(pMemObj, R3PtrFixed, cbAligned, uAlignment, R0Process, pszTag);
+    return rtR0MemObjNativeReserveUser(pMemObj, R3PtrFixed, cbAligned, uAlignment, R0Process);
 }
 RT_EXPORT_SYMBOL(RTR0MemObjReserveUserTag);
 
@@ -760,12 +739,14 @@ RTR0DECL(int) RTR0MemObjMapKernelExTag(PRTR0MEMOBJ pMemObj, RTR0MEMOBJ MemObjToM
     AssertReturn((!offSub && !cbSub) || (offSub + cbSub) <= pMemToMap->cb, VERR_INVALID_PARAMETER);
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* adjust the request to simplify the native code. */
     if (offSub == 0 && cbSub == pMemToMap->cb)
         cbSub = 0;
 
     /* do the mapping. */
-    rc = rtR0MemObjNativeMapKernel(&pNew, pMemToMap, pvFixed, uAlignment, fProt, offSub, cbSub, pszTag);
+    rc = rtR0MemObjNativeMapKernel(&pNew, pMemToMap, pvFixed, uAlignment, fProt, offSub, cbSub);
     if (RT_SUCCESS(rc))
     {
         /* link it. */
@@ -827,12 +808,14 @@ RTR0DECL(int) RTR0MemObjMapUserExTag(PRTR0MEMOBJ pMemObj, RTR0MEMOBJ MemObjToMap
         R0Process = RTR0ProcHandleSelf();
     RT_ASSERT_PREEMPTIBLE();
 
+    RT_NOREF_PV(pszTag);
+
     /* adjust the request to simplify the native code. */
     if (offSub == 0 && cbSub == pMemToMap->cb)
         cbSub = 0;
 
     /* do the mapping. */
-    rc = rtR0MemObjNativeMapUser(&pNew, pMemToMap, R3PtrFixed, uAlignment, fProt, R0Process, offSub, cbSub, pszTag);
+    rc = rtR0MemObjNativeMapUser(&pNew, pMemToMap, R3PtrFixed, uAlignment, fProt, R0Process, offSub, cbSub);
     if (RT_SUCCESS(rc))
     {
         /* link it. */

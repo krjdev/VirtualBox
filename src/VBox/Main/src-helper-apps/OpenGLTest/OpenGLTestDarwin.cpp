@@ -1,10 +1,10 @@
-/* $Id: OpenGLTestDarwin.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: OpenGLTestDarwin.cpp $ */
 /** @file
  * VBox host opengl support test
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -145,7 +145,6 @@ bool RTCALL VBoxOglIs3DAccelerationSupported(void)
              * the GL_EXT_texture_rectangle extension. If they are not
              * available, disable 3D support.
              */
-#pragma clang diagnostic ignored "-Wdeprecated-declarations" /* gluCheckExtension deprecated since 10.10 - use MetalKit. */
             CGLSetCurrentContext(pCglContext);
             const GLubyte *pszExts = glGetString(GL_EXTENSIONS);
             isSupported = gluCheckExtension((const GLubyte *)"GL_EXT_framebuffer_object", pszExts);

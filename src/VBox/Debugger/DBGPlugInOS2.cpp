@@ -1,10 +1,10 @@
-/* $Id: DBGPlugInOS2.cpp 93470 2022-01-27 23:51:28Z vboxsync $ */
+/* $Id: DBGPlugInOS2.cpp $ */
 /** @file
  * DBGPlugInOS2 - Debugger and Guest OS Digger Plugin For OS/2.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -21,7 +21,7 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_DBGF /// @todo add new log group.
 #include "DBGPlugIns.h"
-#include <VBox/vmm/vmmr3vtable.h>
+#include <VBox/vmm/dbgf.h>
 #include <VBox/err.h>
 #include <VBox/param.h>
 #include <iprt/string.h>
@@ -50,8 +50,6 @@ typedef struct DBGDIGGEROS2
 {
     /** The user-mode VM handle for use in info handlers. */
     PUVM                pUVM;
-    /** The VMM function table for use in info handlers. */
-    PCVMMR3VTABLE       pVMM;
 
     /** Whether the information is valid or not.
      * (For fending off illegal interface method calls.) */
@@ -409,14 +407,14 @@ typedef struct OS2LIS
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData);
+static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, void *pvData);
 
 
 static int dbgDiggerOS2DisplaySelectorAndInfoEx(PDBGDIGGEROS2 pThis, PCDBGFINFOHLP pHlp, uint16_t uSel, uint32_t off,
                                                 int cchWidth, const char *pszMessage, PDBGFSELINFO pSelInfo)
 {
     RT_ZERO(*pSelInfo);
-    int rc = pThis->pVMM->pfnDBGFR3SelQueryInfo(pThis->pUVM, 0 /*idCpu*/, uSel, DBGFSELQI_FLAGS_DT_GUEST, pSelInfo);
+    int rc = DBGFR3SelQueryInfo(pThis->pUVM, 0 /*idCpu*/, uSel, DBGFSELQI_FLAGS_DT_GUEST, pSelInfo);
     if (RT_SUCCESS(rc))
     {
         if (off == UINT32_MAX)
@@ -448,12 +446,9 @@ DECLINLINE(int) dbgDiggerOS2DisplaySelectorAndInfo(PDBGDIGGEROS2 pThis, PCDBGFIN
 static DECLCALLBACK(void) dbgDiggerOS2InfoSas(void *pvUser, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     RT_NOREF(pszArgs);
-    PDBGDIGGEROS2 const pThis = (PDBGDIGGEROS2)pvUser;
-    PUVM const          pUVM  = pThis->pUVM;
-    PCVMMR3VTABLE const pVMM  = pThis->pVMM;
-
-    DBGFSELINFO SelInfo;
-    int rc = pVMM->pfnDBGFR3SelQueryInfo(pUVM, 0 /*idCpu*/, 0x70, DBGFSELQI_FLAGS_DT_GUEST, &SelInfo);
+    PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvUser;
+    DBGFSELINFO   SelInfo;
+    int rc = DBGFR3SelQueryInfo(pThis->pUVM, 0 /*idCpu*/, 0x70, DBGFSELQI_FLAGS_DT_GUEST, &SelInfo);
     if (RT_FAILURE(rc))
     {
         pHlp->pfnPrintf(pHlp, "DBGFR3SelQueryInfo failed on selector 0x70: %Rrc\n", rc);
@@ -471,8 +466,7 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoSas(void *pvUser, PCDBGFINFOHLP pHlp, 
         uint16_t au16Sas[sizeof(SAS) / sizeof(uint16_t)];
     };
     DBGFADDRESS Addr;
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SelInfo.GCPtrBase),
-                                &Sas, sizeof(Sas));
+    rc = DBGFR3MemRead(pThis->pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pThis->pUVM, &Addr, SelInfo.GCPtrBase), &Sas, sizeof(Sas));
     if (RT_FAILURE(rc))
     {
         pHlp->pfnPrintf(pHlp, "Failed to read SAS header: %Rrc\n", rc);
@@ -516,9 +510,8 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoSas(void *pvUser, PCDBGFINFOHLP pHlp, 
     /*
      * Info data.
      */
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/,
-                                pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SelInfo.GCPtrBase + Sas.SAS_info_data),
-                                &u.Info, sizeof(u.Info));
+    rc = DBGFR3MemRead(pThis->pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pThis->pUVM, &Addr, SelInfo.GCPtrBase + Sas.SAS_info_data),
+                       &u.Info, sizeof(u.Info));
     if (RT_SUCCESS(rc))
     {
         pHlp->pfnPrintf(pHlp, "SASINFO:\n");
@@ -541,11 +534,8 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoSas(void *pvUser, PCDBGFINFOHLP pHlp, 
 static DECLCALLBACK(void) dbgDiggerOS2InfoGis(void *pvUser, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     RT_NOREF(pszArgs);
-    PDBGDIGGEROS2 const pThis = (PDBGDIGGEROS2)pvUser;
-    PUVM const          pUVM  = pThis->pUVM;
-    PCVMMR3VTABLE const pVMM  = pThis->pVMM;
-
-    DBGFSELINFO SelInfo;
+    PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvUser;
+    DBGFSELINFO   SelInfo;
     int rc = dbgDiggerOS2DisplaySelectorAndInfoEx(pThis, pHlp, pThis->selGis, UINT32_MAX, 0, "Global info segment", &SelInfo);
     if (RT_FAILURE(rc))
         return;
@@ -556,8 +546,8 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoGis(void *pvUser, PCDBGFINFOHLP pHlp, 
     DBGFADDRESS Addr;
     OS2GIS      Gis;
     RT_ZERO(Gis);
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SelInfo.GCPtrBase), &Gis,
-                                RT_MIN(sizeof(Gis), SelInfo.cbLimit + 1));
+    rc = DBGFR3MemRead(pThis->pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pThis->pUVM, &Addr, SelInfo.GCPtrBase), &Gis,
+                       RT_MIN(sizeof(Gis), SelInfo.cbLimit + 1));
     if (RT_FAILURE(rc))
     {
         pHlp->pfnPrintf(pHlp, "Failed to read GIS: %Rrc\n", rc);
@@ -600,11 +590,8 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoGis(void *pvUser, PCDBGFINFOHLP pHlp, 
 static DECLCALLBACK(void) dbgDiggerOS2InfoLis(void *pvUser, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     RT_NOREF(pszArgs);
-    PDBGDIGGEROS2 const pThis = (PDBGDIGGEROS2)pvUser;
-    PUVM const          pUVM  = pThis->pUVM;
-    PCVMMR3VTABLE const pVMM  = pThis->pVMM;
-
-    DBGFSELINFO SelInfo;
+    PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvUser;
+    DBGFSELINFO   SelInfo;
     int rc = dbgDiggerOS2DisplaySelectorAndInfoEx(pThis, pHlp, pThis->Lis.sel, pThis->Lis.off, 19, "Local info segment", &SelInfo);
     if (RT_FAILURE(rc))
         return;
@@ -615,8 +602,8 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoLis(void *pvUser, PCDBGFINFOHLP pHlp, 
     DBGFADDRESS Addr;
     OS2LIS      Lis;
     RT_ZERO(Lis);
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SelInfo.GCPtrBase + pThis->Lis.off),
-                                &Lis, sizeof(Lis));
+    rc = DBGFR3MemRead(pThis->pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pThis->pUVM, &Addr, SelInfo.GCPtrBase + pThis->Lis.off),
+                       &Lis, sizeof(Lis));
     if (RT_FAILURE(rc))
     {
         pHlp->pfnPrintf(pHlp, "Failed to read LIS: %Rrc\n", rc);
@@ -651,22 +638,19 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoLis(void *pvUser, PCDBGFINFOHLP pHlp, 
 static DECLCALLBACK(void) dbgDiggerOS2InfoPanic(void *pvUser, PCDBGFINFOHLP pHlp, const char *pszArgs)
 {
     RT_NOREF(pszArgs);
-    PDBGDIGGEROS2 const pThis = (PDBGDIGGEROS2)pvUser;
-    PUVM const          pUVM  = pThis->pUVM;
-    PCVMMR3VTABLE const pVMM  = pThis->pVMM;
-
-    DBGFADDRESS HitAddr;
-    int rc = pVMM->pfnDBGFR3MemScan(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &HitAddr, pThis->uKernelAddr),
-                                    pThis->cbKernel, 1, RT_STR_TUPLE("Exception in module:"), &HitAddr);
+    PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvUser;
+    DBGFADDRESS   HitAddr;
+    int rc = DBGFR3MemScan(pThis->pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pThis->pUVM, &HitAddr, pThis->uKernelAddr),
+                           pThis->cbKernel, 1, RT_STR_TUPLE("Exception in module:"), &HitAddr);
     if (RT_FAILURE(rc))
-        rc = pVMM->pfnDBGFR3MemScan(pUVM, 0 /*idCpu&*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &HitAddr, pThis->uKernelAddr),
-                                    pThis->cbKernel, 1, RT_STR_TUPLE("Exception in device driver:"), &HitAddr);
+        rc = DBGFR3MemScan(pThis->pUVM, 0 /*idCpu&*/, DBGFR3AddrFromFlat(pThis->pUVM, &HitAddr, pThis->uKernelAddr),
+                           pThis->cbKernel, 1, RT_STR_TUPLE("Exception in device driver:"), &HitAddr);
     /** @todo support pre-2001 kernels w/o the module/drivce name.   */
     if (RT_SUCCESS(rc))
     {
         char szMsg[728 + 1];
         RT_ZERO(szMsg);
-        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0, &HitAddr, szMsg, sizeof(szMsg) - 1);
+        rc = DBGFR3MemRead(pThis->pUVM, 0, &HitAddr, szMsg, sizeof(szMsg) - 1);
         if (szMsg[0] != '\0')
         {
             RTStrPurgeEncoding(szMsg);
@@ -696,11 +680,11 @@ static DECLCALLBACK(void) dbgDiggerOS2InfoPanic(void *pvUser, PCDBGFINFOHLP pHlp
 /**
  * @copydoc DBGFOSREG::pfnStackUnwindAssist
  */
-static DECLCALLBACK(int) dbgDiggerOS2StackUnwindAssist(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData, VMCPUID idCpu,
-                                                       PDBGFSTACKFRAME pFrame, PRTDBGUNWINDSTATE pState, PCCPUMCTX pInitialCtx,
-                                                       RTDBGAS hAs, uint64_t *puScratch)
+static DECLCALLBACK(int) dbgDiggerOS2StackUnwindAssist(PUVM pUVM, void *pvData, VMCPUID idCpu, PDBGFSTACKFRAME pFrame,
+                                                       PRTDBGUNWINDSTATE pState, PCCPUMCTX pInitialCtx, RTDBGAS hAs,
+                                                       uint64_t *puScratch)
 {
-    RT_NOREF(pUVM, pVMM, pvData, idCpu, pFrame, pState, pInitialCtx, hAs, puScratch);
+    RT_NOREF(pUVM, pvData, idCpu, pFrame, pState, pInitialCtx, hAs, puScratch);
     return VINF_SUCCESS;
 }
 
@@ -708,9 +692,9 @@ static DECLCALLBACK(int) dbgDiggerOS2StackUnwindAssist(PUVM pUVM, PCVMMR3VTABLE 
 /**
  * @copydoc DBGFOSREG::pfnQueryInterface
  */
-static DECLCALLBACK(void *) dbgDiggerOS2QueryInterface(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData, DBGFOSINTERFACE enmIf)
+static DECLCALLBACK(void *) dbgDiggerOS2QueryInterface(PUVM pUVM, void *pvData, DBGFOSINTERFACE enmIf)
 {
-    RT_NOREF(pUVM, pVMM, pvData, enmIf);
+    RT_NOREF3(pUVM, pvData, enmIf);
     return NULL;
 }
 
@@ -718,13 +702,11 @@ static DECLCALLBACK(void *) dbgDiggerOS2QueryInterface(PUVM pUVM, PCVMMR3VTABLE 
 /**
  * @copydoc DBGFOSREG::pfnQueryVersion
  */
-static DECLCALLBACK(int)  dbgDiggerOS2QueryVersion(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData,
-                                                   char *pszVersion, size_t cchVersion)
+static DECLCALLBACK(int)  dbgDiggerOS2QueryVersion(PUVM pUVM, void *pvData, char *pszVersion, size_t cchVersion)
 {
+    RT_NOREF1(pUVM);
     PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvData;
-    RT_NOREF(pUVM, pVMM);
     Assert(pThis->fValid);
-
     char *achOS2ProductType[32];
     char *pszOS2ProductType = (char *)achOS2ProductType;
 
@@ -765,15 +747,16 @@ static DECLCALLBACK(int)  dbgDiggerOS2QueryVersion(PUVM pUVM, PCVMMR3VTABLE pVMM
 /**
  * @copydoc DBGFOSREG::pfnTerm
  */
-static DECLCALLBACK(void)  dbgDiggerOS2Term(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(void)  dbgDiggerOS2Term(PUVM pUVM, void *pvData)
 {
+    RT_NOREF1(pUVM);
     PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvData;
     Assert(pThis->fValid);
 
-    pVMM->pfnDBGFR3InfoDeregisterExternal(pUVM, "sas");
-    pVMM->pfnDBGFR3InfoDeregisterExternal(pUVM, "gis");
-    pVMM->pfnDBGFR3InfoDeregisterExternal(pUVM, "lis");
-    pVMM->pfnDBGFR3InfoDeregisterExternal(pUVM, "panic");
+    DBGFR3InfoDeregisterExternal(pUVM, "sas");
+    DBGFR3InfoDeregisterExternal(pUVM, "gis");
+    DBGFR3InfoDeregisterExternal(pUVM, "lis");
+    DBGFR3InfoDeregisterExternal(pUVM, "panic");
 
     pThis->fValid = false;
 }
@@ -782,7 +765,7 @@ static DECLCALLBACK(void)  dbgDiggerOS2Term(PUVM pUVM, PCVMMR3VTABLE pVMM, void 
 /**
  * @copydoc DBGFOSREG::pfnRefresh
  */
-static DECLCALLBACK(int)  dbgDiggerOS2Refresh(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(int)  dbgDiggerOS2Refresh(PUVM pUVM, void *pvData)
 {
     PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvData;
     NOREF(pThis);
@@ -791,7 +774,7 @@ static DECLCALLBACK(int)  dbgDiggerOS2Refresh(PUVM pUVM, PCVMMR3VTABLE pVMM, voi
     /*
      * For now we'll flush and reload everything.
      */
-    RTDBGAS hDbgAs = pVMM->pfnDBGFR3AsResolveAndRetain(pUVM, DBGF_AS_KERNEL);
+    RTDBGAS hDbgAs = DBGFR3AsResolveAndRetain(pUVM, DBGF_AS_KERNEL);
     if (hDbgAs != NIL_RTDBGAS)
     {
         uint32_t iMod = RTDbgAsModuleCount(hDbgAs);
@@ -811,8 +794,8 @@ static DECLCALLBACK(int)  dbgDiggerOS2Refresh(PUVM pUVM, PCVMMR3VTABLE pVMM, voi
         RTDbgAsRelease(hDbgAs);
     }
 
-    dbgDiggerOS2Term(pUVM, pVMM, pvData);
-    return dbgDiggerOS2Init(pUVM, pVMM, pvData);
+    dbgDiggerOS2Term(pUVM, pvData);
+    return dbgDiggerOS2Init(pUVM, pvData);
 }
 
 
@@ -863,7 +846,7 @@ static DECLCALLBACK(int) dbgdiggerOs2OpenModule(RTDBGCFG hDbgCfg, const char *ps
 }
 
 
-static void dbgdiggerOS2ProcessModule(PUVM pUVM, PCVMMR3VTABLE pVMM, PDBGDIGGEROS2 pThis, DBGDIGGEROS2BUF *pBuf,
+static void dbgdiggerOS2ProcessModule(PUVM pUVM, PDBGDIGGEROS2 pThis, DBGDIGGEROS2BUF *pBuf,
                                       const char *pszCacheSubDir, RTDBGAS hAs, RTDBGCFG hDbgCfg)
 {
     RT_NOREF(pThis);
@@ -893,8 +876,7 @@ static void dbgdiggerOS2ProcessModule(PUVM pUVM, PCVMMR3VTABLE pVMM, PDBGDIGGERO
      * Try read the swappable MTE.  Save it too.
      */
     DBGFADDRESS     Addr;
-    int rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, Mte.mte_swapmte),
-                                    &pBuf->smte, sizeof(pBuf->smte));
+    int rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pUVM, &Addr, Mte.mte_swapmte), &pBuf->smte, sizeof(pBuf->smte));
     if (RT_FAILURE(rc))
     {
         LogRel(("DbgDiggerOs2: Error reading swap mte @ %RX32: %Rrc\n", Mte.mte_swapmte, rc));
@@ -917,8 +899,7 @@ static void dbgdiggerOS2ProcessModule(PUVM pUVM, PCVMMR3VTABLE pVMM, PDBGDIGGERO
     if (SwapMte.smte_path != 0 && SwapMte.smte_pathlen > 0)
     {
         uint32_t cbToRead = RT_MIN(SwapMte.smte_path, sizeof(szModPath) - 1);
-        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SwapMte.smte_path),
-                                    szModPath, cbToRead);
+        rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pUVM, &Addr, SwapMte.smte_path), szModPath, cbToRead);
         szModPath[cbToRead] = '\0';
     }
     if (RT_FAILURE(rc))
@@ -940,8 +921,8 @@ static void dbgdiggerOS2ProcessModule(PUVM pUVM, PCVMMR3VTABLE pVMM, PDBGDIGGERO
     /*
      * Read the object table into the buffer.
      */
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, SwapMte.smte_objtab),
-                                &pBuf->aOtes[0], sizeof(pBuf->aOtes[0]) * SwapMte.smte_objcnt);
+    rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pUVM, &Addr, SwapMte.smte_objtab),
+                       &pBuf->aOtes[0], sizeof(pBuf->aOtes[0]) * SwapMte.smte_objcnt);
     if (RT_FAILURE(rc))
     {
         LogRel(("DbgDiggerOs2: Error reading object table @ %#RX32 LB %#zx: %Rrc\n",
@@ -1054,7 +1035,7 @@ static void dbgdiggerOS2ProcessModule(PUVM pUVM, PCVMMR3VTABLE pVMM, PDBGDIGGERO
 /**
  * @copydoc DBGFOSREG::pfnInit
  */
-static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, void *pvData)
 {
     PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvData;
     Assert(!pThis->fValid);
@@ -1067,10 +1048,10 @@ static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *
      * Determine the OS/2 version.
      */
     /* Version info is at GIS:15h (major/minor/revision). */
-    rc = pVMM->pfnDBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, pThis->selGis, 0x15);
+    rc = DBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, pThis->selGis, 0x15);
     if (RT_FAILURE(rc))
         return VERR_NOT_SUPPORTED;
-    rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, uBuf.au32, sizeof(uint32_t));
+    rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, uBuf.au32, sizeof(uint32_t));
     if (RT_FAILURE(rc))
         return VERR_NOT_SUPPORTED;
 
@@ -1082,35 +1063,35 @@ static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *
     /*
      * Try use SAS to find the module list.
      */
-    rc = pVMM->pfnDBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, 0x00);
+    rc = DBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, 0x00);
     if (RT_SUCCESS(rc))
     {
-        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.sas, sizeof(uBuf.sas));
+        rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.sas, sizeof(uBuf.sas));
         if (RT_SUCCESS(rc))
         {
-            rc = pVMM->pfnDBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, uBuf.sas.SAS_vm_data);
+            rc = DBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, uBuf.sas.SAS_vm_data);
             if (RT_SUCCESS(rc))
-                rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.sasvm, sizeof(uBuf.sasvm));
+                rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.sasvm, sizeof(uBuf.sasvm));
             if (RT_SUCCESS(rc))
             {
                 /*
                  * Work the module list.
                  */
-                rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, uBuf.sasvm.SAS_vm_all_mte),
-                                            &uBuf.au32[0], sizeof(uBuf.au32[0]));
+                rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pUVM, &Addr, uBuf.sasvm.SAS_vm_all_mte),
+                                   &uBuf.au32[0], sizeof(uBuf.au32[0]));
                 if (RT_SUCCESS(rc))
                 {
                     uint32_t uOs2Krnl = UINT32_MAX;
-                    RTDBGCFG hDbgCfg  = pVMM->pfnDBGFR3AsGetConfig(pUVM); /* (don't release this) */
-                    RTDBGAS  hAs      = pVMM->pfnDBGFR3AsResolveAndRetain(pUVM, DBGF_AS_GLOBAL);
+                    RTDBGCFG hDbgCfg  = DBGFR3AsGetConfig(pUVM); /* (don't release this) */
+                    RTDBGAS  hAs      = DBGFR3AsResolveAndRetain(pUVM, DBGF_AS_GLOBAL);
 
                     char szCacheSubDir[24];
                     RTStrPrintf(szCacheSubDir, sizeof(szCacheSubDir), "os2-%u.%u", pThis->OS2MajorVersion, pThis->OS2MinorVersion);
 
-                    pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, uBuf.au32[0]);
+                    DBGFR3AddrFromFlat(pUVM, &Addr, uBuf.au32[0]);
                     while (Addr.FlatPtr != 0 && Addr.FlatPtr != UINT32_MAX)
                     {
-                        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.mte, sizeof(uBuf.mte));
+                        rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, &uBuf.mte, sizeof(uBuf.mte));
                         if (RT_FAILURE(rc))
                             break;
                         LogRel(("DbgDiggerOs2: Module @ %#010RX32: %.8s %#x %#x\n", (uint32_t)Addr.FlatPtr,
@@ -1118,21 +1099,21 @@ static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *
                         if (uBuf.mte.mte_flags1 & MTE1_DOSMOD)
                             uOs2Krnl = (uint32_t)Addr.FlatPtr;
 
-                        pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, uBuf.mte.mte_link);
-                        dbgdiggerOS2ProcessModule(pUVM, pVMM, pThis, &uBuf, szCacheSubDir, hAs, hDbgCfg);
+                        DBGFR3AddrFromFlat(pUVM, &Addr, uBuf.mte.mte_link);
+                        dbgdiggerOS2ProcessModule(pUVM, pThis, &uBuf, szCacheSubDir, hAs, hDbgCfg);
                     }
 
                     /* Load the kernel again. To make sure we didn't drop any segments due
                        to overlap/conflicts/whatever.  */
                     if (uOs2Krnl != UINT32_MAX)
                     {
-                        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, pVMM->pfnDBGFR3AddrFromFlat(pUVM, &Addr, uOs2Krnl),
-                                                    &uBuf.mte, sizeof(uBuf.mte));
+                        rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, DBGFR3AddrFromFlat(pUVM, &Addr, uOs2Krnl),
+                                           &uBuf.mte, sizeof(uBuf.mte));
                         if (RT_SUCCESS(rc))
                         {
                             LogRel(("DbgDiggerOs2: Module @ %#010RX32: %.8s %#x %#x [again]\n", (uint32_t)Addr.FlatPtr,
                                     uBuf.mte.mte_modname, uBuf.mte.mte_flags1, uBuf.mte.mte_flags2));
-                            dbgdiggerOS2ProcessModule(pUVM, pVMM, pThis, &uBuf, szCacheSubDir, hAs, hDbgCfg);
+                            dbgdiggerOS2ProcessModule(pUVM, pThis, &uBuf, szCacheSubDir, hAs, hDbgCfg);
                         }
                     }
 
@@ -1145,10 +1126,10 @@ static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *
     /*
      * Register info handlers.
      */
-    pVMM->pfnDBGFR3InfoRegisterExternal(pUVM, "sas",   "Dumps the OS/2 system anchor block (SAS).", dbgDiggerOS2InfoSas, pThis);
-    pVMM->pfnDBGFR3InfoRegisterExternal(pUVM, "gis",   "Dumps the OS/2 global info segment (GIS).", dbgDiggerOS2InfoGis, pThis);
-    pVMM->pfnDBGFR3InfoRegisterExternal(pUVM, "lis",   "Dumps the OS/2 local info segment (current process).", dbgDiggerOS2InfoLis, pThis);
-    pVMM->pfnDBGFR3InfoRegisterExternal(pUVM, "panic", "Dumps the OS/2 system panic message.",      dbgDiggerOS2InfoPanic, pThis);
+    DBGFR3InfoRegisterExternal(pUVM, "sas",   "Dumps the OS/2 system anchor block (SAS).", dbgDiggerOS2InfoSas, pThis);
+    DBGFR3InfoRegisterExternal(pUVM, "gis",   "Dumps the OS/2 global info segment (GIS).", dbgDiggerOS2InfoGis, pThis);
+    DBGFR3InfoRegisterExternal(pUVM, "lis",   "Dumps the OS/2 local info segment (current process).", dbgDiggerOS2InfoLis, pThis);
+    DBGFR3InfoRegisterExternal(pUVM, "panic", "Dumps the OS/2 system panic message.",      dbgDiggerOS2InfoPanic, pThis);
 
     return VINF_SUCCESS;
 }
@@ -1157,7 +1138,7 @@ static DECLCALLBACK(int)  dbgDiggerOS2Init(PUVM pUVM, PCVMMR3VTABLE pVMM, void *
 /**
  * @copydoc DBGFOSREG::pfnProbe
  */
-static DECLCALLBACK(bool)  dbgDiggerOS2Probe(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(bool)  dbgDiggerOS2Probe(PUVM pUVM, void *pvData)
 {
     PDBGDIGGEROS2   pThis = (PDBGDIGGEROS2)pvData;
     DBGFADDRESS     Addr;
@@ -1172,7 +1153,7 @@ static DECLCALLBACK(bool)  dbgDiggerOS2Probe(PUVM pUVM, PCVMMR3VTABLE pVMM, void
     } u;
 
     /*
-     * If the DWORD at 70:0 is 'SAS ' it's quite unlikely that this wouldn't be OS/2.
+     * If the DWORD at 70:0 contains 'SAS ' it's quite unlikely that this wouldn't be OS/2.
      * Note: The SAS layout is similar between 16-bit and 32-bit OS/2, but not identical.
      * 32-bit OS/2 will have the flat kernel data selector at SAS:06. The selector is 168h
      * or similar. For 16-bit OS/2 the field contains a table offset into the SAS which will
@@ -1180,10 +1161,10 @@ static DECLCALLBACK(bool)  dbgDiggerOS2Probe(PUVM pUVM, PCVMMR3VTABLE pVMM, void
      * OS/2 and will work in real mode as well.
      */
     do {
-        rc = pVMM->pfnDBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, 0x00);
+        rc = DBGFR3AddrFromSelOff(pUVM, 0 /*idCpu*/, &Addr, 0x70, 0x00);
         if (RT_FAILURE(rc))
             break;
-        rc = pVMM->pfnDBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, u.au32, 256);
+        rc = DBGFR3MemRead(pUVM, 0 /*idCpu*/, &Addr, u.au32, 256);
         if (RT_FAILURE(rc))
             break;
         if (u.au32[0] != DIG_OS2_SAS_SIG)
@@ -1218,23 +1199,23 @@ static DECLCALLBACK(bool)  dbgDiggerOS2Probe(PUVM pUVM, PCVMMR3VTABLE pVMM, void
 /**
  * @copydoc DBGFOSREG::pfnDestruct
  */
-static DECLCALLBACK(void)  dbgDiggerOS2Destruct(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(void)  dbgDiggerOS2Destruct(PUVM pUVM, void *pvData)
 {
-    RT_NOREF(pUVM, pVMM, pvData);
+    RT_NOREF2(pUVM, pvData);
 }
 
 
 /**
  * @copydoc DBGFOSREG::pfnConstruct
  */
-static DECLCALLBACK(int)  dbgDiggerOS2Construct(PUVM pUVM, PCVMMR3VTABLE pVMM, void *pvData)
+static DECLCALLBACK(int)  dbgDiggerOS2Construct(PUVM pUVM, void *pvData)
 {
+    RT_NOREF1(pUVM);
     PDBGDIGGEROS2 pThis = (PDBGDIGGEROS2)pvData;
     pThis->fValid = false;
     pThis->f32Bit = false;
     pThis->enmVer = DBGDIGGEROS2VER_UNKNOWN;
     pThis->pUVM   = pUVM;
-    pThis->pVMM   = pVMM;
     return VINF_SUCCESS;
 }
 

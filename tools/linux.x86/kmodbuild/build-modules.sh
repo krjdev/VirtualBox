@@ -1,5 +1,5 @@
 #!/bin/bash -x
-# $Id: build-modules.sh 78140 2019-04-16 02:20:36Z vboxsync $
+# $Id: build-modules.sh $
 ## @file
 # Script for test building the VirtualBox kernel modules against a kernel.
 #

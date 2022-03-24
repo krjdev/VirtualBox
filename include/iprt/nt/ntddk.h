@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,11 @@
 #endif
 
 /* Make sure we get the right prototypes. */
-#include <iprt/sanitized/intrin.h>
+#pragma warning(push)
+#pragma warning(disable:4668) /* Several incorrect __cplusplus uses. */
+#pragma warning(disable:4255) /* Incorrect __slwpcb prototype. */
+#include <intrin.h>
+#pragma warning(pop)
 
 #define _InterlockedExchange           _InterlockedExchange_StupidDDKVsCompilerCrap
 #define _InterlockedExchangeAdd        _InterlockedExchangeAdd_StupidDDKVsCompilerCrap
@@ -49,12 +53,6 @@
 # pragma warning(disable:4005) /* sdk/v7.1/include/sal_supp.h(57) : warning C4005: '__useHeader' : macro redefinition */
 # pragma warning(disable:4471) /* wdm.h(11057) : warning C4471: '_POOL_TYPE' : a forward declaration of an unscoped enumeration must have an underlying type (int assumed) */
 #endif
-
-/* Include the sdk/ddk version header so _WIN32_VER and the rest gets defined before ntdef.h is included,
-   otherwise we'll miss out on DECLARE_GLOBAL_CONST_UNICODE_STRING and friends in the W10 SDKs. */
-#define DECLSPEC_DEPRECATED_DDK
-#include <sdkddkver.h>
-
 /*RT_C_DECLS_BEGIN - no longer necessary it seems */
 #include <ntddk.h>
 /*RT_C_DECLS_END - no longer necessary it seems */

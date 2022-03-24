@@ -1,10 +1,10 @@
-/* $Id: VHD.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VHD.cpp $ */
 /** @file
  * VHD Disk image, Core Code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1362,9 +1362,7 @@ static DECLCALLBACK(int) vhdOpen(const char *pszFilename, unsigned uOpenFlags,
 
     /* Check open flags. All valid flags are supported. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-
+    AssertReturn((VALID_PTR(pszFilename) && *pszFilename), VERR_INVALID_PARAMETER);
 
     PVHDIMAGE pImage = (PVHDIMAGE)RTMemAllocZ(RT_UOFFSETOF(VHDIMAGE, RegionList.aRegions[1]));
     if (RT_LIKELY(pImage))
@@ -1408,10 +1406,10 @@ static DECLCALLBACK(int) vhdCreate(const char *pszFilename, uint64_t cbSize,
 
     /* Check open flags. All valid flags are supported. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pPCHSGeometry, VERR_INVALID_POINTER);
-    AssertPtrReturn(pLCHSGeometry, VERR_INVALID_POINTER);
+    AssertReturn(   VALID_PTR(pszFilename)
+                 && *pszFilename
+                 && VALID_PTR(pPCHSGeometry)
+                 && VALID_PTR(pLCHSGeometry), VERR_INVALID_PARAMETER);
     /** @todo Check the values of other params */
 
     PVHDIMAGE pImage = (PVHDIMAGE)RTMemAllocZ(RT_UOFFSETOF(VHDIMAGE, RegionList.aRegions[1]));
@@ -1424,7 +1422,7 @@ static DECLCALLBACK(int) vhdCreate(const char *pszFilename, uint64_t cbSize,
 
         /* Get I/O interface. */
         pImage->pIfIo = VDIfIoIntGet(pImage->pVDIfsImage);
-        if (RT_LIKELY(RT_VALID_PTR(pImage->pIfIo)))
+        if (RT_LIKELY(VALID_PTR(pImage->pIfIo)))
         {
             rc = vhdCreateImage(pImage, cbSize, uImageFlags, pszComment,
                                 pPCHSGeometry, pLCHSGeometry, pUuid, uOpenFlags,
@@ -1519,8 +1517,7 @@ static DECLCALLBACK(int) vhdRead(void *pBackendData, uint64_t uOffset, size_t cb
     AssertPtr(pImage);
     Assert(uOffset % 512 == 0);
     Assert(cbToRead % 512 == 0);
-    AssertPtrReturn(pIoCtx, VERR_INVALID_POINTER);
-    AssertReturn(cbToRead, VERR_INVALID_PARAMETER);
+    AssertReturn((VALID_PTR(pIoCtx) && cbToRead), VERR_INVALID_PARAMETER);
     AssertReturn(uOffset + cbToRead <= pImage->cbSize, VERR_INVALID_PARAMETER);
 
     /*
@@ -1641,8 +1638,7 @@ static DECLCALLBACK(int) vhdWrite(void *pBackendData, uint64_t uOffset, size_t c
     AssertPtr(pImage);
     Assert(!(uOffset % VHD_SECTOR_SIZE));
     Assert(!(cbToWrite % VHD_SECTOR_SIZE));
-    AssertPtrReturn(pIoCtx, VERR_INVALID_POINTER);
-    AssertReturn(cbToWrite, VERR_INVALID_PARAMETER);
+    AssertReturn((VALID_PTR(pIoCtx) && cbToWrite), VERR_INVALID_PARAMETER);
     AssertReturn(uOffset + cbToWrite <= RT_ALIGN_64(pImage->cbSize, pImage->cbDataBlock), VERR_INVALID_PARAMETER); /* The image size might not be on a data block size boundary. */
 
     if (pImage->pBlockAllocationTable)
@@ -2339,7 +2335,7 @@ static DECLCALLBACK(int) vhdCompact(void *pBackendData, unsigned uPercentStart,
     uint32_t *paBlocks = NULL;
     PVDINTERFACEPROGRESS pIfProgress = VDIfProgressGet(pVDIfsOperation);
 
-    PFNVDPARENTREAD pfnParentRead = NULL;
+    DECLCALLBACKMEMBER(int, pfnParentRead)(void *, uint64_t, void *, size_t) = NULL;
     void *pvParent = NULL;
     PVDINTERFACEPARENTSTATE pIfParentState = VDIfParentStateGet(pVDIfsOperation);
     if (pIfParentState)

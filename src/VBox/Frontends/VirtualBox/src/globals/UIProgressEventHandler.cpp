@@ -1,10 +1,10 @@
-/* $Id: UIProgressEventHandler.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIProgressEventHandler.cpp $ */
 /** @file
  * VBox Qt GUI - UIProgressEventHandler class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -63,21 +63,21 @@ void UIProgressEventHandler::prepareListener()
         << KVBoxEventType_OnProgressTaskCompleted;
 
     /* Register event listener for CProgress event source: */
-    comEventSourceProgress.RegisterListener(m_comEventListener, eventTypes, FALSE /* active? */);
+    comEventSourceProgress.RegisterListener(m_comEventListener, eventTypes,
+        gEDataManager->eventHandlingType() == EventHandlingType_Active ? TRUE : FALSE);
     AssertWrapperOk(comEventSourceProgress);
 
-    /* Register event sources in their listeners as well: */
-    m_pQtListener->getWrapped()->registerSource(comEventSourceProgress,
-                                                m_comEventListener,
-                                                QSet<KVBoxEventType>() << KVBoxEventType_OnProgressTaskCompleted);
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Register event sources in their listeners as well: */
+        m_pQtListener->getWrapped()->registerSource(comEventSourceProgress, m_comEventListener);
+    }
 }
 
 void UIProgressEventHandler::prepareConnections()
 {
     /* Create direct (sync) connections for signals of main listener: */
-    connect(m_pQtListener->getWrapped(), &UIMainEventListener::sigListeningFinished,
-            this, &UIProgressEventHandler::sigHandlingFinished,
-            Qt::DirectConnection);
     connect(m_pQtListener->getWrapped(), &UIMainEventListener::sigProgressPercentageChange,
             this, &UIProgressEventHandler::sigProgressPercentageChange,
             Qt::DirectConnection);
@@ -93,8 +93,12 @@ void UIProgressEventHandler::cleanupConnections()
 
 void UIProgressEventHandler::cleanupListener()
 {
-    /* Unregister everything: */
-    m_pQtListener->getWrapped()->unregisterSources();
+    /* If event listener registered as passive one: */
+    if (gEDataManager->eventHandlingType() == EventHandlingType_Passive)
+    {
+        /* Unregister everything: */
+        m_pQtListener->getWrapped()->unregisterSources();
+    }
 
     /* Make sure VBoxSVC is available: */
     if (!uiCommon().isVBoxSVCAvailable())

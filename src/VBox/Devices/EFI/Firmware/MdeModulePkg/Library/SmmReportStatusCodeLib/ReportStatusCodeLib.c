@@ -1,5 +1,5 @@
 /** @file
-  Report Status Code Library for MM Phase.
+  Report Status Code Library for SMM Phase.
 
   Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -8,7 +8,7 @@
 
 #include <Library/ReportStatusCodeLib.h>
 #include <Library/DebugLib.h>
-#include <Library/MmServicesTableLib.h>
+#include <Library/SmmServicesTableLib.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/PcdLib.h>
@@ -16,12 +16,10 @@
 
 #include <Guid/StatusCodeDataTypeId.h>
 #include <Guid/StatusCodeDataTypeDebug.h>
-#include <Protocol/MmStatusCode.h>
+#include <Protocol/SmmStatusCode.h>
 
-#include "ReportStatusCodeLib.h"
-
-EFI_MM_REPORT_STATUS_CODE     mReportStatusCode = NULL;
-EFI_MM_STATUS_CODE_PROTOCOL   *mStatusCodeProtocol = NULL;
+EFI_SMM_REPORT_STATUS_CODE     mReportStatusCode = NULL;
+EFI_SMM_STATUS_CODE_PROTOCOL   *mStatusCodeProtocol = NULL;
 
 
 /**
@@ -31,14 +29,14 @@ EFI_MM_STATUS_CODE_PROTOCOL   *mStatusCodeProtocol = NULL;
             NULL is returned if no status code service is available.
 
 **/
-EFI_MM_REPORT_STATUS_CODE
+EFI_SMM_REPORT_STATUS_CODE
 InternalGetReportStatusCode (
   VOID
   )
 {
   EFI_STATUS                    Status;
 
-  Status = InternalLocateProtocol (&gEfiMmStatusCodeProtocolGuid, NULL, (VOID**)&mStatusCodeProtocol);
+  Status = gSmst->SmmLocateProtocol (&gEfiSmmStatusCodeProtocolGuid, NULL, (VOID**)&mStatusCodeProtocol);
   if (!EFI_ERROR (Status) && mStatusCodeProtocol != NULL) {
     return mStatusCodeProtocol->ReportStatusCode;
   }

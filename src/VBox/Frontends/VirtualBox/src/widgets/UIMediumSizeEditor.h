@@ -1,10 +1,10 @@
-/* $Id: UIMediumSizeEditor.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMediumSizeEditor.h $ */
 /** @file
  * VBox Qt GUI - UIMediumSizeEditor class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -50,7 +50,7 @@ signals:
 public:
 
     /** Constructs medium size editor passing @a pParent to the base-class. */
-    UIMediumSizeEditor(QWidget *pParent = 0, qulonglong uMinimumSize = _4M);
+    UIMediumSizeEditor(QWidget *pParent = 0);
 
     /** Returns the medium size. */
     qulonglong mediumSize() const { return m_uSize; }
@@ -60,7 +60,7 @@ public:
 protected:
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
 private slots:
 

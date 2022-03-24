@@ -233,7 +233,7 @@ CheckDevice (
   //
   *Configuration = AllocateCopyPool (sizeof mConfiguration, &mConfiguration);
   if (*Configuration == NULL) {
-    DEBUG ((DEBUG_WARN,
+    DEBUG ((EFI_D_WARN,
       "%a: 64-bit MMIO BARs may be degraded for PCI 0x%04x:0x%04x (rev %d)\n",
       __FUNCTION__, (UINT32)VendorId, (UINT32)DeviceId, (UINT8)RevisionId));
     return EFI_OUT_OF_RESOURCES;

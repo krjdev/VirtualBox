@@ -1,10 +1,10 @@
-; $Id: VMMR0JmpA-x86.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: VMMR0JmpA-x86.asm $
 ;; @file
 ; VMM - R0 SetJmp / LongJmp routines for X86.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -30,6 +30,9 @@
 %define RESUME_MAGIC    07eadf00dh
 %define STACK_PADDING   0eeeeeeeeh
 
+
+; For vmmR0LoggerWrapper. (The other architecture(s) use(s) C99 variadic macros.)
+extern NAME(RTLogLogger)
 
 
 BEGINCODE
@@ -382,4 +385,17 @@ BEGINPROC vmmR0CallRing3LongJmp
     leave
     ret
 ENDPROC vmmR0CallRing3LongJmp
+
+
+;;
+; Internal R0 logger worker: Logger wrapper.
+;
+; @cproto VMMR0DECL(void) vmmR0LoggerWrapper(const char *pszFormat, ...)
+;
+EXPORTEDNAME vmmR0LoggerWrapper
+    push    0                           ; assumes we're the wrapper for a default instance.
+    call    NAME(RTLogLogger)
+    add     esp, byte 4
+    ret
+ENDPROC vmmR0LoggerWrapper
 

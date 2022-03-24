@@ -1,10 +1,10 @@
-/* $Id: AdditionsFacilityImpl.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: AdditionsFacilityImpl.h $ */
 /** @file
  * VirtualBox Main - Additions facility class.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,14 +27,14 @@
 class Guest;
 
 /**
- * A Guest Additions facility.
+ * A guest additions facility.
  */
 class ATL_NO_VTABLE AdditionsFacility :
     public AdditionsFacilityWrap
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(AdditionsFacility)
+    DECLARE_EMPTY_CTOR_DTOR(AdditionsFacility)
 
     /** @name Initializer & uninitializer methods
      * @{ */

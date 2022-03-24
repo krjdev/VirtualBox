@@ -1,10 +1,10 @@
-/* $Id: pkix-signature-builtin.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pkix-signature-builtin.h $ */
 /** @file
  * IPRT - Crypto - Public Key Signature Schemas, Built-in providers.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,7 +32,7 @@
 
 #include <iprt/crypto/pkix.h>
 
-extern DECL_HIDDEN_DATA(RTCRPKIXSIGNATUREDESC const) g_rtCrPkixSigningHashWithRsaDesc;
+extern DECLHIDDEN(RTCRPKIXSIGNATUREDESC const) g_rtCrPkixSigningHashWithRsaDesc;
 
 #endif /* !IPRT_INCLUDED_SRC_common_crypto_pkix_signature_builtin_h */
 

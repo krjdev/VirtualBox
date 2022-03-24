@@ -131,7 +131,7 @@ HFileImageSetFileName (
 
   @retval EFI_SUCCESS           The operation was successful.
   @retval EFI_OUT_OF_RESOURCES  A memory allocation failed.
-  @retval EFI_LOAD_ERROR        A load error occurred.
+  @retval EFI_LOAD_ERROR        A load error occured.
 **/
 EFI_STATUS
 HFileImageRead (
@@ -244,7 +244,7 @@ HFileImageRead (
 
   @retval EFI_SUCCESS           The operation was successful.
   @retval EFI_OUT_OF_RESOURCES  A memory allocation failed.
-  @retval EFI_LOAD_ERROR        A load error occurred.
+  @retval EFI_LOAD_ERROR        A load error occured.
 **/
 EFI_STATUS
 HFileImageSave (
@@ -368,7 +368,7 @@ HFileImageSave (
   //
   // set status string
   //
-  Str = CatSPrint(NULL, L"%d Lines Written", NumLines);
+  Str = CatSPrint(NULL, L"%d Lines Wrote", NumLines);
   StatusBarSetStatusString (Str);
   FreePool (Str);
 

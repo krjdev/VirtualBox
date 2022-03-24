@@ -1,10 +1,10 @@
-/* $Id: timer-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: timer-posix.cpp $ */
 /** @file
  * IPRT - Timer, POSIX.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -378,7 +378,7 @@ static DECLCALLBACK(int) rttimerThread(RTTHREAD hThreadSelf, void *pvArg)
             {
                 PRTTIMER pTimer = (PRTTIMER)SigInfo.si_value.sival_ptr;
                 AssertPtr(pTimer);
-                if (RT_UNLIKELY(    !RT_VALID_PTR(pTimer)
+                if (RT_UNLIKELY(    !VALID_PTR(pTimer)
                                 ||  ASMAtomicUoReadU8(&pTimer->fSuspended)
                                 ||  ASMAtomicUoReadU8(&pTimer->fDestroyed)
                                 ||  pTimer->u32Magic != RTTIMER_MAGIC))

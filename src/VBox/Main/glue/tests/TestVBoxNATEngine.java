@@ -1,11 +1,11 @@
-/* $Id: TestVBoxNATEngine.java 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: TestVBoxNATEngine.java $ */
 /*!file
  * Small sample/testcase which demonstrates that the same source code can
  * be used to connect to the webservice and (XP)COM APIs.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

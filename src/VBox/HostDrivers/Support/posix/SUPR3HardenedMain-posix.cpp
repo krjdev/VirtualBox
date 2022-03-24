@@ -1,10 +1,10 @@
-/* $Id: SUPR3HardenedMain-posix.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPR3HardenedMain-posix.cpp $ */
 /** @file
  * VirtualBox Support Library - Hardened main(), posix bits.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -69,7 +69,7 @@
  * On Solaris dlsym() will return the value in the GOT/PLT entry.  We don't wish
  * to patch the lazy loader trampoline function, but rather the real function!
  */
-typedef DECLCALLBACKTYPE(void, FNSUPHARDENEDSYMRESOLVE,(void));
+typedef DECLCALLBACK(void) FNSUPHARDENEDSYMRESOLVE(void);
 /** Pointer to FNSUPHARDENEDSYMRESOLVE. */
 typedef FNSUPHARDENEDSYMRESOLVE *PFNSUPHARDENEDSYMRESOLVE;
 
@@ -83,9 +83,8 @@ typedef struct SUPHARDENEDPOSIXHOOK
     /** The intercepting wrapper doing additional checks. */
     PFNRT                    pfnHook;
     /** Where to store the pointer to the code into patch memory
-     * which resumes the original call.
-     * @note uintptr_t instead of PFNRT is for Clang 11. */
-    uintptr_t               *ppfnRealResume;
+     * which resumes the original call. */
+    PFNRT                   *ppfnRealResume;
     /** Pointer to the resolver method used on Solaris. */
     PFNSUPHARDENEDSYMRESOLVE pfnResolve;
 } SUPHARDENEDPOSIXHOOK;
@@ -127,10 +126,10 @@ DECLASM(void) supR3HardenedPosixMonitor_Dlmopen(Lmid_t idLm, const char *pszFile
 *********************************************************************************************************************************/
 RT_C_DECLS_BEGIN
 /** Resume patch for dlopen(), jumped to form assembly stub. */
-DECL_HIDDEN_DATA(PFNDLOPEN)     g_pfnDlopenReal  = NULL;
+DECLHIDDEN(PFNDLOPEN)  g_pfnDlopenReal  = NULL;
 #ifdef SUP_HARDENED_WITH_DLMOPEN
 /** Resume patch for dlmopen(), jumped to form assembly stub. */
-DECL_HIDDEN_DATA(PFNDLMOPEN)    g_pfnDlmopenReal = NULL;
+DECLHIDDEN(PFNDLMOPEN) g_pfnDlmopenReal = NULL;
 #endif
 RT_C_DECLS_END
 
@@ -144,10 +143,10 @@ static uint32_t g_offExecMemory = 0;
  */
 static SUPHARDENEDPOSIXHOOK const g_aHooks[] =
 {
-    /* pszSymbol,       pfnHook,                                         ppfnRealResume,   pfnResolve */
-    { "dlopen",  (PFNRT)supR3HardenedPosixMonitor_Dlopen,  (uintptr_t *)&g_pfnDlopenReal,  supR3HardenedPosixMonitorDlopenResolve  },
+    /* pszSymbol,       pfnHook,                                     ppfnRealResume,   pfnResolve */
+    { "dlopen",  (PFNRT)supR3HardenedPosixMonitor_Dlopen,  (PFNRT *)&g_pfnDlopenReal,  supR3HardenedPosixMonitorDlopenResolve  },
 #ifdef SUP_HARDENED_WITH_DLMOPEN
-    { "dlmopen", (PFNRT)supR3HardenedPosixMonitor_Dlmopen, (uintptr_t *)&g_pfnDlmopenReal, supR3HardenedPosixMonitorDlmopenResolve }
+    { "dlmopen", (PFNRT)supR3HardenedPosixMonitor_Dlmopen, (PFNRT *)&g_pfnDlmopenReal, supR3HardenedPosixMonitorDlmopenResolve }
 #endif
 };
 
@@ -303,7 +302,7 @@ static uint8_t *supR3HardenedMainPosixExecMemAlloc(size_t cb, void *pvHint, bool
  *                              (somewhere in patch memory).
  * @param   pfnResolve          The resolver to call before trying to query the start address.
  */
-static int supR3HardenedMainPosixHookOne(const char *pszSymbol, PFNRT pfnHook, uintptr_t /*PFNRT*/ *ppfnReal,
+static int supR3HardenedMainPosixHookOne(const char *pszSymbol, PFNRT pfnHook, PFNRT *ppfnReal,
                                          PFNSUPHARDENEDSYMRESOLVE pfnResolve)
 {
     void *pfnTarget = supR3HardenedMainPosixGetStartBySymbol(pszSymbol, pfnResolve);
@@ -387,7 +386,7 @@ static int supR3HardenedMainPosixHookOne(const char *pszSymbol, PFNRT pfnHook, u
     }
 
     /* Assemble the code for resuming the call.*/
-    *ppfnReal = (uintptr_t)pbPatchMem;
+    *ppfnReal = (PFNRT)(uintptr_t)pbPatchMem;
 
     /* Go through the instructions to patch and fixup any rip relative mov instructions. */
     uint32_t offInsn = 0;
@@ -520,7 +519,7 @@ static int supR3HardenedMainPosixHookOne(const char *pszSymbol, PFNRT pfnHook, u
         return VERR_NO_MEMORY;
 
     /* Assemble the code for resuming the call.*/
-    *ppfnReal = (uintptr_t)pbPatchMem;
+    *ppfnReal = (PFNRT)(uintptr_t)pbPatchMem;
 
     /* Go through the instructions to patch and fixup any relative call instructions. */
     uint32_t offInsn = 0;

@@ -1,10 +1,10 @@
-/* $Id: DisplayImpl.h 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: DisplayImpl.h $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,7 +97,7 @@ typedef struct _DISPLAYFBINFO
 
 /* The legacy VBVA (VideoAccel) data.
  *
- * Backward compatibility with the Guest Additions 3.x or older.
+ * Backward compatibility with the guest additions 3.x or older.
  */
 typedef struct VIDEOACCEL
 {
@@ -107,7 +107,7 @@ typedef struct VIDEOACCEL
     uint8_t    *pu8VbvaPartial;
     uint32_t    cbVbvaPartial;
 
-    /* Old Guest Additions (3.x and older) use both VMMDev and DevVGA refresh timer
+    /* Old guest additions (3.x and older) use both VMMDev and DevVGA refresh timer
      * to process the VBVABUFFER memory. Therefore the legacy VBVA (VideoAccel) host
      * code can be executed concurrently by VGA refresh timer and the guest VMMDev
      * request in SMP VMs. The semaphore serialized this.
@@ -119,7 +119,6 @@ typedef struct VIDEOACCEL
 class DisplayMouseInterface
 {
 public:
-    virtual ~DisplayMouseInterface() { }
     virtual HRESULT i_getScreenResolution(ULONG cScreen, ULONG *pcx,
                                           ULONG *pcy, ULONG *pcBPP, LONG *pXOrigin, LONG *pYOrigin) = 0;
     virtual void i_getFramebufferDimensions(int32_t *px1, int32_t *py1,
@@ -137,7 +136,7 @@ class ATL_NO_VTABLE Display :
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(Display)
+    DECLARE_EMPTY_CTOR_DTOR(Display)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -163,7 +162,7 @@ public:
 
     int  i_saveVisibleRegion(uint32_t cRect, PRTRECT pRect);
     int  i_handleSetVisibleRegion(uint32_t cRect, PRTRECT pRect);
-    int  i_handleUpdateMonitorPositions(uint32_t cPositions, PCRTPOINT paPositions);
+    int  i_handleUpdateMonitorPositions(uint32_t cPositions, PRTPOINT pPosition);
     int  i_handleQueryVisibleRegion(uint32_t *pcRects, PRTRECT paRects);
 
     void i_VRDPConnectionEvent(bool fConnect);
@@ -342,12 +341,10 @@ private:
     static DECLCALLBACK(void)  i_displayVBVAReportCursorPosition(PPDMIDISPLAYCONNECTOR pInterface, uint32_t fFlags, uint32_t uScreen, uint32_t x, uint32_t y);
 #endif
 
-    static DECLCALLBACK(int)  i_displaySSMSaveScreenshot(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser);
-    static DECLCALLBACK(int)  i_displaySSMLoadScreenshot(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser,
-                                                         uint32_t uVersion, uint32_t uPass);
-    static DECLCALLBACK(int)  i_displaySSMSave(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser);
-    static DECLCALLBACK(int)  i_displaySSMLoad(PSSMHANDLE pSSM, PCVMMR3VTABLE pVMM, void *pvUser,
-                                               uint32_t uVersion, uint32_t uPass);
+    static DECLCALLBACK(void) i_displaySSMSaveScreenshot(PSSMHANDLE pSSM, void *pvUser);
+    static DECLCALLBACK(int)  i_displaySSMLoadScreenshot(PSSMHANDLE pSSM, void *pvUser, uint32_t uVersion, uint32_t uPass);
+    static DECLCALLBACK(void) i_displaySSMSave(PSSMHANDLE pSSM, void *pvUser);
+    static DECLCALLBACK(int)  i_displaySSMLoad(PSSMHANDLE pSSM, void *pvUser, uint32_t uVersion, uint32_t uPass);
 
     Console * const         mParent;
     /** Pointer to the associated display driver. */
@@ -411,13 +408,12 @@ private:
 
 public:
 
-    static DECLCALLBACK(int) i_displayTakeScreenshotEMT(Display *pDisplay, ULONG aScreenId, uint8_t **ppbData, size_t *pcbData,
-                                                        uint32_t *pcx, uint32_t *pcy, bool *pfMemFree);
+    static int i_displayTakeScreenshotEMT(Display *pDisplay, ULONG aScreenId, uint8_t **ppbData, size_t *pcbData,
+                                          uint32_t *pcx, uint32_t *pcy, bool *pfMemFree);
 
 private:
-    static DECLCALLBACK(int) i_InvalidateAndUpdateEMT(Display *pDisplay, unsigned uId, bool fUpdateAll);
-    static DECLCALLBACK(int) i_drawToScreenEMT(Display *pDisplay, ULONG aScreenId, BYTE *address, ULONG x, ULONG y,
-                                               ULONG width, ULONG height);
+    static int i_InvalidateAndUpdateEMT(Display *pDisplay, unsigned uId, bool fUpdateAll);
+    static int i_drawToScreenEMT(Display *pDisplay, ULONG aScreenId, BYTE *address, ULONG x, ULONG y, ULONG width, ULONG height);
 
     void i_updateGuestGraphicsFacility(void);
 
@@ -458,7 +454,7 @@ class ATL_NO_VTABLE DisplaySourceBitmap:
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(DisplaySourceBitmap)
+    DECLARE_EMPTY_CTOR_DTOR(DisplaySourceBitmap)
 
     HRESULT FinalConstruct();
     void FinalRelease();
@@ -507,7 +503,7 @@ class ATL_NO_VTABLE GuestScreenInfo:
 {
 public:
 
-    DECLARE_COMMON_CLASS_METHODS(GuestScreenInfo)
+    DECLARE_EMPTY_CTOR_DTOR(GuestScreenInfo)
 
     HRESULT FinalConstruct();
     void FinalRelease();

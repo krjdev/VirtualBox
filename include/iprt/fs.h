@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -623,7 +623,7 @@ RTR3DECL(bool) RTFsIsCaseSensitive(const char *pszFsPath);
  * @param   pszMountpoint   The mountpoint name.
  * @param   pvUser          The user argument.
  */
-typedef DECLCALLBACKTYPE(int, FNRTFSMOUNTPOINTENUM,(const char *pszMountpoint, void *pvUser));
+typedef DECLCALLBACK(int) FNRTFSMOUNTPOINTENUM(const char *pszMountpoint, void *pvUser);
 /** Pointer to a FNRTFSMOUNTPOINTENUM(). */
 typedef FNRTFSMOUNTPOINTENUM *PFNRTFSMOUNTPOINTENUM;
 

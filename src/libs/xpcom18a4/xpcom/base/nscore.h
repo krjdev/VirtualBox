@@ -419,16 +419,7 @@ typedef PRUint32 nsresult;
     "straight", no macro.
   */
 #endif
-
-#if __cplusplus+0 > 201100L
-#define NS_DEFAULT  = default
-#define NS_DELETE   = delete
-#else
-#define NS_DEFAULT
-#define NS_DELETE
-#endif
-
-
+ 
 #ifndef VBOX
 /* 
  * Use these macros to do 64bit safe pointer conversions.

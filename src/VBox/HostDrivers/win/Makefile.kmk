@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93341 2022-01-19 10:53:38Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for Windows driver tooling lib.
 #
 
 #
-# Copyright (C) 2011-2022 Oracle Corporation
+# Copyright (C) 2011-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -27,9 +27,8 @@
 SUB_DEPTH = ../../../..
 include $(KBUILD_PATH)/subheader.kmk
 
-# For the installer helpers
 LIBRARIES += VBoxDrvCfg
-VBoxDrvCfg_TEMPLATE       = VBoxR3StaticDllNoAsan
+VBoxDrvCfg_TEMPLATE       = VBOXR3STATIC
 VBoxDrvCfg_SDKS           = ReorderCompilerIncs $(VBOX_WINPSDK) $(VBOX_WINDDK)
 VBoxDrvCfg_DEFS           = _WIN32_WINNT=0x0501 _UNICODE UNICODE
 VBoxDrvCfg_SOURCES        = cfg/VBoxDrvCfg.cpp

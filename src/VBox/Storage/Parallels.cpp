@@ -1,11 +1,11 @@
-/* $Id: Parallels.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Parallels.cpp $ */
 /** @file
  *
  * Parallels hdd disk image, core code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -447,9 +447,7 @@ static DECLCALLBACK(int) parallelsOpen(const char *pszFilename, unsigned uOpenFl
 
     /* Check parameters. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-
+    AssertReturn(VALID_PTR(pszFilename) && *pszFilename, VERR_INVALID_PARAMETER);
 
     pImage = (PPARALLELSIMAGE)RTMemAllocZ(RT_UOFFSETOF(PARALLELSIMAGE, RegionList.aRegions[1]));
     if (RT_LIKELY(pImage))
@@ -494,10 +492,10 @@ static DECLCALLBACK(int) parallelsCreate(const char *pszFilename, uint64_t cbSiz
 
     /* Check arguments. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pPCHSGeometry, VERR_INVALID_POINTER);
-    AssertPtrReturn(pLCHSGeometry, VERR_INVALID_POINTER);
+    AssertReturn(   VALID_PTR(pszFilename)
+                 && *pszFilename
+                 && VALID_PTR(pPCHSGeometry)
+                 && VALID_PTR(pLCHSGeometry), VERR_INVALID_PARAMETER);
 
     int rc = VINF_SUCCESS;
     PPARALLELSIMAGE pImage;

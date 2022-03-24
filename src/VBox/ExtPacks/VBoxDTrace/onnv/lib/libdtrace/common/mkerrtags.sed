@@ -1,4 +1,4 @@
-#$Id: mkerrtags.sed 53658 2015-01-02 12:31:02Z vboxsync $
+#$Id: mkerrtags.sed $
 ## @file
 # pure sed version of mkerrtags.sh.
 #

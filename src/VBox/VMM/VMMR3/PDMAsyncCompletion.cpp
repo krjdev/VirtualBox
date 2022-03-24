@@ -1,10 +1,10 @@
-/* $Id: PDMAsyncCompletion.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PDMAsyncCompletion.cpp $ */
 /** @file
  * PDM Async I/O - Transport data asynchronous in R3 using EMT.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1509,7 +1509,7 @@ VMMR3DECL(void) PDMR3AsyncCompletionEpClose(PPDMASYNCCOMPLETIONENDPOINT pEndpoin
     LogFlowFunc((": pEndpoint=%p\n", pEndpoint));
 
     /* Sanity checks. */
-    AssertReturnVoid(RT_VALID_PTR(pEndpoint));
+    AssertReturnVoid(VALID_PTR(pEndpoint));
 
     PPDMASYNCCOMPLETIONEPCLASS pEndpointClass = pEndpoint->pEpClass;
     pEndpointClass->pEndpointOps->pfnEpClose(pEndpoint);

@@ -1,10 +1,10 @@
-/* $Id: shaderlib.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: shaderlib.h $ */
 /** @file
  * shaderlib -- interface to WINE's Direct3D shader functions
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -46,7 +46,7 @@ typedef struct VBOXVMSVGASHADERIF
      * @param   fOtherProfile   If set, switch to the non-default profile.  If
      *                          clear, switch back to the default profile.
      */
-    DECLCALLBACKMEMBER(void, pfnSwitchInitProfile,(PVBOXVMSVGASHADERIF pThis, bool fOtherProfile));
+    DECLCALLBACKMEMBER(void, pfnSwitchInitProfile)(PVBOXVMSVGASHADERIF pThis, bool fOtherProfile);
 
     /**
      * Extension enumeration function.
@@ -61,8 +61,8 @@ typedef struct VBOXVMSVGASHADERIF
      *                          we'll use the default profile if CLEAR and the
      *                          non-default if SET.
      */
-    DECLCALLBACKMEMBER(bool, pfnGetNextExtension,(PVBOXVMSVGASHADERIF pThis, void **ppvEnumCtx, char *pszBuf, size_t cbBuf,
-                                                  bool fOtherProfile));
+    DECLCALLBACKMEMBER(bool, pfnGetNextExtension)(PVBOXVMSVGASHADERIF pThis, void **ppvEnumCtx, char *pszBuf, size_t cbBuf,
+                                                  bool fOtherProfile);
 } VBOXVMSVGASHADERIF;
 
 SHADERDECL(int) ShaderInitLib(PVBOXVMSVGASHADERIF pVBoxShaderIf);

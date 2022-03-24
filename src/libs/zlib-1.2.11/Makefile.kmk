@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 118412 2017-10-17 14:26:02Z bird $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for zlib.
 #

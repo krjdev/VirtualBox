@@ -1,10 +1,10 @@
-/* $Id: process-win.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: process-win.cpp $ */
 /** @file
  * IPRT - Process, Windows.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -2075,7 +2075,8 @@ static int rtProcWinCreateAsUser1(PRTUTF16 pwszUser, PRTUTF16 pwszPassword, PRTU
             DWORD dwErr = GetLastError();
             rc = RTErrConvertFromWin32(dwErr);
             if (rc == VERR_UNRESOLVED_ERROR)
-                LogRelFunc(("CreateProcessWithLogonW failed: dwErr=%u (%#x), rc=%Rrc\n", dwErr, dwErr, rc));
+                LogRelFunc(("CreateProcessWithLogonW (%p) failed: dwErr=%u (%#x), rc=%Rrc\n",
+                            g_pfnCreateProcessWithLogonW, dwErr, dwErr, rc));
         }
         if (pwszzBlock)
             RTEnvFreeUtf16Block(pwszzBlock);

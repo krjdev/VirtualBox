@@ -1,10 +1,10 @@
-/* $Id: IOBufMgmt.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: IOBufMgmt.h $ */
 /** @file
  * VBox storage devices: I/O buffer management API.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -95,7 +95,8 @@ DECLHIDDEN(int) IOBUFMgrDestroy(IOBUFMGR hIoBufMgr);
  *                             if there is not enough free memory to satisfy the complete request.
  *                             NULL if partial allocations are not supported.
  */
-DECLHIDDEN(int) IOBUFMgrAllocBuf(IOBUFMGR hIoBufMgr, PIOBUFDESC pIoBufDesc, size_t cbIoBuf, size_t *pcbIoBufAllocated);
+DECLHIDDEN(int) IOBUFMgrAllocBuf(IOBUFMGR hIoBufMgr, PIOBUFDESC pIoBufDesc, size_t cbIoBuf,
+                                 size_t *pcbIoBufAllocated);
 
 /**
  * Frees a given I/O buffer.

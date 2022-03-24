@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Makefile for the FreeBSD installer.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -59,20 +59,19 @@ freebsd-misc_MODE = a+r,u+w
 freebsd-misc_SOURCES = \
 	$(PATH_ROOT)/src/VBox/Frontends/VirtualBox/images/$(if $(VBOX_OSE),OSE,NonOSE)/VirtualBox_32px.png=>VBox.png \
 	$(if $(VBOX_OSE),,$(VBOX_BRAND_LICENSE_TXT)=>LICENSE) \
-	$(if $(VBOX_WITH_QTGUI),$(freebsd-misc_0_OUTDIR)/virtualbox.desktop,) \
-	$(if $(VBOX_WITH_QTGUI),$(freebsd-misc_0_OUTDIR)/virtualboxvm.desktop,)
+	$(if $(VBOX_WITH_QTGUI),$(freebsd-misc_0_OUTDIR)/virtualbox.desktop,)
 freebsd-misc_CLEAN = $(freebsd-misc_0_OUTDIR)/virtualbox.desktop
-freebsd-misc_CLEAN += $(freebsd-misc_0_OUTDIR)/virtualboxvm.desktop
 
-$$(PATH_freebsd-misc)/virtualbox.desktop: $(VBOX_PATH_INST_COMMON_SRC)/virtualbox.desktop.in $(VBOX_VERSION_STAMP) | $$(dir $$@)
+$$(PATH_freebsd-misc)/virtualbox.desktop: $(PATH_SUB_CURRENT)/virtualbox.desktop $(VBOX_VERSION_STAMP) | $$(dir $$@)
 	$(call MSG_GENERATE,,$@,$<)
-	$(QUIET)$(SED) -e "s+@VBOX_PRODUCT@+$(VBOX_PRODUCT)+" \
-		--output $@ $<
+ifdef VBOX_PATH_PACKAGE_DOCS
+	$(QUIET)$(SED) -e "s+\$$VBOX_DOC_PATH+$(VBOX_PATH_PACKAGE_DOCS)+" --output $@ $<
+else
+	$(QUIET)$(SED) -e "s+\$$VBOX_DOC_PATH+/opt/VirtualBox+" --output $@ $<
+endif
 
-$$(PATH_freebsd-misc)/virtualboxvm.desktop: $(VBOX_PATH_INST_COMMON_SRC)/virtualboxvm.desktop.in $(VBOX_VERSION_STAMP) | $$(dir $$@)
-	$(call MSG_GENERATE,,$@,$<)
-	$(QUIET)$(SED) -e "s+@VBOX_PRODUCT@+$(VBOX_PRODUCT)+" \
-		--output $@ $<
+
+
 #
 # The files residing in bin/ that we'll ship.
 #
@@ -103,8 +102,7 @@ VBOX_FBSD_STRIP_BIN = \
 		components/VBoxC.so,) \
 		VBoxTestOGL \
 	$(if $(VBOX_WITH_PYTHON),VBoxPython.so,) \
-	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,) \
-	$(if $(VBOX_WITH_HOST_SHIPPING_AUDIO_TEST),VBoxAudioTest,)
+	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,)
 
 # Do not remove relocation information of these binaries
 VBOX_FBSD_STRIP_OBJ = \
@@ -134,8 +132,7 @@ VBOX_FBSD_SYMLINKS = \
 		VBoxManage \
 		VBoxSVC) \
 	$(if $(VBOX_WITH_VBOXSDL),VBoxSDL,) \
-	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,) \
-	$(if $(VBOX_WITH_HOST_SHIPPING_AUDIO_TEST),VBoxAudioTest,)
+	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,)
 
 # Qt GUI
 ifdef VBOX_WITH_QTGUI
@@ -153,8 +150,7 @@ ifdef VBOX_WITH_QTGUI
 	$(if $(VBOX_WITH_ORACLE_QT),accessible/libqtaccessiblewidgets.so,) \
  	$(foreach f,$(VBOX_APPROVED_GUI_LANGUAGES),nls/VirtualBox_$(f).qm nls/qt_$(f).qm)
  VBOX_FBSD_DESKTOP_FILE = \
-	virtualbox.desktop \
-	virtualboxvm.desktop
+	virtualbox.desktop
  VBOX_FBSD_ICON_FILE = \
 	VBox.png
 endif

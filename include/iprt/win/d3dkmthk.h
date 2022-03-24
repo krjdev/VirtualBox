@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -35,11 +35,6 @@
 #  pragma warning(disable:4255) /* d3dkmthk.h(2061): warning C4255: 'PFND3DKMT_CHECKEXCLUSIVEOWNERSHIP': no function prototype given: converting '()' to '(void)' */
 # endif
 #endif
-
-/* 10.0.22000.0 SDK: */
-#define DXGKDDI_INTERFACE_VERSION_WDDM_1_3 DXGKDDI_INTERFACE_VERSION_WDDM1_3
-#define DXGKDDI_INTERFACE_VERSION_WDDM_2_0 DXGKDDI_INTERFACE_VERSION_WDDM2_0
-#define DXGKDDI_INTERFACE_VERSION_WDDM1_3_M1 DXGKDDI_INTERFACE_VERSION_WDDM1_3
 
 #include <d3dkmthk.h>
 

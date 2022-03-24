@@ -1,7 +1,7 @@
 /** @file
   TCG MOR (Memory Overwrite Request) Control Driver.
 
-  This driver initialize MemoryOverwriteRequestControl variable. It
+  This driver initilize MemoryOverwriteRequestControl variable. It
   will clear MOR_CLEAR_MEMORY_BIT bit if it is set. It will also do TPer Reset for
   those encrypted drives through EFI_STORAGE_SECURITY_COMMAND_PROTOCOL at EndOfDxe.
 
@@ -61,7 +61,7 @@ OnReadyToBoot (
   Typically, there are 2 mechanism for resetting eDrive. They are:
   1. TPer Reset through IEEE 1667 protocol.
   2. TPer Reset through native TCG protocol.
-  This routine will detect what protocol the attached eDrive conform to, TCG or
+  This routine will detect what protocol the attached eDrive comform to, TCG or
   IEEE 1667 protocol. Then send out TPer Reset command separately.
 
   @param[in] Ssp      The pointer to EFI_STORAGE_SECURITY_COMMAND_PROTOCOL instance.
@@ -109,7 +109,7 @@ InitiateTPerReset (
                   MediaId,
                   100000000,                    // Timeout 10-sec
                   0,                            // SecurityProtocol
-                  0,                            // SecurityProtocolSpecificData
+                  0,                            // SecurityProtocolSpecifcData
                   Len,                          // PayloadBufferSize,
                   Buffer,                       // PayloadBuffer
                   &XferSize
@@ -145,7 +145,7 @@ InitiateTPerReset (
                   MediaId,
                   100000000,                    // Timeout 10-sec
                   0,                            // SecurityProtocol
-                  0,                            // SecurityProtocolSpecificData
+                  0,                            // SecurityProtocolSpecifcData
                   Len,                          // PayloadBufferSize,
                   Buffer,                       // PayloadBuffer
                   &XferSize
@@ -197,7 +197,7 @@ InitiateTPerReset (
                     MediaId,
                     100000000,                    // Timeout 10-sec
                     SECURITY_PROTOCOL_TCG,        // SecurityProtocol
-                    0x0400,                       // SecurityProtocolSpecificData
+                    0x0400,                       // SecurityProtocolSpecifcData
                     512,                          // PayloadBufferSize,
                     Buffer                        // PayloadBuffer
                     );
@@ -298,7 +298,7 @@ TPerResetAtEndOfDxe (
   @param[in] ImageHandle  Image handle of this driver.
   @param[in] SystemTable  A Pointer to the EFI System Table.
 
-  @retval EFI_SUCCESS
+  @retval EFI_SUCEESS
   @return Others          Some error occurs.
 **/
 EFI_STATUS
@@ -341,7 +341,7 @@ MorDriverEntryPoint (
     //
     // Create a Ready To Boot Event and Clear the MorControl bit in the call back function.
     //
-    DEBUG ((DEBUG_INFO, "TcgMor: Create ReadyToBoot Event for MorControl Bit cleaning!\n"));
+    DEBUG ((EFI_D_INFO, "TcgMor: Create ReadyToBoot Event for MorControl Bit cleanning!\n"));
     Status = EfiCreateEventReadyToBootEx (
                TPL_CALLBACK,
                OnReadyToBoot,

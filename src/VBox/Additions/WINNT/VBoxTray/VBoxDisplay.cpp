@@ -1,10 +1,10 @@
-/* $Id: VBoxDisplay.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxDisplay.cpp $ */
 /** @file
  * VBoxSeamless - Display notifications.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -48,11 +48,9 @@ typedef struct _VBOXDISPLAYCONTEXT
     const VBOXSERVICEENV *pEnv;
     BOOL fAnyX;
     /** ChangeDisplaySettingsEx does not exist in NT. ResizeDisplayDevice uses the function. */
-    DECLCALLBACKMEMBER_EX(LONG,WINAPI, pfnChangeDisplaySettingsEx,(LPCTSTR lpszDeviceName, LPDEVMODE lpDevMode, HWND hwnd,
-                                                                   DWORD dwflags, LPVOID lParam));
+    LONG (WINAPI * pfnChangeDisplaySettingsEx)(LPCTSTR lpszDeviceName, LPDEVMODE lpDevMode, HWND hwnd, DWORD dwflags, LPVOID lParam);
     /** EnumDisplayDevices does not exist in NT. isVBoxDisplayDriverActive et al. are using these functions. */
-    DECLCALLBACKMEMBER_EX(BOOL, WINAPI, pfnEnumDisplayDevices,(IN LPCSTR lpDevice, IN DWORD iDevNum,
-                                                               OUT PDISPLAY_DEVICEA lpDisplayDevice, IN DWORD dwFlags));
+    BOOL (WINAPI * pfnEnumDisplayDevices)(IN LPCSTR lpDevice, IN DWORD iDevNum, OUT PDISPLAY_DEVICEA lpDisplayDevice, IN DWORD dwFlags);
     /** Display driver interface, XPDM - WDDM abstraction see VBOXDISPIF** definitions above */
     VBOXDISPIF dispIf;
 } VBOXDISPLAYCONTEXT, *PVBOXDISPLAYCONTEXT;
@@ -151,7 +149,7 @@ static DECLCALLBACK(int) VBoxDisplayInit(const PVBOXSERVICEENV pEnv, void **ppIn
 
     if (RT_SUCCESS(rc))
     {
-        VBOXDISPIFESCAPE_ISANYX IsAnyX = { {0} };
+        VBOXDISPIFESCAPE_ISANYX IsAnyX = { 0 };
         IsAnyX.EscapeHdr.escapeCode = VBOXESC_ISANYX;
         DWORD err = VBoxDispIfEscapeInOut(&pEnv->dispIf, &IsAnyX.EscapeHdr, sizeof(uint32_t));
         if (err == NO_ERROR)

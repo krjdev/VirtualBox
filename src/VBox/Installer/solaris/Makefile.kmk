@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93644 2022-02-07 21:15:16Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the Solaris installer.
 #
 
 #
-# Copyright (C) 2007-2022 Oracle Corporation
+# Copyright (C) 2007-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -289,6 +289,17 @@ SOLARIS_COMMON_STRIP_BINS.SRC     := $(PATH_STAGE_BIN)
 SOLARIS_COMMON_STRIP_BINS.DST     := $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/
 SOLARIS_COMMON_STRIP_BINS =
 
+## @def SOLARIS_COMMON_64_STRIP_BINS
+# List of INST_BIN shared libraries that should be copied into /opt/VirtualBox/64/ and stripped.
+SOLARIS_FILE_LIST_VARS += SOLARIS_COMMON_64_STRIP_BINS
+SOLARIS_COMMON_64_STRIP_BINS.SUBDIRS := yes
+SOLARIS_COMMON_64_STRIP_BINS.STRIP   := yes
+SOLARIS_COMMON_64_STRIP_BINS.MODE    := 0644
+SOLARIS_COMMON_64_STRIP_BINS.SRC     := $(PATH_STAGE_BIN)
+SOLARIS_COMMON_64_STRIP_BINS.DST     := $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/64
+SOLARIS_COMMON_64_STRIP_BINS =
+
+
 ## @def SOLARIS_STRIP_EXES
 # List of exectuables files that are copied from INST_BIN to /opt/VirtualBox/$(VBOX_SI_ARCH)/ and stripped of debug info.
 SOLARIS_FILE_LIST_VARS += SOLARIS_STRIP_EXES
@@ -310,8 +321,7 @@ SOLARIS_STRIP_EXES = \
 	$(if $(VBOX_WITH_VMSVGA3D), VBoxTestOGL,) \
 	VBoxXPCOMIPCD \
 	$(if $(VBOX_WITH_KCHMVIEWER),kchmviewer,) \
-	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,) \
-	$(if $(VBOX_WITH_HOST_SHIPPING_AUDIO_TEST),VBoxAudioTest,)
+	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,)
 
 ## @def SOLARIS_STRIP_BINS
 # List of shared libraries that are copied from INST_BIN to /opt/VirtualBox/$(VBOX_SI_ARCH)/ and stripped of debug info.
@@ -346,8 +356,16 @@ SOLARIS_STRIP_BINS = \
 ifdef VBOX_WITH_QTGUI
  ifdef VBOX_WITH_ORACLE_QT
   SOLARIS_STRIP_BINS += \
-  	$(notdir $(wildcard $(PATH_STAGE_BIN)/lib*VBox*)) \
-  	$(VBOX_QT_PLUGINS)
+  	libQt5CoreVBox.so.5 \
+  	libQt5GuiVBox.so.5 \
+  	libQt5XcbQpaVBox.so.5 \
+  	libQt5PrintSupportVBox.so.5 \
+  	libQt5DBusVBox.so.5 \
+  	libQt5X11ExtrasVBox.so.5 \
+  	libQt5WidgetsVBox.so.5 \
+  	plugins/platforms/libqxcb.so \
+  	plugins/xcbglintegrations/libqxcb-glx-integration.so \
+  	$(if $(VBOX_GUI_USE_QGL),libQt5OpenGLVBox.so.5,)
  endif
 endif #VBOX_WITH_QTGUI
 
@@ -406,8 +424,7 @@ SOLARIS_USRBIN_LINKS = \
 	$(if $(VBOX_WITH_HEADLESS),VBoxHeadless,) \
 	$(if $(VBOX_WITH_VBOXSDL),VBoxSDL,) \
 	VBoxManage \
-	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,) \
-	$(if $(VBOX_WITH_HOST_SHIPPING_AUDIO_TEST),VBoxAudioTest,)
+	$(if $(VBOX_WITH_DTRACE),VBoxDTrace,)
 
 SOLARIS_COMMON_EXES += \
 	vboxconfig.sh \
@@ -421,13 +438,9 @@ SOLARIS_COMMON_EXES += \
 # Documentation (packed as DOCS as they are arch. neutral)
 ifdef VBOX_WITH_DOCS_PACKING
  SOLARIS_COMMON += \
-	$(if-expr defined(VBOX_WITH_DOCS_CHM_PACKING),VirtualBox.chm,) \
-	$(if-expr defined(VBOX_WITH_DOCS_QHELP_PACKING),UserManual.qch UserManual.qhc,) \
+	VirtualBox.chm \
 	UserManual.pdf \
-	$(foreach f,$(VBOX_MANUAL_ADD_LANGUAGES), \
-		$(if-expr defined(VBOX_WITH_DOCS_CHM_PACKING),VirtualBox_$(f).chm,) \
-		$(if-expr defined(VBOX_WITH_DOCS_QHELP_PACKING),UserManual_$(f).qch UserManual_$(f).qhc,) \
-		UserManual_$(f).pdf)
+	$(foreach f,$(VBOX_MANUAL_ADD_LANGUAGES),VirtualBox_$(f).chm UserManual_$(f).pdf)
 endif
 
 # Python XPCOM glue
@@ -440,7 +453,7 @@ ifdef VBOX_WITH_PYTHON
   ifdef VBOX_WITH_32_ON_64_MAIN_API
    SOLARIS_COMMON_STRIP_BINS   += $(SOLARIS_PYTHON_32_ON_64_BINS)
   endif
-  SOLARIS_COMMON_STRIP_BINS    += $(filter-out $(SOLARIS_PYTHON_32_ON_64_BINS), $(notdir $(wildcard $(PATH_STAGE_BIN)/VBoxPython*.so)))
+  SOLARIS_COMMON_64_STRIP_BINS += $(filter-out $(SOLARIS_PYTHON_32_ON_64_BINS), $(notdir $(wildcard $(PATH_STAGE_BIN)/VBoxPython*.so)))
  else
   SOLARIS_COMMON_STRIP_BINS    += $(notdir $(wildcard $(PATH_STAGE_BIN)/VBoxPython*.so)))
  endif
@@ -519,11 +532,11 @@ endif
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
-PATH_S10LIBS.x86 := $(sort $(wildcard $(KBUILD_DEVTOOLS)/solaris.x86/s10libs/v*))
+PATH_S10LIBS.x86 := $(sort $(wildcard $(PATH_DEVTOOLS)/solaris.x86/s10libs/v*))
 ifneq ($(PATH_S10LIBS.x86),)
  PATH_S10LIBS.x86 := $(call lastword,$(PATH_S10LIBS.x86))
 endif
-PATH_S10LIBS.amd64 := $(sort $(wildcard $(KBUILD_DEVTOOLS)/solaris.amd64/s10libs/v*))
+PATH_S10LIBS.amd64 := $(sort $(wildcard $(PATH_DEVTOOLS)/solaris.amd64/s10libs/v*))
 ifneq ($(PATH_S10LIBS.amd64),)
  PATH_S10LIBS.amd64 := $(call lastword,$(PATH_S10LIBS.amd64))
 endif
@@ -535,14 +548,13 @@ $(VBOX_PATH_SI_SCRATCH)/dist-copy.ts: \
 		$(VBOX_VERSION_STAMP) \
 		\
 		$(VBOX_PATH_INST_COMMON_SRC)/virtualbox.desktop.in \
-		$(VBOX_PATH_INST_COMMON_SRC)/virtualboxvm.desktop.in \
 		$(VBOX_PATH_INST_COMMON_SRC)/virtualbox.xml \
 		$(VBOX_PATH_SOL_INST_SRC)/virtualbox.applications.in \
 		$(VBOX_PATH_SOL_INST_SRC)/vbox.pkginfo \
 		$(VBOX_PATH_SOL_INST_SRC)/vbox-ips.mog \
 		\
 		$(if-expr defined(VBOX_WITH_ADDITIONS_PACKING),$(PATH_STAGE_BIN)/additions/VBoxGuestAdditions.iso,) \
-		$(if-expr !defined(VBOX_OSE) && defined(VBOX_WITH_VBOXSDL), $(KBUILD_DEVTOOLS_TRG)/libsdl/v1.2.13/lib/libSDL-1.2.so.0.11.2,) \
+		$(if-expr !defined(VBOX_OSE) && defined(VBOX_WITH_VBOXSDL), $(PATH_DEVTOOLS_TRG)/libsdl/v1.2.13/lib/libSDL-1.2.so.0.11.2,) \
 		\
 		$(if $(VBOX_OSE),,$(foreach arch, x86 amd64, $(foreach lib, libgcc_s.so.1 libstdc++.so.6, \
 			$(PATH_S10LIBS.$(arch))/$(lib)))) \
@@ -566,7 +578,9 @@ $(VBOX_PATH_SI_SCRATCH)/dist-copy.ts: \
 	$(MKDIR) -p -m 0755 -- $(sort $(VBOX_PATH_SI_SCRATCH_PKG)/ \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/ \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/ \
+		$(if $(VBOX_OSE),,$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/legacy/) \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/amd64/ \
+		$(if $(VBOX_OSE),,$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/amd64/legacy/) \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/platform/ \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/platform/i86pc/ \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/platform/i86pc/kernel/ \
@@ -609,7 +623,7 @@ $(VBOX_PATH_SI_SCRATCH)/dist-copy.ts: \
 	$(CHMOD) 0755 $(VBOX_PATH_SOL_INST_SRC)/vboxconfig.sh
 	$(INSTALL) -m 0644 $(VBOX_PATH_SOL_INST_SRC)/vbox.pkgresponse $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/autoresponse
 	$(if-expr defined(VBOX_WITH_PYTHON) \
-	,$(SED) -e "s@^#!.*@#!/usr/bin/python3@" \
+	,$(SED) -e "s@^#!.*@#!/usr/bin/python2.7@" \
 		--output $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/vboxshell.py \
 		$(PATH_STAGE_BIN)/vboxshell.py \
 	$(NLTAB)$(CHMOD) 0755 $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/vboxshell.py,)
@@ -622,8 +636,16 @@ $(VBOX_PATH_SI_SCRATCH)/dist-copy.ts: \
 	,$(NLTAB)$(LN_SYMLINK) ../VBoxGuestAdditions.iso $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/$(VBOX_SI_ARCH)/,)
 
 	$(if-expr !defined(VBOX_OSE) && defined(VBOX_WITH_VBOXSDL) \
-	,$(INSTALL) -s -m 0644 $(KBUILD_DEVTOOLS_TRG)/libsdl/v1.2.13/lib/libSDL-1.2.so.0.11.2 \
+	,$(INSTALL) -s -m 0644 $(PATH_DEVTOOLS_TRG)/libsdl/v1.2.13/lib/libSDL-1.2.so.0.11.2 \
 		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/$(VBOX_SI_ARCH)/libSDL-1.2.so.0,)
+
+	$(if $(VBOX_OSE),,$(foreach arch, x86 amd64, $(foreach lib, libgcc_s.so.1 libstdc++.so.6 \
+		,$(NLTAB)$(INSTALL) -s -m 0644 $(PATH_S10LIBS.$(arch))/$(lib) \
+		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/$(if-expr $(arch) == "amd64",amd64/,)legacy/$(lib))))
+
+	$(if $(VBOX_OSE),,$(foreach arch, amd64, $(foreach lib, libxcb.so.1 libX11-xcb.so.1 libX11.so.4 libGL.so \
+		,$(NLTAB)$(INSTALL) -s -m 0644 $(PATH_S10LIBS.$(arch))/$(lib) \
+		$(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/$(if-expr $(arch) == "amd64",amd64/,)legacy/$(lib))))
 
 	$(if-expr defined(VBOX_WITH_EFIFW_PACKING) \
 	,$(LN_SYMLINK) ../VBoxEFI32.fd ../VBoxEFI64.fd $(VBOX_PATH_SI_SCRATCH_PKG)/opt/VirtualBox/$(VBOX_SI_ARCH)/,)
@@ -634,14 +656,10 @@ $(VBOX_PATH_SI_SCRATCH)/dist-copy.ts: \
 
 # Desktop stuff in /usr/share/applications/.
 	$(SED) -e "s+@VBOX_PRODUCT@+$(VBOX_PRODUCT)+" \
+		-e "s+@VBOX_DOC_PATH@+/opt/VirtualBox+" \
 		--output $(VBOX_PATH_SI_SCRATCH_PKG)/usr/share/applications/virtualbox.desktop \
 		$(VBOX_PATH_INST_COMMON_SRC)/virtualbox.desktop.in
 	$(CHMOD) 0644 $(VBOX_PATH_SI_SCRATCH_PKG)/usr/share/applications/virtualbox.desktop
-
-	$(SED) -e "s+@VBOX_PRODUCT@+$(VBOX_PRODUCT)+" \
-		--output $(VBOX_PATH_SI_SCRATCH_PKG)/usr/share/applications/virtualboxvm.desktop \
-		$(VBOX_PATH_INST_COMMON_SRC)/virtualboxvm.desktop.in
-	$(CHMOD) 0644 $(VBOX_PATH_SI_SCRATCH_PKG)/usr/share/applications/virtualboxvm.desktop
 
 # Desktop stuff in /usr/share/mime/packages/ (S10 cannot deal with icon information in virtualbox.xml).
 	$(SED) -e '/<icon/d' \
@@ -713,7 +731,7 @@ $(PATH_STAGE_BIN)/$(PKG_FILENAME).tar.gz: \
 		-e "s/@VBOX_PRODUCT@/$(VBOX_PRODUCT)/g" \
 		-e "s/@VBOX_VENDOR@/$(VBOX_VENDOR)/g" \
 		-e "s/@VBOX_VERSION_STRING@/$(VBOX_VERSION_STRING)/g" \
-		-e "s/@KBUILD_TARGET_ARCH@/$(KBUILD_TARGET_ARCH)/g" \
+		-e "s/@BUILD_TARGET_ARCH@/$(KBUILD_TARGET_ARCH)/g" \
 		-e "s/@VBOX_SVN_REV@/$(VBOX_SVN_REV)/g" \
 		--output $(VBOX_PATH_SI_SCRATCH)/ReadMe.txt \
 		$(PATH_ROOT)/doc/ReadMe-Solaris.txt

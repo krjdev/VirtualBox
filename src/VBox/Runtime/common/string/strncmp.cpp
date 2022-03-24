@@ -1,10 +1,10 @@
-/* $Id: strncmp.cpp 93135 2022-01-06 22:02:15Z vboxsync $ */
+/* $Id: strncmp.cpp $ */
 /** @file
  * IPRT - CRT Strings, strncmp().
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,7 @@
 
 #ifdef _MSC_VER
 _CRTIMP int __cdecl strncmp
-#elif defined(__WATCOMC__) && !defined(IPRT_NO_CRT)
+#elif defined(__WATCOMC__)
 _WCRTLINK int std::strncmp
 #else
 int strncmp
@@ -38,14 +38,15 @@ int strncmp
     __THROW
 #endif
 {
-    while (cb-- > 0)
+    const char* fini = pszStr1+cb;
+    while (pszStr1 < fini)
     {
-        char const ch1   = *pszStr1++;
-        int  const iDiff = ch1 - *pszStr2++;
-        if (iDiff)
-            return iDiff;
-        if (!ch1)
-            break;
+        int res=*pszStr1-*pszStr2;
+        if (res)
+            return res;
+        if (!*pszStr1)
+            return 0;
+        ++pszStr1; ++pszStr2;
     }
     return 0;
 }

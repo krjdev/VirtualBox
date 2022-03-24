@@ -1,10 +1,10 @@
-/* $Id: VBoxCpuReport.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxCpuReport.h $ */
 /** @file
  * VBoxCpuReport internal header file.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -31,14 +31,14 @@ typedef struct VBCPUREPMSRACCESSORS
      *  atomically, without allowing other code to be executed. */
     bool                    fAtomic;
     /** @copydoc SUPR3MsrProberRead  */
-    DECLCALLBACKMEMBER(int, pfnMsrProberRead,(uint32_t uMsr, RTCPUID idCpu, uint64_t *puValue, bool *pfGp));
+    DECLCALLBACKMEMBER(int, pfnMsrProberRead)(uint32_t uMsr, RTCPUID idCpu, uint64_t *puValue, bool *pfGp);
     /** @copydoc SUPR3MsrProberWrite  */
-    DECLCALLBACKMEMBER(int, pfnMsrProberWrite,(uint32_t uMsr, RTCPUID idCpu, uint64_t uValue, bool *pfGp));
+    DECLCALLBACKMEMBER(int, pfnMsrProberWrite)(uint32_t uMsr, RTCPUID idCpu, uint64_t uValue, bool *pfGp);
     /** @copydoc SUPR3MsrProberModify */
-    DECLCALLBACKMEMBER(int, pfnMsrProberModify,(uint32_t uMsr, RTCPUID idCpu, uint64_t fAndMask, uint64_t fOrMask,
-                                                PSUPMSRPROBERMODIFYRESULT pResult));
+    DECLCALLBACKMEMBER(int, pfnMsrProberModify)(uint32_t uMsr, RTCPUID idCpu, uint64_t fAndMask, uint64_t fOrMask,
+                                                PSUPMSRPROBERMODIFYRESULT pResult);
     /** Termination callback, optional. */
-    DECLCALLBACKMEMBER(void, pfnTerm,(void));
+    DECLCALLBACKMEMBER(void, pfnTerm)(void);
 } VBCPUREPMSRACCESSORS;
 typedef VBCPUREPMSRACCESSORS *PVBCPUREPMSRACCESSORS;
 

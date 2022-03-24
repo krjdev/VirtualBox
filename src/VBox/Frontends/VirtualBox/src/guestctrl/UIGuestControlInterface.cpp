@@ -1,10 +1,10 @@
-/* $Id: UIGuestControlInterface.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIGuestControlInterface.cpp $ */
 /** @file
  * VBox Qt GUI - UIGuestControlInterface class implementation.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -686,8 +686,7 @@ bool UIGuestControlInterface::createSession(const CommandData &commandData, CGue
     return true;
 }
 
-/* static */
-bool UIGuestControlInterface::isGuestAdditionsAvailable(const CGuest &guest)
+/* static */ bool UIGuestControlInterface::isGuestAdditionsAvailable(const CGuest &guest)
 {
     if (!guest.isOk())
         return false;

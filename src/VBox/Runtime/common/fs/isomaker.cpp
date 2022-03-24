@@ -1,10 +1,10 @@
-/* $Id: isomaker.cpp 93118 2022-01-04 01:41:47Z vboxsync $ */
+/* $Id: isomaker.cpp $ */
 /** @file
  * IPRT - ISO Image Maker.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;

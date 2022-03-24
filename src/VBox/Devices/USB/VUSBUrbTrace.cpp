@@ -1,10 +1,10 @@
-/* $Id: VUSBUrbTrace.cpp 93989 2022-02-28 15:28:20Z vboxsync $ */
+/* $Id: VUSBUrbTrace.cpp $ */
 /** @file
  * Virtual USB - URBs.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -146,7 +146,7 @@ DECLHIDDEN(const char *) vusbUrbTypeName(VUSBXFERTYPE enmType)
 DECLHIDDEN(void) vusbUrbTrace(PVUSBURB pUrb, const char *pszMsg, bool fComplete)
 {
     PVUSBDEV        pDev   = pUrb->pVUsb ? pUrb->pVUsb->pDev : NULL; /* Can be NULL when called from usbProxyConstruct and friends. */
-    PVUSBPIPE       pPipe  = pDev ? &pDev->aPipes[pUrb->EndPt] : NULL;
+    PVUSBPIPE       pPipe  = &pDev->aPipes[pUrb->EndPt];
     const uint8_t  *pbData = pUrb->abData;
     uint32_t        cbData = pUrb->cbData;
     PCVUSBSETUP     pSetup = NULL;
@@ -219,18 +219,6 @@ DECLHIDDEN(void) vusbUrbTrace(PVUSBURB pUrb, const char *pszMsg, bool fComplete)
     {
         pSetup = pPipe->pCtrl->pMsg;
         if (pSetup->bRequest == VUSB_REQ_GET_DESCRIPTOR)
-        {
-            /* HID report (0x22) and physical (0x23) descriptors do not use standard format
-             * with descriptor length/type at the front. Don't try to dump them, we'll only
-             * misinterpret them.
-             */
-            if (    ((pSetup->bmRequestType >> 5) & 0x3) == 1   /* class */
-                && ((RT_HIBYTE(pSetup->wValue) == 0x22) || (RT_HIBYTE(pSetup->wValue) == 0x23)))
-            {
-                fDescriptors = false;
-            }
-        }
-        else
             fDescriptors = true;
     }
 
@@ -387,7 +375,7 @@ DECLHIDDEN(void) vusbUrbTrace(PVUSBURB pUrb, const char *pszMsg, bool fComplete)
                                 Log(("URB: %*s:       %04x: Length=%d String=%.*ls\n",
                                      s_cchMaxMsg, pszMsg, pb - pbData, cb - 2, cb / 2 - 1, pb + 2));
                             else
-                                Log(("URB: %*s:       %04x: Length=0\n", s_cchMaxMsg, pszMsg, pb - pbData));
+                                Log(("URB: %*s:       %04x: Length=0!\n", s_cchMaxMsg, pszMsg, pb - pbData));
                         }
                         break;
 

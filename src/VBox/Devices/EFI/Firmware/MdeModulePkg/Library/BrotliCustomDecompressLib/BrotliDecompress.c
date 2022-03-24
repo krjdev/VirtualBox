@@ -8,6 +8,29 @@
 #include <BrotliDecompressLibInternal.h>
 
 /**
+  Dummy malloc function for compiler.
+**/
+VOID *
+BrDummyMalloc (
+  IN size_t    Size
+  )
+{
+  ASSERT (FALSE);
+  return NULL;
+}
+
+/**
+  Dummy free function for compiler.
+**/
+VOID
+BrDummyFree (
+  IN VOID *    Ptr
+  )
+{
+  ASSERT (FALSE);
+}
+
+/**
   Allocation routine used by BROTLI decompression.
 
   @param Ptr              Pointer to the BROTLI_BUFF instance.

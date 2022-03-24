@@ -1,10 +1,10 @@
-/* $Id: UIAddDiskEncryptionPasswordDialog.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIAddDiskEncryptionPasswordDialog.cpp $ */
 /** @file
  * VBox Qt GUI - UIAddDiskEncryptionPasswordDialog class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,7 +34,7 @@
 #include "UIAddDiskEncryptionPasswordDialog.h"
 #include "UIIconPool.h"
 #include "UIMedium.h"
-#include "UINotificationCenter.h"
+#include "UIMessageCenter.h"
 
 /* Other VBox includes: */
 #include <iprt/assert.h>
@@ -82,7 +82,7 @@ public:
 protected:
 
     /** Handles key-press @a pEvent. */
-    virtual void keyPressEvent(QKeyEvent *pEvent) RT_OVERRIDE;
+    virtual void keyPressEvent(QKeyEvent *pEvent) /* override */;
 
 private slots:
 
@@ -162,8 +162,6 @@ public:
     /** Constructs table.
       * @param  encryptedMedia  Brings the lists of medium ids (values) encrypted with passwords with ids (keys). */
     UIEncryptionDataTable(const EncryptedMediumMap &encryptedMedia);
-    /** Destructs table. */
-    virtual ~UIEncryptionDataTable() RT_OVERRIDE;
 
     /** Returns the shallow copy of the encryption password map
       * acquired from the UIEncryptionDataModel instance. */
@@ -176,17 +174,12 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Cleanups all. */
-    void cleanup();
 
     /** Holds the encrypted medium map reference. */
     const EncryptedMediumMap &m_encryptedMedia;
 
     /** Holds the encryption-data model instance. */
     UIEncryptionDataModel *m_pModelEncryptionData;
-
-    /** Holds the item editor factory instance. */
-    QItemEditorFactory *m_pItemEditorFactory;
 };
 
 
@@ -382,14 +375,9 @@ void UIEncryptionDataModel::prepare()
 UIEncryptionDataTable::UIEncryptionDataTable(const EncryptedMediumMap &encryptedMedia)
     : m_encryptedMedia(encryptedMedia)
     , m_pModelEncryptionData(0)
-    , m_pItemEditorFactory(0)
 {
+    /* Prepare: */
     prepare();
-}
-
-UIEncryptionDataTable::~UIEncryptionDataTable()
-{
-    cleanup();
 }
 
 EncryptionPasswordMap UIEncryptionDataTable::encryptionPasswords() const
@@ -425,17 +413,20 @@ void UIEncryptionDataTable::prepare()
     QIStyledItemDelegate *pStyledItemDelegate = new QIStyledItemDelegate(this);
     if (pStyledItemDelegate)
     {
-        /* Create new item editor factory: */
-        m_pItemEditorFactory = new QItemEditorFactory;
-        if (m_pItemEditorFactory)
+        /* Create item editor factory: */
+        QItemEditorFactory *pNewItemEditorFactory = new QItemEditorFactory;
+        if (pNewItemEditorFactory)
         {
-            /* Register UIPasswordEditor as the QString editor: */
+            /* Create item editor creator: */
             QStandardItemEditorCreator<UIPasswordEditor> *pQStringItemEditorCreator = new QStandardItemEditorCreator<UIPasswordEditor>();
             if (pQStringItemEditorCreator)
-            m_pItemEditorFactory->registerEditor(QVariant::String, pQStringItemEditorCreator);
+            {
+                /* Register UIPasswordEditor as the QString editor: */
+                pNewItemEditorFactory->registerEditor(QVariant::String, pQStringItemEditorCreator);
+            }
 
             /* Assign configured item editor factory to table delegate: */
-            pStyledItemDelegate->setItemEditorFactory(m_pItemEditorFactory);
+            pStyledItemDelegate->setItemEditorFactory(pNewItemEditorFactory);
         }
 
         /* Assign configured item delegate to table: */
@@ -462,13 +453,6 @@ void UIEncryptionDataTable::prepare()
     horizontalHeader()->setStretchLastSection(false);
     horizontalHeader()->setSectionResizeMode(UIEncryptionDataTableSection_Id, QHeaderView::Interactive);
     horizontalHeader()->setSectionResizeMode(UIEncryptionDataTableSection_Password, QHeaderView::Stretch);
-}
-
-void UIEncryptionDataTable::cleanup()
-{
-    /* Cleanup item editor factory: */
-    delete m_pItemEditorFactory;
-    m_pItemEditorFactory = 0;
 }
 
 
@@ -524,7 +508,7 @@ void UIAddDiskEncryptionPasswordDialog::accept()
         const QString strPassword = m_pTableEncryptionData->encryptionPasswords().value(strPasswordId);
         if (!isPasswordValid(uMediumId, strPassword))
         {
-            UINotificationMessage::warnAboutInvalidEncryptionPassword(strPasswordId);
+            msgCenter().warnAboutInvalidEncryptionPassword(strPasswordId, this);
             AssertPtrReturnVoid(m_pTableEncryptionData);
             m_pTableEncryptionData->setFocus();
             m_pTableEncryptionData->editFirstIndex();

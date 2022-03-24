@@ -301,6 +301,7 @@ http://www.virtualbox.org/ticket/\3, \
 http://www.virtualbox.org/ticket/\4"
 
 
+TCL_SUBST              =
 OPTIMIZE_OUTPUT_FOR_C  = YES
 OPTIMIZE_OUTPUT_JAVA   = NO
 OPTIMIZE_FOR_FORTRAN   = NO
@@ -480,7 +481,7 @@ LATEX_OUTPUT           = latex
 LATEX_CMD_NAME         = latex
 MAKEINDEX_CMD_NAME     = makeindex
 COMPACT_LATEX          = NO
-PAPER_TYPE             = a4
+PAPER_TYPE             = a4wide
 EXTRA_PACKAGES         =
 LATEX_HEADER           =
 LATEX_FOOTER           =
@@ -564,53 +565,33 @@ PREDEFINED             =  \
     \
     "RT_IPRT_FORMAT_ATTR(a,b)=" \
     "RT_IPRT_FORMAT_ATTR_MAYBE_NULL(a,b)=" \
-    RT_NOTHROW_PROTO= \
-    RT_NOTHROW_DEF= \
     RT_NO_THROW_PROTO= \
-    RT_NO_THROW_DEF= \
-    RTASN1CONTEXTTAG_IMPL_CURSOR_INLINES(a)= \
-    \
-    RT_MSC_PREREQ(a)=0 \
-    RT_MSC_PREREQ_EX(a,b)=b
+    RTASN1CONTEXTTAG_IMPL_CURSOR_INLINES(a)= 
 
 # decl and calling conventions.
 PREDEFINED += \
-    DECL_NOTHROW(a_RetType)=a_RetType \
     "DECLINLINE(type)=inline type" \
-    DECL_INLINE_THROW(type)=DECLINLINE(type) \
+    APICBOTHCBDECL(type)=type \
     DECL_FORCE_INLINE(type)=DECLINLINE(type) \
     DECL_NO_INLINE(type)=type \
-    DECL_NO_RETURN(type)=type \
     DECLCALLBACK(type)=type \
     "DECLCALLBACKTYPE(type,name,args)=type name args" \
-    "DECLCALLBACKTYPE_EX(type,cconv,name,args)=type name args" \
     "DECLCALLBACKPTR(type,name,args)=type (* name) args" \
-    "DECLCALLBACKPTR_EX(type,cconv,name,args)=type (* name) args" \
-    "DECLCALLBACKMEMBER(type,name,args)=type (* name) args" \
-    "DECLCALLBACKMEMBER_EX(type,cconv,name,args)=type (* name) args" \
+    "DECLCALLBACKMEMBER(type,name)=type (* name) " \
     "DECLRCCALLBACKMEMBER(type,name,args)=type (* name) args" \
     "DECLR3CALLBACKMEMBER(type,name,args)=type (* name) args" \
     "DECLR0CALLBACKMEMBER(type,name,args)=type (* name) args" \
     "DECLRGCALLBACKMEMBER(type,name,args)=type (* name) args" \
     DECLEXPORT(type)=type \
-    DECL_EXPORT_NOTHROW(type)=type \
     DECLIMPORT(type)=type \
-    DECL_IMPORT_NOTHROW(type)=type \
     DECLHIDDEN(type)=type \
-    DECL_HIDDEN_NOTHROW(type)=type \
-    DECL_HIDDEN_ONLY(type)=type \
-    DECL_HIDDEN_THROW(type)=type \
-    DECL_HIDDEN_DATA(type)=type \
     DECL_HIDDEN_CONST(type)=type \
-    DECL_HIDDEN_CALLBACK(type)=type \
     DECLASM(type)=type \
     RT_ASM_DECL_PRAGMA_WATCOM(type)=type \
     RT_ASM_DECL_PRAGMA_WATCOM_386(type)=type \
     DECLNORETURN(type)=type \
-    RTCALL= \
-    \
-    APICBOTHCBDECL(type)=type \
     VBOXCALL= \
+    RTCALL= \
     DECLVBGL(type)=type \
     DECLR0VBGL(type)=type \
     USBLIB_DECL(type)=type \
@@ -686,19 +667,19 @@ PREDEFINED += \
 
 # Compile assertion hacks.
 PREDEFINED            += \
-    "AssertCompileNS(expr)=static_assert(expr)" \
-    "AssertCompile(expr)=static_assert(expr)" \
-    "AssertCompileSize(type, size)=static_assert(true)" \
-    "AssertCompileSizeAlignment(type, align)=static_assert(true)" \
-    "AssertCompileMemberAlignment(type, member, align)=static_assert(true)" \
-    "AssertCompileMemberOffset(type, member, off)=static_assert(true)" \
-    "AssertCompile2MemberOffsets(type, member1, member2)=static_assert(true)" \
-    "AssertCompileAdjacentMembers(type, member1, member2)=static_assert(true)" \
-    "AssertCompileMembersAtSameOffset(type1, member1, type2, member2)=static_assert(true)" \
-    "AssertCompileMemberSize(type, member, size)=static_assert(true)" \
-    "AssertCompileMemberSizeAlignment(type, member, align)=static_assert(true)" \
-    "AssertCompileMembersSameSize(type1, member1, type2, member2)=static_assert(true)" \
-    "AssertCompileMembersSameSizeAndOffset(type1, member1, type2, member2)=static_assert(true)"
+    "AssertCompileNS(expr)" \
+    "AssertCompile(expr)" \
+    "AssertCompileSize(type, size)" \
+    "AssertCompileSizeAlignment(type, align)" \
+    "AssertCompileMemberAlignment(type, member, align)" \
+    "AssertCompileMemberOffset(type, member, off)" \
+    "AssertCompile2MemberOffsets(type, member1, member2)" \
+    "AssertCompileAdjacentMembers(type, member1, member2)" \
+    "AssertCompileMembersAtSameOffset(type1, member1, type2, member2)" \
+    "AssertCompileMemberSize(type, member, size)" \
+    "AssertCompileMemberSizeAlignment(type, member, align)" \
+    "AssertCompileMembersSameSize(type1, member1, type2, member2)" \
+    "AssertCompileMembersSameSizeAndOffset(type1, member1, type2, member2)"
 
 # COM/XPCOM hacks.
 PREDEFINED            += \
@@ -714,9 +695,7 @@ PREDEFINED            += \
     DECLARE_CLASSFACTORY()= \
     DECLARE_CLASSFACTORY_SINGLETON(a)= \
     "VIRTUALBOXBASE_ADD_ERRORINFO_SUPPORT(a,b)=" \
-    "DECLARE_TRANSLATE_METHODS(a)=static const char *tr(const char *aSourceText, const char *aComment = NULL, const int aNum = -1);" \
-    "DECLARE_EMPTY_CTOR_DTOR(a)=a(); virtual ~a();" \
-    "DECLARE_COMMON_CLASS_METHODS(a)=a(); virtual ~a(); static const char *tr(const char *aSourceText, const char *aComment = NULL, const int aNum = -1);"
+    "DECLARE_EMPTY_CTOR_DTOR(a):=a(); virtual ~a();"
 
 # COM hacks from From http://www.stack.nl/~dimitri/doxygen/preprocessing.html
 PREDEFINED          += \
@@ -792,7 +771,6 @@ EXPAND_AS_DEFINED      = \
     HC_ARCH_BITS \
     \
     DECLASMTYPE \
-    DECL_INLINE_NOTHROW \
     CTXSUFF \
     OTHERCTXSUFF \
     CTXMID \
@@ -828,7 +806,6 @@ EXPAND_AS_DEFINED      = \
     RTR0DECL \
     RTR3DECL \
     RTDATADECL \
-    RT_DECL_NTAPI \
     SUPDECL \
     SUPR0DECL \
     SUPR3DECL \
@@ -847,10 +824,7 @@ EXPAND_AS_DEFINED      = \
     \
     IOM_MMIO_STATS_COMMA_DECL \
     IOM_MMIO_STATS_COMMA_ARG \
-    SUP_HARDENED_SUID \
-    \
-    VTABLE_ENTRY \
-    VTABLE_RESERVED
+    SUP_HARDENED_SUID
 
 SKIP_FUNCTION_MACROS   = NO
 #---------------------------------------------------------------------------
@@ -861,10 +835,12 @@ GENERATE_TAGFILE       =
 ALLEXTERNALS           = NO
 EXTERNAL_GROUPS        = YES
 EXTERNAL_PAGES         = YES
+PERL_PATH              = /usr/bin/perl
 #---------------------------------------------------------------------------
 # Configuration options related to the dot tool
 #---------------------------------------------------------------------------
 CLASS_DIAGRAMS         = YES
+MSCGEN_PATH            =
 DIA_PATH               =
 HIDE_UNDOC_RELATIONS   = YES
 HAVE_DOT               = NO

@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestDrvInst.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxGuestDrvInst.cpp $ */
 /** @file
  * instdrvmain - Install guest drivers on NT4
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -450,7 +450,7 @@ int main(int argc, char **argv)
 
   if (!GetModuleFileName(hExe, &szInstallDir[0], sizeof(szInstallDir)))
     {
-      printf("GetModuleFileName failed! rc=%lu\n", GetLastError());
+      printf("GetModuleFileName failed! rc = %d\n", GetLastError());
       return -1;
     }
 

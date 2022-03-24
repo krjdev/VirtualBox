@@ -1,10 +1,10 @@
-/* $Id: rest-primary-object-types.cpp 93301 2022-01-18 11:24:43Z vboxsync $ */
+/* $Id: rest-primary-object-types.cpp $ */
 /** @file
  * IPRT - C++ REST, RTCRestObjectBase implementation.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -552,7 +552,7 @@ RTCRestInt32::RTCRestInt32(int32_t iValue) RT_NOEXCEPT
 
 
 /** Destructor. */
-RTCRestInt32::~RTCRestInt32() RT_NOEXCEPT
+RTCRestInt32::~RTCRestInt32()
 {
     /* nothing to do */
 }
@@ -1023,7 +1023,7 @@ int RTCRestDouble::deserializeFromJson(RTCRestJsonCursor const &a_rCursor) RT_NO
         if (RT_SUCCESS(rc))
         {
             m_rdValue = iTmp;
-            if ((int64_t)m_rdValue == iTmp)
+            if (m_rdValue == iTmp)
                 return rc;
             return a_rCursor.m_pPrimary->addError(a_rCursor, VERR_OUT_OF_RANGE, "value %RI64 does not fit in a double", iTmp);
         }
@@ -2266,12 +2266,6 @@ int RTCRestDataObject::deserializeMemberFromJson(RTCRestJsonCursor const &a_rCur
 
 int RTCRestDataObject::deserializeFromJson(RTCRestJsonCursor const &a_rCursor) RT_NOEXCEPT
 {
-    if (RTJsonValueGetType(a_rCursor.m_hValue) == RTJSONVALTYPE_NULL)
-    {
-        setNull();
-        return VINF_SUCCESS;
-    }
-
     /*
      * Make sure the object starts out with default values.
      */

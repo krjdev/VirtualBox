@@ -1,4 +1,4 @@
-/* $Id: tstPDMAsyncCompletionStress.cpp 93308 2022-01-18 11:31:19Z vboxsync $ */
+/* $Id: tstPDMAsyncCompletionStress.cpp $ */
 /** @file
  * PDM Asynchronous Completion Stresstest.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -373,7 +373,7 @@ static DECLCALLBACK(int) tstPDMACTestFileThread(PVM pVM, PPDMTHREAD pThread)
          * Recalc write chance. The bigger the file the lower the chance to have a write.
          * The minimum chance is 33 percent.
          */
-        iWriteChance = 100 - (int)((100.0 / (double)pTestFile->cbFileMax) * (double)pTestFile->cbFileCurr);
+        iWriteChance = 100 - (int)(((float)100.0 / pTestFile->cbFileMax) * (float)pTestFile->cbFileCurr);
         iWriteChance = RT_MAX(33, iWriteChance);
 
         /* Wait a random amount of time. (1ms - 100ms) */
@@ -577,7 +577,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
     RT_NOREF1(envp);
     int rcRet = 0; /* error count */
 
-    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_TRY_SUPLIB);
+    RTR3InitExe(argc, &argv, RTR3INIT_FLAGS_SUPLIB);
 
     PVM pVM;
     PUVM pUVM;

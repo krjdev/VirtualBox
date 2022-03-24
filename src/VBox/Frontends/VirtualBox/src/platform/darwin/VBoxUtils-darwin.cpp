@@ -1,10 +1,10 @@
-/* $Id: VBoxUtils-darwin.cpp 94065 2022-03-02 20:58:24Z vboxsync $ */
+/* $Id: VBoxUtils-darwin.cpp $ */
 /** @file
  * VBox Qt GUI - Utility Classes and Functions specific to Darwin.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -15,7 +15,13 @@
  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
  */
 
-/* Qt includes: */
+#include "VBoxUtils-darwin.h"
+#include "VBoxCocoaHelper.h"
+#include "UICocoaApplication.h"
+
+#include <iprt/mem.h>
+#include <iprt/assert.h>
+
 #include <QMainWindow>
 #include <QApplication>
 #include <QWidget>
@@ -23,17 +29,8 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QContextMenuEvent>
+#include <QtMac>
 
-/* GUI includes: */
-#include "VBoxUtils-darwin.h"
-#include "VBoxCocoaHelper.h"
-#include "UICocoaApplication.h"
-
-/* Other VBox includes: */
-#include <iprt/mem.h>
-#include <iprt/assert.h>
-
-/* System includes: */
 #include <Carbon/Carbon.h>
 
 NativeNSViewRef darwinToNativeView(QWidget *pWidget)
@@ -285,8 +282,7 @@ CGImageRef darwinToCGImageRef(const QImage *pImage)
     Assert(!imageCopy->isNull());
 
     CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-    CGDataProviderRef dp = CGDataProviderCreateWithData(imageCopy, pImage->bits(), pImage->sizeInBytes(),
-                                                        darwinDataProviderReleaseQImage);
+    CGDataProviderRef dp = CGDataProviderCreateWithData(imageCopy, pImage->bits(), pImage->byteCount(), darwinDataProviderReleaseQImage);
 
     CGBitmapInfo bmpInfo = kCGImageAlphaFirst | kCGBitmapByteOrder32Host;
     CGImageRef ir = CGImageCreate(imageCopy->width(), imageCopy->height(), 8, 32, imageCopy->bytesPerLine(), cs,
@@ -325,7 +321,7 @@ CGImageRef darwinToCGImageRef(const QPixmap *pPixmap)
                                               cs,
                                               kCGImageAlphaPremultipliedFirst);
     /* Get the CGImageRef from Qt */
-    CGImageRef qtPixmap = pPixmap->toImage().toCGImage();
+    CGImageRef qtPixmap = QtMac::toCGImageRef(*pPixmap);
     /* Draw the image from Qt & convert the context back to a new CGImageRef. */
     CGContextDrawImage(ctx, CGRectMake(0, 0, pPixmap->width(), pPixmap->height()), qtPixmap);
     CGImageRef newImage = CGBitmapContextCreateImage(ctx);
@@ -410,7 +406,7 @@ void darwinSendMouseGrabEvents(QWidget *pWidget, int type, int button, int butto
     else if (button == 1)
         qtExtraButton = Qt::RightButton;
     else if (button == 2)
-        qtExtraButton = Qt::MiddleButton;
+        qtExtraButton = Qt::MidButton;
     else if (button == 3)
         qtExtraButton = Qt::XButton1;
     else if (button == 4)
@@ -501,7 +497,7 @@ void darwinSendMouseGrabEvents(QWidget *pWidget, int type, int button, int butto
     if ((buttons & RT_BIT_32(1)) == RT_BIT_32(1))
         qtButtons |= Qt::RightButton;
     if ((buttons & RT_BIT_32(2)) == RT_BIT_32(2))
-        qtButtons |= Qt::MiddleButton;
+        qtButtons |= Qt::MidButton;
     if ((buttons & RT_BIT_32(3)) == RT_BIT_32(3))
         qtButtons |= Qt::XButton1;
     if ((buttons & RT_BIT_32(4)) == RT_BIT_32(4))
@@ -551,7 +547,7 @@ QString darwinResolveAlias(const QString &strFile)
 
 /********************************************************************************
  *
- * Old carbon stuff. Have to convert soon!
+ * Old carbon stuff. Have to converted soon!
  *
  ********************************************************************************/
 

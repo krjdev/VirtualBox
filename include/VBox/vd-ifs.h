@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -159,7 +159,9 @@ DECLINLINE(int) VDInterfaceAdd(PVDINTERFACE pInterface, const char *pszName, VDI
                     && enmInterface < VDINTERFACETYPE_INVALID,
                     ("enmInterface=%u", enmInterface), VERR_INVALID_PARAMETER);
 
-    AssertPtrReturn(ppVDIfs, VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(ppVDIfs),
+                    ("pInterfaceList=%#p", ppVDIfs),
+                    VERR_INVALID_PARAMETER);
 
     /* Fill out interface descriptor. */
     pInterface->u32Magic         = VDINTERFACE_MAGIC;
@@ -187,8 +189,13 @@ DECLINLINE(int) VDInterfaceRemove(PVDINTERFACE pInterface, PVDINTERFACE *ppVDIfs
     int rc = VERR_NOT_FOUND;
 
     /* Argument checks. */
-    AssertPtrReturn(pInterface, VERR_INVALID_PARAMETER);
-    AssertPtrReturn(ppVDIfs, VERR_INVALID_PARAMETER);
+    AssertMsgReturn(VALID_PTR(pInterface),
+                    ("pInterface=%#p", pInterface),
+                    VERR_INVALID_PARAMETER);
+
+    AssertMsgReturn(VALID_PTR(ppVDIfs),
+                    ("pInterfaceList=%#p", ppVDIfs),
+                    VERR_INVALID_PARAMETER);
 
     if (*ppVDIfs)
     {
@@ -210,8 +217,7 @@ DECLINLINE(int) VDInterfaceRemove(PVDINTERFACE pInterface, PVDINTERFACE *ppVDIfs
         }
         else if (pCurr)
         {
-            Assert(pPrev->pNext == pCurr);
-            pPrev->pNext = pCurr->pNext;
+            pPrev = pCurr->pNext;
             rc = VINF_SUCCESS;
         }
     }
@@ -296,12 +302,6 @@ DECLINLINE(int) RT_IPRT_FORMAT_ATTR(6, 7) vdIfError(PVDINTERFACEERROR pIfError, 
     if (pIfError)
         pIfError->pfnError(pIfError->Core.pvUser, rc, RT_SRC_POS_ARGS, pszFormat, va);
     va_end(va);
-
-#if defined(LOG_ENABLED) && defined(Log)
-    va_start(va, pszFormat);
-    Log(("vdIfError: %N\n", pszFormat, &va));
-    va_end(va);
-#endif
     return rc;
 }
 
@@ -321,12 +321,6 @@ DECLINLINE(int) RT_IPRT_FORMAT_ATTR(2, 3) vdIfErrorMessage(PVDINTERFACEERROR pIf
     if (pIfError && pIfError->pfnMessage)
         rc = pIfError->pfnMessage(pIfError->Core.pvUser, pszFormat, va);
     va_end(va);
-
-#if defined(LOG_ENABLED) && defined(Log)
-    va_start(va, pszFormat);
-    Log(("vdIfErrorMessage: %N\n", pszFormat, &va));
-    va_end(va);
-#endif
     return rc;
 }
 
@@ -338,7 +332,7 @@ DECLINLINE(int) RT_IPRT_FORMAT_ATTR(2, 3) vdIfErrorMessage(PVDINTERFACEERROR pIf
  * @param   pvUser          Opaque user data which is passed on request submission.
  * @param   rcReq           Status code of the completed request.
  */
-typedef DECLCALLBACKTYPE(int, FNVDCOMPLETED,(void *pvUser, int rcReq));
+typedef DECLCALLBACK(int) FNVDCOMPLETED(void *pvUser, int rcReq);
 /** Pointer to FNVDCOMPLETED() */
 typedef FNVDCOMPLETED *PFNVDCOMPLETED;
 
@@ -716,7 +710,7 @@ VBOXDDU_DECL(int) VDIfDestroyFromVfsStream(PVDINTERFACEIO pIoIf);
  * @param   pvUser          The opaque user data associated with this interface.
  * @param   uPercentage     Completion percentage.
  */
-typedef DECLCALLBACKTYPE(int, FNVDPROGRESS,(void *pvUser, unsigned uPercentage));
+typedef DECLCALLBACK(int) FNVDPROGRESS(void *pvUser, unsigned uPercentage);
 /** Pointer to FNVDPROGRESS() */
 typedef FNVDPROGRESS *PFNVDPROGRESS;
 

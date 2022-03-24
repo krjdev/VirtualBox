@@ -1,10 +1,10 @@
--- $Id: TestManagerDatabaseInit.pgsql 94129 2022-03-08 14:57:25Z vboxsync $
+-- $Id: TestManagerDatabaseInit.pgsql $
 --- @file
 -- VBox Test Manager Database Creation script.
 --
 
 --
--- Copyright (C) 2012-2022 Oracle Corporation
+-- Copyright (C) 2012-2020 Oracle Corporation
 --
 -- This file is part of VirtualBox Open Source Edition (OSE), as
 -- available from http://www.virtualbox.org. This file is free software;
@@ -1312,31 +1312,6 @@ CREATE TABLE VcsRevisions (
 
     UNIQUE (sRepository, iRevision)
 );
-CREATE INDEX VcsRevisionsByDate ON VcsRevisions (tsCreated DESC);
-
-
---- @table VcsBugReferences
--- This is for relating commits to a bug and vice versa.
---
--- This feature isn't so much for the test manager as a cheap way of extending
--- bug trackers without VCS integration.  We just need to parse the commit
--- messages when inserting them into the VcsRevisions table.
---
--- Same input, updating and history considerations as VcsRevisions.
---
-CREATE TABLE VcsBugReferences (
-    --- The version control tree name.
-    sRepository         TEXT        NOT NULL,
-    --- The version control tree revision number.
-    iRevision           INTEGER     NOT NULL,
-    --- The bug tracker identifier - see g_kdBugTrackers in config.py.
-    sBugTracker         CHAR(4)     NOT NULL,
-    --- The bug number in the bug tracker.
-    lBugNo              BIGINT      NOT NULL,
-
-    UNIQUE (sRepository, iRevision, sBugTracker, lBugNo)
-);
-CREATE INDEX VcsBugReferencesLookupIdx ON VcsBugReferences (sBugTracker, lBugNo);
 
 
 
@@ -1929,9 +1904,6 @@ CREATE TABLE SchedQueues (
     --
     cMissingGangMembers smallint    DEFAULT 1  NOT NULL,
 
-    --- @todo
-    --- The number of times this has been considered for scheduling.
-    -- cConsidered SMALLINT DEFAULT 0 NOT NULL,
 
     PRIMARY KEY (idSchedGroup, idItem)
 );

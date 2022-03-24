@@ -1,10 +1,10 @@
-/* $Id: SessionImpl.cpp 93444 2022-01-26 18:01:15Z vboxsync $ */
+/* $Id: SessionImpl.cpp $ */
 /** @file
  * VBox Client Session COM Class implementation in VBoxC.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,9 +20,8 @@
 
 #include "SessionImpl.h"
 #include "ConsoleImpl.h"
-#include "ClientTokenHolder.h"
 #include "Global.h"
-#include "StringifyEnums.h"
+#include "ClientTokenHolder.h"
 
 #include "AutoCaller.h"
 
@@ -38,7 +37,7 @@
 #define CHECK_OPEN() \
     do { \
         if (mState != SessionState_Locked) \
-            return setError(E_UNEXPECTED, Session::tr("The session is not locked (session state: %s)"), \
+            return setError(E_UNEXPECTED, tr ("The session is not locked (session state: %s)"), \
                             Global::stringifySessionState(mState)); \
     } while (0)
 
@@ -261,23 +260,24 @@ HRESULT Session::getPID(ULONG *aPid)
 HRESULT Session::getRemoteConsole(ComPtr<IConsole> &aConsole)
 {
     LogFlowThisFuncEnter();
-#ifndef VBOX_COM_INPROC_API_CLIENT
+
     AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-    if (mType == SessionType_WriteLock && !!mConsole)
-    {
-        /* return a failure if the session already transitioned to Closing
-         * but the server hasn't processed Machine::OnSessionEnd() yet. */
-        if (mState == SessionState_Locked)
-        {
-            mConsole.queryInterfaceTo(aConsole.asOutParam());
+#ifndef VBOX_COM_INPROC_API_CLIENT
+    AssertMsgReturn(mType == SessionType_WriteLock && !!mConsole,
+                    ("This is not a direct session!\n"),
+                    VBOX_E_INVALID_OBJECT_STATE);
 
-            LogFlowThisFuncLeave();
-            return S_OK;
-        }
+    /* return a failure if the session already transitioned to Closing
+     * but the server hasn't processed Machine::OnSessionEnd() yet. */
+    if (mState != SessionState_Locked)
         return VBOX_E_INVALID_VM_STATE;
-    }
-    return setError(VBOX_E_INVALID_OBJECT_STATE, "This is not a direct session");
+
+    mConsole.queryInterfaceTo(aConsole.asOutParam());
+
+    LogFlowThisFuncLeave();
+
+    return S_OK;
 
 #else  /* VBOX_COM_INPROC_API_CLIENT */
     RT_NOREF(aConsole);
@@ -344,7 +344,7 @@ HRESULT Session::assignMachine(const ComPtr<IMachine> &aMachine,
         rc = mConsole.createObject();
         AssertComRCReturn(rc, rc);
 
-        rc = mConsole->initWithMachine(aMachine, mControl, aLockType);
+        rc = mConsole->init(aMachine, mControl, aLockType);
         AssertComRCReturn(rc, rc);
     }
     else
@@ -525,7 +525,7 @@ HRESULT Session::uninitialize()
         /* close() needs write lock */
         AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-        LogFlowThisFunc(("mState=%s, mType=%d\n", ::stringifySessionState(mState), mType));
+        LogFlowThisFunc(("mState=%s, mType=%d\n", Global::stringifySessionState(mState), mType));
 
         if (mState == SessionState_Unlocking)
         {
@@ -1163,7 +1163,7 @@ HRESULT Session::i_unlockMachine(bool aFinalRelease, bool aFromServer, AutoWrite
     LogFlowThisFunc(("aFinalRelease=%d, isFromServer=%d\n",
                       aFinalRelease, aFromServer));
 
-    LogFlowThisFunc(("mState=%s, mType=%d\n", ::stringifySessionState(mState), mType));
+    LogFlowThisFunc(("mState=%s, mType=%d\n", Global::stringifySessionState(mState), mType));
 
     Assert(aLockW.isWriteLockOnCurrentThread());
 

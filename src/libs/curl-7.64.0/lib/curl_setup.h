@@ -245,24 +245,12 @@
 #  if defined(_UNICODE) && !defined(UNICODE)
 #    define UNICODE
 #  endif
-# ifdef VBOX
-#  include <iprt/win/windows.h>
-# else
 #  include <winerror.h>
 #  include <windows.h>
-# endif
 #  ifdef HAVE_WINSOCK2_H
-#   ifdef VBOX
-#    include <iprt/win/winsock2.h>
-#   else
 #    include <winsock2.h>
-#   endif
 #    ifdef HAVE_WS2TCPIP_H
-#     ifdef VBOX
-#      include <iprt/win/ws2tcpip.h>
-#     else
 #      include <ws2tcpip.h>
-#     endif
 #    endif
 #  else
 #    ifdef HAVE_WINSOCK_H

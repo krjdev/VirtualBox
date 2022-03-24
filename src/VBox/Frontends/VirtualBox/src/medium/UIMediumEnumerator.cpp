@@ -1,10 +1,10 @@
-/* $Id: UIMediumEnumerator.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMediumEnumerator.cpp $ */
 /** @file
  * VBox Qt GUI - UIMediumEnumerator class implementation.
  */
 
 /*
- * Copyright (C) 2013-2022 Oracle Corporation
+ * Copyright (C) 2013-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,7 @@
 #include "UICommon.h"
 #include "UIErrorString.h"
 #include "UIMediumEnumerator.h"
-#include "UINotificationCenter.h"
+#include "UIMessageCenter.h"
 #include "UITask.h"
 #include "UIThreadPool.h"
 #include "UIVirtualBoxEventHandler.h"
@@ -78,7 +78,7 @@ public:
 private:
 
     /** Contains medium-enumeration task body. */
-    virtual void run() RT_OVERRIDE
+    virtual void run() /* override */
     {
         /* Enumerate under a proper lock: */
         m_mutex.lock();
@@ -123,13 +123,6 @@ UIMediumEnumerator::UIMediumEnumerator()
     /* Prepare global thread-pool listener: */
     connect(uiCommon().threadPool(), &UIThreadPool::sigTaskComplete,
             this, &UIMediumEnumerator::sltHandleMediumEnumerationTaskComplete);
-
-    /* We should make sure media map contains at least NULL medium object: */
-    addNullMediumToMap(m_media);
-    /* Notify listener about initial enumeration started/finished instantly: */
-    LogRel(("GUI: UIMediumEnumerator: Initial medium-enumeration finished!\n"));
-    emit sigMediumEnumerationStarted();
-    emit sigMediumEnumerationFinished();
 }
 
 QList<QUuid> UIMediumEnumerator::mediumIDs() const
@@ -156,8 +149,7 @@ void UIMediumEnumerator::createMedium(const UIMedium &guiMedium)
     /* Do not create UIMedium(s) with incorrect ID: */
     AssertReturnVoid(!uMediumID.isNull());
     /* Make sure UIMedium doesn't exist already: */
-    if (m_media.contains(uMediumID))
-        return;
+    AssertReturnVoid(!m_media.contains(uMediumID));
 
     /* Insert UIMedium: */
     m_media[uMediumID] = guiMedium;
@@ -189,7 +181,7 @@ void UIMediumEnumerator::enumerateMedia(const CMediumVector &comMedia /* = CMedi
     }
 
     /* UICommon is cleaning up, abort immediately: */
-    if (uiCommon().isCleaningUp())
+    if (UICommon::isCleaningUp())
         return;
 
     if (comMedia.isEmpty())
@@ -495,7 +487,7 @@ void UIMediumEnumerator::addMediaToMap(const CMediumVector &inputMedia, UIMedium
     foreach (const CMedium &comMedium, inputMedia)
     {
         /* If UICommon is cleaning up, abort immediately: */
-        if (uiCommon().isCleaningUp())
+        if (UICommon::isCleaningUp())
             break;
 
         /* Insert UIMedium to the passed media map.

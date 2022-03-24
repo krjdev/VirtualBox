@@ -1,10 +1,10 @@
-/* $Id: UIGuestProcessControlWidget.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIGuestProcessControlWidget.h $ */
 /** @file
  * VBox Qt GUI - UIGuestProcessControlWidget class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,7 +42,7 @@ class UIGuestControlConsole;
 class UIGuestControlInterface;
 class UIGuestSessionsEventHandler;
 class UIGuestControlTreeWidget;
-class QIToolBar;
+class UIToolBar;
 
 /** QWidget extension
   * providing GUI with guest session information and control tab in session-information window. */
@@ -70,7 +70,6 @@ private slots:
     void sltTreeItemUpdated();
     void sltCloseSessionOrProcess();
     void sltShowProperties();
-    void sltCleanupListener();
 
 private:
 
@@ -80,13 +79,17 @@ private:
     void prepareListener();
     void initGuestSessionTree();
     void updateTreeWidget();
+    void cleanupListener();
     void addGuestSession(CGuestSession guestSession);
+    void saveSettings();
+    void loadSettings();
 
     CGuest                    m_comGuest;
     QVBoxLayout              *m_pMainLayout;
+    QSplitter                *m_pSplitter;
     UIGuestControlTreeWidget *m_pTreeWidget;
     const EmbedTo             m_enmEmbedding;
-    QIToolBar                *m_pToolBar;
+    UIToolBar                *m_pToolBar;
 
     /** Holds the Qt event listener instance. */
     ComObjPtr<UIMainEventListenerImpl> m_pQtListener;

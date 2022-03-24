@@ -1,10 +1,10 @@
-/* $Id: SUPDrvTracer.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPDrvTracer.cpp $ */
 /** @file
  * VBoxDrv - The VirtualBox Support Driver - Tracer Interface.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1097,7 +1097,6 @@ SUPR0DECL(int) SUPR0TracerRegisterDrv(PSUPDRVSESSION pSession, PVTGOBJHDR pVtgHd
 
     return rc;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerRegisterDrv);
 
 
 /**
@@ -1130,7 +1129,6 @@ SUPR0DECL(void) SUPR0TracerDeregisterDrv(PSUPDRVSESSION pSession)
      */
     supdrvTracerProcessZombies(pDevExt);
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerDeregisterDrv);
 
 
 /**
@@ -1177,7 +1175,6 @@ SUPR0DECL(int) SUPR0TracerRegisterModule(void *hMod, PVTGOBJHDR pVtgHdr)
 
     return rc;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerRegisterModule);
 
 
 /**
@@ -1277,7 +1274,6 @@ SUPR0DECL(int) SUPR0TracerRegisterImpl(void *hMod, PSUPDRVSESSION pSession, PCSU
     return rc;
 
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerRegisterImpl);
 
 
 /**
@@ -1463,7 +1459,6 @@ SUPR0DECL(int) SUPR0TracerDeregisterImpl(void *hMod, PSUPDRVSESSION pSession)
 
     return rc;
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerDeregisterImpl);
 
 
 /*
@@ -1510,7 +1505,6 @@ supdrvTracerProbeFireStub:                                              \n\
  )
 # endif
 #endif
-SUPR0_EXPORT_SYMBOL(SUPR0TracerFireProbe);
 
 
 /**
@@ -2235,7 +2229,6 @@ SUPR0DECL(void) SUPR0TracerUmodProbeFire(PSUPDRVSESSION pSession, PSUPDRVTRACERU
 
     supdrvTracerUmodProbeFire(pSession->pDevExt, pSession, pCtx);
 }
-SUPR0_EXPORT_SYMBOL(SUPR0TracerUmodProbeFire);
 
 
 void  VBOXCALL  supdrvIOCtl_TracerUmodProbeFire(PSUPDRVDEVEXT pDevExt, PSUPDRVSESSION pSession, PSUPDRVTRACERUSRCTX pCtx)
@@ -2475,9 +2468,7 @@ void VBOXCALL supdrvTracerTerm(PSUPDRVDEVEXT pDevExt)
     LOG_TRACER(("supdrvTracerTerm\n"));
 
     supdrvTracerRemoveAllProviders(pDevExt);
-#ifdef VBOX_WITH_NATIVE_DTRACE
-    supdrvDTraceFini();
-#endif
+
     RTSemFastMutexDestroy(pDevExt->mtxTracer);
     pDevExt->mtxTracer = NIL_RTSEMFASTMUTEX;
     LOG_TRACER(("supdrvTracerTerm: Done\n"));

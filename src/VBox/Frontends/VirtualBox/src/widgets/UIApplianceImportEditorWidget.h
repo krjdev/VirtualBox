@@ -1,10 +1,10 @@
-/* $Id: UIApplianceImportEditorWidget.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIApplianceImportEditorWidget.h $ */
 /** @file
  * VBox Qt GUI - UIApplianceImportEditorWidget class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,24 +24,59 @@
 /* GUI includes: */
 #include "UIApplianceEditorWidget.h"
 
-/* COM includes: */
-#include "CAppliance.h"
+/* Forward declarations: */
+class UIFilePathSelector;
+class QComboBox;
+class QGridLayout;
 
-/** UIApplianceEditorWidget subclass for Import Appliance wizard. */
+/** MAC address policies. */
+enum MACAddressImportPolicy
+{
+    MACAddressImportPolicy_KeepAllMACs,
+    MACAddressImportPolicy_KeepNATMACs,
+    MACAddressImportPolicy_StripAllMACs,
+    MACAddressImportPolicy_MAX
+};
+Q_DECLARE_METATYPE(MACAddressImportPolicy);
+
 class UIApplianceImportEditorWidget: public UIApplianceEditorWidget
 {
     Q_OBJECT;
 
 public:
+    UIApplianceImportEditorWidget(QWidget *pParent);
 
-    /** Constructs widget passing @a pParent to the base-class. */
-    UIApplianceImportEditorWidget(QWidget *pParent = 0);
-
-    /** Assigns @a comAppliance and populates widget contents. */
-    virtual void setAppliance(const CAppliance &comAppliance) /* override final */;
-
-    /** Prepares import by pushing edited data back to appliance. */
+    bool setFile(const QString &strFile);
     void prepareImport();
+    bool import();
+
+    QList<QPair<QString, QString> > licenseAgreements() const;
+
+protected:
+    /** Handles translation event. */
+    virtual void retranslateUi() /* override */;
+
+private slots:
+
+    void    sltHandlePathChanged(const QString &newPath);
+
+private:
+
+    void    prepareWidgets();
+    /** Populates MAC address policies. */
+    void    populateMACAddressImportPolicies();
+    void    setMACAddressImportPolicy(MACAddressImportPolicy enmMACAddressImportPolicy);
+    void    sltHandleMACAddressImportPolicyComboChange();
+    void    updateMACAddressImportPolicyComboToolTip();
+
+    QLabel             *m_pPathSelectorLabel;
+    UIFilePathSelector *m_pPathSelector;
+    /** Holds the checkbox that controls 'import HDs as VDI' behaviour. */
+    QCheckBox          *m_pImportHDsAsVDI;
+    QLabel             *m_pMACComboBoxLabel;
+    QComboBox          *m_pMACComboBox;
+    QGridLayout        *m_pOptionsLayout;
+    QLabel             *m_pAdditionalOptionsLabel;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_widgets_UIApplianceImportEditorWidget_h */

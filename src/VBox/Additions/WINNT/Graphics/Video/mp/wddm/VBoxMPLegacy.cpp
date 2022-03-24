@@ -1,11 +1,11 @@
-/* $Id: VBoxMPLegacy.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxMPLegacy.cpp $ */
 /** @file
  * VBox WDDM Miniport driver. The legacy VBoxVGA adapter support with 2D software unaccelerated
  * framebuffer operations.
  */
 
 /*
- * Copyright (C) 2011-2022 Oracle Corporation
+ * Copyright (C) 2011-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,7 +51,7 @@ typedef enum
 } VBOXVDMADDI_STATE;
 
 typedef struct VBOXVDMADDI_CMD *PVBOXVDMADDI_CMD;
-typedef DECLCALLBACKTYPE(VOID, FNVBOXVDMADDICMDCOMPLETE_DPC,(PVBOXMP_DEVEXT pDevExt, PVBOXVDMADDI_CMD pCmd, PVOID pvContext));
+typedef DECLCALLBACK(VOID) FNVBOXVDMADDICMDCOMPLETE_DPC(PVBOXMP_DEVEXT pDevExt, PVBOXVDMADDI_CMD pCmd, PVOID pvContext);
 typedef FNVBOXVDMADDICMDCOMPLETE_DPC *PFNVBOXVDMADDICMDCOMPLETE_DPC;
 
 typedef struct VBOXVDMADDI_CMD
@@ -1002,7 +1002,7 @@ DxgkDdiPresentLegacy(
     else if (pPresent->Flags.Flip)
     {
         Assert(pPresent->Flags.Value == 4); /* only Blt is set, we do not support anything else for now */
-        //Assert(pContext->enmType == VBOXWDDM_CONTEXT_TYPE_CUSTOM_3D);
+        Assert(pContext->enmType == VBOXWDDM_CONTEXT_TYPE_CUSTOM_3D);
         DXGK_ALLOCATIONLIST *pSrc =  &pPresent->pAllocationList[DXGK_PRESENT_SOURCE_INDEX];
         PVBOXWDDM_ALLOCATION pSrcAlloc = vboxWddmGetAllocationFromAllocList(pSrc);
 
@@ -1032,7 +1032,7 @@ DxgkDdiPresentLegacy(
     }
     else if (pPresent->Flags.ColorFill)
     {
-        //Assert(pContext->enmType == VBOXWDDM_CONTEXT_TYPE_CUSTOM_2D);
+        Assert(pContext->enmType == VBOXWDDM_CONTEXT_TYPE_CUSTOM_2D);
         Assert(pPresent->Flags.Value == 2); /* only ColorFill is set, we do not support anything else for now */
         DXGK_ALLOCATIONLIST *pDst =  &pPresent->pAllocationList[DXGK_PRESENT_DESTINATION_INDEX];
         PVBOXWDDM_ALLOCATION pDstAlloc = vboxWddmGetAllocationFromAllocList(pDst);

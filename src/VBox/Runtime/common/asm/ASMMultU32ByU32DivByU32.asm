@@ -1,10 +1,10 @@
-; $Id: ASMMultU32ByU32DivByU32.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: ASMMultU32ByU32DivByU32.asm $
 ;; @file
 ; IPRT - Assembly Functions, ASMMultU32ByU32DivByU32.
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -38,7 +38,7 @@
 ;
 ; @cproto  DECLASM(uint32_t) ASMMultU32ByU32DivByU32(uint32_t u32A, uint32_t u32B, uint32_t u32C);
 ;
-RT_BEGINPROC ASMMultU32ByU32DivByU32
+BEGINPROC_EXPORTED ASMMultU32ByU32DivByU32
 %ifdef RT_ARCH_AMD64
  %ifdef ASM_CALL64_MSC
         mov     eax, ecx

@@ -1,10 +1,10 @@
-/* $Id: bs3-cpu-basic-2-pf.c32 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: bs3-cpu-basic-2-pf.c32 $ */
 /** @file
- * BS3Kit - bs3-cpu-basic-2, 32-bit C code for testing \#PF.
+ * BS3Kit - bs3-cpu-basic-2, 32-bit C code.
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1804,7 +1804,7 @@ BS3_DECL_CALLBACK(uint8_t)  bs3CpuBasic2_RaiseXcpt0e_c32(uint8_t bMode)
         rc = Bs3PagingQueryAddressInfo(State.uTestAddr.u, &State.PgInfo);
         if (RT_SUCCESS(rc))
         {
-//if (bMode & BS3_MODE_CODE_64) ASMHalt();
+if (bMode & BS3_MODE_CODE_64) ASMHalt();
             /* Set values that derives from the test memory size and paging info. */
             if (State.PgInfo.cEntries == 2)
             {

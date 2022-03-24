@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsSFDetails.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachineSettingsSFDetails.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsSFDetails class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,18 +22,14 @@
 #endif
 
 /* Includes */
+#include "UIMachineSettingsSFDetails.gen.h"
 #include "QIDialog.h"
 #include "QIWithRetranslateUI.h"
 #include "UIMachineSettingsSF.h"
 
-class UIFilePathSelector;
-class QCheckBox;
-class QLabel;
-class QLineEdit;
-class QIDialogButtonBox;
-
 /* Shared folders details dialog: */
-class SHARED_LIBRARY_STUFF UIMachineSettingsSFDetails : public QIWithRetranslateUI2<QIDialog>
+class SHARED_LIBRARY_STUFF UIMachineSettingsSFDetails : public QIWithRetranslateUI2<QIDialog>,
+                                                        public Ui::UIMachineSettingsSFDetails
 {
     Q_OBJECT;
 
@@ -46,7 +42,7 @@ public:
     };
 
     UIMachineSettingsSFDetails(SFDialogType type,
-                               bool fUsePermanent,
+                               bool fEnableSelector, /* for "permanent" checkbox */
                                const QStringList &usedNames,
                                QWidget *pParent = 0);
 
@@ -79,41 +75,9 @@ private slots:
 
 private:
 
-    /** Prepares all. */
-    void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
-    /** Prepares connections. */
-    void prepareConnections();
-
     SFDialogType  m_type;
     bool          m_fUsePermanent;
     QStringList   m_usedNames;
-    UISettingsCacheSharedFolders *m_pCache;
-
-    /** @name Widgets
-      * @{ */
-        /** Holds the path label instance. */
-        QLabel             *m_pLabelPath;
-        /** Holds the path selector instance. */
-        UIFilePathSelector *m_pSelectorPath;
-        /** Holds the name label instance. */
-        QLabel             *m_pLabelName;
-        /** Holds the name editor instance. */
-        QLineEdit          *m_pEditorName;
-        /** Holds the auto-mount point label instance. */
-        QLabel             *m_pLabelAutoMountPoint;
-        /** Holds the auto-mount point editor instance. */
-        QLineEdit          *m_pEditorAutoMountPoint;
-        /** Holds the read-only check-box instance. */
-        QCheckBox          *m_pCheckBoxReadonly;
-        /** Holds the auto-mount check-box instance. */
-        QCheckBox          *m_pCheckBoxAutoMount;
-        /** Holds the permanent check-box instance. */
-        QCheckBox          *m_pCheckBoxPermanent;
-        /** Holds the button-box instance. */
-        QIDialogButtonBox  *m_pButtonBox;
-    /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsSFDetails_h */

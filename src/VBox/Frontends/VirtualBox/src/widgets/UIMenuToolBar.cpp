@@ -1,10 +1,10 @@
-/* $Id: UIMenuToolBar.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMenuToolBar.cpp $ */
 /** @file
  * VBox Qt GUI - UIMenuToolBar class implementation.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,15 +26,15 @@
 
 /* GUI includes: */
 #include "UIMenuToolBar.h"
-#include "QIToolBar.h"
+#include "UIToolBar.h"
 
 /* Other VBox includes: */
 #include "iprt/assert.h"
 
 
-/** QIToolBar extension
+/** UIToolBar extension
   * holding single drop-down menu of actions. */
-class UIMenuToolBarPrivate : public QIToolBar
+class UIMenuToolBarPrivate : public UIToolBar
 {
     Q_OBJECT;
 
@@ -55,16 +55,16 @@ public:
 protected:
 
     /** Handles show @a pEvent. */
-    virtual void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
+    virtual void showEvent(QShowEvent *pEvent) /* override */;
 
     /** Handles polish @a pEvent. */
     virtual void polishEvent(QShowEvent *pEvent);
 
     /** Handles resize @a pEvent. */
-    virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
 
     /** Handles paint @a pEvent. */
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 
@@ -89,7 +89,7 @@ private:
 *********************************************************************************************************************************/
 
 UIMenuToolBarPrivate::UIMenuToolBarPrivate(QWidget *pParent /* = 0 */)
-    : QIToolBar(pParent)
+    : UIToolBar(pParent)
     , m_fPolished(false)
     , m_pMarginLeft(0)
     , m_pMarginRight(0)
@@ -208,7 +208,7 @@ void UIMenuToolBarPrivate::setMenuAction(QAction *pAction)
 void UIMenuToolBarPrivate::showEvent(QShowEvent *pEvent)
 {
     /* Call to base-class: */
-    QIToolBar::showEvent(pEvent);
+    UIToolBar::showEvent(pEvent);
 
     /* Make sure we should polish dialog: */
     if (m_fPolished)
@@ -230,7 +230,7 @@ void UIMenuToolBarPrivate::polishEvent(QShowEvent * /* pEvent */)
 void UIMenuToolBarPrivate::resizeEvent(QResizeEvent *pEvent)
 {
     /* Call to base-class: */
-    QIToolBar::resizeEvent(pEvent);
+    UIToolBar::resizeEvent(pEvent);
 
     /* Rebuild shape: */
     rebuildShape();
@@ -248,7 +248,7 @@ void UIMenuToolBarPrivate::paintEvent(QPaintEvent * /* pEvent */)
         painter.setClipPath(m_shape);
     }
     QRect backgroundRect = rect();
-    QColor backgroundColor = QApplication::palette().color(QPalette::Window);
+    QColor backgroundColor = palette().color(QPalette::Window);
     QLinearGradient headerGradient(backgroundRect.bottomLeft(), backgroundRect.topLeft());
     headerGradient.setColorAt(0, backgroundColor.darker(120));
     headerGradient.setColorAt(1, backgroundColor.darker(104));
@@ -257,7 +257,7 @@ void UIMenuToolBarPrivate::paintEvent(QPaintEvent * /* pEvent */)
 
 
 /*********************************************************************************************************************************
-*   Class UIMenuToolBar implementation.                                                                                          *
+*   Class UIToolBarMenu implementation.                                                                                          *
 *********************************************************************************************************************************/
 
 UIMenuToolBar::UIMenuToolBar(QWidget *pParent /* = 0 */)

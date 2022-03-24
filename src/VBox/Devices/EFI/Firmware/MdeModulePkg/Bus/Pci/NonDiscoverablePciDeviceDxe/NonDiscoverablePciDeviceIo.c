@@ -93,31 +93,6 @@ PciIoPollMem (
   OUT UINT64                      *Result
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *Desc;
-  UINTN                               Count;
-  EFI_STATUS                          Status;
-
-  if ((UINT32)Width > EfiPciIoWidthUint64) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if (Result == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-  Count = 1;
-
-  Status = GetBarResource (Dev, BarIndex, &Desc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (Offset + (Count << (Width & 0x3)) > Desc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -151,31 +126,6 @@ PciIoPollIo (
   OUT UINT64                      *Result
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *Desc;
-  UINTN                               Count;
-  EFI_STATUS                          Status;
-
-  if ((UINT32)Width > EfiPciIoWidthUint64) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if (Result == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-  Count = 1;
-
-  Status = GetBarResource (Dev, BarIndex, &Desc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (Offset + (Count << (Width & 0x3)) > Desc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -446,29 +396,6 @@ PciIoIoRead (
   IN OUT VOID                         *Buffer
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *Desc;
-  EFI_STATUS                          Status;
-
-  if ((UINT32)Width >= EfiPciIoWidthMaximum) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if (Buffer == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-
-  Status = GetBarResource (Dev, BarIndex, &Desc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (Offset + (Count << (Width & 0x3)) > Desc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -498,29 +425,6 @@ PciIoIoWrite (
   IN OUT VOID                         *Buffer
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *Desc;
-  EFI_STATUS                          Status;
-
-  if ((UINT32)Width >= EfiPciIoWidthMaximum) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if (Buffer == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-
-  Status = GetBarResource (Dev, BarIndex, &Desc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (Offset + (Count << (Width & 0x3)) > Desc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -652,35 +556,6 @@ PciIoCopyMem (
   IN     UINTN                        Count
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *DestDesc;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *SrcDesc;
-  EFI_STATUS                          Status;
-
-  if ((UINT32)Width > EfiPciIoWidthUint64) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-
-  Status = GetBarResource (Dev, DestBarIndex, &DestDesc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (DestOffset + (Count << (Width & 0x3)) > DestDesc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
-  Status = GetBarResource (Dev, SrcBarIndex, &SrcDesc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (SrcOffset + (Count << (Width & 0x3)) > SrcDesc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -854,10 +729,6 @@ CoherentPciIoAllocateBuffer (
   if ((Attributes & ~(EFI_PCI_ATTRIBUTE_MEMORY_WRITE_COMBINE |
                       EFI_PCI_ATTRIBUTE_MEMORY_CACHED)) != 0) {
     return EFI_UNSUPPORTED;
-  }
-
-  if (HostAddress == NULL) {
-    return EFI_INVALID_PARAMETER;
   }
 
   if ((MemoryType != EfiBootServicesData) &&
@@ -1394,6 +1265,9 @@ PciIoAttributes (
   NON_DISCOVERABLE_PCI_DEVICE   *Dev;
   BOOLEAN                       Enable;
 
+  #define DEV_SUPPORTED_ATTRIBUTES \
+    (EFI_PCI_DEVICE_ENABLE | EFI_PCI_IO_ATTRIBUTE_DUAL_ADDRESS_CYCLE)
+
   Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
 
   if ((Attributes & (~(DEV_SUPPORTED_ATTRIBUTES))) != 0) {
@@ -1540,33 +1414,6 @@ PciIoSetBarAttributes (
   IN OUT UINT64                       *Length
   )
 {
-  NON_DISCOVERABLE_PCI_DEVICE         *Dev;
-  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR   *Desc;
-  EFI_PCI_IO_PROTOCOL_WIDTH           Width;
-  UINTN                               Count;
-  EFI_STATUS                          Status;
-
-  if ((Attributes & (~DEV_SUPPORTED_ATTRIBUTES)) != 0) {
-    return EFI_UNSUPPORTED;
-  }
-
-  if (Offset == NULL || Length == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Dev = NON_DISCOVERABLE_PCI_DEVICE_FROM_PCI_IO(This);
-  Width = EfiPciIoWidthUint8;
-  Count = (UINT32) *Length;
-
-  Status = GetBarResource(Dev, BarIndex, &Desc);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (*Offset + (Count << (Width & 0x3)) > Desc->AddrLen) {
-    return EFI_UNSUPPORTED;
-  }
-
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
@@ -1683,8 +1530,8 @@ InitializePciIoProtocol (
     ASSERT (Desc->Desc == ACPI_ADDRESS_SPACE_DESCRIPTOR);
     ASSERT (Desc->ResType == ACPI_ADDRESS_SPACE_TYPE_MEM);
 
-    if (Idx >= PCI_MAX_BAR ||
-        (Idx == PCI_MAX_BAR - 1 && Desc->AddrSpaceGranularity == 64)) {
+    if (Idx >= PCI_MAX_BARS ||
+        (Idx == PCI_MAX_BARS - 1 && Desc->AddrSpaceGranularity == 64)) {
       DEBUG ((DEBUG_ERROR,
         "%a: resource count exceeds number of emulated BARs\n",
         __FUNCTION__));

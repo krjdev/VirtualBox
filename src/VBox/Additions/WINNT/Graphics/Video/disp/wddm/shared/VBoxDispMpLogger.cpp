@@ -1,10 +1,10 @@
-/* $Id: VBoxDispMpLogger.cpp 93299 2022-01-18 11:23:59Z vboxsync $ */
+/* $Id: VBoxDispMpLogger.cpp $ */
 /** @file
  * VBox WDDM Display backdoor logger implementation
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,7 +51,7 @@ typedef struct VBOXDISPMPLOGGER
     VBOXDISPMPLOGGER_STATE enmState;
 } VBOXDISPMPLOGGER, *PVBOXDISPMPLOGGER;
 
-static VBOXDISPMPLOGGER g_VBoxDispMpLogger = { {0}, VBOXDISPMPLOGGER_STATE_UNINITIALIZED };
+static VBOXDISPMPLOGGER g_VBoxDispMpLogger = {0};
 
 static PVBOXDISPMPLOGGER vboxDispMpLoggerGet()
 {
@@ -246,7 +246,7 @@ DECLCALLBACK(void) VBoxWddmUmLog(const char *pszString)
     const int cbBuffer = sizeof(szBuffer);
     char *pszBuffer = &szBuffer[0];
 
-    int cbWritten = _snprintf(pszBuffer, cbBuffer, "['%s' 0x%lx.0x%lx]: ",
+    int cbWritten = _snprintf(pszBuffer, cbBuffer, "['%s' 0x%x.0x%x]: ",
                               vboxUmLogGetModuleName(), GetCurrentProcessId(), GetCurrentThreadId());
     if (cbWritten < 0 || cbWritten >= cbBuffer)
     {

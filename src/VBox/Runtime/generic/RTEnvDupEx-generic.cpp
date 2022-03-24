@@ -1,10 +1,10 @@
-/* $Id: RTEnvDupEx-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTEnvDupEx-generic.cpp $ */
 /** @file
  * IPRT - Environment, RTEnvDupEx, generic.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -34,6 +34,7 @@
 #include <iprt/assert.h>
 #include <iprt/errcore.h>
 #include <iprt/string.h>
+#include <iprt/mem.h>
 
 
 
@@ -51,27 +52,31 @@ RTDECL(char *) RTEnvDupEx(RTENV Env, const char *pszVar)
         return NULL;
 
     /*
-     * It's a big bugger.
+     * It's a bug bugger.
      */
-    size_t cbBuf = _1K;
-    do
+    size_t  cbBuf  = _1K;
+    char   *pszBuf = (char *)RTMemAlloc(cbBuf);
+    for (;;)
     {
-        char *pszBuf = RTStrAlloc(cbBuf);
-        AssertBreak(pszBuf);
-
         rc = RTEnvGetEx(Env, pszVar, pszBuf, cbBuf, NULL);
         if (RT_SUCCESS(rc))
-            return pszBuf;
+            return pszBuf; /* ASSUMES RTMemAlloc can be freed by RTStrFree! */
 
-        RTStrFree(pszBuf);
-
-        /* If overflow double the buffer. */
         if (rc != VERR_BUFFER_OVERFLOW)
             break;
-        cbBuf *= 2;
-    } while (cbBuf < _64M);
 
+        if (cbBuf >= 64 * _1M)
+            break;
+        cbBuf *= 2;
+
+        char *pszNew = (char *)RTMemRealloc(pszBuf, cbBuf);
+        if (!pszNew)
+            break;
+        pszBuf = pszNew;
+    }
+
+    RTMemFree(pszBuf);
     return NULL;
 }
-RT_EXPORT_SYMBOL(RTEnvDupEx);
+RT_EXPORT_SYMBOL(RTEnvGetExecEnvP);
 

@@ -19,7 +19,7 @@
 ]>
 <refentry id="vboxmanage-closemedium" lang="en">
   <refentryinfo>
-    <pubdate>$Date: 2022-03-11 16:26:05 +0100 (Fr, 11. Mär 2022) $</pubdate>
+    <pubdate>August 2019</pubdate>
     <title>VBoxManage closemedium</title>
   </refentryinfo>
 
@@ -31,7 +31,7 @@
   <refnamediv>
     <refname>VBoxManage-closemedium</refname>
     <refpurpose>remove a hard disk, DVD, or floppy image from the media registry</refpurpose>
-    <refclass>&product-name;</refclass>
+    <refclass>Oracle VM VirtualBox</refclass>
   </refnamediv>
 
   <refsynopsisdiv>

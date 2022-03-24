@@ -1,10 +1,10 @@
-/* $Id: DhcpOptions.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DhcpOptions.cpp $ */
 /** @file
  * DHCP server - DHCP options
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -201,7 +201,7 @@ template <typename a_Type>
         char szTmp[256];
         if (pszNext)
         {
-            size_t cchToCopy = (size_t)(pszNext - pcszValue);
+            size_t cchToCopy = pszNext - pcszValue;
             if (cchToCopy >= sizeof(szTmp))
                 return VERR_INVALID_PARAMETER;
             memcpy(szTmp, pcszValue, cchToCopy);

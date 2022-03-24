@@ -1,10 +1,10 @@
-/* $Id: UIGuestControlTreeItem.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIGuestControlTreeItem.h $ */
 /** @file
  * VBox Qt GUI - UIGuestControlTreeItem class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -90,7 +90,7 @@ public:
     const CGuestSession& guestSession() const;
     void errorString(QString strError);
     KGuestSessionStatus status() const;
-    virtual QString propertyString() const RT_OVERRIDE;
+    virtual QString propertyString() const /* override */;
 
 protected:
 
@@ -106,10 +106,10 @@ private slots:
 
 private:
 
-    virtual void prepareListener() RT_OVERRIDE;
-    virtual void prepareConnections() RT_OVERRIDE;
-    virtual void cleanupListener()  RT_OVERRIDE;
-    virtual void setColumnText()  RT_OVERRIDE;
+    virtual void prepareListener() /* override */;
+    virtual void prepareConnections() /* override */;
+    virtual void cleanupListener()  /* override */;
+    virtual void setColumnText()  /* override */;
     void addGuestProcess(CGuestProcess guestProcess);
     void initProcessSubTree();
     CGuestSession m_comGuestSession;
@@ -132,7 +132,7 @@ public:
     const CGuestProcess& guestProcess() const;
     virtual ~UIGuestProcessTreeItem();
     KProcessStatus status() const;
-    virtual QString propertyString() const RT_OVERRIDE;
+    virtual QString propertyString() const /* override */;
 
 protected:
 
@@ -145,10 +145,10 @@ private slots:
 
 private:
 
-    virtual void prepareListener() RT_OVERRIDE;
-    virtual void prepareConnections() RT_OVERRIDE;
-    virtual void cleanupListener()  RT_OVERRIDE;
-    virtual void setColumnText()  RT_OVERRIDE;
+    virtual void prepareListener() /* override */;
+    virtual void prepareConnections() /* override */;
+    virtual void cleanupListener()  /* override */;
+    virtual void setColumnText()  /* override */;
 
     CGuestProcess m_comGuestProcess;
 };

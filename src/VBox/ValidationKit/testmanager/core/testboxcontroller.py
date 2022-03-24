@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: testboxcontroller.py 94129 2022-03-08 14:57:25Z vboxsync $
+# $Id: testboxcontroller.py $
 
 """
 Test Manager Core - Web Server Abstraction Base Class.
@@ -7,7 +7,7 @@ Test Manager Core - Web Server Abstraction Base Class.
 
 __copyright__ = \
 """
-Copyright (C) 2012-2022 Oracle Corporation
+Copyright (C) 2012-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94129 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard python imports.
@@ -326,21 +326,23 @@ class TestBoxController(object): # pylint: disable=too-few-public-methods
         sFile = os.path.join(config.g_ksFileAreaRootDir, oTestSet.sBaseFilename + '-main.log');
         if not os.path.exists(os.path.dirname(sFile)):
             os.makedirs(os.path.dirname(sFile), 0o755);
+        oFile = open(sFile, 'ab');
 
-        with open(sFile, 'ab') as oFile:
-            # Check the size.
-            fSizeOk = True;
-            if not fIgnoreSizeCheck:
-                oStat = os.fstat(oFile.fileno());
-                fSizeOk = oStat.st_size / (1024 * 1024) < config.g_kcMbMaxMainLog;
+        # Check the size.
+        fSizeOk = True;
+        if not fIgnoreSizeCheck:
+            oStat = os.fstat(oFile.fileno());
+            fSizeOk = oStat.st_size / (1024 * 1024) < config.g_kcMbMaxMainLog;
 
-            # Write the text.
-            if fSizeOk:
-                if sys.version_info[0] >= 3:
-                    oFile.write(bytes(sText, 'utf-8'));
-                else:
-                    oFile.write(sText);
+        # Write the text.
+        if fSizeOk:
+            if sys.version_info[0] >= 3:
+                oFile.write(bytes(sText, 'utf-8'));
+            else:
+                oFile.write(sText);
 
+        # Done
+        oFile.close();
         return fSizeOk;
 
     def _actionSignOn(self):        # pylint: disable=too-many-locals
@@ -727,7 +729,7 @@ class TestBoxController(object): # pylint: disable=too-few-public-methods
                                                 cbFile = cbFile, fCommit = True);
 
         offFile  = 0;
-        oSrcFile = self._oSrvGlue.getBodyIoStreamBinary();
+        oSrcFile = self._oSrvGlue.getBodyIoStream();
         while offFile < cbFile:
             cbToRead = cbFile - offFile;
             if cbToRead > 256*1024:

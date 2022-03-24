@@ -1,10 +1,10 @@
-/* $Id: NATEngineImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: NATEngineImpl.cpp $ */
 /** @file
  * Implementation of INATEngine in VBoxSVC.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -187,7 +187,7 @@ void NATEngine::i_applyDefaults()
 
     AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-    mData->m->fLocalhostReachable = false; /* Applies to new VMs only, see @bugref{9896} */
+    /* so far nothing to do */
 }
 
 bool NATEngine::i_hasDefaults()
@@ -198,7 +198,7 @@ bool NATEngine::i_hasDefaults()
 
     AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
 
-    return mData->m->areDefaultSettings(mParent->i_getSettingsVersion());
+    return mData->m->areDefaultSettings();
 }
 
 HRESULT NATEngine::getNetworkSettings(ULONG *aMtu, ULONG *aSockSnd, ULONG *aSockRcv, ULONG *aTcpWndSnd, ULONG *aTcpWndRcv)
@@ -325,7 +325,8 @@ HRESULT NATEngine::addRedirect(const com::Utf8Str &aName, NATProtocol_T aProto, 
     mAdapter->COMGETTER(Slot)(&ulSlot);
 
     alock.release();
-    mParent->i_onNATRedirectRuleChanged(ulSlot, FALSE, name, aProto, r.strHostIP, r.u16HostPort, r.strGuestIP, r.u16GuestPort);
+    mParent->i_onNATRedirectRuleChange(ulSlot, FALSE, Bstr(name).raw(), aProto, Bstr(r.strHostIP).raw(),
+                                       r.u16HostPort, Bstr(r.strGuestIP).raw(), r.u16GuestPort);
     return S_OK;
 }
 
@@ -348,7 +349,8 @@ HRESULT NATEngine::removeRedirect(const com::Utf8Str &aName)
     mData->m->mapRules.erase(aName); /* NB: erase by key, "it" may not be valid */
     mParent->i_setModified(Machine::IsModified_NetworkAdapters);
     alock.release();
-    mParent->i_onNATRedirectRuleChanged(ulSlot, TRUE, aName, r.proto, r.strHostIP, r.u16HostPort, r.strGuestIP, r.u16GuestPort);
+    mParent->i_onNATRedirectRuleChange(ulSlot, TRUE, Bstr(aName).raw(), r.proto, Bstr(r.strHostIP).raw(),
+                                       r.u16HostPort, Bstr(r.strGuestIP).raw(), r.u16GuestPort);
     return S_OK;
 }
 
@@ -430,26 +432,6 @@ HRESULT NATEngine::getHostIP(com::Utf8Str &aBindIP)
 
     if (!mData->m->strBindIP.isEmpty())
         aBindIP = mData->m->strBindIP;
-    return S_OK;
-}
-
-HRESULT NATEngine::setLocalhostReachable(BOOL fLocalhostReachable)
-{
-    AutoWriteLock alock(this COMMA_LOCKVAL_SRC_POS);
-
-    if (mData->m->fLocalhostReachable != RT_BOOL(fLocalhostReachable))
-    {
-        mData->m.backup();
-        mData->m->fLocalhostReachable = RT_BOOL(fLocalhostReachable);
-        mParent->i_setModified(Machine::IsModified_NetworkAdapters);
-    }
-    return S_OK;
-}
-
-HRESULT NATEngine::getLocalhostReachable(BOOL *pfLocalhostReachable)
-{
-    AutoReadLock alock(this COMMA_LOCKVAL_SRC_POS);
-    *pfLocalhostReachable = mData->m->fLocalhostReachable;
     return S_OK;
 }
 

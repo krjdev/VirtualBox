@@ -1,10 +1,10 @@
-/* $Id: UIMachineWindowNormal.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineWindowNormal.h $ */
 /** @file
  * VBox Qt GUI - UIMachineWindowNormal class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -97,19 +97,15 @@ private:
 #endif /* !VBOX_WS_MAC */
     /** Prepare status-bar routine. */
     void prepareStatusBar();
-    /** Prepare notification-center routine. */
-    void prepareNotificationCenter();
     /** Prepare visual-state routine. */
     void prepareVisualState();
     /** Load settings routine. */
     void loadSettings();
 
+    /** Save settings routine. */
+    void saveSettings();
     /** Cleanup visual-state routine. */
     void cleanupVisualState();
-    /** Cleanup notification-center routine. */
-    void cleanupNotificationCenter();
-    /** Cleanup status-bar routine. */
-    void cleanupStatusBar();
     /** Cleanup session connections routine. */
     void cleanupSessionConnections();
 
@@ -117,12 +113,11 @@ private:
     void showInNecessaryMode();
 
     /** Restores cached window geometry. */
-    virtual void restoreCachedGeometry() RT_OVERRIDE;
+    virtual void restoreCachedGeometry() /* override */;
 
     /** Performs window geometry normalization according to guest-size and host's available geometry.
-      * @param  fAdjustPosition        Determines whether is it necessary to adjust position as well.
-      * @param  fResizeToGuestDisplay  Determines whether is it necessary to resize the window to fit to guest display size. */
-    virtual void normalizeGeometry(bool fAdjustPosition, bool fResizeToGuestDisplay) RT_OVERRIDE;
+      * @param  fAdjustPosition  Determines whether is it necessary to adjust position as well. */
+    virtual void normalizeGeometry(bool fAdjustPosition) /* override */;
 
     /** Common update routine. */
     void updateAppearanceOf(int aElement);
@@ -142,12 +137,11 @@ private:
     UIIndicatorsPool *m_pIndicatorsPool;
 
     /** Holds the current window geometry. */
-    QRect  m_geometry;
-    /** Holds the geometry save timer ID. */
-    int  m_iGeometrySaveTimerId;
+    QRect m_normalGeometry;
 
     /** Factory support. */
     friend class UIMachineWindow;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_runtime_normal_UIMachineWindowNormal_h */
+

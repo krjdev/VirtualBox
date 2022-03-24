@@ -43,14 +43,14 @@ IsVolatileEnv (
   );
 
 /**
-  Delete a Non-Volatile environment variable.
+  Delete a Non-Violatile environment variable.
 
-  This will use the Runtime Services call SetVariable to remove a non-volatile variable.
+  This will use the Runtime Services call SetVariable to remove a non-violatile variable.
 
   @param EnvVarName             The name of the environment variable in question
 
-  @retval EFI_SUCCESS           The variable was deleted successfully
-  @retval other                 An error occurred
+  @retval EFI_SUCCESS           The variable was deleted sucessfully
+  @retval other                 An error ocurred
   @sa SetVariable
 **/
 #define SHELL_DELETE_ENVIRONMENT_VARIABLE(EnvVarName) \
@@ -61,16 +61,16 @@ IsVolatileEnv (
   NULL))
 
 /**
-  Set a Non-Volatile environment variable.
+  Set a Non-Violatile environment variable.
 
-  This will use the Runtime Services call SetVariable to set a non-volatile variable.
+  This will use the Runtime Services call SetVariable to set a non-violatile variable.
 
   @param EnvVarName             The name of the environment variable in question
   @param BufferSize             UINTN size of Buffer
   @param Buffer                 Pointer to value to set variable to
 
-  @retval EFI_SUCCESS           The variable was changed successfully
-  @retval other                 An error occurred
+  @retval EFI_SUCCESS           The variable was changed sucessfully
+  @retval other                 An error ocurred
   @sa SetVariable
 **/
 #define SHELL_SET_ENVIRONMENT_VARIABLE_NV(EnvVarName,BufferSize,Buffer)  \
@@ -89,8 +89,8 @@ IsVolatileEnv (
   @param BufferSize             Pointer to the UINTN size of Buffer
   @param Buffer                 Pointer buffer to get variable value into
 
-  @retval EFI_SUCCESS           The variable's value was retrieved successfully
-  @retval other                 An error occurred
+  @retval EFI_SUCCESS           The variable's value was retrieved sucessfully
+  @retval other                 An error ocurred
   @sa SetVariable
 **/
 #define SHELL_GET_ENVIRONMENT_VARIABLE(EnvVarName,BufferSize,Buffer)    \
@@ -110,8 +110,8 @@ IsVolatileEnv (
   @param BufferSize             Pointer to the UINTN size of Buffer
   @param Buffer                 Pointer buffer to get variable value into
 
-  @retval EFI_SUCCESS           The variable's value was retrieved successfully
-  @retval other                 An error occurred
+  @retval EFI_SUCCESS           The variable's value was retrieved sucessfully
+  @retval other                 An error ocurred
   @sa SetVariable
 **/
 #define SHELL_GET_ENVIRONMENT_VARIABLE_AND_ATTRIBUTES(EnvVarName,Atts,BufferSize,Buffer)    \
@@ -122,16 +122,16 @@ IsVolatileEnv (
   Buffer))
 
 /**
-  Set a Volatile environment variable.
+  Set a Violatile environment variable.
 
-  This will use the Runtime Services call SetVariable to set a volatile variable.
+  This will use the Runtime Services call SetVariable to set a violatile variable.
 
   @param EnvVarName             The name of the environment variable in question
   @param BufferSize             UINTN size of Buffer
   @param Buffer                 Pointer to value to set variable to
 
-  @retval EFI_SUCCESS           The variable was changed successfully
-  @retval other                 An error occurred
+  @retval EFI_SUCCESS           The variable was changed sucessfully
+  @retval other                 An error ocurred
   @sa SetVariable
 **/
 #define SHELL_SET_ENVIRONMENT_VARIABLE_V(EnvVarName,BufferSize,Buffer) \
@@ -147,7 +147,7 @@ IsVolatileEnv (
   @param[in, out] List           The pointer to pointer to LIST_ENTRY object for
                                  storing this list.
 
-  @retval EFI_SUCCESS           the list was created successfully.
+  @retval EFI_SUCCESS           the list was created sucessfully.
 **/
 EFI_STATUS
 GetEnvironmentVariableList(
@@ -164,7 +164,7 @@ GetEnvironmentVariableList(
   @param[in] List               The pointer to LIST_ENTRY from
                                 GetShellEnvVarList().
 
-  @retval EFI_SUCCESS           The list was Set successfully.
+  @retval EFI_SUCCESS           The list was Set sucessfully.
 **/
 EFI_STATUS
 SetEnvironmentVariableList(

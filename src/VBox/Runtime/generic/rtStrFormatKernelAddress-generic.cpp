@@ -1,10 +1,10 @@
-/* $Id: rtStrFormatKernelAddress-generic.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: rtStrFormatKernelAddress-generic.cpp $ */
 /** @file
  * IPRT - IPRT String Formatter, ring-0 addresses.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -67,7 +67,7 @@ DECLHIDDEN(size_t) rtStrFormatKernelAddress(char *pszBuf, size_t cbBuf, RTR0INTP
     return cbBuf - 1;
 
 #else  /* DEBUG */
-    Assert(cbBuf >= 64); RT_NOREF(cbBuf);
+    Assert(cbBuf >= 64);
     return RTStrFormatNumber(pszBuf, uPtr, 16, cchWidth, cchPrecision, fFlags);
 #endif /* DEBUG */
 }

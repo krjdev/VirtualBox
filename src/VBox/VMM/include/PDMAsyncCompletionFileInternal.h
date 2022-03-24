@@ -1,10 +1,10 @@
-/* $Id: PDMAsyncCompletionFileInternal.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: PDMAsyncCompletionFileInternal.h $ */
 /** @file
  * PDM Async I/O - Transport data asynchronous in R3 using EMT.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -276,7 +276,7 @@ typedef struct PDMASYNCCOMPLETIONEPCLASSFILE
     bool                                fOutOfResourcesWarningPrinted;
 #ifdef PDM_ASYNC_COMPLETION_FILE_WITH_DELAY
     /** Timer for delayed request completion. */
-    TMTIMERHANDLE                       hTimer;
+    PTMTIMERR3                          pTimer;
     /** Milliseconds until the next delay expires. */
     volatile uint64_t                   cMilliesNext;
 #endif
@@ -452,7 +452,7 @@ AssertCompileMemberAlignment(PDMASYNCCOMPLETIONENDPOINTFILE, StatRead, sizeof(ui
 #endif
 
 /** Request completion function */
-typedef DECLCALLBACKTYPE(void, FNPDMACTASKCOMPLETED,(PPDMACTASKFILE pTask, void *pvUser, int rc));
+typedef DECLCALLBACK(void)   FNPDMACTASKCOMPLETED(PPDMACTASKFILE pTask, void *pvUser, int rc);
 /** Pointer to a request completion function. */
 typedef FNPDMACTASKCOMPLETED *PFNPDMACTASKCOMPLETED;
 

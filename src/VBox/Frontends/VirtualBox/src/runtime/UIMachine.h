@@ -1,10 +1,10 @@
-/* $Id: UIMachine.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIMachine.h $ */
 /** @file
  * VBox Qt GUI - UIMachine class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -72,14 +72,7 @@ public:
     /** Requests async visual-state change. */
     void asyncChangeVisualState(UIVisualStateType visualStateType);
 
-    /** Requests visual-state to be entered when possible. */
-    void setRequestedVisualState(UIVisualStateType visualStateType);
-    /** Returns requested visual-state to be entered when possible. */
-    UIVisualStateType requestedVisualState() const;
-
-public slots:
-
-    /** Closes Runtime UI. */
+    /** Close Runtime UI. */
     void closeRuntimeUI();
 
 private slots:
@@ -123,8 +116,6 @@ private:
     UIVisualStateType m_initialVisualState;
     /** Holds current visual state. */
     UIVisualStateType m_visualState;
-    /** Holds visual state which should be entered when possible. */
-    UIVisualStateType m_enmRequestedVisualState;
     /** Holds current machine-logic. */
     UIMachineLogic *m_pMachineLogic;
 };

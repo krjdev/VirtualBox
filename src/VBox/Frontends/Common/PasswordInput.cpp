@@ -1,10 +1,10 @@
-/* $Id: PasswordInput.cpp 93648 2022-02-08 09:09:44Z vboxsync $ */
+/* $Id: PasswordInput.cpp $ */
 /** @file
  * Frontend shared bits - Password file and console input helpers.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,7 +22,6 @@
 #include "PasswordInput.h"
 
 #include <iprt/ctype.h>
-#include <iprt/errcore.h>
 #include <iprt/message.h>
 #include <iprt/stream.h>
 
@@ -129,27 +128,7 @@ RTEXITCODE readPasswordFromConsole(com::Utf8Str *pPassword, const char *pszPromp
             {
                 vrc = RTStrmGetLine(g_pStdIn, &aszPwdInput[0], sizeof(aszPwdInput));
                 if (RT_SUCCESS(vrc))
-                {
-#ifdef RT_OS_WINDOWS
-                    /*
-                     * Returned string encoded in console code page (e.g. Win-125X or CP-XXX).
-                     * Convert it to Utf-8
-                     */
-                    char *pszPassword = NULL;
-                    vrc = RTStrConsoleCPToUtf8(&pszPassword, aszPwdInput);
-                    if (RT_SUCCESS(vrc) && pszPassword)
-                    {
-                        *pPassword = pszPassword;
-                        RTMemFree(pszPassword);
-                    }
-                    else
-                        rcExit = RTMsgErrorExit(RTEXITCODE_FAILURE,
-                                                "Failed to convert password from windows console codepage to Utf-8 (%Rrc)",
-                                                vrc);
-#else
                     *pPassword = aszPwdInput;
-#endif
-                }
                 else
                     rcExit = RTMsgErrorExit(RTEXITCODE_FAILURE, "Failed read password from command line (%Rrc)", vrc);
 

@@ -1,10 +1,10 @@
-/* $Id: tracelogreader.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tracelogreader.cpp $ */
 /** @file
  * IPRT - Trace log reader.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,6 +51,14 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
+
+/** The trace log is malformed. */
+#define VERR_TRACELOG_READER_MALFORMED_LOG   (-25700)
+/** The trace log version is not supported. */
+#define VERR_TRACELOG_READER_LOG_UNSUPPORTED (-25701)
+/** The trace log reader iterator reached the end of the event list. */
+#define VERR_TRACELOG_READER_ITERATOR_END    (-25702)
+
 /** Pointer to a trace log reader instance. */
 typedef struct RTTRACELOGRDRINT *PRTTRACELOGRDRINT;
 
@@ -100,7 +108,7 @@ typedef const RTTRACELOGRDREVTDESC *PCRTTRACELOGRDREVTDESC;
 typedef struct RTTRACELOGRDREVTINT
 {
     /** List node for the global list of events. */
-    RTLISTNODE                  NdGlob;
+    RTLISTANCHOR                NdGlob;
     /** The trace log reader instance the event belongs to. */
     PRTTRACELOGRDRINT           pRdr;
     /** Trace log sequence number. */
@@ -118,8 +126,7 @@ typedef struct RTTRACELOGRDREVTINT
     /** Overall event data size in bytes, including non static data. */
     size_t                      cbEvtData;
     /** Event data, variable in size. */
-    RT_FLEXIBLE_ARRAY_EXTENSION
-    uint8_t                     abEvtData[RT_FLEXIBLE_ARRAY];
+    uint8_t                     abEvtData[1];
 } RTTRACELOGRDREVTINT;
 /** Pointer to a trace log reader event. */
 typedef RTTRACELOGRDREVTINT *PRTTRACELOGRDREVTINT;
@@ -149,8 +156,7 @@ typedef struct RTTRACELOGRDREVTDESC
     /** Embedded event descriptor. */
     RTTRACELOGEVTDESC           EvtDesc;
     /** Array of event item descriptors, variable in size. */
-    RT_FLEXIBLE_ARRAY_EXTENSION
-    RTTRACELOGEVTITEMDESC       aEvtItemDesc[RT_FLEXIBLE_ARRAY];
+    RTTRACELOGEVTITEMDESC       aEvtItemDesc[1];
 } RTTRACELOGRDREVTDESC;
 
 
@@ -179,7 +185,7 @@ typedef struct RTTRACELOGRDRINT
     size_t                      cchDesc;
     /** Pointer to the description if set. */
     const char                  *pszDesc;
-    /** List of received events (PRTTRACELOGRDREVTINT::NdGlob). */
+    /** List of received events. */
     RTLISTANCHOR                LstEvts;
     /** Number of event descriptors known. */
     uint32_t                    cEvtDescsCur;
@@ -232,15 +238,16 @@ typedef RTTRACELOGRDRITINT *PRTTRACELOGRDRITINT;
  * @param   penmEvt             Where to store the event indicator if a user visible event happened.
  * @param   pfContinuePoll      Where to store the flag whether to continue polling.
  */
-typedef DECLCALLBACKTYPE(int, FNRTTRACELOGRDRSTATEHANDLER,(PRTTRACELOGRDRINT pThis, RTTRACELOGRDRPOLLEVT *penmEvt,
-                                                           bool *pfContinuePoll));
+typedef DECLCALLBACK(int) FNRTTRACELOGRDRSTATEHANDLER(PRTTRACELOGRDRINT pThis, RTTRACELOGRDRPOLLEVT *penmEvt,
+                                                      bool *pfContinuePoll);
 /** Pointer to a trace log reader state handler. */
 typedef FNRTTRACELOGRDRSTATEHANDLER *PFNRTTRACELOGRDRSTATEHANDLER;
 
 
 /*********************************************************************************************************************************
-*   Internal Functions                                                                                                           *
+*   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
+
 static DECLCALLBACK(int) rtTraceLogRdrHdrRecvd(PRTTRACELOGRDRINT pThis, RTTRACELOGRDRPOLLEVT *penmEvt, bool *pfContinuePoll);
 static DECLCALLBACK(int) rtTraceLogRdrHdrDescRecvd(PRTTRACELOGRDRINT pThis, RTTRACELOGRDRPOLLEVT *penmEvt, bool *pfContinuePoll);
 static DECLCALLBACK(int) rtTraceLogRdrMagicRecvd(PRTTRACELOGRDRINT pThis, RTTRACELOGRDRPOLLEVT *penmEvt, bool *pfContinuePoll);
@@ -255,23 +262,22 @@ static DECLCALLBACK(int) rtTraceLogRdrEvtDataRecvd(PRTTRACELOGRDRINT pThis, RTTR
 
 /**
  * State handlers.
- * @note The struct wrapper is for working around a Clang nothrow attrib oddity.
  */
-static struct { PFNRTTRACELOGRDRSTATEHANDLER pfn; } g_aStateHandlers[] =
+static PFNRTTRACELOGRDRSTATEHANDLER g_apfnStateHandlers[] =
 {
-    { NULL },
-    { rtTraceLogRdrHdrRecvd },
-    { rtTraceLogRdrHdrDescRecvd },
-    { rtTraceLogRdrMagicRecvd },
-    { rtTraceLogRdrEvtDescRecvd },
-    { rtTraceLogRdrEvtDescIdRecvd },
-    { rtTraceLogRdrEvtDescDescriptionRecvd },
-    { rtTraceLogRdrEvtItemDescRecvd },
-    { rtTraceLogRdrEvtItemDescNameRecvd },
-    { rtTraceLogRdrEvtItemDescDescriptionRecvd },
-    { rtTraceLogRdrEvtMarkerRecvd },
-    { rtTraceLogRdrEvtDataRecvd },
-    { NULL }
+    NULL,
+    rtTraceLogRdrHdrRecvd,
+    rtTraceLogRdrHdrDescRecvd,
+    rtTraceLogRdrMagicRecvd,
+    rtTraceLogRdrEvtDescRecvd,
+    rtTraceLogRdrEvtDescIdRecvd,
+    rtTraceLogRdrEvtDescDescriptionRecvd,
+    rtTraceLogRdrEvtItemDescRecvd,
+    rtTraceLogRdrEvtItemDescNameRecvd,
+    rtTraceLogRdrEvtItemDescDescriptionRecvd,
+    rtTraceLogRdrEvtMarkerRecvd,
+    rtTraceLogRdrEvtDataRecvd,
+    NULL
 };
 
 /**
@@ -1005,12 +1011,10 @@ static DECLCALLBACK(int) rtTraceLogRdrEvtMarkerRecvd(PRTTRACELOGRDRINT pThis, RT
                 pEvt->pacbRawData = pEvtDesc->cRawDataNonStatic ? (size_t *)&pEvt->abEvtData[pEvtStrm->cbEvtData] : NULL;
                 /** @todo Group handling and parenting. */
 
+                pThis->pEvtCur = pEvt;
                 size_t cbEvtDataRecv = pEvtStrm->cRawEvtDataSz * pThis->cbTypeSize + pEvtStrm->cbEvtData;
                 if (cbEvtDataRecv)
-                {
-                    pThis->pEvtCur = pEvt;
                     rc = rtTraceLogRdrStateAdvance(pThis, RTTRACELOGRDRSTATE_RECV_EVT_DATA, cbEvtDataRecv);
-                }
                 else
                 {
                     pThis->pEvtCur = NULL;
@@ -1056,18 +1060,12 @@ static DECLCALLBACK(int) rtTraceLogRdrEvtDataRecvd(PRTTRACELOGRDRINT pThis, RTTR
         size_t cb = 0;
         if (pThis->cbTypeSize == 4)
         {
-            if (pThis->fConvEndianess)
-                cb = RT_BSWAP_U32(*(uint32_t *)pbData);
-            else
-                cb = *(uint32_t *)pbData;
+            cb = RT_BSWAP_U32(*(uint32_t *)pbData);
             pbData += 4;
         }
         else if (pThis->cbTypeSize == 8)
         {
-            if (pThis->fConvEndianess)
-                cb = RT_BSWAP_U64(*(uint64_t *)pbData);
-            else
-                cb = *(uint64_t *)pbData;
+            cb = RT_BSWAP_U64(*(uint64_t *)pbData);
             pbData += 8;
         }
         else
@@ -1204,7 +1202,7 @@ static size_t rtTraceLogRdrEvtItemGetSz(PRTTRACELOGRDRINT pThis, PCRTTRACELOGEVT
  * @param   pcbEvtData          Where to store the size of the size of the event data.
  * @param   ppEvtItemDesc       Where to store the event item descriptor.
  */
-static int rtTraceLogRdrEvtResolveData(PCRTTRACELOGRDREVTINT pEvt, const char *pszName, uint32_t *poffData,
+static int rtTraceLogRdrEvtResolveData(PRTTRACELOGRDREVTINT pEvt, const char *pszName, uint32_t *poffData,
                                        size_t *pcbEvtData, PPCRTTRACELOGEVTITEMDESC ppEvtItemDesc)
 {
     PCRTTRACELOGRDREVTDESC pEvtDesc = pEvt->pEvtDesc;
@@ -1240,11 +1238,11 @@ static int rtTraceLogRdrEvtResolveData(PCRTTRACELOGRDREVTINT pEvt, const char *p
  * @param   pEvtItemDesc        The event item descriptor.
  * @param   pVal                The value to fill.
  */
-static int rtTraceLogRdrEvtFillVal(PCRTTRACELOGRDREVTINT pEvt, uint32_t offData, size_t cbData, PCRTTRACELOGEVTITEMDESC pEvtItemDesc,
+static int rtTraceLogRdrEvtFillVal(PRTTRACELOGRDREVTINT pEvt, uint32_t offData, size_t cbData, PCRTTRACELOGEVTITEMDESC pEvtItemDesc,
                                    PRTTRACELOGEVTVAL pVal)
 {
     PRTTRACELOGRDRINT pThis = pEvt->pRdr;
-    const uint8_t *pbData = &pEvt->abEvtData[offData];
+    uint8_t *pbData = &pEvt->abEvtData[offData];
 
     pVal->pItemDesc = pEvtItemDesc;
     switch (pEvtItemDesc->enmType)
@@ -1457,80 +1455,6 @@ static int rtTraceLogRdrEvtFillVal(PCRTTRACELOGRDREVTINT pEvt, uint32_t offData,
 }
 
 
-/**
- * Finds the mapping descriptor for the given event.
- *
- * @returns Pointer to the mapping descriptor or NULL if not found.
- * @param   paMapDesc           Pointer to the array of mapping descriptors.
- * @param   pEvt                The event to look for the matching mapping descriptor.
- */
-static PCRTTRACELOGRDRMAPDESC rtTraceLogRdrMapDescFindForEvt(PCRTTRACELOGRDRMAPDESC paMapDesc, PCRTTRACELOGRDREVTINT pEvt)
-{
-    AssertPtrReturn(paMapDesc, NULL);
-    AssertPtrReturn(pEvt, NULL);
-
-    while (paMapDesc->pszEvtId)
-    {
-        if (!RTStrCmp(paMapDesc->pszEvtId, pEvt->pEvtDesc->EvtDesc.pszId))
-            return paMapDesc;
-
-        paMapDesc++;
-    }
-
-    return NULL;
-}
-
-
-/**
- * Fills the given event header with data from the given event using the matching mapping descriptor.
- *
- * @returns IPRT statsu code.
- * @param   pEvtHdr             The event header to fill.
- * @param   pMapDesc            The mapping descriptor to use.
- * @param   pEvt                The raw event to get the data from.
- */
-static int rtTraceLogRdrMapFillEvt(PRTTRACELOGRDREVTHDR pEvtHdr, PCRTTRACELOGRDRMAPDESC pMapDesc, PCRTTRACELOGRDREVTINT pEvt)
-{
-    int rc = VINF_SUCCESS;
-
-    /* Fill in the status parts. */
-    pEvtHdr->pEvtMapDesc = pMapDesc;
-    pEvtHdr->pEvtDesc    = &pEvt->pEvtDesc->EvtDesc;
-    pEvtHdr->idSeqNo     = pEvt->u64SeqNo;
-    pEvtHdr->tsEvt       = pEvt->u64Ts;
-    pEvtHdr->paEvtItems  = NULL;
-
-    /* Now the individual items if any. */
-    if (pMapDesc->cEvtItems)
-    {
-        /* Allocate values for the items. */
-        pEvtHdr->paEvtItems = (PCRTTRACELOGEVTVAL)RTMemAllocZ(pMapDesc->cEvtItems * sizeof(RTTRACELOGEVTVAL));
-        if (RT_LIKELY(pEvtHdr->paEvtItems))
-        {
-            for (uint32_t i = 0; (i < pMapDesc->cEvtItems) && RT_SUCCESS(rc); i++)
-            {
-                uint32_t offData = 0;
-                size_t cbData = 0;
-                PCRTTRACELOGEVTITEMDESC pEvtItemDesc = NULL;
-                rc = rtTraceLogRdrEvtResolveData(pEvt, pMapDesc->paMapItems[i].pszName, &offData, &cbData, &pEvtItemDesc);
-                if (RT_SUCCESS(rc))
-                    rc = rtTraceLogRdrEvtFillVal(pEvt, offData, cbData, pEvtItemDesc, (PRTTRACELOGEVTVAL)&pEvtHdr->paEvtItems[i]);
-            }
-
-            if (RT_FAILURE(rc))
-            {
-                RTMemFree((void *)pEvtHdr->paEvtItems);
-                pEvtHdr->paEvtItems = NULL;
-            }
-        }
-        else
-            rc = VERR_NO_MEMORY;
-    }
-
-    return rc;
-}
-
-
 RTDECL(int) RTTraceLogRdrCreate(PRTTRACELOGRDR phTraceLogRdr, PFNRTTRACELOGRDRSTREAM pfnStreamIn,
                                 PFNRTTRACELOGSTREAMCLOSE pfnStreamClose, void *pvUser)
 {
@@ -1609,45 +1533,18 @@ RTDECL(int) RTTraceLogRdrCreateFromFile(PRTTRACELOGRDR phTraceLogRdr, const char
 
 RTDECL(int) RTTraceLogRdrDestroy(RTTRACELOGRDR hTraceLogRdr)
 {
-    if (hTraceLogRdr == NIL_RTTRACELOGRDR)
-        return VINF_SUCCESS;
     PRTTRACELOGRDRINT pThis = hTraceLogRdr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGRDR_MAGIC, VERR_INVALID_HANDLE);
 
     pThis->u32Magic = RTTRACELOGRDR_MAGIC_DEAD;
-    int rc = pThis->pfnStreamClose(pThis->pvUser);
-    AssertRC(rc);
-
+    pThis->pfnStreamClose(pThis->pvUser);
     for (unsigned i = 0; i < pThis->cEvtDescsCur; i++)
         RTMemFree(pThis->papEvtDescs[i]);
     if (pThis->papEvtDescs)
-    {
         RTMemFree(pThis->papEvtDescs);
-        pThis->papEvtDescs = NULL;
-    }
-
-    if (pThis->pEvtCur)
-    {
-        RTMemFree(pThis->pEvtCur);
-        pThis->pEvtCur = NULL;
-    }
-
-    PRTTRACELOGRDREVTINT pCur, pNext;
-    RTListForEachSafe(&pThis->LstEvts, pCur, pNext, RTTRACELOGRDREVTINT, NdGlob)
-    {
-        RTMemFree(pCur);
-    }
-
     RTSemMutexDestroy(pThis->hMtx);
-    pThis->hMtx = NIL_RTSEMMUTEX;
-
     RTMemFree(pThis->pbScratch);
-    pThis->pbScratch = NULL;
-
     RTStrCacheDestroy(pThis->hStrCache);
-    pThis->hStrCache = NIL_RTSTRCACHE;
-
     RTMemFree(pThis);
     return VINF_SUCCESS;
 }
@@ -1657,7 +1554,6 @@ RTDECL(int) RTTraceLogRdrEvtPoll(RTTRACELOGRDR hTraceLogRdr, RTTRACELOGRDRPOLLEV
 {
     PRTTRACELOGRDRINT pThis = hTraceLogRdr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGRDR_MAGIC, VERR_INVALID_HANDLE);
     AssertPtrReturn(penmEvt, VERR_INVALID_POINTER);
 
     int rc = VINF_SUCCESS;
@@ -1674,7 +1570,7 @@ RTDECL(int) RTTraceLogRdrEvtPoll(RTTRACELOGRDR hTraceLogRdr, RTTRACELOGRDRPOLLEV
             if (cbRecvd == pThis->cbRecvLeft)
             {
                 /* Act according to the current state. */
-                rc = g_aStateHandlers[pThis->enmState].pfn(pThis, penmEvt, &fContinue);
+                rc = g_apfnStateHandlers[pThis->enmState](pThis, penmEvt, &fContinue);
             }
             else
                 pThis->cbRecvLeft -= cbRecvd;
@@ -1689,7 +1585,6 @@ RTDECL(int) RTTraceLogRdrQueryLastEvt(RTTRACELOGRDR hTraceLogRdr, PRTTRACELOGRDR
 {
     PRTTRACELOGRDRINT pThis = hTraceLogRdr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGRDR_MAGIC, VERR_INVALID_HANDLE);
     AssertPtrReturn(phRdrEvt, VERR_INVALID_POINTER);
 
     int rc = VINF_SUCCESS;
@@ -1708,7 +1603,6 @@ RTDECL(int) RTTraceLogRdrQueryIterator(RTTRACELOGRDR hTraceLogRdr, PRTTRACELOGRD
 {
     PRTTRACELOGRDRINT pThis = hTraceLogRdr;
     AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGRDR_MAGIC, VERR_INVALID_HANDLE);
     AssertPtrReturn(phIt, VERR_INVALID_POINTER);
 
     int rc = VINF_SUCCESS;
@@ -1722,92 +1616,6 @@ RTDECL(int) RTTraceLogRdrQueryIterator(RTTRACELOGRDR hTraceLogRdr, PRTTRACELOGRD
         rc = VERR_NO_MEMORY;
 
     return rc;
-}
-
-
-RTDECL(int) RTTraceLogRdrEvtMapToStruct(RTTRACELOGRDR hTraceLogRdr, uint32_t fFlags, uint32_t cEvts,
-                                        PCRTTRACELOGRDRMAPDESC paMapDesc, PCRTTRACELOGRDREVTHDR *ppaEvtHdr,
-                                        uint32_t *pcEvts)
-{
-    RT_NOREF(fFlags);
-
-    PRTTRACELOGRDRINT pThis = hTraceLogRdr;
-    AssertPtrReturn(pThis, VERR_INVALID_HANDLE);
-    AssertReturn(pThis->u32Magic == RTTRACELOGRDR_MAGIC, VERR_INVALID_HANDLE);
-    AssertPtrReturn(paMapDesc, VERR_INVALID_PARAMETER);
-    AssertPtrReturn(ppaEvtHdr, VERR_INVALID_POINTER);
-    AssertPtrReturn(pcEvts, VERR_INVALID_POINTER);
-
-    int rc = VINF_SUCCESS;
-    uint32_t cEvtsAlloc = cEvts != UINT32_MAX ? cEvts : _4K;
-    PRTTRACELOGRDREVTHDR paEvtHdr = (PRTTRACELOGRDREVTHDR)RTMemAllocZ(cEvtsAlloc * sizeof(*paEvtHdr));
-    if (RT_LIKELY(paEvtHdr))
-    {
-        uint32_t cEvtsRecv = 0;
-
-        while (   RT_SUCCESS(rc)
-               && cEvtsRecv < cEvts)
-        {
-            RTTRACELOGRDRPOLLEVT enmEvt = RTTRACELOGRDRPOLLEVT_INVALID;
-            rc = RTTraceLogRdrEvtPoll(pThis, &enmEvt, 0 /*cMsTimeout*/);
-            if (   RT_SUCCESS(rc)
-                && enmEvt == RTTRACELOGRDRPOLLEVT_TRACE_EVENT_RECVD)
-            {
-                /* Find the mapping descriptor. */
-                PRTTRACELOGRDREVTINT pEvt = NULL;
-                rc = RTTraceLogRdrQueryLastEvt(hTraceLogRdr, &pEvt);
-                if (RT_SUCCESS(rc))
-                {
-                    PCRTTRACELOGRDRMAPDESC pMapDesc = rtTraceLogRdrMapDescFindForEvt(paMapDesc, pEvt);
-                    if (pMapDesc)
-                    {
-                        if (cEvtsRecv == cEvtsAlloc)
-                        {
-                            Assert(cEvts == UINT32_MAX);
-                            PRTTRACELOGRDREVTHDR paEvtHdrNew = (PRTTRACELOGRDREVTHDR)RTMemRealloc(paEvtHdr, (cEvtsAlloc + _4K) * sizeof(*paEvtHdr));
-                            if (RT_LIKELY(paEvtHdrNew))
-                            {
-                                paEvtHdr = paEvtHdrNew;
-                                cEvtsAlloc += _4K;
-                            }
-                            else
-                                rc = VERR_NO_MEMORY;
-                        }
-
-                        if (RT_SUCCESS(rc))
-                            rc = rtTraceLogRdrMapFillEvt(&paEvtHdr[cEvtsRecv++], pMapDesc, pEvt);
-                        cEvtsRecv++;
-                    }
-                    else
-                        rc = VERR_NOT_FOUND;
-                }
-            }
-        }
-
-        if (RT_SUCCESS(rc))
-        {
-            *ppaEvtHdr = paEvtHdr;
-            *pcEvts    = cEvtsRecv;
-        }
-        else
-            RTTraceLogRdrEvtMapFree(paEvtHdr, cEvtsRecv);
-    }
-    else
-        rc = VERR_NO_MEMORY;
-
-    return rc;
-}
-
-
-RTDECL(void) RTTraceLogRdrEvtMapFree(PCRTTRACELOGRDREVTHDR paEvtHdr, uint32_t cEvts)
-{
-    for (uint32_t i = 0; i < cEvts; i++)
-    {
-        if (paEvtHdr[i].paEvtItems)
-            RTMemFree((void *)paEvtHdr[i].paEvtItems);
-    }
-
-    RTMemFree((void *)paEvtHdr);
 }
 
 

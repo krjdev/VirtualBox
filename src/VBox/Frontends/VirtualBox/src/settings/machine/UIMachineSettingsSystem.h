@@ -1,10 +1,10 @@
-/* $Id: UIMachineSettingsSystem.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIMachineSettingsSystem.h $ */
 /** @file
  * VBox Qt GUI - UIMachineSettingsSystem class declaration.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,22 +23,16 @@
 
 /* GUI includes: */
 #include "UISettingsPage.h"
+#include "UIMachineSettingsSystem.gen.h"
 
 /* Forward declarations: */
 struct UIDataSettingsMachineSystem;
 typedef UISettingsCache<UIDataSettingsMachineSystem> UISettingsCacheMachineSystem;
 class CMachine;
-class QCheckBox;
-class QComboBox;
-class QLabel;
-class QSpinBox;
-class QIAdvancedSlider;
-class QITabWidget;
-class UIBaseMemoryEditor;
-class UIBootOrderEditor;
 
 /** Machine settings: System page. */
-class SHARED_LIBRARY_STUFF UIMachineSettingsSystem : public UISettingsPageMachine
+class SHARED_LIBRARY_STUFF UIMachineSettingsSystem : public UISettingsPageMachine,
+                                                     public Ui::UIMachineSettingsSystem
 {
     Q_OBJECT;
 
@@ -76,33 +70,33 @@ public:
 protected:
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE;
+    virtual bool changed() const /* override */;
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
-    virtual void loadToCacheFrom(QVariant &data) RT_OVERRIDE;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void getFromCache() RT_OVERRIDE;
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
+    virtual void loadToCacheFrom(QVariant &data) /* override */;
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void getFromCache() /* override */;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
-    virtual void putToCache() RT_OVERRIDE;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
+    virtual void putToCache() /* override */;
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) /* overrride */;
 
     /** Performs validation, updates @a messages list if something is wrong. */
-    virtual bool validate(QList<UIValidationMessage> &messages) RT_OVERRIDE;
+    virtual bool validate(QList<UIValidationMessage> &messages) /* override */;
 
     /** Defines TAB order for passed @a pWidget. */
-    virtual void setOrderAfter(QWidget *pWidget) RT_OVERRIDE;
+    virtual void setOrderAfter(QWidget *pWidget) /* override */;
 
     /** Handles translation event. */
-    virtual void retranslateUi() RT_OVERRIDE;
+    virtual void retranslateUi() /* override */;
 
     /** Performs final page polishing. */
-    virtual void polishPage() RT_OVERRIDE;
+    virtual void polishPage() /* override */;
 
 private slots:
 
@@ -122,8 +116,6 @@ private:
 
     /** Prepares all. */
     void prepare();
-    /** Prepares widgets. */
-    void prepareWidgets();
     /** Prepares 'Motherboard' tab. */
     void prepareTabMotherboard();
     /** Prepares 'Processor' tab. */
@@ -174,81 +166,6 @@ private:
 
     /** Holds the page data cache instance. */
     UISettingsCacheMachineSystem *m_pCache;
-
-    /** @name Widgets
-     * @{ */
-        /** Holds the tab-widget instance. */
-        QITabWidget *m_pTabWidget;
-
-        /** Holds the 'Motherboard' tab instance. */
-        QWidget            *m_pTabMotherboard;
-        /** Holds the base memory label instance. */
-        QLabel             *m_pLabelBaseMemory;
-        /** Holds the base memory editor instance. */
-        UIBaseMemoryEditor *m_pEditorBaseMemory;
-        /** Holds the boot order label instance. */
-        QLabel             *m_pLabelBootOrder;
-        /** Holds the boot order editor instance. */
-        UIBootOrderEditor  *m_pEditorBootOrder;
-        /** Holds the chipset label instance. */
-        QLabel             *m_pLabelChipset;
-        /** Holds the chipset combo instance. */
-        QComboBox          *m_pComboChipset;
-        /** Holds the pointing HID label instance. */
-        QLabel             *m_pLabelPointingHID;
-        /** Holds the pointing HID combo instance. */
-        QComboBox          *m_pComboPointingHID;
-        /** Holds the extended motherboard label instance. */
-        QLabel             *m_pLabelExtendedMotherboard;
-        /** Holds the APIC check-box instance. */
-        QCheckBox          *m_pCheckBoxAPIC;
-        /** Holds the EFI check-box instance. */
-        QCheckBox          *m_pCheckBoxEFI;
-        /** Holds the UTC check-box instance. */
-        QCheckBox          *m_pCheckBoxUTC;
-
-        /** Holds the 'Processor' tab instance. */
-        QWidget          *m_pTabProcessor;
-        /** Holds the processor count label instance. */
-        QLabel           *m_pLabelProcessorCount;
-        /** Holds the processor count slider instance. */
-        QIAdvancedSlider *m_pSliderProcessorCount;
-        /** Holds the processor count spinbox instance. */
-        QSpinBox         *m_pSpinboxProcessorCount;
-        /** Holds the processor count min label instance. */
-        QLabel           *m_pLabelProcessorCountMin;
-        /** Holds the processor count max label instance. */
-        QLabel           *m_pLabelProcessorCountMax;
-        /** Holds the processor exec cap label instance. */
-        QLabel           *m_pLabelProcessorExecCap;
-        /** Holds the processor exec cap slider instance. */
-        QIAdvancedSlider *m_pSliderProcessorExecCap;
-        /** Holds the processor exec cap spinbox instance. */
-        QSpinBox         *m_pSpinboxProcessorExecCap;
-        /** Holds the processor exec cap min label instance. */
-        QLabel           *m_pLabelProcessorExecCapMin;
-        /** Holds the processor exec cap max label instance. */
-        QLabel           *m_pLabelProcessorExecCapMax;
-        /** Holds the extended processor label instance. */
-        QLabel           *m_pLabelExtendedProcessor;
-        /** Holds the PAE check-box instance. */
-        QCheckBox        *m_pCheckBoxPAE;
-        /** Holds the nested virtualization check-box instance. */
-        QCheckBox        *m_pCheckBoxNestedVirtualization;
-
-        /** Holds the 'Acceleration' tab instance. */
-        QWidget   *m_pTabAcceleration;
-        /** Holds the paravirtualization provider label instance. */
-        QLabel    *m_pLabelParavirtProvider;
-        /** Holds the paravirtualization provider combo instance. */
-        QComboBox *m_pComboParavirtProvider;
-        /** Holds the virtualization label instance. */
-        QLabel    *m_pLabelVirtualization;
-        /** Holds the virtualization check-box instance. */
-        QCheckBox *m_pCheckBoxVirtualization;
-        /** Holds the nested paging check-box instance. */
-        QCheckBox *m_pCheckBoxNestedPaging;
-   /** @} */
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_machine_UIMachineSettingsSystem_h */

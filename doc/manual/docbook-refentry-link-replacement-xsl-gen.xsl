@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-    docbook-refentry-link-replacement-xsl-gen.xsl:
+    docbook-refentry-link-replacement-xsl-gen.xsl.xsl:
         XSLT stylesheet for generate a stylesheet that replaces links
         to the user manual in the manpages.
 
@@ -23,14 +23,6 @@
   <xsl:output method="text" version="1.0" encoding="utf-8" indent="yes"/>
   <xsl:strip-space elements="*"/>
 
-<xsl:param name="g_sMode" select="not-specified"/>
-
-  <!-- Translatable strings -->
-  <xsl:variable name="sChapter" select="'chapter'"/>
-  <xsl:variable name="sSection" select="'section'"/>
-  <xsl:variable name="sOfManual" select="'of the user manual'"/>
-  <xsl:variable name="sInManual" select="'in the user manual'"/>
-
 
 <!-- Default operation is to supress output -->
 <xsl:template match="node()|@*">
@@ -45,8 +37,7 @@
 Output header and footer.
 -->
 <xsl:template match="/">
-  <xsl:if test="$g_sMode = 'first'">
-    <xsl:text>&lt;?xml version="1.0"?&gt;
+  <xsl:text>&lt;?xml version="1.0"?&gt;
 &lt;xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" &gt;
 &lt;xsl:output method="xml" version="1.0" encoding="utf-8" indent="yes" /&gt;
 &lt;xsl:template match="node()|@*"&gt;
@@ -56,13 +47,10 @@ Output header and footer.
 &lt;/xsl:template&gt;
 
 </xsl:text>
-  </xsl:if>
   <xsl:apply-templates/>
-  <xsl:if test="$g_sMode = 'last'">
-    <xsl:text>
+  <xsl:text>
 &lt;/xsl:stylesheet&gt;
 </xsl:text>
-  </xsl:if>
 </xsl:template>
 
 
@@ -73,10 +61,9 @@ Produce the transformation templates:
   <xsl:text>
 &lt;xsl:template match="xref[@linkend='</xsl:text>
   <xsl:value-of select="../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt;</xsl:text><xsl:value-of select="$sChapter"/><xsl:text> </xsl:text>
-  <xsl:value-of select="count(../preceding-sibling::chapter) + 1"/><xsl:text> &quot;</xsl:text>
+  &lt;xsl:text&gt;chapter </xsl:text><xsl:value-of select="count(../preceding-sibling::chapter) + 1"/><xsl:text> &quot;</xsl:text>
   <xsl:value-of select="normalize-space()"/>
-  <xsl:text>&quot; </xsl:text><xsl:value-of select="$sInManual"/><xsl:text>&lt;/xsl:text&gt;
+  <xsl:text>&quot; in the user manual&lt;/xsl:text&gt;
 &lt;/xsl:template&gt;
 </xsl:text>
   <xsl:apply-templates/>
@@ -85,12 +72,11 @@ Produce the transformation templates:
 <xsl:template match="sect1[@id]/title">
   <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
   <xsl:value-of select="../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt;</xsl:text><xsl:value-of select="$sSection"/><xsl:text> </xsl:text>
+  &lt;xsl:text&gt;section </xsl:text>
   <xsl:value-of select="count(../../preceding-sibling::chapter) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../preceding-sibling::sect1) + 1"/>
   <xsl:text> &quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; </xsl:text>
-  <xsl:value-of select="$sOfManual"/><xsl:text>&lt;/xsl:text&gt;
+  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; of the user manual&lt;/xsl:text&gt;
 &lt;/xsl:template&gt;
 </xsl:text>
   <xsl:apply-templates/>
@@ -99,13 +85,12 @@ Produce the transformation templates:
 <xsl:template match="sect2[@id]/title">
   <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
   <xsl:value-of select="../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt;</xsl:text><xsl:value-of select="$sSection"/><xsl:text> </xsl:text>
+  &lt;xsl:text&gt;section </xsl:text>
   <xsl:value-of select="count(../../../preceding-sibling::chapter) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../../preceding-sibling::sect1) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../preceding-sibling::sect2) + 1"/>
   <xsl:text> &quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; </xsl:text>
-  <xsl:value-of select="$sOfManual"/><xsl:text>&lt;/xsl:text&gt;
+  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; of the user manual&lt;/xsl:text&gt;
 &lt;/xsl:template&gt;
 </xsl:text>
   <xsl:apply-templates/>
@@ -114,14 +99,13 @@ Produce the transformation templates:
 <xsl:template match="sect3[@id]/title">
   <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
   <xsl:value-of select="../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt;</xsl:text><xsl:value-of select="$sSection"/><xsl:text> </xsl:text>
+  &lt;xsl:text&gt;section </xsl:text>
   <xsl:value-of select="count(../../../../preceding-sibling::chapter) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../../../preceding-sibling::sect1) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../../preceding-sibling::sect2) + 1"/><xsl:text>.</xsl:text>
   <xsl:value-of select="count(../preceding-sibling::sect3) + 1"/>
   <xsl:text> &quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; </xsl:text>
-  <xsl:value-of select="$sOfManual"/><xsl:text>&lt;/xsl:text&gt;
+  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; of the user manual&lt;/xsl:text&gt;
 &lt;/xsl:template&gt;
 </xsl:text>
   <xsl:apply-templates/>
@@ -131,33 +115,11 @@ Produce the transformation templates:
   <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
   <xsl:value-of select="../@id"/><xsl:text>']"&gt;
   &lt;xsl:text&gt;&quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; </xsl:text>
-  <xsl:value-of select="$sOfManual"/><xsl:text>&lt;/xsl:text&gt;
+  <xsl:value-of select="normalize-space()"/><xsl:text>&quot; of the user manual&lt;/xsl:text&gt;
 &lt;/xsl:template&gt;
 </xsl:text>
   <xsl:apply-templates/>
 </xsl:template>
-
-<xsl:template match="refentry[@id]/refentryinfo/title">
-  <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
-  <xsl:value-of select="../../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt; &quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot;&lt;/xsl:text&gt;
-&lt;/xsl:template&gt;
-</xsl:text>
-  <xsl:apply-templates/>
-</xsl:template>
-
-<xsl:template match="refsect2[@id]/title">
-  <xsl:text>&lt;xsl:template match="xref[@linkend='</xsl:text>
-  <xsl:value-of select="../@id"/><xsl:text>']"&gt;
-  &lt;xsl:text&gt;&quot;</xsl:text>
-  <xsl:value-of select="normalize-space()"/><xsl:text>&quot;&lt;/xsl:text&gt;
-&lt;/xsl:template&gt;
-</xsl:text>
-  <xsl:apply-templates/>
-</xsl:template>
-
 
 <!--
   Debug/Diagnostics: Return the path to the specified node (by default the current).

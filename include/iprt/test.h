@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -143,6 +143,7 @@ RTR3DECL(int) RTTestCreateChild(const char *pszTest, PRTTEST phTest);
  *
  * @returns IPRT status code.
  * @param   pszTest         The test name.
+ * @param   pszXmlFile      The XML output file/pipe/whatever.
  * @param   fFlags          Flags, see RTTEST_C_XXX.
  * @param   enmMaxLevel     The max message level.  Use RTTESTLVL_INVALID for
  *                          the default output level or one from the
@@ -475,10 +476,6 @@ RTR3DECL(int) RTTestSkippedV(RTTEST hTest, const char *pszFormat, va_list va) RT
  *              - Add it to g_aszBs2TestUnitNames in
  *                ValidationKit/bootsectors/bootsector2-common-routines.mac.
  *              - Add it to g_aszBs3TestUnitNames in bs3kit/bs3-cmn-TestData.c.
- *              - Add it to ValidationKit/common/constants/valueunit.py both as
- *                a constant (strip RTTESTUNIT_) and as a name (same as what
- *                rtTestUnitName returns) for mapping.  Testmanager must be
- *                updated.
  */
 typedef enum RTTESTUNIT
 {
@@ -523,13 +520,6 @@ typedef enum RTTESTUNIT
     RTTESTUNIT_PAGES_PER_SEC,                   /**< Pages per second. */
     RTTESTUNIT_TICKS_PER_PAGE,                  /**< CPU ticks per page. */
     RTTESTUNIT_NS_PER_PAGE,                     /**< Nanoseconds per page. */
-    RTTESTUNIT_PS,                              /**< Picoseconds. */
-    RTTESTUNIT_PS_PER_CALL,                     /**< Picoseconds per call. */
-    RTTESTUNIT_PS_PER_FRAME,                    /**< Picoseconds per frame. */
-    RTTESTUNIT_PS_PER_OCCURRENCE,               /**< Picoseconds per occurrence. */
-    RTTESTUNIT_PS_PER_PACKET,                   /**< Picoseconds per frame. */
-    RTTESTUNIT_PS_PER_ROUND_TRIP,               /**< Picoseconds per round trip. */
-    RTTESTUNIT_PS_PER_PAGE,                     /**< Picoseconds per page. */
 
     /** The end of valid units. */
     RTTESTUNIT_END
@@ -537,7 +527,6 @@ typedef enum RTTESTUNIT
 AssertCompile(RTTESTUNIT_INSTRS      == 0x19);
 AssertCompile(RTTESTUNIT_NONE        == 0x1b);
 AssertCompile(RTTESTUNIT_NS_PER_PAGE == 0x26);
-AssertCompile(RTTESTUNIT_PS_PER_PAGE == 0x2d);
 
 /**
  * Report a named test result value.
@@ -797,7 +786,7 @@ RTR3DECL(int) RTTestRestoreAssertions(RTTEST hTest);
             return (rcRet); \
          } \
     } while (0)
-/** @def RTTEST_CHECK_MSG_RETV
+/** @def RTTEST_CHECK_MSG_RET
  * Check whether a boolean expression holds true, returns void on false.
  *
  * If the expression is false, call RTTestFailed giving the line number and expression.
@@ -1239,7 +1228,7 @@ RTR3DECL(int) RTTestIRestoreAssertions(void);
             return; \
          } \
     } while (0)
-/** @def RTTESTI_CHECK_BREAK
+/** @def RTTESTI_CHECK_RETV
  * Check whether a boolean expression holds true, returns void on false.
  *
  * If the expression is false, call RTTestIFailed giving the line number and
@@ -1304,7 +1293,7 @@ RTR3DECL(int) RTTestIRestoreAssertions(void);
             return (rcRet); \
          } \
     } while (0)
-/** @def RTTESTI_CHECK_MSG_RETV
+/** @def RTTESTI_CHECK_MSG_RET
  * Check whether a boolean expression holds true, returns void on false.
  *
  * If the expression is false, call RTTestIFailed giving the line number and

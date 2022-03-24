@@ -1,11 +1,11 @@
 @echo off
-rem $Id: PackDriversForSubmission.cmd 93239 2022-01-14 19:15:41Z vboxsync $
+rem $Id: PackDriversForSubmission.cmd $
 rem rem @file
 rem Windows NT batch script for preparing for signing submission.
 rem
 
 rem
-rem Copyright (C) 2018-2022 Oracle Corporation
+rem Copyright (C) 2018-2020 Oracle Corporation
 rem
 rem This file is part of VirtualBox Open Source Edition (OSE), as
 rem available from http://www.virtualbox.org. This file is free software;
@@ -230,10 +230,10 @@ echo .Set InfFileName=%_MY_OPT_OUTPUT%.inf>>                                    
 echo .Set RptFileName=%_MY_OPT_OUTPUT%.rpt>>                                            "%_MY_OPT_DDF_FILE%"
 
 if %_MY_OPT_WITH_MAIN% == 0 goto skip_main_package
-echo .Set DestinationDir=VBoxSup>>                                                      "%_MY_OPT_DDF_FILE%"
-echo %_MY_OPT_BINDIR%\VBoxSup.inf VBoxSup.inf>>                                         "%_MY_OPT_DDF_FILE%"
-echo %_MY_OPT_BINDIR%\VBoxSup.sys VBoxSup.sys>>                                         "%_MY_OPT_DDF_FILE%"
-if "%_MY_OPT_WITH_PDB%" == "1" echo %_MY_OPT_PDBDIR%\VBoxSup.pdb VBoxSup.pdb>>          "%_MY_OPT_DDF_FILE%"
+echo .Set DestinationDir=VBoxDrv>>                                                      "%_MY_OPT_DDF_FILE%"
+echo %_MY_OPT_BINDIR%\VBoxDrv.inf VBoxDrv.inf>>                                         "%_MY_OPT_DDF_FILE%"
+echo %_MY_OPT_BINDIR%\VBoxDrv.sys VBoxDrv.sys>>                                         "%_MY_OPT_DDF_FILE%"
+if "%_MY_OPT_WITH_PDB%" == "1" echo %_MY_OPT_PDBDIR%\VBoxDrv.pdb VBoxDrv.pdb>>          "%_MY_OPT_DDF_FILE%"
 
 echo .Set DestinationDir=VBoxNetAdp6>>                                                  "%_MY_OPT_DDF_FILE%"
 echo %_MY_OPT_BINDIR%\VBoxNetAdp6.inf VBoxNetAdp6.inf>>                                 "%_MY_OPT_DDF_FILE%"

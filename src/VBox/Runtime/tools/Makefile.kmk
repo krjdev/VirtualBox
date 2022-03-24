@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 93115 2022-01-01 11:31:46Z vboxsync $
+# $Id: Makefile.kmk $
 ## @file
 # Sub-Makefile for the IPRT tools.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -139,10 +139,10 @@ if !defined(VBOX_ONLY_BUILD)
  RTLdrFlt_TEMPLATE = VBoxR3Tool
  RTLdrFlt_SOURCES = RTLdrFlt.cpp
 
- # RTFtpServer implements a simple FTP server.
- PROGRAMS += RTFtpServer
- RTFtpServer_TEMPLATE = VBoxR3Tool
- RTFtpServer_SOURCES = RTFtpServer.cpp
+ # RTFTPServer implements a simple FTP server.
+ PROGRAMS += RTFTPServer
+ RTFTPServer_TEMPLATE = VBoxR3Tool
+ RTFTPServer_SOURCES = RTFTPServer.cpp
 
  # RTGzip - our gzip clone (for testing the gzip/gunzip streaming code)
  PROGRAMS += RTGzip
@@ -155,14 +155,6 @@ if !defined(VBOX_ONLY_BUILD)
   PROGRAMS += RTHttp
   RTHttp_TEMPLATE = VBoxR3Tool
   RTHttp_SOURCES = RTHttp.cpp
- endif
-
- # RTHttpServer implements a simple HTTP server.
- PROGRAMS += RTHttpServer
- RTHttpServer_TEMPLATE = VBoxR3Tool
- RTHttpServer_SOURCES = RTHttpServer.cpp
- ifdef IPRT_HTTP_WITH_WEBDAV
-  RTHttpServer_DEFS   += IPRT_HTTP_WITH_WEBDAV
  endif
 
  # RTLdrCheckImports - import checker.
@@ -233,11 +225,6 @@ if !defined(VBOX_ONLY_BUILD)
  PROGRAMS += RTEfiFatExtract
  RTEfiFatExtract_TEMPLATE = VBoxR3Tool
  RTEfiFatExtract_SOURCES = RTEfiFatExtract.cpp
-
- # RTEfiSigDb - EFI signature database management tool.
- PROGRAMS += RTEfiSigDb
- RTEfiSigDb_TEMPLATE = VBoxR3Tool
- RTEfiSigDb_SOURCES = RTEfiSigDb.cpp
 
  if1of ($(KBUILD_TARGET), darwin linux solaris win)
   # RTKrnlModInfo - our lsmod/kextstat clone (for testing the RTKrnlMod code).

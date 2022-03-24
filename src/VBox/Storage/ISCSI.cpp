@@ -1,10 +1,10 @@
-/* $Id: ISCSI.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ISCSI.cpp $ */
 /** @file
  * iSCSI initiator driver, VD backend.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -392,12 +392,12 @@ typedef enum ISCSICMDTYPE
 
 
 /** The command completion function. */
-typedef DECLCALLBACKTYPE(void, FNISCSICMDCOMPLETED,(PISCSIIMAGE pImage, int rcReq, void *pvUser));
+typedef DECLCALLBACK(void) FNISCSICMDCOMPLETED(PISCSIIMAGE pImage, int rcReq, void *pvUser);
 /** Pointer to a command completion function. */
 typedef FNISCSICMDCOMPLETED *PFNISCSICMDCOMPLETED;
 
 /** The command execution function. */
-typedef DECLCALLBACKTYPE(int, FNISCSIEXEC,(void *pvUser));
+typedef DECLCALLBACK(int) FNISCSIEXEC(void *pvUser);
 /** Pointer to a command execution function. */
 typedef FNISCSIEXEC *PFNISCSIEXEC;
 
@@ -775,13 +775,13 @@ static PISCSICMD iscsiCmdRemove(PISCSIIMAGE pImage, uint32_t Itt)
     {
         if (pIScsiCmdPrev)
         {
-            AssertPtrNull(pIScsiCmd->pNext);
+            Assert(!pIScsiCmd->pNext || VALID_PTR(pIScsiCmd->pNext));
             pIScsiCmdPrev->pNext = pIScsiCmd->pNext;
         }
         else
         {
             pImage->aCmdsWaiting[idx] = pIScsiCmd->pNext;
-            AssertPtrNull(pImage->aCmdsWaiting[idx]);
+            Assert(!pImage->aCmdsWaiting[idx] || VALID_PTR(pImage->aCmdsWaiting[idx]));
         }
         pImage->cCmdsWaiting--;
     }
@@ -4792,8 +4792,7 @@ static DECLCALLBACK(int) iscsiOpen(const char *pszFilename, unsigned uOpenFlags,
 
     /* Check open flags. All valid flags are supported. */
     AssertReturn(!(uOpenFlags & ~VD_OPEN_FLAGS_MASK), VERR_INVALID_PARAMETER);
-    AssertPtrReturn(pszFilename, VERR_INVALID_POINTER);
-    AssertReturn(*pszFilename != '\0', VERR_INVALID_PARAMETER);
+    AssertReturn((VALID_PTR(pszFilename) && *pszFilename), VERR_INVALID_PARAMETER);
 
     PISCSIIMAGE pImage = (PISCSIIMAGE)RTMemAllocZ(RT_UOFFSETOF(ISCSIIMAGE, RegionList.aRegions[1]));
     if (RT_LIKELY(pImage))

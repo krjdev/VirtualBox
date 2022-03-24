@@ -1,10 +1,10 @@
-/* $Id: UISettingsPage.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISettingsPage.h $ */
 /** @file
  * VBox Qt GUI - UISettingsPage class declaration.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -102,18 +102,18 @@ signals:
 
 public:
 
-    /** Loads settings from external object(s) packed inside @a data to cache.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Loads data into the cache from corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void loadToCacheFrom(QVariant &data) = 0;
-    /** Loads data from cache to corresponding widgets.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
+    /** Loads data into corresponding widgets from the cache,
+      * this task SHOULD be performed in the GUI thread only. */
     virtual void getFromCache() = 0;
 
-    /** Saves data from corresponding widgets to cache.
-      * @note  This task WILL be performed in the GUI thread only, all widget interactions here! */
+    /** Saves data from corresponding widgets to the cache,
+      * this task SHOULD be performed in the GUI thread only. */
     virtual void putToCache() = 0;
-    /** Saves settings from cache to external object(s) packed inside @a data.
-      * @note  This task WILL be performed in other than the GUI thread, no widget interactions! */
+    /** Saves data from the cache to corresponding external object(s),
+      * this task COULD be performed in other than the GUI thread. */
     virtual void saveFromCacheTo(QVariant &data) = 0;
 
     /** Notifies listeners about particular COM error.
@@ -220,13 +220,13 @@ protected:
     GlobalSettingsPageType internalID() const;
 
     /** Returns page internal name. */
-    virtual QString internalName() const RT_OVERRIDE;
+    virtual QString internalName() const /* override */;
 
     /** Returns page warning pixmap. */
-    virtual QPixmap warningPixmap() const RT_OVERRIDE;
+    virtual QPixmap warningPixmap() const /* override */;
 
     /** Returns whether the page content was changed. */
-    virtual bool changed() const RT_OVERRIDE { return false; }
+    virtual bool changed() const /* override */ { return false; }
 
     /** Fetches data to m_properties & m_settings. */
     void fetchData(const QVariant &data);
@@ -252,10 +252,10 @@ protected:
     MachineSettingsPageType internalID() const;
 
     /** Returns page internal name. */
-    virtual QString internalName() const RT_OVERRIDE;
+    virtual QString internalName() const /* override */;
 
     /** Returns page warning pixmap. */
-    virtual QPixmap warningPixmap() const RT_OVERRIDE;
+    virtual QPixmap warningPixmap() const /* override */;
 
     /** Fetches data to m_machine & m_console. */
     void fetchData(const QVariant &data);

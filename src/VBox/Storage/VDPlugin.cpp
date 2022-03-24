@@ -1,10 +1,10 @@
-/* $Id: VDPlugin.cpp 93512 2022-01-31 20:48:00Z vboxsync $ */
+/* $Id: VDPlugin.cpp $ */
 /** @file
  * VD - Virtual disk container implementation, plugin related bits.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -37,6 +37,7 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
+
 /**
  * Plugin structure.
  */
@@ -54,8 +55,14 @@ typedef VDPLUGIN *PVDPLUGIN;
 
 
 /*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+
+
+/*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
+
 #ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
 /** Head of loaded plugin list. */
 static RTLISTANCHOR g_ListPluginsLoaded;
@@ -610,14 +617,10 @@ DECLHIDDEN(int) vdPluginLoadFromFilename(const char *pszFilename)
 #ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
     /* Plugin loaded? Nothing to do. */
     if (vdPluginFind(pszFilename))
-    {
-        LogFlowFunc(("Plugin '%s' already loaded\n", pszFilename));
         return VINF_SUCCESS;
-    }
 
     RTLDRMOD hPlugin = NIL_RTLDRMOD;
     int rc = SUPR3HardenedLdrLoadPlugIn(pszFilename, &hPlugin, NULL);
-    LogFlowFunc(("SUPR3HardenedLdrLoadPlugIn('%s') -> %Rrc\n", pszFilename, rc));
     if (RT_SUCCESS(rc))
     {
         VDBACKENDREGISTER BackendRegister;

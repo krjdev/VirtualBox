@@ -1,10 +1,10 @@
-/* $Id: msiDarwinDescriptorDecoder.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: msiDarwinDescriptorDecoder.cpp $ */
 /** @file
  * msiDarwinDescriptorDecoder
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,14 +53,14 @@ int wmain(int cArgs, wchar_t **papwszArgs)
                     " ->       Product=%ls\n"
                     " ->     FeatureId=%ls\n"
                     " -> ComponentCode=%ls\n"
-                    " ->  offArguments=%#lx (%ld)\n"
+                    " ->  offArguments=%#x (%d)\n"
                     , iArg, papwszArgs[iArg], wszProductCode, wszFeatureId, wszComponentCode, offArguments, offArguments);
         }
         else
         {
             fprintf(stderr,
                     "#%u: '%ls'\n"
-                    " -> error %lu (%#lx)\n"
+                    " -> error %u (%#x)\n"
                     , iArg, papwszArgs[iArg], dwErr, dwErr);
             rcExit = 1;
         }

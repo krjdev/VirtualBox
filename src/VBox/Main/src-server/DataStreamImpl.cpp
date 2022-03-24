@@ -1,10 +1,10 @@
-/* $Id: DataStreamImpl.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DataStreamImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation - DataStream
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -210,7 +210,7 @@ HRESULT DataStream::read(ULONG aSize, ULONG aTimeoutMS, std::vector<BYTE> &aData
         if (vrc == VERR_TIMEOUT)
             hrc = VBOX_E_TIMEOUT;
         else if (RT_FAILURE(vrc))
-            hrc = setErrorBoth(E_FAIL, vrc, tr("Error reading %u bytes: %Rrc", "", aSize), aSize, vrc);
+            hrc = setErrorBoth(E_FAIL, vrc, tr("Error reading %u bytes: %Rrc"), aSize, vrc);
     }
 
     return hrc;

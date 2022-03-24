@@ -11,7 +11,7 @@ other VBox test drivers.
 
 __copyright__ = \
 """
-Copyright (C) 2010-2022 Oracle Corporation
+Copyright (C) 2010-2020 Oracle Corporation
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -30,14 +30,14 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 94126 $"
+__version__ = "$Revision: 135976 $"
 
 
 # Standard Python imports.
 import os
 import sys
 import re
-import socket
+#import socket
 import tempfile
 import time
 
@@ -70,9 +70,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
         self._asSubDriver   = [];   # The sub driver and it's arguments.
         self._asBuildUrls   = [];   # The URLs passed us on the command line.
         self._asBuildFiles  = [];   # The downloaded file names.
-        self._fUnpackedBuildFiles = False;
         self._fAutoInstallPuelExtPack = True;
-        self._fKernelDrivers          = True;
 
     #
     # Base method we override
@@ -84,16 +82,13 @@ class VBoxInstallerTestDriver(TestDriverBase):
         #             012345678901234567890123456789012345678901234567890123456789012345678901234567890
         reporter.log('');
         reporter.log('vboxinstaller Options:');
-        reporter.log('  --vbox-build    <url[,url2[,...]]>');
+        reporter.log('  --vbox-build    <url[,url2[,..]]>');
         reporter.log('      Comma separated list of URL to file to download and install or/and');
         reporter.log('      unpack.  URLs without a schema are assumed to be files on the');
         reporter.log('      build share and will be copied off it.');
         reporter.log('  --no-puel-extpack');
         reporter.log('      Indicates that the PUEL extension pack should not be installed if found.');
         reporter.log('      The default is to install it if found in the vbox-build.');
-        reporter.log('  --no-kernel-drivers');
-        reporter.log('      Indicates that the kernel drivers should not be installed on platforms where this is supported.');
-        reporter.log('      The default is to install them.');
         reporter.log('  --');
         reporter.log('      Indicates the end of our parameters and the start of the sub');
         reporter.log('      testdriver and its arguments.');
@@ -118,10 +113,6 @@ class VBoxInstallerTestDriver(TestDriverBase):
             self._fAutoInstallPuelExtPack = False;
         elif asArgs[iArg] == '--puel-extpack':
             self._fAutoInstallPuelExtPack = True;
-        elif asArgs[iArg] == '--no-kernel-drivers':
-            self._fKernelDrivers = False;
-        elif asArgs[iArg] == '--kernel-drivers':
-            self._fKernelDrivers = True;
         else:
             return TestDriverBase.parseOption(self, asArgs, iArg);
         return iArg + 1;
@@ -131,7 +122,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
         # Check that we've got what we need.
         #
         if not self._asBuildUrls:
-            reporter.error('No build files specified ("--vbox-build file1[,file2[...]]")');
+            reporter.error('No build files specfiied ("--vbox-build file1[,file2[...]]")');
             return False;
         if not self._asSubDriver:
             reporter.error('No sub testdriver specified. (" -- test/stuff/tdStuff1.py args")');
@@ -174,14 +165,14 @@ class VBoxInstallerTestDriver(TestDriverBase):
         if fRc is True and 'execute' not in self.asActions and 'all' not in self.asActions:
             fRc = self._executeSubDriver([ 'verify', ]);
         if fRc is True and 'execute' not in self.asActions and 'all' not in self.asActions:
-            fRc = self._executeSubDriver([ 'config', ], fPreloadASan = True);
+            fRc = self._executeSubDriver([ 'config', ]);
         return fRc;
 
     def actionExecute(self):
         """
         Execute the sub testdriver.
         """
-        return self._executeSubDriver(self.asActions, fPreloadASan = True);
+        return self._executeSubDriver(self.asActions);
 
     def actionCleanupAfter(self):
         """
@@ -211,7 +202,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
         Forward this to the sub testdriver first, then wipe all VBox like
         processes, and finally do the pid file processing (again).
         """
-        fRc1 = self._executeSubDriver([ 'abort', ], fMaySkip = False, fPreloadASan = True);
+        fRc1 = self._executeSubDriver([ 'abort', ], fMaySkip = False);
         fRc2 = self._killAllVBoxProcesses();
         fRc3 = TestDriverBase.actionAbort(self);
         return fRc1 and fRc2 and fRc3;
@@ -220,7 +211,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
     #
     # Persistent variables.
     #
-    ## @todo integrate into the base driver. Persistent accross scratch wipes?
+    ## @todo integrate into the base driver. Persisten accross scratch wipes?
 
     def __persistentVarCalcName(self, sVar):
         """Returns the (full) filename for the given persistent variable."""
@@ -238,9 +229,10 @@ class VBoxInstallerTestDriver(TestDriverBase):
         """
         sFull = self.__persistentVarCalcName(sVar);
         try:
-            with open(sFull, 'w') as oFile:
-                if sValue:
-                    oFile.write(sValue.encode('utf-8'));
+            oFile = open(sFull, 'w');
+            if sValue:
+                oFile.write(sValue.encode('utf-8'));
+            oFile.close();
         except:
             reporter.errorXcpt('Error creating "%s"' % (sFull,));
             return False;
@@ -290,8 +282,9 @@ class VBoxInstallerTestDriver(TestDriverBase):
         if not os.path.exists(sFull):
             return None;
         try:
-            with open(sFull, 'r') as oFile:
-                sValue = oFile.read().decode('utf-8');
+            oFile = open(sFull, 'r');
+            sValue = oFile.read().decode('utf-8');
+            oFile.close();
         except:
             reporter.errorXcpt('Error creating "%s"' % (sFull,));
             return None;
@@ -306,13 +299,10 @@ class VBoxInstallerTestDriver(TestDriverBase):
         """
         Kills all virtual box related processes we find in the system.
         """
-        sHostOs = utils.getHostOs();
-        asDebuggers = [ 'cdb', 'windbg', ] if sHostOs == 'windows' else [ 'gdb', 'gdb-i386-apple-darwin', 'lldb' ];
 
         for iIteration in range(22):
             # Gather processes to kill.
-            aoTodo      = [];
-            aoDebuggers = [];
+            aoTodo = [];
             for oProcess in utils.processListAll():
                 sBase = oProcess.getBaseImageNameNoExeSuff();
                 if sBase is None:
@@ -324,42 +314,17 @@ class VBoxInstallerTestDriver(TestDriverBase):
                     aoTodo.append(oProcess);
                 if sBase.startswith('virtualbox-') and sBase.endswith('-multiarch.exe'):
                     aoTodo.append(oProcess);
-                if sBase in asDebuggers:
-                    aoDebuggers.append(oProcess);
-                    if iIteration in [0, 21]:
-                        reporter.log('Warning: debugger running: %s (%s %s)' % (oProcess.iPid, sBase, oProcess.asArgs));
+                if iIteration in [0, 21]  and  sBase in [ 'windbg', 'gdb', 'gdb-i386-apple-darwin', ]:
+                    reporter.log('Warning: debugger running: %s (%s)' % (oProcess.iPid, sBase,));
             if not aoTodo:
                 return True;
-
-            # Are any of the debugger processes hooked up to a VBox process?
-            if sHostOs == 'windows':
-                # On demand debugging windows: windbg -p <decimal-pid> -e <decimal-event> -g
-                for oDebugger in aoDebuggers:
-                    for oProcess in aoTodo:
-                        # The whole command line is asArgs[0] here. Fix if that changes.
-                        if oDebugger.asArgs and oDebugger.asArgs[0].find('-p %s ' % (oProcess.iPid,)) >= 0:
-                            aoTodo.append(oDebugger);
-                            break;
-            else:
-                for oDebugger in aoDebuggers:
-                    for oProcess in aoTodo:
-                        # Simplistic approach: Just check for argument equaling our pid.
-                        if oDebugger.asArgs and ('%s' % oProcess.iPid) in oDebugger.asArgs:
-                            aoTodo.append(oDebugger);
-                            break;
 
             # Kill.
             for oProcess in aoTodo:
                 reporter.log('Loop #%d - Killing %s (%s, uid=%s)'
                              % ( iIteration, oProcess.iPid, oProcess.sImage if oProcess.sName is None else oProcess.sName,
                                  oProcess.iUid, ));
-                if    not utils.processKill(oProcess.iPid) \
-                  and sHostOs != 'windows' \
-                  and utils.processExists(oProcess.iPid):
-                    # Many of the vbox processes are initially set-uid-to-root and associated debuggers are running
-                    # via sudo, so we might not be able to kill them unless we sudo and use /bin/kill.
-                    try:    utils.sudoProcessCall(['/bin/kill', '-9', '%s' % (oProcess.iPid,)]);
-                    except: reporter.logXcpt();
+                utils.processKill(oProcess.iPid); # No mercy.
 
             # Check if they're all dead like they should be.
             time.sleep(0.1);
@@ -407,53 +372,13 @@ class VBoxInstallerTestDriver(TestDriverBase):
         reporter.log('Exit code [sudo]: %s (%s)' % (iRc, asArgs));
         return (iRc == 0, iRc);
 
-    def _findASanLibsForASanBuild(self):
-        """
-        Returns a list of (address) santizier related libraries to preload
-        when launching the sub driver.
-        Returns empty list for non-asan builds or on platforms where this isn't needed.
-        """
-        # Note! We include libasan.so.X in the VBoxAll tarball for asan builds, so we
-        #       can use its presence both to detect an 'asan' build and to return it.
-        #       Only the libasan.so.X library needs preloading at present.
-        if self.sHost in ('linux',):
-            sLibASan = self._findFile(r'libasan\.so\..*');
-            if sLibASan:
-                return [sLibASan,];
-        return [];
-
-    def _executeSubDriver(self, asActions, fMaySkip = True, fPreloadASan = True):
+    def _executeSubDriver(self, asActions, fMaySkip = True):
         """
         Execute the sub testdriver with the specified action.
         """
         asArgs = list(self._asSubDriver)
         asArgs.append('--no-wipe-clean');
         asArgs.extend(asActions);
-
-        asASanLibs = [];
-        if fPreloadASan:
-            asASanLibs = self._findASanLibsForASanBuild();
-        if asASanLibs:
-            os.environ['LD_PRELOAD'] = ':'.join(asASanLibs);
-            os.environ['LSAN_OPTIONS'] = 'detect_leaks=0'; # We don't want python leaks. vbox.py disables this.
-
-            # Because of https://github.com/google/sanitizers/issues/856 we must try use setarch to disable
-            # address space randomization.
-
-            reporter.log('LD_PRELOAD...')
-            if utils.getHostArch() == 'amd64':
-                sSetArch = utils.whichProgram('setarch');
-                reporter.log('sSetArch=%s' % (sSetArch,));
-                if sSetArch:
-                    asArgs = [ sSetArch, 'x86_64', '-R', sys.executable ] + asArgs;
-                    reporter.log('asArgs=%s' % (asArgs,));
-
-            rc = self._executeSync(asArgs, fMaySkip = fMaySkip);
-
-            del os.environ['LSAN_OPTIONS'];
-            del os.environ['LD_PRELOAD'];
-            return rc;
-
         return self._executeSync(asArgs, fMaySkip = fMaySkip);
 
     def _maybeUnpackArchive(self, sMaybeArchive, fNonFatal = False):
@@ -489,8 +414,9 @@ class VBoxInstallerTestDriver(TestDriverBase):
         #
         # Download the build files.
         #
-        for i, sBuildUrl in enumerate(self._asBuildUrls):
-            if webutils.downloadFile(sBuildUrl, self._asBuildFiles[i], self.sBuildPath, reporter.log, reporter.log) is not True:
+        for i in range(len(self._asBuildUrls)):
+            if webutils.downloadFile(self._asBuildUrls[i], self._asBuildFiles[i],
+                                     self.sBuildPath, reporter.log, reporter.log) is not True:
                 reporter.testDone(fSkipped = True);
                 return None; # Failed to get binaries, probably deleted. Skip the test run.
 
@@ -498,12 +424,11 @@ class VBoxInstallerTestDriver(TestDriverBase):
         # Unpack anything we know what is and append it to the build files
         # list.  This allows us to use VBoxAll*.tar.gz files.
         #
-        for sFile in list(self._asBuildFiles): # Note! We copy the list as _maybeUnpackArchive updates it.
+        for sFile in list(self._asBuildFiles):
             if self._maybeUnpackArchive(sFile, fNonFatal = True) is not True:
                 reporter.testDone(fSkipped = True);
                 return None; # Failed to unpack. Probably local error, like busy
                              # DLLs on windows, no reason for failing the build.
-        self._fUnpackedBuildFiles = True;
 
         #
         # Go to system specific installation code.
@@ -571,18 +496,9 @@ class VBoxInstallerTestDriver(TestDriverBase):
         """
         oRegExp = re.compile(sRegExp);
 
-        reporter.log('_findFile: %s' % (sRegExp,));
         for sFile in self._asBuildFiles:
             if oRegExp.match(os.path.basename(sFile)) and os.path.exists(sFile):
                 return sFile;
-
-        # If we didn't unpack the build files, search all the files in the scratch area:
-        if not self._fUnpackedBuildFiles:
-            for sDir, _, asFiles in os.walk(self.sScratchPath):
-                for sFile in asFiles:
-                    #reporter.log('_findFile: considering %s' % (sFile,));
-                    if oRegExp.match(sFile):
-                        return os.path.join(sDir, sFile);
 
         if fMandatory:
             reporter.error('Failed to find a file matching "%s" in %s.' % (sRegExp, self._asBuildFiles,));
@@ -631,22 +547,14 @@ class VBoxInstallerTestDriver(TestDriverBase):
         # Unmount.
         fRc = self._executeSync(['hdiutil', 'detach', sMountPath ]);
         if not fRc and not fIgnoreError:
-            # In case it's busy for some reason or another, just retry after a little delay.
-            for iTry in range(6):
-                time.sleep(5);
-                reporter.error('Retry #%s unmount DMT at %s' % (iTry + 1, sMountPath,));
-                fRc = self._executeSync(['hdiutil', 'detach', sMountPath ]);
-                if fRc:
-                    break;
-            if not fRc:
-                reporter.error('Failed to unmount DMG at %s' % (sMountPath,));
+            reporter.error('Failed to unmount DMG at %s' % sMountPath);
 
         # Remove dir.
         try:
             os.rmdir(sMountPath);
         except:
             if not fIgnoreError:
-                reporter.errorXcpt('Failed to remove directory %s' % (sMountPath,));
+                reporter.errorXcpt('Failed to remove directory %s' % sMountPath);
         return fRc;
 
     def _darwinMountDmg(self, sDmg):
@@ -665,42 +573,8 @@ class VBoxInstallerTestDriver(TestDriverBase):
 
         return self._executeSync(['hdiutil', 'attach', '-readonly', '-mount', 'required', '-mountpoint', sMountPath, sDmg, ]);
 
-    def _generateWithoutKextsChoicesXmlOnDarwin(self):
-        """
-        Generates the choices XML when kernel drivers are disabled.
-        None is returned on failure.
-        """
-        sPath = os.path.join(self.sScratchPath, 'DarwinChoices.xml');
-        oFile = utils.openNoInherit(sPath, 'wt');
-        oFile.write('<?xml version="1.0" encoding="UTF-8"?>\n'
-                    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-                    '<plist version="1.0">\n'
-                    '<array>\n'
-                    '    <dict>\n'
-                    '        <key>attributeSetting</key>\n'
-                    '        <integer>0</integer>\n'
-                    '        <key>choiceAttribute</key>\n'
-                    '        <string>selected</string>\n'
-                    '        <key>choiceIdentifier</key>\n'
-                    '        <string>choiceVBoxKEXTs</string>\n'
-                    '    </dict>\n'
-                    '</array>\n'
-                    '</plist>\n');
-        oFile.close();
-        return sPath;
-
     def _installVBoxOnDarwin(self):
         """ Installs VBox on Mac OS X."""
-
-        # TEMPORARY HACK - START
-        # Don't install the kernel drivers on the testboxes with BigSur and later
-        # Needs a more generic approach but that one needs more effort.
-        sHostName = socket.getfqdn();
-        if    sHostName.startswith('testboxmac10') \
-           or sHostName.startswith('testboxmac11'):
-            self._fKernelDrivers = False;
-        # TEMPORARY HACK - END
-
         sDmg = self._findFile('^VirtualBox-.*\\.dmg$');
         if sDmg is None:
             return False;
@@ -717,15 +591,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
 
             # Install the package.
             sPkg = os.path.join(self._darwinDmgPath(), 'VirtualBox.pkg');
-            if self._fKernelDrivers:
-                fRc, _ = self._sudoExecuteSync(['installer', '-verbose', '-dumplog', '-pkg', sPkg, '-target', '/']);
-            else:
-                sChoicesXml = self._generateWithoutKextsChoicesXmlOnDarwin();
-                if sChoicesXml is not None:
-                    fRc, _ = self._sudoExecuteSync(['installer', '-verbose', '-dumplog', '-pkg', sPkg, \
-                                                    '-applyChoiceChangesXML', sChoicesXml, '-target', '/']);
-                else:
-                    fRc = False;
+            fRc, _ = self._sudoExecuteSync(['installer', '-verbose', '-dumplog', '-pkg', sPkg, '-target', '/']);
 
         # Unmount the DMG and we're done.
         if not self._darwinUnmountDmg(fIgnoreError = False):
@@ -873,7 +739,7 @@ class VBoxInstallerTestDriver(TestDriverBase):
     #
 
     ## VBox windows services we can query the status of.
-    kasWindowsServices = [ 'vboxsup', 'vboxusbmon', 'vboxnetadp', 'vboxnetflt', 'vboxnetlwf' ];
+    kasWindowsServices = [ 'vboxdrv', 'vboxusbmon', 'vboxnetadp', 'vboxnetflt', 'vboxnetlwf' ];
 
     def _installVBoxOnWindows(self):
         """ Installs VBox on Windows."""

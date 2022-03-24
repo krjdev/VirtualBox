@@ -1,10 +1,10 @@
-/* $Id: pkix-verify.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: pkix-verify.cpp $ */
 /** @file
  * IPRT - Crypto - Public Key Infrastructure API, Verification.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -38,9 +38,7 @@
 
 #ifdef IPRT_WITH_OPENSSL
 # include "internal/iprt-openssl.h"
-# include "internal/openssl-pre.h"
-# include <openssl/evp.h>
-# include "internal/openssl-post.h"
+# include "openssl/evp.h"
 # ifndef OPENSSL_VERSION_NUMBER
 #  error "Missing OPENSSL_VERSION_NUMBER!"
 # endif
@@ -117,8 +115,8 @@ RTDECL(int) RTCrPkixPubKeyVerifySignature(PCRTASN1OBJID pAlgorithm, RTCRKEY hPub
     /* Create an EVP public key. */
     EVP_PKEY     *pEvpPublicKey = NULL;
     const EVP_MD *pEvpMdType = NULL;
-    int rcOssl = rtCrKeyToOpenSslKeyEx(hPublicKey, true /*fNeedPublic*/, pAlgorithm->szObjId,
-                                       (void **)&pEvpPublicKey, (const void **)&pEvpMdType, pErrInfo);
+    int rcOssl = rtCrKeyToOpenSslKey(hPublicKey, true /*fNeedPublic*/, pAlgorithm->szObjId,
+                                     (void **)&pEvpPublicKey, (const void **)&pEvpMdType, pErrInfo);
     if (RT_SUCCESS(rcOssl))
     {
         EVP_MD_CTX *pEvpMdCtx = EVP_MD_CTX_create();
@@ -231,8 +229,8 @@ RTDECL(int) RTCrPkixPubKeyVerifySignedDigest(PCRTASN1OBJID pAlgorithm, RTCRKEY h
     /* Create an EVP public key. */
     EVP_PKEY     *pEvpPublicKey = NULL;
     const EVP_MD *pEvpMdType = NULL;
-    int rcOssl = rtCrKeyToOpenSslKeyEx(hPublicKey, true /*fNeedPublic*/, pszAlgObjId,
-                                       (void **)&pEvpPublicKey, (const void **)&pEvpMdType, pErrInfo);
+    int rcOssl = rtCrKeyToOpenSslKey(hPublicKey, true /*fNeedPublic*/, pszAlgObjId,
+                                     (void **)&pEvpPublicKey, (const void **)&pEvpMdType, pErrInfo);
     if (RT_SUCCESS(rcOssl))
     {
         /* Create an EVP public key context we can use to validate the digest. */

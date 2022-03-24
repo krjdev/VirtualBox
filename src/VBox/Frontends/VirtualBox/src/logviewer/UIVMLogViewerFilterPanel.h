@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerFilterPanel.h 94045 2022-03-01 15:01:06Z vboxsync $ */
+/* $Id: UIVMLogViewerFilterPanel.h $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,7 +28,6 @@
 #include "UIVMLogViewerPanel.h"
 
 /* Forward declarations: */
-class QAbstractButton;
 class QButtonGroup;
 class QComboBox;
 class QFrame;
@@ -47,30 +46,33 @@ class UIVMLogViewerFilterPanel : public UIVMLogViewerPanel
 
 signals:
 
-    void sigFilterApplied();
+    /* Notifies listeners that the filter has been applied. @a isOriginalLog is true
+     if filter function returns early for some reason (no filter term etc.) and log page
+     content is set to original log file. @a isOriginalLog is false if content is reduced (filtered)*/
+    void sigFilterApplied(bool isOriginalLog);
 
 public:
 
     /** Constructs the filter-panel by passing @a pParent to the QWidget base-class constructor.
       * @param  pViewer  Specifies reference to the VM Log-Viewer this filter-panel belongs to. */
     UIVMLogViewerFilterPanel(QWidget *pParent, UIVMLogViewerWidget *pViewer);
-    virtual QString panelName() const RT_OVERRIDE;
+    virtual QString panelName() const /* override */;
 
 public slots:
 
-    /** Applies filter settings and filters the current log-page. */
-    void applyFilter();
+    /** Applies filter settings and filters the current log-page.
+      * @param  iCurrentIndex  Specifies index of current log-page, but it is actually not used in the method. */
+    void applyFilter(const int iCurrentIndex = 0);
 
 protected:
 
-    virtual void prepareWidgets() RT_OVERRIDE;
-    virtual void prepareConnections() RT_OVERRIDE;
+    virtual void prepareWidgets() /* override */;
+    virtual void prepareConnections() /* override */;
 
-    void retranslateUi() RT_OVERRIDE;
+    void retranslateUi() /* override */;
     /** Handles Qt @a pEvent, used for keyboard processing. */
-    bool eventFilter(QObject *pObject, QEvent *pEvent) RT_OVERRIDE;
-    void showEvent(QShowEvent *pEvent) RT_OVERRIDE;
-    void hideEvent(QHideEvent *pEvent) RT_OVERRIDE;
+    bool eventFilter(QObject *pObject, QEvent *pEvent) /* override */;
+    void showEvent(QShowEvent *pEvent) /* override */;
 
 private slots:
 
@@ -79,7 +81,7 @@ private slots:
     /** Clear all the filter terms and reset the filtering. */
     void sltClearFilterTerms();
     /** Executes the necessary code to handle filter's boolean operator change ('And', 'Or'). */
-    void sltOperatorButtonChanged(QAbstractButton *pButton);
+    void sltOperatorButtonChanged(int buttonId);
     void sltRemoveFilterTerm(const QString &termString);
 
 private:
@@ -94,8 +96,6 @@ private:
 
     bool applyFilterTermsToString(const QString& string);
     void filter();
-    /** Revert the document to original. */
-    void resetFiltering();
 
     QLabel              *m_pFilterLabel;
     QComboBox           *m_pFilterComboBox;

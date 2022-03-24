@@ -1,10 +1,10 @@
-/* $Id: VBoxLicenseViewer.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxLicenseViewer.cpp $ */
 /** @file
  * VBox Qt GUI - VBoxLicenseViewer class implementation.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,6 @@
 #include "QIDialogButtonBox.h"
 #include "VBoxLicenseViewer.h"
 #include "UIMessageCenter.h"
-#include "UINotificationCenter.h"
 
 
 VBoxLicenseViewer::VBoxLicenseViewer(QWidget *pParent /* = 0 */)
@@ -111,7 +110,7 @@ int VBoxLicenseViewer::showLicenseFromFile(const QString &strLicenseFileName)
         return showLicenseFromString(file.readAll());
     else
     {
-        UINotificationMessage::cannotOpenLicenseFile(strLicenseFileName);
+        msgCenter().cannotOpenLicenseFile(strLicenseFileName, this);
         return QDialog::Rejected;
     }
 }

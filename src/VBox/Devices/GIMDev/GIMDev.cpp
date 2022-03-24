@@ -1,10 +1,10 @@
-/* $Id: GIMDev.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GIMDev.cpp $ */
 /** @file
  * Guest Interface Manager Device.
  */
 
 /*
- * Copyright (C) 2014-2022 Oracle Corporation
+ * Copyright (C) 2014-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -264,7 +264,8 @@ static DECLCALLBACK(int) gimdevR3Construct(PPDMDEVINS pDevIns, int iInstance, PC
     /*
      * Get debug setup requirements from GIM.
      */
-    int rc = PDMDevHlpGIMGetDebugSetup(pDevIns, &pThis->DbgSetup);
+    PVMCC pVM = PDMDevHlpGetVM(pDevIns);
+    int rc = GIMR3GetDebugSetup(pVM, &pThis->DbgSetup);
     if (   RT_SUCCESS(rc)
         && pThis->DbgSetup.cbDbgRecvBuf > 0)
     {
@@ -334,14 +335,14 @@ static DECLCALLBACK(int) gimdevR3Construct(PPDMDEVINS pDevIns, int iInstance, PC
     /*
      * Register this device with the GIM component.
      */
-    PDMDevHlpGIMDeviceRegister(pDevIns, pThis->DbgSetup.cbDbgRecvBuf ? &pThis->Dbg : NULL);
+    GIMR3GimDeviceRegister(pVM, pDevIns, pThis->DbgSetup.cbDbgRecvBuf ? &pThis->Dbg : NULL);
 
     /*
      * Get the MMIO2 regions from the GIM provider and make the registrations.
      */
 /** @todo r=bird: consider ditching this as GIM doesn't actually make use of it */
     uint32_t        cRegions  = 0;
-    PGIMMMIO2REGION paRegions = PDMDevHlpGIMGetMmio2Regions(pDevIns, &cRegions);
+    PGIMMMIO2REGION paRegions = GIMGetMmio2Regions(pVM, &cRegions);
     if (   cRegions
         && paRegions)
     {
@@ -388,8 +389,9 @@ static DECLCALLBACK(int) gimdevRZConstruct(PPDMDEVINS pDevIns)
      * Map the MMIO2 regions into the context.
      */
 /** @todo r=bird: consider ditching this as GIM doesn't actually make use of it */
+    PVMCC           pVM       = PDMDevHlpGetVM(pDevIns);
     uint32_t        cRegions  = 0;
-    PGIMMMIO2REGION paRegions = PDMDevHlpGIMGetMmio2Regions(pDevIns, &cRegions);
+    PGIMMMIO2REGION paRegions = GIMGetMmio2Regions(pVM, &cRegions);
     if (   cRegions
         && paRegions)
     {

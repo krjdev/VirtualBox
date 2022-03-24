@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,7 +51,7 @@ RT_C_DECLS_BEGIN
 /** DBGCORECOREDESCRIPTOR::u32Magic. */
 #define DBGFCORE_MAGIC          UINT32_C(0xc01ac0de)
 /** DBGCORECOREDESCRIPTOR::u32FmtVersion. */
-#define DBGFCORE_FMT_VERSION    UINT32_C(0x00010006)
+#define DBGFCORE_FMT_VERSION    UINT32_C(0x00010005)
 
 /**
  * An x86 segment selector.
@@ -133,7 +133,6 @@ typedef struct DBGFCORECPU
     uint64_t            msrSFMASK;
     uint64_t            msrKernelGSBase;
     uint64_t            msrApicBase;
-    uint64_t            msrTscAux;
     uint64_t            aXcr[2];
     uint32_t            cbExt;
     uint32_t            uPadding0;

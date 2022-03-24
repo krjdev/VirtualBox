@@ -1,10 +1,10 @@
-/* $Id: UIFileManagerLogPanel.cpp 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIFileManagerLogPanel.cpp $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -44,7 +44,7 @@ public:
 
 protected:
 
-    virtual void contextMenuEvent(QContextMenuEvent * event) RT_OVERRIDE;
+    virtual void contextMenuEvent(QContextMenuEvent * event) /* override */;
 
 private slots:
 
@@ -89,7 +89,7 @@ UIFileManagerLogPanel::UIFileManagerLogPanel(QWidget *pParent /* = 0 */)
     prepare();
 }
 
-void UIFileManagerLogPanel::appendLog(const QString &strLog, const QString &strMachineName, FileManagerLogType eLogType)
+void UIFileManagerLogPanel::appendLog(const QString &strLog, FileManagerLogType eLogType)
 {
     if (!m_pLogTextEdit)
         return;
@@ -98,7 +98,7 @@ void UIFileManagerLogPanel::appendLog(const QString &strLog, const QString &strM
     {
         strColorTag = "<font color=\"Red\">";
     }
-    QString strColoredLog = QString("%1 %2: %3 %4 %5").arg(strColorTag).arg(QTime::currentTime().toString("hh:mm:ss:z")).arg(strMachineName).arg(strLog).arg("</font>");
+    QString strColoredLog = QString("%1 %2: %3 %4").arg(strColorTag).arg(QTime::currentTime().toString("hh:mm:ss")).arg(strLog).arg("</font>");
     m_pLogTextEdit->append(strColoredLog);
 }
 

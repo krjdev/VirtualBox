@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- $Id: xpidl_iid.xsl 82969 2020-02-04 10:54:12Z vboxsync $ -->
+<!-- $Id: xpidl_iid.xsl $ -->
 
 <!--
  *  A template to generate a header file containing IIDs for XPCOM

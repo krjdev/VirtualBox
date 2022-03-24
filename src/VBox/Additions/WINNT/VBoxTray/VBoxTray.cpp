@@ -1,10 +1,10 @@
-/* $Id: VBoxTray.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: VBoxTray.cpp $ */
 /** @file
  * VBoxTray - Guest Additions Tray Application
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -47,7 +47,12 @@
 #include <iprt/system.h>
 #include <iprt/time.h>
 
+#ifdef DEBUG
+# define LOG_ENABLED
+# define LOG_GROUP LOG_GROUP_DEFAULT
+#endif
 #include <VBox/log.h>
+
 #include <VBox/err.h>
 
 /* Default desktop state tracking */
@@ -140,15 +145,15 @@ NOTIFYICONDATA        g_NotifyIconData;
 
 uint32_t              g_fGuestDisplaysChanged = 0;
 
-static PRTLOGGER      g_pLoggerRelease = NULL;           /**< This is actually the debug logger in DEBUG builds! */
-static uint32_t       g_cHistory = 10;                   /**< Enable log rotation, 10 files. */
-static uint32_t       g_uHistoryFileTime = RT_SEC_1DAY;  /**< Max 1 day per file. */
-static uint64_t       g_uHistoryFileSize = 100 * _1M;    /**< Max 100MB per file. */
+static PRTLOGGER      g_pLoggerRelease = NULL;
+static uint32_t       g_cHistory = 10;                   /* Enable log rotation, 10 files. */
+static uint32_t       g_uHistoryFileTime = RT_SEC_1DAY;  /* Max 1 day per file. */
+static uint64_t       g_uHistoryFileSize = 100 * _1M;    /* Max 100MB per file. */
 
 #ifdef DEBUG_andy
 static VBOXSERVICEINFO g_aServices[] =
 {
-    {&g_SvcDescDnD,      NIL_RTTHREAD, NULL, false, false, false, false, true }
+    { &g_SvcDescClipboard,      NIL_RTTHREAD, NULL, false, false, false, false, true }
 };
 #else
 /**
@@ -491,7 +496,7 @@ static bool vboxTrayHandleGlobalMessages(PVBOXGLOBALMESSAGE pTable, UINT uMsg,
  * @param   enmPhase
  * @param   pfnLog
  */
-static DECLCALLBACK(void) vboxTrayLogHeaderFooter(PRTLOGGER pLoggerRelease, RTLOGPHASE enmPhase, PFNRTLOGPHASEMSG pfnLog)
+static void vboxTrayLogHeaderFooter(PRTLOGGER pLoggerRelease, RTLOGPHASE enmPhase, PFNRTLOGPHASEMSG pfnLog)
 {
     /* Some introductory information. */
     static RTTIMESPEC s_TimeSpec;
@@ -564,30 +569,27 @@ static DECLCALLBACK(void) vboxTrayLogHeaderFooter(PRTLOGGER pLoggerRelease, RTLO
  */
 static int vboxTrayLogCreate(void)
 {
-    /* Create release (or debug) logger (stdout + file). */
+    /* Create release logger (stdout + file). */
     static const char * const s_apszGroups[] = VBOX_LOGGROUP_NAMES;
-#ifdef DEBUG /* See below, debug logger not release. */
-    static const char s_szEnvVarPfx[] = "VBOXTRAY_LOG";
-    static const char s_szGroupSettings[] = "all.e.l.f";
-#else
-    static const char s_szEnvVarPfx[] = "VBOXTRAY_RELEASE_LOG";
-    static const char s_szGroupSettings[] = "all";
+    RTUINT fFlags = RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME_PROG;
+#if defined(RT_OS_WINDOWS) || defined(RT_OS_OS2)
+    fFlags |= RTLOGFLAGS_USECRLF;
 #endif
     RTERRINFOSTATIC ErrInfo;
-    int rc = RTLogCreateEx(&g_pLoggerRelease, s_szEnvVarPfx,
-                           RTLOGFLAGS_PREFIX_THREAD | RTLOGFLAGS_PREFIX_TIME_PROG | RTLOGFLAGS_USECRLF,
-                           s_szGroupSettings, RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX,
-                           0 /*cBufDescs*/, NULL /*paBufDescs*/, RTLOGDEST_STDOUT,
+    int rc = RTLogCreateEx(&g_pLoggerRelease, fFlags,
+#ifdef DEBUG
+                           "all.e.l.f",
+                           "VBOXTRAY_LOG",
+#else
+                           "all",
+                           "VBOXTRAY_RELEASE_LOG",
+#endif
+                           RT_ELEMENTS(s_apszGroups), s_apszGroups, UINT32_MAX, RTLOGDEST_STDOUT,
                            vboxTrayLogHeaderFooter, g_cHistory, g_uHistoryFileSize, g_uHistoryFileTime,
                            RTErrInfoInitStatic(&ErrInfo), NULL /*pszFilenameFmt*/);
     if (RT_SUCCESS(rc))
     {
 #ifdef DEBUG
-        /* Register this logger as the _debug_ logger.
-           Note! This means any Log() statement preceeding this may cause a
-                 20yy-*VBoxTray*.log file to have been created and it will stay
-                 open till the process quits as we don't destroy it when
-                 replacing it here. */
         RTLogSetDefaultInstance(g_pLoggerRelease);
 #else
         /* Register this logger as the release logger. */
@@ -604,8 +606,6 @@ static int vboxTrayLogCreate(void)
 
 static void vboxTrayLogDestroy(void)
 {
-    /* Only want to destroy the release logger before calling exit(). The debug
-       logger can be useful after that point... */
     RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
 }
 
@@ -725,8 +725,7 @@ static int vboxTraySetupSeamless(void)
             BOOL (WINAPI * pfnConvertStringSecurityDescriptorToSecurityDescriptorA)(LPCSTR StringSecurityDescriptor, DWORD StringSDRevision, PSECURITY_DESCRIPTOR  *SecurityDescriptor, PULONG  SecurityDescriptorSize);
             *(void **)&pfnConvertStringSecurityDescriptorToSecurityDescriptorA =
                 RTLdrGetSystemSymbol("advapi32.dll", "ConvertStringSecurityDescriptorToSecurityDescriptorA");
-            Log(("pfnConvertStringSecurityDescriptorToSecurityDescriptorA = %p\n",
-                 RT_CB_LOG_CAST(pfnConvertStringSecurityDescriptorToSecurityDescriptorA)));
+            Log(("pfnConvertStringSecurityDescriptorToSecurityDescriptorA = %x\n", pfnConvertStringSecurityDescriptorToSecurityDescriptorA));
             if (pfnConvertStringSecurityDescriptorToSecurityDescriptorA)
             {
                 PSECURITY_DESCRIPTOR    pSD;
@@ -1174,7 +1173,7 @@ static LRESULT CALLBACK vboxToolWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
                                 if (fBlockWhileTracking)
                                     fTrack |= TPM_RETURNCMD | TPM_NONOTIFY;
 
-                                uMsg = TrackPopupMenu(hContextMenu, fTrack, lpCursor.x, lpCursor.y, 0, hWnd, NULL);
+                                UINT uMsg = TrackPopupMenu(hContextMenu, fTrack, lpCursor.x, lpCursor.y, 0, hWnd, NULL);
                                 if (   uMsg
                                     && fBlockWhileTracking)
                                 {

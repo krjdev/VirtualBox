@@ -3,7 +3,6 @@
 
   Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-  Copyright (c) Microsoft Corporation.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -663,7 +662,7 @@ RamDiskRegister (
   if (!IsListEmpty(&RegisteredRamDisks)) {
     DevicePathSize = GetDevicePathSize (PrivateData->DevicePath);
 
-    BASE_LIST_FOR_EACH (Entry, &RegisteredRamDisks) {
+    EFI_LIST_FOR_EACH (Entry, &RegisteredRamDisks) {
       RegisteredPrivateData = RAM_DISK_PRIVATE_FROM_THIS (Entry);
       if (DevicePathSize == GetDevicePathSize (RegisteredPrivateData->DevicePath)) {
         //
@@ -798,7 +797,7 @@ RamDiskUnregister (
   EndingAddr     = ReadUnaligned64 ((UINT64 *) &(RamDiskDevNode->EndingAddr[0]));
 
   if (!IsListEmpty(&RegisteredRamDisks)) {
-    BASE_LIST_FOR_EACH_SAFE (Entry, NextEntry, &RegisteredRamDisks) {
+    EFI_LIST_FOR_EACH_SAFE (Entry, NextEntry, &RegisteredRamDisks) {
       PrivateData = RAM_DISK_PRIVATE_FROM_THIS (Entry);
 
       //

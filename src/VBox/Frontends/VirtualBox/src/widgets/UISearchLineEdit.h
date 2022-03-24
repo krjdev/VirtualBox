@@ -1,10 +1,10 @@
-/* $Id: UISearchLineEdit.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UISearchLineEdit.h $ */
 /** @file
  * VBox Qt GUI - UISearchLineEdit class declaration.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -40,12 +40,12 @@ public:
 
     UISearchLineEdit(QWidget *pParent = 0);
     void setMatchCount(int iMatchCount);
-    void setScrollToIndex(int iScrollToIndex);
+    void setScroolToIndex(int iScrollToIndex);
     void reset();
 
 protected:
 
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 

@@ -190,9 +190,4 @@ MarkIoMemoryRangeForRuntimeAccess (
   IN UINTN                  Length
   );
 
-VOID
-SetPcdFlashNvStorageBaseAddresses (
-  VOID
-  );
-
 #endif

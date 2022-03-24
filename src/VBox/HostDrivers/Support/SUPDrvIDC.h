@@ -1,10 +1,10 @@
-/* $Id: SUPDrvIDC.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: SUPDrvIDC.h $ */
 /** @file
  * VirtualBox Support Driver - Inter-Driver Communication (IDC) definitions.
  */
 
 /*
- * Copyright (C) 2008-2022 Oracle Corporation
+ * Copyright (C) 2008-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -267,7 +267,7 @@ RT_C_DECLS_END
  * @param   cbReq       The size of the request packet.
  */
 /** @todo move this and change to function proto */
-typedef DECLCALLBACKTYPE(int, FNSUPDRVIDCENTRY,(PSUPDRVSESSION pSession, uint32_t uReq, void *pvReq, uint32_t cbReq));
+typedef DECLCALLBACK(int) FNSUPDRVIDCENTRY(PSUPDRVSESSION pSession, uint32_t uReq, void *pvReq, uint32_t cbReq);
 
 /** @} */
 

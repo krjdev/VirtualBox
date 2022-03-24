@@ -1,10 +1,10 @@
-/* $Id: QIAdvancedSlider.cpp 93992 2022-02-28 17:56:58Z vboxsync $ */
+/* $Id: QIAdvancedSlider.cpp $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QIAdvancedSlider class implementation.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -281,11 +281,6 @@ void QIAdvancedSlider::setErrorHint(int iMin, int iMax)
     m_pSlider->m_maxErr = iMax;
 
     update();
-}
-
-void QIAdvancedSlider::setToolTip(const QString &strToolTip)
-{
-    m_pSlider->setToolTip(strToolTip);
 }
 
 void QIAdvancedSlider::setOrientation(Qt::Orientation enmOrientation)

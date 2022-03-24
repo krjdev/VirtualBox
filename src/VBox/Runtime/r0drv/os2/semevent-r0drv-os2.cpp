@@ -1,4 +1,4 @@
-/* $Id: semevent-r0drv-os2.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: semevent-r0drv-os2.cpp $ */
 /** @file
  * IPRT - Single Release Event Semaphores, Ring-0 Driver, OS/2.
  */
@@ -6,7 +6,7 @@
 /*
  * Contributed by knut st. osmundsen.
  *
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -291,11 +291,5 @@ RTDECL(int)  RTSemEventWaitExDebug(RTSEMEVENT hEventSem, uint32_t fFlags, uint64
 RTDECL(uint32_t) RTSemEventGetResolution(void)
 {
     return 32000000; /* 32ms */
-}
-
-
-RTR0DECL(bool) RTSemEventIsSignalSafe(void)
-{
-    return true;
 }
 

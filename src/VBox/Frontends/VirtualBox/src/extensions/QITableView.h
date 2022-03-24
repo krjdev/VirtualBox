@@ -1,10 +1,10 @@
-/* $Id: QITableView.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: QITableView.h $ */
 /** @file
  * VBox Qt GUI - Qt extensions: QITableView class declaration.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -104,7 +104,7 @@ public:
     /** Constructs table-view passing @a pParent to the base-class. */
     QITableView(QWidget *pParent = 0);
     /** Destructs table-view. */
-    virtual ~QITableView() RT_OVERRIDE;
+    virtual ~QITableView() /* override */;
 
     /** Returns the number of children. */
     virtual int childCount() const { return 0; }
@@ -124,7 +124,7 @@ protected slots:
 protected:
 
     /** Handles index change from @a previous to @a current. */
-    virtual void currentChanged(const QModelIndex &current, const QModelIndex &previous) RT_OVERRIDE;
+    virtual void currentChanged(const QModelIndex &current, const QModelIndex &previous) /* override */;
 
 private:
 

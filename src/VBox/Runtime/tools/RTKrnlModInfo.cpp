@@ -1,10 +1,10 @@
-/* $Id: RTKrnlModInfo.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: RTKrnlModInfo.cpp $ */
 /** @file
  * IPRT - Utility for getting information about loaded kernel modules.
  */
 
 /*
- * Copyright (C) 2017-2022 Oracle Corporation
+ * Copyright (C) 2017-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,51 +41,20 @@
 #include <iprt/string.h>
 
 
-/**
- * Handles loading a kernel module by name.
- *
- * @returns Process status code.
- * @param   pszName             THe module name to load.
- */
-static RTEXITCODE rtKrnlModInfoHandleLoad(const char *pszName)
+
+int main(int argc, char **argv)
 {
-    RTEXITCODE rcExit = RTEXITCODE_SUCCESS;
-    int rc = RTKrnlModLoadByName(pszName);
-    if (RT_SUCCESS(rc))
-        RTPrintf("Kernel module '%s' loaded successfully\n", pszName);
-    else
-        rcExit = RTMsgErrorExit(RTEXITCODE_FAILURE, "Error %Rrc loading kernel module '%s'", rc, pszName);
+    int rc = RTR3InitExe(argc, &argv, 0);
+    if (RT_FAILURE(rc))
+        return RTMsgInitFailure(rc);
 
-    return rcExit;
-}
+    /** @todo proper argument parsing, please. */
+    if (argc != 1)
+    {
+        RTMsgError("Syntax error: This tool takes no parameters.  It just lists the modules\n");
+        return RTEXITCODE_SYNTAX;
+    }
 
-
-/**
- * Handles unloading a kernel module by name.
- *
- * @returns Process status code.
- * @param   pszName             THe module name to load.
- */
-static RTEXITCODE rtKrnlModInfoHandleUnload(const char *pszName)
-{
-    RTEXITCODE rcExit = RTEXITCODE_SUCCESS;
-    int rc = RTKrnlModUnloadByName(pszName);
-    if (RT_SUCCESS(rc))
-        RTPrintf("Kernel module '%s' unloaded successfully\n", pszName);
-    else
-        rcExit = RTMsgErrorExit(RTEXITCODE_FAILURE, "Error %Rrc unloading kernel module '%s'", rc, pszName);
-
-    return rcExit;
-}
-
-
-/**
- * Handles listing all loaded kernel modules.
- *
- * @returns Process status code.
- */
-static RTEXITCODE rtKrnlModInfoHandleList(void)
-{
     RTEXITCODE rcExit = RTEXITCODE_SUCCESS;
     uint32_t cKrnlMods = RTKrnlModLoadedGetCount();
     if (cKrnlMods)
@@ -93,7 +62,7 @@ static RTEXITCODE rtKrnlModInfoHandleList(void)
         PRTKRNLMODINFO pahKrnlModInfo = (PRTKRNLMODINFO)RTMemAllocZ(cKrnlMods * sizeof(RTKRNLMODINFO));
         if (pahKrnlModInfo)
         {
-            int rc = RTKrnlModLoadedQueryInfoAll(pahKrnlModInfo, cKrnlMods, &cKrnlMods);
+            rc = RTKrnlModLoadedQueryInfoAll(pahKrnlModInfo, cKrnlMods, &cKrnlMods);
             if (RT_SUCCESS(rc))
             {
                 RTPrintf("Index Load address        Size       Ref count  Name \n");
@@ -118,60 +87,5 @@ static RTEXITCODE rtKrnlModInfoHandleList(void)
     }
 
     return rcExit;
-}
-
-
-int main(int argc, char **argv)
-{
-    int rc = RTR3InitExe(argc, &argv, 0);
-    if (RT_FAILURE(rc))
-        return RTMsgInitFailure(rc);
-
-    /*
-     * Parse arguments.
-     */
-    static const RTGETOPTDEF s_aOptions[] =
-    {
-        { "--load",         'l', RTGETOPT_REQ_STRING  },
-        { "--unload",       'u', RTGETOPT_REQ_STRING  },
-        { "--show-loaded",  's', RTGETOPT_REQ_NOTHING },
-        { "--help",         'h', RTGETOPT_REQ_NOTHING }
-    };
-
-    RTGETOPTUNION   ValueUnion;
-    RTGETOPTSTATE   GetState;
-    RTGetOptInit(&GetState, argc, argv, s_aOptions, RT_ELEMENTS(s_aOptions), 1, RTGETOPTINIT_FLAGS_OPTS_FIRST);
-    while ((rc = RTGetOpt(&GetState, &ValueUnion)))
-    {
-        switch (rc)
-        {
-            case 'l':
-                return rtKrnlModInfoHandleLoad(ValueUnion.psz);
-            case 'u':
-                return rtKrnlModInfoHandleUnload(ValueUnion.psz);
-            case 's':
-                return rtKrnlModInfoHandleList();
-            case 'h':
-                RTPrintf("Usage: %s [options]\n"
-                         "\n"
-                         "Options:\n"
-                         "  -l, --load <module name>\n"
-                         "      Tries to load the given kernel module.\n"
-                         "  -s, --show-loaded\n"
-                         "      Lists all loaded kernel modules.\n"
-                         , RTPathFilename(argv[0]));
-                return RTEXITCODE_SUCCESS;
-
-            case 'V':
-                RTPrintf("$Revision: 93115 $\n");
-                return RTEXITCODE_SUCCESS;
-
-            default:
-                return RTGetOptPrintError(rc, &ValueUnion);
-        }
-    }
-
-    /* No arguments means listing all loaded kernel modules. */
-    return rtKrnlModInfoHandleList();
 }
 

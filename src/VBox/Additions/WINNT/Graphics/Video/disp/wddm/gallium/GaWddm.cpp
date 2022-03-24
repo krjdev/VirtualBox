@@ -1,10 +1,10 @@
-/* $Id: GaWddm.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: GaWddm.cpp $ */
 /** @file
  * WDDM helpers implemented for the Gallium based driver.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -744,7 +744,7 @@ IUnknown *GaD3DIfCreateSharedPrimary(struct VBOXWDDMDISP_ALLOCATION *pAlloc)
             Assert(hostID == usedHostId);
 
             /* Remember that this sid is used for all operations on this allocation. */
-            pAlloc->hSharedHandle = (HANDLE)(uintptr_t)hostID;
+            pAlloc->hSharedHandle = (HANDLE)hostID;
         }
         else
         {
@@ -760,7 +760,7 @@ IUnknown *GaD3DIfCreateSharedPrimary(struct VBOXWDDMDISP_ALLOCATION *pAlloc)
                 Assert(usedHostId);
 
                 /* Remember which sid is actually used for this allocation. */
-                pAlloc->hSharedHandle = (HANDLE)(uintptr_t)usedHostId;
+                pAlloc->hSharedHandle = (HANDLE)usedHostId;
 
                 /* Inform the miniport. */
                 VBOXDISPIFESCAPE_GASHAREDSID data;

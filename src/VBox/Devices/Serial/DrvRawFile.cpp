@@ -1,10 +1,10 @@
-/* $Id: DrvRawFile.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: DrvRawFile.cpp $ */
 /** @file
  * VBox stream drivers - Raw file output.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -164,7 +164,7 @@ static DECLCALLBACK(void) drvRawFileDestruct(PPDMDRVINS pDrvIns)
     PDMDRV_CHECK_VERSIONS_RETURN_VOID(pDrvIns);
 
     if (pThis->pszLocation)
-        PDMDrvHlpMMHeapFree(pDrvIns, pThis->pszLocation);
+        MMR3HeapFree(pThis->pszLocation);
 
     if (pThis->hOutputFile != NIL_RTFILE)
     {
@@ -189,8 +189,7 @@ static DECLCALLBACK(int) drvRawFileConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
 {
     RT_NOREF(fFlags);
     PDMDRV_CHECK_VERSIONS_RETURN(pDrvIns);
-    PDRVRAWFILE     pThis = PDMINS_2_DATA(pDrvIns, PDRVRAWFILE);
-    PCPDMDRVHLPR3   pHlp  = pDrvIns->pHlpR3;
+    PDRVRAWFILE pThis = PDMINS_2_DATA(pDrvIns, PDRVRAWFILE);
 
     /*
      * Init the static parts.
@@ -209,9 +208,10 @@ static DECLCALLBACK(int) drvRawFileConstruct(PPDMDRVINS pDrvIns, PCFGMNODE pCfg,
     /*
      * Read the configuration.
      */
-    PDMDRV_VALIDATE_CONFIG_RETURN(pDrvIns, "Location", "");
+    if (!CFGMR3AreValuesValid(pCfg, "Location\0"))
+        AssertFailedReturn(VERR_PDM_DRVINS_UNKNOWN_CFG_VALUES);
 
-    int rc = pHlp->pfnCFGMQueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
+    int rc = CFGMR3QueryStringAlloc(pCfg, "Location", &pThis->pszLocation);
     if (RT_FAILURE(rc))
         AssertMsgFailedReturn(("Configuration error: query \"Location\" resulted in %Rrc.\n", rc), rc);
 

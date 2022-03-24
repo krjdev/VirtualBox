@@ -1,10 +1,10 @@
-/* $Id: UIWindowMenuManager.cpp 94066 2022-03-02 20:59:25Z vboxsync $ */
+/* $Id: UIWindowMenuManager.cpp $ */
 /** @file
  * VBox Qt GUI - UIWindowMenuManager class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -16,7 +16,6 @@
  */
 
 /* Qt includes: */
-#include <QActionGroup>
 #include <QApplication>
 #include <QMenu>
 
@@ -38,7 +37,7 @@ public:
     /** Constructs menu-helper on the basis of passed @a windows. */
     UIMenuHelper(const QList<QWidget*> &windows);
     /** Destructs menu-helper. */
-    virtual ~UIMenuHelper() RT_OVERRIDE;
+    virtual ~UIMenuHelper() /* override */;
 
     /** Returns 'Window' menu. */
     QMenu *menu() const { return m_pWindowMenu; }

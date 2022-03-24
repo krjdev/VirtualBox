@@ -1,10 +1,10 @@
-/* $Id: asn1-ut-dyntype-decode.cpp 93244 2022-01-14 23:51:02Z vboxsync $ */
+/* $Id: asn1-ut-dyntype-decode.cpp $ */
 /** @file
  * IPRT - ASN.1, Dynamic Type, Decoding.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -191,7 +191,10 @@ RTDECL(int) RTAsn1DynType_DecodeAsn1(PRTASN1CURSOR pCursor, uint32_t fFlags, PRT
                                                pDynType->u.Core.uTag, pDynType->u.Core.uTag);
             }
         else
-            Assert(pDynType->enmType == RTASN1TYPE_CORE);
+        {
+            RTAsn1CursorSkip(pCursor, pDynType->u.Core.cb);
+            return VINF_SUCCESS;
+        }
 
         /*
          * Restore the cursor and redo with specific type.

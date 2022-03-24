@@ -1,10 +1,10 @@
-/* $Id: PDM.cpp 93991 2022-02-28 16:29:55Z vboxsync $ */
+/* $Id: PDM.cpp $ */
 /** @file
  * PDM - Pluggable Device Manager.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -482,7 +482,7 @@ VMMR3_INT_DECL(int) PDMR3Init(PVM pVM)
     /*
      * Initialize critical sections first.
      */
-    int rc = pdmR3CritSectBothInitStatsAndInfo(pVM);
+    int rc = pdmR3CritSectBothInitStats(pVM);
     if (RT_SUCCESS(rc))
         rc = PDMR3CritSectInit(pVM, &pVM->pdm.s.CritSect, RT_SRC_POS, "PDM");
     if (RT_SUCCESS(rc))
@@ -576,9 +576,18 @@ VMMR3_INT_DECL(int) PDMR3InitCompleted(PVM pVM, VMINITCOMPLETED enmWhat)
 VMMR3_INT_DECL(void) PDMR3Relocate(PVM pVM, RTGCINTPTR offDelta)
 {
     LogFlow(("PDMR3Relocate\n"));
-    RT_NOREF(pVM, offDelta);
 
-#ifdef VBOX_WITH_RAW_MODE_KEEP /* needs fixing */
+    /*
+     * Queues.
+     */
+    pdmR3QueueRelocate(pVM, offDelta);
+    pVM->pdm.s.pDevHlpQueueRC = PDMQueueRCPtr(pVM->pdm.s.pDevHlpQueueR3);
+
+    /*
+     * Critical sections.
+     */
+    pdmR3CritSectBothRelocate(pVM);
+
     /*
      * The registered PIC.
      */
@@ -611,6 +620,7 @@ VMMR3_INT_DECL(void) PDMR3Relocate(PVM pVM, RTGCINTPTR offDelta)
     /*
      * Devices & Drivers.
      */
+#ifdef VBOX_WITH_RAW_MODE_KEEP /* needs fixing */
     int rc;
     PCPDMDEVHLPRC pDevHlpRC = NIL_RTRCPTR;
     if (VM_IS_RAW_MODE_ENABLED(pVM))
@@ -679,7 +689,7 @@ VMMR3_INT_DECL(void) PDMR3Relocate(PVM pVM, RTGCINTPTR offDelta)
         }
 
     }
-#endif /* VBOX_WITH_RAW_MODE_KEEP */
+#endif
 }
 
 
@@ -794,12 +804,6 @@ VMMR3_INT_DECL(int) PDMR3Term(PVM pVM)
         //TMR3TimerDestroyUsb(pVM, pUsbIns);
         //SSMR3DeregisterUsb(pVM, pUsbIns, NULL, 0);
         pdmR3ThreadDestroyUsb(pVM, pUsbIns);
-
-        if (pUsbIns->pszName)
-        {
-            RTStrFree(pUsbIns->pszName); /* See the RTStrDup() call in PDMUsb.cpp:pdmR3UsbCreateDevice. */
-            pUsbIns->pszName = NULL;
-        }
     }
 
     /* then the 'normal' ones. */
@@ -826,20 +830,6 @@ VMMR3_INT_DECL(int) PDMR3Term(PVM pVM)
             int rc2 = VMMR3CallR0(pVM, VMMR0_DO_PDM_DEVICE_GEN_CALL, 0, &Req.Hdr);
             AssertRC(rc2);
         }
-
-        if (pDevIns->Internal.s.paDbgfTraceTrack)
-        {
-            RTMemFree(pDevIns->Internal.s.paDbgfTraceTrack);
-            pDevIns->Internal.s.paDbgfTraceTrack = NULL;
-        }
-
-#ifdef VBOX_WITH_DBGF_TRACING
-        if (pDevIns->Internal.s.hDbgfTraceEvtSrc != NIL_DBGFTRACEREVTSRC)
-        {
-            DBGFR3TracerDeregisterEvtSrc(pVM, pDevIns->Internal.s.hDbgfTraceEvtSrc);
-            pDevIns->Internal.s.hDbgfTraceEvtSrc = NIL_DBGFTRACEREVTSRC;
-        }
-#endif
 
         TMR3TimerDestroyDevice(pVM, pDevIns);
         SSMR3DeregisterDevice(pVM, pDevIns, NULL, 0);
@@ -879,7 +869,7 @@ VMMR3_INT_DECL(int) PDMR3Term(PVM pVM)
     /*
      * Free modules.
      */
-    pdmR3LdrTermU(pVM->pUVM, false /*fFinal*/);
+    pdmR3LdrTermU(pVM->pUVM);
 
     /*
      * Stop task threads.
@@ -887,14 +877,9 @@ VMMR3_INT_DECL(int) PDMR3Term(PVM pVM)
     pdmR3TaskTerm(pVM);
 
     /*
-     * Cleanup any leftover queues.
-     */
-    pdmR3QueueTerm(pVM);
-
-    /*
      * Destroy the PDM lock.
      */
-    PDMR3CritSectDelete(pVM, &pVM->pdm.s.CritSect);
+    PDMR3CritSectDelete(&pVM->pdm.s.CritSect);
     /* The MiscCritSect is deleted by PDMR3CritSectBothTerm later. */
 
     LogFlow(("PDMR3Term: returns %Rrc\n", VINF_SUCCESS));
@@ -916,7 +901,7 @@ VMMR3_INT_DECL(void) PDMR3TermUVM(PUVM pUVM)
      * the second time. In the case of init failure however, this might
      * the first time, which is why we do it.
      */
-    pdmR3LdrTermU(pUVM, true /*fFinal*/);
+    pdmR3LdrTermU(pUVM);
 
     Assert(pUVM->pdm.s.pCritSects == NULL);
     Assert(pUVM->pdm.s.pRwCritSects == NULL);
@@ -1307,18 +1292,17 @@ DECLINLINE(int) pdmR3PowerOnUsb(PPDMUSBINS pUsbIns)
  * Worker for PDMR3PowerOn that deals with one device instance.
  *
  * @returns VBox status code.
- * @param   pVM     The cross context VM structure.
- * @param   pDevIns The device instance.
+ * @param   pDevIns             The device instance.
  */
-DECLINLINE(int) pdmR3PowerOnDev(PVM pVM, PPDMDEVINS pDevIns)
+DECLINLINE(int) pdmR3PowerOnDev(PPDMDEVINS pDevIns)
 {
     Assert(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_SUSPENDED);
     if (pDevIns->pReg->pfnPowerOn)
     {
         LogFlow(("PDMR3PowerOn: Notifying - device '%s'/%d\n", pDevIns->pReg->szName, pDevIns->iInstance));
-        PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+        PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
         int rc = VINF_SUCCESS; pDevIns->pReg->pfnPowerOn(pDevIns);
-        PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+        PDMCritSectLeave(pDevIns->pCritSectRoR3);
         if (RT_FAILURE(rc))
         {
             LogRel(("PDMR3PowerOn: Device '%s'/%d -> %Rrc\n", pDevIns->pReg->szName, pDevIns->iInstance, rc));
@@ -1351,7 +1335,7 @@ VMMR3DECL(void) PDMR3PowerOn(PVM pVM)
             for (PPDMDRVINS pDrvIns = pLun->pTop;  pDrvIns && RT_SUCCESS(rc);  pDrvIns = pDrvIns->Internal.s.pDown)
                 rc = pdmR3PowerOnDrv(pDrvIns, pDevIns->pReg->szName, pDevIns->iInstance, pLun->iLun);
         if (RT_SUCCESS(rc))
-            rc = pdmR3PowerOnDev(pVM, pDevIns);
+            rc = pdmR3PowerOnDev(pDevIns);
     }
 
 #ifdef VBOX_WITH_USB
@@ -1593,11 +1577,11 @@ DECLINLINE(void) pdmR3ResetUsb(PPDMUSBINS pUsbIns, PPDMNOTIFYASYNCSTATS pAsync)
 /**
  * Worker for PDMR3Reset that deals with one device instance.
  *
- * @param   pVM     The cross context VM structure.
- * @param   pDevIns The device instance.
- * @param   pAsync  The structure for recording asynchronous notification tasks.
+ * @param   pDevIns             The device instance.
+ * @param   pAsync              The structure for recording asynchronous
+ *                              notification tasks.
  */
-DECLINLINE(void) pdmR3ResetDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
+DECLINLINE(void) pdmR3ResetDev(PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
 {
     if (!(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_RESET))
     {
@@ -1605,7 +1589,7 @@ DECLINLINE(void) pdmR3ResetDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS
         if (pDevIns->pReg->pfnReset)
         {
             uint64_t cNsElapsed = RTTimeNanoTS();
-            PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+            PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
 
             if (!pDevIns->Internal.s.pfnAsyncNotify)
             {
@@ -1625,7 +1609,7 @@ DECLINLINE(void) pdmR3ResetDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS
                 pdmR3NotifyAsyncAdd(pAsync, pDevIns->Internal.s.pDevR3->pReg->szName, pDevIns->iInstance);
             }
 
-            PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+            PDMCritSectLeave(pDevIns->pCritSectRoR3);
             cNsElapsed = RTTimeNanoTS() - cNsElapsed;
             if (cNsElapsed >= PDMSUSPEND_WARN_AT_NS)
                 LogRel(("PDMR3Reset: Device '%s'/%d took %'llu ns to reset\n",
@@ -1699,7 +1683,7 @@ VMMR3_INT_DECL(void) PDMR3Reset(PVM pVM)
             unsigned const cAsyncStart = Async.cAsync;
 
             if (pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_RESET_NOTIFICATION)
-                pdmR3ResetDev(pVM, pDevIns, &Async);
+                pdmR3ResetDev(pDevIns, &Async);
 
             if (Async.cAsync == cAsyncStart)
                 for (PPDMLUN pLun = pDevIns->Internal.s.pLunsR3; pLun; pLun = pLun->pNext)
@@ -1709,7 +1693,7 @@ VMMR3_INT_DECL(void) PDMR3Reset(PVM pVM)
 
             if (   Async.cAsync == cAsyncStart
                 && !(pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_RESET_NOTIFICATION))
-                pdmR3ResetDev(pVM, pDevIns, &Async);
+                pdmR3ResetDev(pDevIns, &Async);
         }
 
 #ifdef VBOX_WITH_USB
@@ -1762,9 +1746,9 @@ VMMR3_INT_DECL(void) PDMR3MemSetup(PVM pVM, bool fAtReset)
     for (PPDMDEVINS pDevIns = pVM->pdm.s.pDevInstances; pDevIns; pDevIns = pDevIns->Internal.s.pNextR3)
         if (pDevIns->pReg->pfnMemSetup)
         {
-            PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+            PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
             pDevIns->pReg->pfnMemSetup(pDevIns, enmCtx);
-            PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+            PDMCritSectLeave(pDevIns->pCritSectRoR3);
         }
 
     LogFlow(("PDMR3MemSetup: returns void\n"));
@@ -1840,9 +1824,9 @@ VMMR3_INT_DECL(void) PDMR3SoftReset(PVM pVM, uint32_t fResetFlags)
     for (PPDMDEVINS pDevIns = pVM->pdm.s.pDevInstances; pDevIns; pDevIns = pDevIns->Internal.s.pNextR3)
         if (pDevIns->pReg->pfnSoftReset)
         {
-            PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+            PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
             pDevIns->pReg->pfnSoftReset(pDevIns, fResetFlags);
-            PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+            PDMCritSectLeave(pDevIns->pCritSectRoR3);
         }
 
     LogFlow(("PDMR3SoftReset: returns void\n"));
@@ -1948,11 +1932,11 @@ DECLINLINE(void) pdmR3SuspendUsb(PPDMUSBINS pUsbIns, PPDMNOTIFYASYNCSTATS pAsync
 /**
  * Worker for PDMR3Suspend that deals with one device instance.
  *
- * @param   pVM     The cross context VM structure.
- * @param   pDevIns The device instance.
- * @param   pAsync  The structure for recording asynchronous notification tasks.
+ * @param   pDevIns             The device instance.
+ * @param   pAsync              The structure for recording asynchronous
+ *                              notification tasks.
  */
-DECLINLINE(void) pdmR3SuspendDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
+DECLINLINE(void) pdmR3SuspendDev(PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
 {
     if (!(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_SUSPENDED))
     {
@@ -1960,7 +1944,7 @@ DECLINLINE(void) pdmR3SuspendDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTA
         if (pDevIns->pReg->pfnSuspend)
         {
             uint64_t cNsElapsed = RTTimeNanoTS();
-            PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+            PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
 
             if (!pDevIns->Internal.s.pfnAsyncNotify)
             {
@@ -1980,7 +1964,7 @@ DECLINLINE(void) pdmR3SuspendDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTA
                 pdmR3NotifyAsyncAdd(pAsync, pDevIns->Internal.s.pDevR3->pReg->szName, pDevIns->iInstance);
             }
 
-            PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+            PDMCritSectLeave(pDevIns->pCritSectRoR3);
             cNsElapsed = RTTimeNanoTS() - cNsElapsed;
             if (cNsElapsed >= PDMSUSPEND_WARN_AT_NS)
                 LogRel(("PDMR3Suspend: Device '%s'/%d took %'llu ns to suspend\n",
@@ -2031,7 +2015,7 @@ VMMR3_INT_DECL(void) PDMR3Suspend(PVM pVM)
             unsigned const cAsyncStart = Async.cAsync;
 
             if (pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_SUSPEND_NOTIFICATION)
-                pdmR3SuspendDev(pVM, pDevIns, &Async);
+                pdmR3SuspendDev(pDevIns, &Async);
 
             if (Async.cAsync == cAsyncStart)
                 for (PPDMLUN pLun = pDevIns->Internal.s.pLunsR3; pLun; pLun = pLun->pNext)
@@ -2041,7 +2025,7 @@ VMMR3_INT_DECL(void) PDMR3Suspend(PVM pVM)
 
             if (    Async.cAsync == cAsyncStart
                 && !(pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_SUSPEND_NOTIFICATION))
-                pdmR3SuspendDev(pVM, pDevIns, &Async);
+                pdmR3SuspendDev(pDevIns, &Async);
         }
 
 #ifdef VBOX_WITH_USB
@@ -2130,18 +2114,17 @@ DECLINLINE(int) pdmR3ResumeUsb(PPDMUSBINS pUsbIns)
  * Worker for PDMR3Resume that deals with one device instance.
  *
  * @returns VBox status code.
- * @param   pVM     The cross context VM structure.
- * @param   pDevIns The device instance.
+ * @param   pDevIns             The device instance.
  */
-DECLINLINE(int) pdmR3ResumeDev(PVM pVM, PPDMDEVINS pDevIns)
+DECLINLINE(int) pdmR3ResumeDev(PPDMDEVINS pDevIns)
 {
     Assert(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_SUSPENDED);
     if (pDevIns->pReg->pfnResume)
     {
         LogFlow(("PDMR3Resume: Notifying - device '%s'/%d\n", pDevIns->pReg->szName, pDevIns->iInstance));
-        PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+        PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
         int rc = VINF_SUCCESS; pDevIns->pReg->pfnResume(pDevIns);
-        PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+        PDMCritSectLeave(pDevIns->pCritSectRoR3);
         if (RT_FAILURE(rc))
         {
             LogRel(("PDMR3Resume: Device '%s'/%d -> %Rrc\n", pDevIns->pReg->szName, pDevIns->iInstance, rc));
@@ -2174,7 +2157,7 @@ VMMR3_INT_DECL(void) PDMR3Resume(PVM pVM)
             for (PPDMDRVINS pDrvIns = pLun->pTop;  pDrvIns && RT_SUCCESS(rc);  pDrvIns = pDrvIns->Internal.s.pDown)
                 rc = pdmR3ResumeDrv(pDrvIns, pDevIns->pReg->szName, pDevIns->iInstance, pLun->iLun);
         if (RT_SUCCESS(rc))
-            rc = pdmR3ResumeDev(pVM, pDevIns);
+            rc = pdmR3ResumeDev(pDevIns);
     }
 
 #ifdef VBOX_WITH_USB
@@ -2312,11 +2295,11 @@ DECLINLINE(void) pdmR3PowerOffUsb(PPDMUSBINS pUsbIns, PPDMNOTIFYASYNCSTATS pAsyn
 /**
  * Worker for PDMR3PowerOff that deals with one device instance.
  *
- * @param   pVM     The cross context VM structure.
- * @param   pDevIns The device instance.
- * @param   pAsync  The structure for recording asynchronous notification tasks.
+ * @param   pDevIns             The device instance.
+ * @param   pAsync              The structure for recording asynchronous
+ *                              notification tasks.
  */
-DECLINLINE(void) pdmR3PowerOffDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
+DECLINLINE(void) pdmR3PowerOffDev(PPDMDEVINS pDevIns, PPDMNOTIFYASYNCSTATS pAsync)
 {
     if (!(pDevIns->Internal.s.fIntFlags & PDMDEVINSINT_FLAGS_SUSPENDED))
     {
@@ -2324,7 +2307,7 @@ DECLINLINE(void) pdmR3PowerOffDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCST
         if (pDevIns->pReg->pfnPowerOff)
         {
             uint64_t cNsElapsed = RTTimeNanoTS();
-            PDMCritSectEnter(pVM, pDevIns->pCritSectRoR3, VERR_IGNORED);
+            PDMCritSectEnter(pDevIns->pCritSectRoR3, VERR_IGNORED);
 
             if (!pDevIns->Internal.s.pfnAsyncNotify)
             {
@@ -2344,7 +2327,7 @@ DECLINLINE(void) pdmR3PowerOffDev(PVM pVM, PPDMDEVINS pDevIns, PPDMNOTIFYASYNCST
                 pdmR3NotifyAsyncAdd(pAsync, pDevIns->Internal.s.pDevR3->pReg->szName, pDevIns->iInstance);
             }
 
-            PDMCritSectLeave(pVM, pDevIns->pCritSectRoR3);
+            PDMCritSectLeave(pDevIns->pCritSectRoR3);
             cNsElapsed = RTTimeNanoTS() - cNsElapsed;
             if (cNsElapsed >= PDMPOWEROFF_WARN_AT_NS)
                 LogFlow(("PDMR3PowerOff: Device '%s'/%d took %'llu ns to power off\n",
@@ -2413,7 +2396,7 @@ VMMR3DECL(void) PDMR3PowerOff(PVM pVM)
             unsigned const cAsyncStart = Async.cAsync;
 
             if (pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_POWEROFF_NOTIFICATION)
-                pdmR3PowerOffDev(pVM, pDevIns, &Async);
+                pdmR3PowerOffDev(pDevIns, &Async);
 
             if (Async.cAsync == cAsyncStart)
                 for (PPDMLUN pLun = pDevIns->Internal.s.pLunsR3; pLun; pLun = pLun->pNext)
@@ -2423,7 +2406,7 @@ VMMR3DECL(void) PDMR3PowerOff(PVM pVM)
 
             if (    Async.cAsync == cAsyncStart
                 && !(pDevIns->pReg->fFlags & PDM_DEVREG_FLAGS_FIRST_POWEROFF_NOTIFICATION))
-                pdmR3PowerOffDev(pVM, pDevIns, &Async);
+                pdmR3PowerOffDev(pDevIns, &Async);
         }
 
 #ifdef VBOX_WITH_USB
@@ -2663,6 +2646,18 @@ VMMR3DECL(void) PDMR3DmaRun(PVM pVM)
                 VM_FF_SET(pVM, VM_FF_PDM_DMA);
         }
     }
+}
+
+
+/**
+ * Service a VMMCALLRING3_PDM_LOCK call.
+ *
+ * @returns VBox status code.
+ * @param   pVM     The cross context VM structure.
+ */
+VMMR3_INT_DECL(int) PDMR3LockCall(PVM pVM)
+{
+    return PDMR3CritSectEnterEx(&pVM->pdm.s.CritSect, true /* fHostCall */);
 }
 
 

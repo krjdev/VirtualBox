@@ -1,10 +1,10 @@
-/* $Id: VBoxManageUSB.cpp 94213 2022-03-13 20:57:16Z vboxsync $ */
+/* $Id: VBoxManageUSB.cpp $ */
 /** @file
  * VBoxManage - VirtualBox's command-line interface.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,8 +28,6 @@
 #include <iprt/asm.h>
 
 using namespace com;
-
-DECLARE_TRANSLATION_CONTEXT(Usb);
 
 /**
  * Quick IUSBDevice implementation for detaching / attaching
@@ -175,32 +173,20 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
 
     /* at least: 0: command, 1: index, 2: --target, 3: <target value> */
     if (a->argc < 4)
-        return errorSyntax(Usb::tr("Not enough parameters"));
+        return errorSyntax(USAGE_USBFILTER, "Not enough parameters");
 
     /* which command? */
     cmd.mAction = USBFilterCmd::Invalid;
-    if      (!strcmp(a->argv[0], "add"))
-    {
-        cmd.mAction = USBFilterCmd::Add;
-        setCurrentSubcommand(HELP_SCOPE_USBFILTER_ADD);
-    }
-    else if (!strcmp(a->argv[0], "modify"))
-    {
-        cmd.mAction = USBFilterCmd::Modify;
-        setCurrentSubcommand(HELP_SCOPE_USBFILTER_MODIFY);
-    }
-    else if (!strcmp(a->argv[0], "remove"))
-    {
-        cmd.mAction = USBFilterCmd::Remove;
-        setCurrentSubcommand(HELP_SCOPE_USBFILTER_REMOVE);
-    }
+    if      (!strcmp(a->argv[0], "add"))     cmd.mAction = USBFilterCmd::Add;
+    else if (!strcmp(a->argv[0], "modify"))  cmd.mAction = USBFilterCmd::Modify;
+    else if (!strcmp(a->argv[0], "remove"))  cmd.mAction = USBFilterCmd::Remove;
 
     if (cmd.mAction == USBFilterCmd::Invalid)
-        return errorSyntax(Usb::tr("Invalid parameter '%s'"), a->argv[0]);
+        return errorSyntax(USAGE_USBFILTER, "Invalid parameter '%s'", a->argv[0]);
 
     /* which index? */
     if (VINF_SUCCESS !=  RTStrToUInt32Full(a->argv[1], 10, &cmd.mIndex))
-        return errorSyntax(Usb::tr("Invalid index '%s'"), a->argv[1]);
+        return errorSyntax(USAGE_USBFILTER, "Invalid index '%s'", a->argv[1]);
 
     switch (cmd.mAction)
     {
@@ -211,9 +197,9 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
             if (a->argc < 6)
             {
                 if (cmd.mAction == USBFilterCmd::Add)
-                    return errorSyntax(Usb::tr("Not enough parameters"));
+                    return errorSyntaxEx(USAGE_USBFILTER, HELP_SCOPE_USBFILTER_ADD, "Not enough parameters");
 
-                return errorSyntax(Usb::tr("Not enough parameters"));
+                return errorSyntaxEx(USAGE_USBFILTER, HELP_SCOPE_USBFILTER_MODIFY, "Not enough parameters");
             }
 
             // set Active to true by default
@@ -228,7 +214,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                     || !strcmp(a->argv[i], "-target"))
                 {
                     if (a->argc <= i + 1 || !*a->argv[i+1])
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     if (!strcmp(a->argv[i], "global"))
                         cmd.mGlobal = true;
@@ -243,7 +229,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-name"))
                 {
                     if (a->argc <= i + 1 || !*a->argv[i+1])
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mName = a->argv[i];
                 }
@@ -251,20 +237,20 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-active"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     if (!strcmp(a->argv[i], "yes"))
                         cmd.mFilter.mActive = true;
                     else if (!strcmp(a->argv[i], "no"))
                         cmd.mFilter.mActive = false;
                     else
-                        return errorArgument(Usb::tr("Invalid --active argument '%s'"), a->argv[i]);
+                        return errorArgument("Invalid --active argument '%s'", a->argv[i]);
                 }
                 else if (   !strcmp(a->argv[i], "--vendorid")
                          || !strcmp(a->argv[i], "-vendorid"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mVendorId = a->argv[i];
                 }
@@ -272,7 +258,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-productid"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mProductId = a->argv[i];
                 }
@@ -280,7 +266,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-revision"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mRevision = a->argv[i];
                 }
@@ -288,7 +274,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-manufacturer"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mManufacturer = a->argv[i];
                 }
@@ -296,7 +282,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-product"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mProduct = a->argv[i];
                 }
@@ -304,7 +290,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-remote"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mRemote = a->argv[i];
                 }
@@ -312,7 +298,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-serialnumber"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     cmd.mFilter.mSerialNumber = a->argv[i];
                 }
@@ -320,30 +306,30 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                          || !strcmp(a->argv[i], "-maskedinterfaces"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     uint32_t u32;
                     int vrc = RTStrToUInt32Full(a->argv[i], 0, &u32);
                     if (RT_FAILURE(vrc))
-                        return errorArgument(Usb::tr("Failed to convert the --maskedinterfaces value '%s' to a number, vrc=%Rrc"),
-                                             a->argv[i], vrc);
+                        return errorArgument("Failed to convert the --maskedinterfaces value '%s' to a number, vrc=%Rrc", a->argv[i], vrc);
                     cmd.mFilter.mMaskedInterfaces = u32;
                 }
                 else if (   !strcmp(a->argv[i], "--action")
                          || !strcmp(a->argv[i], "-action"))
                 {
                     if (a->argc <= i + 1)
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     if (!strcmp(a->argv[i], "ignore"))
                         cmd.mFilter.mAction = USBDeviceFilterAction_Ignore;
                     else if (!strcmp(a->argv[i], "hold"))
                         cmd.mFilter.mAction = USBDeviceFilterAction_Hold;
                     else
-                        return errorArgument(Usb::tr("Invalid USB filter action '%s'"), a->argv[i]);
+                        return errorArgument("Invalid USB filter action '%s'", a->argv[i]);
                 }
                 else
-                    return errorSyntax(Usb::tr("Unknown option '%s'"), a->argv[i]);
+                    return errorSyntaxEx(USAGE_USBFILTER, cmd.mAction == USBFilterCmd::Add ? HELP_SCOPE_USBFILTER_ADD : HELP_SCOPE_USBFILTER_MODIFY,
+                                       "Unknown option '%s'", a->argv[i]);
             }
 
             if (cmd.mAction == USBFilterCmd::Add)
@@ -360,7 +346,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                         && !cmd.mFilter.mRemote.isEmpty())
                    )
                 {
-                    return errorSyntax(Usb::tr("Mandatory options not supplied"));
+                    return errorSyntaxEx(USAGE_USBFILTER, HELP_SCOPE_USBFILTER_ADD, "Mandatory options not supplied");
                 }
             }
             break;
@@ -370,7 +356,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
         {
             /* at least: 0: command, 1: index, 2: --target, 3: <target value> */
             if (a->argc < 4)
-                return errorSyntax(Usb::tr("Not enough parameters"));
+                return errorSyntaxEx(USAGE_USBFILTER, HELP_SCOPE_USBFILTER_REMOVE, "Not enough parameters");
 
             for (int i = 2; i < a->argc; i++)
             {
@@ -378,7 +364,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
                     || !strcmp(a->argv[i], "-target"))
                 {
                     if (a->argc <= i + 1 || !*a->argv[i+1])
-                        return errorArgument(Usb::tr("Missing argument to '%s'"), a->argv[i]);
+                        return errorArgument("Missing argument to '%s'", a->argv[i]);
                     i++;
                     if (!strcmp(a->argv[i], "global"))
                         cmd.mGlobal = true;
@@ -392,7 +378,7 @@ RTEXITCODE handleUSBFilter(HandlerArg *a)
 
             // mandatory options
             if (!cmd.mGlobal && !cmd.mMachine)
-                return errorSyntax(Usb::tr("Mandatory options not supplied"));
+                return errorSyntaxEx(USAGE_USBFILTER, HELP_SCOPE_USBFILTER_REMOVE, "Mandatory options not supplied");
 
             break;
         }
@@ -568,17 +554,15 @@ RTEXITCODE handleUSBDevSource(HandlerArg *a)
 
     /* at least: 0: command, 1: source id */
     if (a->argc < 2)
-        return errorSyntax(Usb::tr("Not enough parameters"));
+        return errorSyntax(USAGE_USBDEVSOURCE, "Not enough parameters");
 
     ComPtr<IHost> host;
     if (!strcmp(a->argv[0], "add"))
     {
-        setCurrentSubcommand(HELP_SCOPE_USBDEVSOURCE_ADD);
-
         Bstr strBackend;
         Bstr strAddress;
         if (a->argc != 6)
-            return errorSyntax(Usb::tr("Invalid number of parameters"));
+            return errorSyntax(USAGE_USBDEVSOURCE, "Invalid number of parameters");
 
         for (int i = 2; i < a->argc; i++)
         {
@@ -593,7 +577,7 @@ RTEXITCODE handleUSBDevSource(HandlerArg *a)
                 strAddress = a->argv[i];
             }
             else
-                return errorSyntax(Usb::tr("Parameter \"%s\" is invalid"), a->argv[i]);
+                return errorSyntax(USAGE_USBDEVSOURCE, "Parameter \"%s\" is invalid", a->argv[i]);
         }
 
         SafeArray<BSTR> usbSourcePropNames;
@@ -606,7 +590,6 @@ RTEXITCODE handleUSBDevSource(HandlerArg *a)
     }
     else if (!strcmp(a->argv[0], "remove"))
     {
-        setCurrentSubcommand(HELP_SCOPE_USBDEVSOURCE_REMOVE);
         CHECK_ERROR_RET(a->virtualBox, COMGETTER(Host)(host.asOutParam()), RTEXITCODE_FAILURE);
         CHECK_ERROR_RET(host, RemoveUSBDeviceSource(Bstr(a->argv[1]).raw()), RTEXITCODE_FAILURE);
     }

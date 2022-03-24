@@ -1,10 +1,10 @@
-/* $Id: UIGraphicsTextPane.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: UIGraphicsTextPane.cpp $ */
 /** @file
  * VBox Qt GUI - UIGraphicsTextPane class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -22,12 +22,11 @@
 #include <QApplication>
 #include <QFontMetrics>
 #include <QGraphicsSceneHoverEvent>
-#include <QRegularExpression>
 
 /* GUI includes: */
-#include "UICursor.h"
 #include "UIGraphicsTextPane.h"
 #include "UIRichTextString.h"
+#include "UICommon.h"
 
 /* Other VBox includes: */
 #include <iprt/assert.h>
@@ -54,7 +53,7 @@ public:
     {}
 
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE
+    virtual QAccessibleInterface *parent() const /* override */
     {
         /* Make sure line still alive: */
         AssertPtrReturn(line(), 0);
@@ -64,14 +63,14 @@ public:
     }
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE { return 0; }
+    virtual int childCount() const /* override */ { return 0; }
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int /* iIndex */) const RT_OVERRIDE { return 0; }
+    virtual QAccessibleInterface *child(int /* iIndex */) const /* override */ { return 0; }
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const RT_OVERRIDE { return -1; }
+    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const /* override */ { return -1; }
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE
+    virtual QRect rect() const /* override */
     {
         /* Make sure parent still alive: */
         AssertPtrReturn(parent(), QRect());
@@ -82,7 +81,7 @@ public:
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text enmTextRole) const /* override */
     {
         /* Make sure line still alive: */
         AssertPtrReturn(line(), QString());
@@ -96,9 +95,9 @@ public:
     }
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE { return QAccessible::StaticText; }
+    virtual QAccessible::Role role() const /* override */ { return QAccessible::StaticText; }
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE { return QAccessible::State(); }
+    virtual QAccessible::State state() const /* override */ { return QAccessible::State(); }
 
 private:
 
@@ -153,7 +152,7 @@ void UIGraphicsTextPane::setText(const UITextTable &text)
         else
         {
             /* Parse the 1st one to sub-lines: */
-            QStringList subLines = strLeftLine.split(QRegularExpression("\\n"));
+            QStringList subLines = strLeftLine.split(QRegExp("\\n"));
             foreach (const QString &strSubLine, subLines)
                 m_text << UITextTableLine(strSubLine, QString(), parentWidget());
         }
@@ -201,13 +200,8 @@ void UIGraphicsTextPane::updateTextLayout(bool fFull /* = false */)
             fSingleColumnText = false;
         QString strLeftLine = fRightColumnPresent ? line.string1() + ":" : line.string1();
         QString strRightLine = line.string2();
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-        iMaximumLeftColumnWidth = qMax(iMaximumLeftColumnWidth, fm.horizontalAdvance(strLeftLine));
-        iMaximumRightColumnWidth = qMax(iMaximumRightColumnWidth, fm.horizontalAdvance(strRightLine));
-#else
         iMaximumLeftColumnWidth = qMax(iMaximumLeftColumnWidth, fm.width(strLeftLine));
         iMaximumRightColumnWidth = qMax(iMaximumRightColumnWidth, fm.width(strRightLine));
-#endif
     }
     iMaximumLeftColumnWidth += 1;
     iMaximumRightColumnWidth += 1;
@@ -388,19 +382,15 @@ void UIGraphicsTextPane::updateHoverStuff()
 {
     /* Update mouse-cursor: */
     if (m_strHoveredAnchor.isNull())
-        UICursor::unsetCursor(this);
+        UICommon::unsetCursor(this);
     else
-        UICursor::setCursor(this, Qt::PointingHandCursor);
+        UICommon::setCursor(this, Qt::PointingHandCursor);
 
     /* Update text-layout: */
     updateTextLayout();
 
     /* Update tool-tip: */
-    const QString strType = m_strHoveredAnchor.section(',', 0, 0);
-    if (strType == "#attach")
-        setToolTip(m_strHoveredAnchor.section(',', -1));
-    else
-        setToolTip(QString());
+    setToolTip(m_strHoveredAnchor.section(',', -1));
 
     /* Update text-pane: */
     update();
@@ -454,7 +444,7 @@ QTextLayout* UIGraphicsTextPane::buildTextLayout(const QFont &font, QPaintDevice
 
     /* Create layout; */
     QTextLayout *pTextLayout = new QTextLayout(ms.toString(), font, pPaintDevice);
-    pTextLayout->setFormats(ms.formatRanges());
+    pTextLayout->setAdditionalFormats(ms.formatRanges());
 
     /* Configure layout: */
     QTextOption textOption;
@@ -494,7 +484,7 @@ QString UIGraphicsTextPane::searchForHoveredAnchor(QPaintDevice *pPaintDevice, c
         const QString strLayoutText = pTextLayout->text();
 
         /* Enumerate format ranges: */
-        foreach (const QTextLayout::FormatRange &range, pTextLayout->formats())
+        foreach (const QTextLayout::FormatRange &range, pTextLayout->additionalFormats())
         {
             /* Skip unrelated formats: */
             if (!range.format.isAnchor())
@@ -511,12 +501,7 @@ QString UIGraphicsTextPane::searchForHoveredAnchor(QPaintDevice *pPaintDevice, c
                 int iSymbolX = (int)layoutLine.cursorToX(iTextPosition);
                 QRect symbolRect = QRect(layoutPosition.x() + linePosition.x() + iSymbolX,
                                          layoutPosition.y() + linePosition.y(),
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-                                         fm.horizontalAdvance(strLayoutText[iTextPosition]) + 1,
-#else
-                                         fm.width(strLayoutText[iTextPosition]) + 1,
-#endif
-                                         fm.height());
+                                         fm.width(strLayoutText[iTextPosition]) + 1, fm.height());
                 formatRegion += symbolRect;
             }
 

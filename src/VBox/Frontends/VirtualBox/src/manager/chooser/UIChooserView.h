@@ -1,10 +1,10 @@
-/* $Id: UIChooserView.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIChooserView.h $ */
 /** @file
  * VBox Qt GUI - UIChooserView class declaration.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -26,7 +26,7 @@
 #include "QIWithRetranslateUI.h"
 
 /* Forward declarations: */
-class UIChooserModel;
+class UIChooser;
 class UIChooserSearchWidget;
 
 /** QIGraphicsView extension used as VM chooser pane view. */
@@ -39,38 +39,28 @@ signals:
     /** Notifies listeners about resize. */
     void sigResized();
 
-    /** Notifies listeners about search widget visibility changed to @a fVisible. */
-    void sigSearchWidgetVisibilityChanged(bool fVisible);
-
 public:
 
-    /** Constructs a Chooser-view passing @a pParent to the base-class. */
-    UIChooserView(QWidget *pParent);
+    /** Constructs a chooser-view passing @a pParent to the base-class.
+      * @param  pParent  Brings the chooser container to embed into. */
+    UIChooserView(UIChooser *pParent);
 
     /** @name General stuff.
       * @{ */
-        /** Defines @a pChooserModel reference. */
-        void setModel(UIChooserModel *pChooserModel);
-        /** Returns Chooser-model reference. */
-        UIChooserModel *model() const;
+        /** Returns the chooser reference. */
+        UIChooser *chooser() const { return m_pChooser; }
     /** @} */
 
     /** @name Search stuff.
       * @{ */
-        /** Returns whether search widget visible. */
+        /** Returns if the search widget is visible or not. */
         bool isSearchWidgetVisible() const;
-        /** Makes search widget @a fVisible. */
+        /** Shows/hides wrt. @a fVisible machine search widget. */
         void setSearchWidgetVisible(bool fVisible);
-
-        /** Updates search widget's results count.
-          * @param  iTotalMatchCount             Brings total search results count.
-          * @param  iCurrentlyScrolledItemIndex  Brings the item index search currently scrolled to. */
-        void setSearchResultsCount(int iTotalMatchCount, int iCurrentlyScrolledItemIndex);
-        /** Forwards @a strSearchText to the search widget which in
-          * turn appends it to the current (if any) search term. */
+        /** Updates the search widget's counts. */
+        void setSearchResultsCount(int iTotalMacthCount, int iCurrentlyScrolledItemIndex);
+        /** Forwards @a strSearchText to the search widget which in turn appends it to the current (if any) search term. */
         void appendToSearchString(const QString &strSearchText);
-        /** Repeats the last search again. */
-        void redoSearch();
     /** @} */
 
 public slots:
@@ -86,25 +76,19 @@ protected:
     /** @name Event handling stuff.
       * @{ */
         /** Handles translation event. */
-        virtual void retranslateUi() RT_OVERRIDE;
+        virtual void retranslateUi() /* override */;
 
         /** Handles resize @a pEvent. */
-        virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
+        virtual void resizeEvent(QResizeEvent *pEvent) /* override */;
     /** @} */
 
 private slots:
 
-    /** @name Search stuff.
-      * @{ */
-        /** Handles request for a new search.
-          * @param  strSearchTerm  Brings the search term.
-          * @param  iSearchFlags   Brings the item search flags. */
-        void sltRedoSearch(const QString &strSearchTerm, int iSearchFlags);
-        /** Handles request to scroll to @a fNext search result. */
-        void sltHandleScrollToSearchResult(bool fNext);
-        /** Handles request to scroll to make search widget @a fVisible. */
-        void sltHandleSearchWidgetVisibilityToggle(bool fVisible);
-    /** @} */
+    /** Is connected to search widget's signal for a new search. */
+    void sltRedoSearch(const QString &strSearchTerm, int iItemSearchFlags);
+    /** Is connected to search widget's scroll to next/prev search result signal. */
+    void sltHandleScrollToSearchResult(bool fIsNext);
+    void sltHandleSearchWidgetVisibilityToggle(bool fIsVisible);
 
 private:
 
@@ -112,10 +96,8 @@ private:
       * @{ */
         /** Prepares all. */
         void prepare();
-        /** Prepares this. */
-        void prepareThis();
-        /** Prepares widgets. */
-        void prepareWidget();
+        /** Prepares palette. */
+        void preparePalette();
     /** @} */
 
     /** @name General stuff.
@@ -132,13 +114,9 @@ private:
 
     /** @name General stuff.
       * @{ */
-        /** Holds the Chooser-model reference. */
-        UIChooserModel *m_pChooserModel;
-    /** @} */
-
-    /** @name Search stuff.
-      * @{ */
-        /** Holds the search widget instance. */
+        /** Holds the chooser pane reference. */
+        UIChooser *m_pChooser;
+        /** Holds the search widget instance reference. */
         UIChooserSearchWidget *m_pSearchWidget;
     /** @} */
 

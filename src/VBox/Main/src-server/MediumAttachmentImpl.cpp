@@ -1,10 +1,10 @@
-/* $Id: MediumAttachmentImpl.cpp 93410 2022-01-24 14:45:10Z vboxsync $ */
+/* $Id: MediumAttachmentImpl.cpp $ */
 /** @file
  * VirtualBox COM class implementation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -20,7 +20,6 @@
 #include "MachineImpl.h"
 #include "MediumImpl.h"
 #include "Global.h"
-#include "StringifyEnums.h"
 
 #include "AutoCaller.h"
 #include "LoggingNew.h"
@@ -629,6 +628,6 @@ void MediumAttachment::i_updateLogName()
     mLogName = Utf8StrFmt("MA%p[%.*s:%u:%u:%s%s]",
                           this,
                           pszEndNick ? pszEndNick - pszName : 4, pszName,
-                          m->bd->mData.lPort, m->bd->mData.lDevice, ::stringifyDeviceType(m->bd->mData.deviceType),
+                          m->bd->mData.lPort, m->bd->mData.lDevice, Global::stringifyDeviceType(m->bd->mData.deviceType),
                           m->bd->fImplicit ? ":I" : "");
 }

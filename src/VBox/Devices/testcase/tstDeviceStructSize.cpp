@@ -1,4 +1,4 @@
-/* $Id: tstDeviceStructSize.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: tstDeviceStructSize.cpp $ */
 /** @file
  * tstDeviceStructSize - testcase for check structure sizes/alignment
  *                       and to verify that HC and RC uses the same
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -64,6 +64,10 @@
 #endif
 #undef LOG_GROUP
 #include "../Network/DevPCNet.cpp"
+#ifdef VBOX_WITH_VIRTIO
+# undef LOG_GROUP
+# include "../Network/DevVirtioNet.cpp"
+#endif
 #undef LOG_GROUP
 #include "../PC/DevACPI.cpp"
 #undef LOG_GROUP
@@ -124,15 +128,6 @@
 #ifdef VBOX_WITH_PCI_PASSTHROUGH_IMPL
 # undef LOG_GROUP
 # include "../Bus/DevPciRaw.cpp"
-#endif
-
-#ifdef VBOX_WITH_IOMMU_AMD
-# undef LOG_GROUP
-# include "../Bus/DevIommuAmd.cpp"
-#endif
-#ifdef VBOX_WITH_IOMMU_INTEL
-# undef LOG_GROUP
-# include "../Bus/DevIommuIntel.cpp"
 #endif
 
 #include <VBox/vmm/pdmaudioifs.h>
@@ -342,6 +337,9 @@ int main()
     CHECK_MEMBER_ALIGNMENT(E1KSTATE, csRx, 8);
     CHECK_MEMBER_ALIGNMENT(E1KSTATE, StatReceiveBytes, 8);
 #endif
+#ifdef VBOX_WITH_VIRTIO
+    CHECK_MEMBER_ALIGNMENT(VNETSTATE, StatReceiveBytes, 8);
+#endif
     //CHECK_MEMBER_ALIGNMENT(E1KSTATE, csTx, 8);
 #ifdef VBOX_WITH_USB
 # ifdef VBOX_WITH_EHCI_IMPL
@@ -369,6 +367,7 @@ int main()
     CHECK_MEMBER_ALIGNMENT(LSILOGICSCSI, ReplyPostQueueCritSect, 8);
     CHECK_MEMBER_ALIGNMENT(LSILOGICSCSI, ReplyFreeQueueCritSect, 8);
     CHECK_MEMBER_ALIGNMENT(LSILOGICSCSI, uReplyFreeQueueNextEntryFreeWrite, 8);
+    CHECK_MEMBER_ALIGNMENT(LSILOGICSCSICC, VBoxSCSI, 8);
 #ifdef VBOX_WITH_USB
     CHECK_MEMBER_ALIGNMENT(OHCI, RootHub, 8);
 # ifdef VBOX_WITH_STATISTICS
@@ -399,28 +398,13 @@ int main()
     CHECK_MEMBER_ALIGNMENT(VGASTATE, StatRZMemoryRead, 8);
     CHECK_MEMBER_ALIGNMENT(VGASTATE, CritSectIRQ, 8);
     CHECK_MEMBER_ALIGNMENT(VMMDEV, CritSect, 8);
+#ifdef VBOX_WITH_VIRTIO
+    CHECK_MEMBER_ALIGNMENT(VPCISTATE, cs, 8);
+    CHECK_MEMBER_ALIGNMENT(VPCISTATE, led, 4);
+    CHECK_MEMBER_ALIGNMENT(VPCISTATE, Queues, 8);
+#endif
 #ifdef VBOX_WITH_PCI_PASSTHROUGH_IMPL
     CHECK_MEMBER_ALIGNMENT(PCIRAWSENDREQ, u.aGetRegionInfo.u64RegionSize, 8);
-#endif
-#ifdef VBOX_WITH_IOMMU_AMD
-    CHECK_MEMBER_ALIGNMENT(IOMMU, IommuBar, 8);
-    CHECK_MEMBER_ALIGNMENT(IOMMU, aDevTabBaseAddrs, 8);
-    CHECK_MEMBER_ALIGNMENT(IOMMU, CmdBufHeadPtr, 8);
-    CHECK_MEMBER_ALIGNMENT(IOMMU, Status, 8);
-# ifdef VBOX_WITH_STATISTICS
-    CHECK_MEMBER_ALIGNMENT(IOMMU, StatMmioReadR3, 8);
-# endif
-#endif
-#ifdef VBOX_WITH_IOMMU_INTEL
-    CHECK_MEMBER_ALIGNMENT(DMAR, abRegs0, 8);
-    CHECK_MEMBER_ALIGNMENT(DMAR, abRegs1, 8);
-    CHECK_MEMBER_ALIGNMENT(DMAR, uIrtaReg, 8);
-    CHECK_MEMBER_ALIGNMENT(DMAR, uRtaddrReg, 8);
-    CHECK_MEMBER_ALIGNMENT(DMAR, hEvtInvQueue, 8);
-# ifdef VBOX_WITH_STATISTICS
-    CHECK_MEMBER_ALIGNMENT(DMAR, StatMmioReadR3, 8);
-    CHECK_MEMBER_ALIGNMENT(DMAR, StatPasidDevtlbInvDsc, 8);
-# endif
 #endif
 
 #ifdef VBOX_WITH_RAW_MODE

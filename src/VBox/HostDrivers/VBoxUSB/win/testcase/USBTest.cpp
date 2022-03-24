@@ -1,10 +1,10 @@
-/* $Id: USBTest.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBTest.cpp $ */
 /** @file
  * VBox host drivers - USB drivers - Filter & driver installation
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -78,7 +78,8 @@ int usbMonStopService(void)
      */
     int rc = -1;
     SC_HANDLE   hSMgr = OpenSCManager(NULL, NULL, SERVICE_STOP | SERVICE_QUERY_STATUS);
-    AssertMsg(hSMgr, ("OpenSCManager(,,delete) failed rc=%d\n", GetLastError()));
+    DWORD LastError = GetLastError(); NOREF(LastError);
+    AssertMsg(hSMgr, ("OpenSCManager(,,delete) failed rc=%d\n", LastError));
     if (hSMgr)
     {
         SC_HANDLE hService = OpenServiceW(hSMgr, USBMON_SERVICE_NAME_W, SERVICE_STOP | SERVICE_QUERY_STATUS);
@@ -105,18 +106,23 @@ int usbMonStopService(void)
                    AssertMsgFailed(("Failed to stop service. status=%d\n", Status.dwCurrentState));
             }
             else
-                AssertMsgFailed(("ControlService failed with LastError=%Rwa. status=%d\n", GetLastError(), Status.dwCurrentState));
+            {
+                DWORD LastError = GetLastError(); NOREF(LastError);
+                AssertMsgFailed(("ControlService failed with LastError=%Rwa. status=%d\n", LastError, Status.dwCurrentState));
+            }
             CloseServiceHandle(hService);
         }
         else if (GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST)
             rc = 0;
         else
-            AssertMsgFailed(("OpenService failed LastError=%Rwa\n", GetLastError()));
+        {
+            DWORD LastError = GetLastError(); NOREF(LastError);
+            AssertMsgFailed(("OpenService failed LastError=%Rwa\n", LastError));
+        }
         CloseServiceHandle(hSMgr);
     }
     return rc;
 }
-
 /**
  * Release specified USB device to the host.
  *
@@ -258,7 +264,7 @@ int usbMonitorInit()
         if (g_hUSBMonitor == INVALID_HANDLE_VALUE)
         {
             /* AssertFailed(); */
-            printf("usbproxy: Unable to open filter driver!! (rc=%lu)\n", GetLastError());
+            printf("usbproxy: Unable to open filter driver!! (rc=%d)\n", GetLastError());
             rc = VERR_FILE_NOT_FOUND;
             goto failure;
         }
@@ -270,7 +276,7 @@ int usbMonitorInit()
     cbReturned = 0;
     if (!DeviceIoControl(g_hUSBMonitor, SUPUSBFLT_IOCTL_GET_VERSION, NULL, 0,&version, sizeof(version),  &cbReturned, NULL))
     {
-        printf("usbproxy: Unable to query filter version!! (rc=%lu)\n", GetLastError());
+        printf("usbproxy: Unable to query filter version!! (rc=%d)\n", GetLastError());
         rc = VERR_VERSION_MISMATCH;
         goto failure;
     }

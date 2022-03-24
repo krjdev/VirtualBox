@@ -1,10 +1,10 @@
-/* $Id: UIMenuBar.cpp 94021 2022-03-01 10:32:11Z vboxsync $ */
+/* $Id: UIMenuBar.cpp $ */
 /** @file
  * VBox Qt GUI - UIMenuBar class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -45,7 +45,7 @@ void UIMenuBar::paintEvent(QPaintEvent *pEvent)
     {
         QPixmap betaLabel;
         const QString key("vbox:betaLabel");
-        if (!QPixmapCache::find(key, &betaLabel))
+        if (!QPixmapCache::find(key, betaLabel))
         {
             betaLabel = ::betaLabel();
             QPixmapCache::insert(key, betaLabel);

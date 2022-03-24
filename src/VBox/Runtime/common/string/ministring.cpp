@@ -1,4 +1,4 @@
-/* $Id: ministring.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: ministring.cpp $ */
 /** @file
  * IPRT - Mini C++ string class.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2007-2022 Oracle Corporation
+ * Copyright (C) 2007-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -1143,21 +1143,21 @@ RTCString::join(const RTCList<RTCString, RTCString *> &a_rList,
                              "" /* a_rstrPrefix */, a_rstrSep);
 }
 
-RTDECL(const RTCString) operator+(const RTCString &a_rStr1, const RTCString &a_rStr2)
+const RTCString operator+(const RTCString &a_rStr1, const RTCString &a_rStr2)
 {
     RTCString strRet(a_rStr1);
     strRet += a_rStr2;
     return strRet;
 }
 
-RTDECL(const RTCString) operator+(const RTCString &a_rStr1, const char *a_pszStr2)
+const RTCString operator+(const RTCString &a_rStr1, const char *a_pszStr2)
 {
     RTCString strRet(a_rStr1);
     strRet += a_pszStr2;
     return strRet;
 }
 
-RTDECL(const RTCString) operator+(const char *a_psz1, const RTCString &a_rStr2)
+const RTCString operator+(const char *a_psz1, const RTCString &a_rStr2)
 {
     RTCString strRet(a_psz1);
     strRet += a_rStr2;

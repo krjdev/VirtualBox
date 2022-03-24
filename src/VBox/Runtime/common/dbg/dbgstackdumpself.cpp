@@ -1,10 +1,10 @@
-/* $Id: dbgstackdumpself.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: dbgstackdumpself.cpp $ */
 /** @file
  * IPRT - Dump current thread stack to buffer.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -101,7 +101,7 @@ typedef RTDBGSTACKSELFSYMSEARCH *PRTDBGSTACKSELFSYMSEARCH;
 *********************************************************************************************************************************/
 /* Wanted to use DECLHIDDEN(DECLASM(size_t)) here, but early solaris 11 doesn't like it. */
 RT_C_DECLS_BEGIN
-DECL_HIDDEN_CALLBACK(size_t) rtDbgStackDumpSelfWorker(char *pszStack, size_t cbStack, uint32_t fFlags, PCRTCCUINTREG pauRegs);
+DECLHIDDEN(DECLCALLBACK(size_t)) rtDbgStackDumpSelfWorker(char *pszStack, size_t cbStack, uint32_t fFlags, PCRTCCUINTREG pauRegs);
 RT_C_DECLS_END
 
 
@@ -405,7 +405,7 @@ static bool rtDbgStackDumpSelfQuerySymbol(PRTDBGSTACKSELFMOD pMod, uintptr_t uRv
  * @param   pauRegs     Register state.  For AMD64 and x86 this starts with the
  *                      PC and us followed by the general purpose registers.
  */
-DECL_HIDDEN_CALLBACK(size_t) rtDbgStackDumpSelfWorker(char *pszStack, size_t cbStack, uint32_t fFlags, PCRTCCUINTREG pauRegs)
+DECLHIDDEN(DECLCALLBACK(size_t)) rtDbgStackDumpSelfWorker(char *pszStack, size_t cbStack, uint32_t fFlags, PCRTCCUINTREG pauRegs)
 {
     RT_NOREF(fFlags);
 

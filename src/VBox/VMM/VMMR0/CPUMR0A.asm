@@ -1,10 +1,10 @@
- ; $Id: CPUMR0A.asm 93115 2022-01-01 11:31:46Z vboxsync $
+ ; $Id: CPUMR0A.asm $
 ;; @file
 ; CPUM - Ring-0 Assembly Routines (supporting HM and IEM).
 ;
 
 ;
-; Copyright (C) 2006-2022 Oracle Corporation
+; Copyright (C) 2006-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -143,7 +143,7 @@ SEH64_END_PROLOGUE
 .already_saved_host:
 %ifdef VBOX_WITH_KERNEL_USING_XMM
         ; If we didn't save the host state, we must save the non-volatile XMM registers.
-        lea     pXState, [pCpumCpu + CPUMCPU.Host.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Host.pXStateR0]
         stmxcsr [pXState + X86FXSTATE.MXCSR]
         movdqa  [pXState + X86FXSTATE.xmm6 ], xmm6
         movdqa  [pXState + X86FXSTATE.xmm7 ], xmm7
@@ -165,7 +165,7 @@ SEH64_END_PROLOGUE
 
 %ifdef VBOX_WITH_KERNEL_USING_XMM
         ; Restore the non-volatile xmm registers. ASSUMING 64-bit host.
-        lea     pXState, [pCpumCpu + CPUMCPU.Host.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Host.pXStateR0]
         movdqa  xmm6,  [pXState + X86FXSTATE.xmm6]
         movdqa  xmm7,  [pXState + X86FXSTATE.xmm7]
         movdqa  xmm8,  [pXState + X86FXSTATE.xmm8]
@@ -180,7 +180,6 @@ SEH64_END_PROLOGUE
 %endif
 
         or      dword [pCpumCpu + CPUMCPU.fUseFlags], (CPUM_USED_FPU_GUEST | CPUM_USED_FPU_SINCE_REM | CPUM_USED_FPU_HOST)
-        mov     byte [pCpumCpu + CPUMCPU.Guest.fUsedFpuGuest], 1
         popf
 
         mov     eax, ecx
@@ -241,7 +240,7 @@ SEH64_END_PROLOGUE
         ; Copy non-volatile XMM registers to the host state so we can use
         ; them while saving the guest state (we've gotta do this anyway).
         ;
-        lea     pXState, [pCpumCpu + CPUMCPU.Host.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Host.pXStateR0]
         stmxcsr [pXState + X86FXSTATE.MXCSR]
         movdqa  [pXState + X86FXSTATE.xmm6], xmm6
         movdqa  [pXState + X86FXSTATE.xmm7], xmm7
@@ -263,7 +262,7 @@ SEH64_END_PROLOGUE
 
  %ifdef VBOX_WITH_KERNEL_USING_XMM
         ; Load the guest XMM register values we already saved in HMR0VMXStartVMWrapXMM.
-        lea     pXState, [pCpumCpu + CPUMCPU.Guest.XState]
+        mov     pXState, [pCpumCpu + CPUMCPU.Guest.pXStateR0]
         movdqa  xmm0,  [pXState + X86FXSTATE.xmm0]
         movdqa  xmm1,  [pXState + X86FXSTATE.xmm1]
         movdqa  xmm2,  [pXState + X86FXSTATE.xmm2]
@@ -295,7 +294,6 @@ SEH64_END_PROLOGUE
         mov     xCX, [pCpumCpu + CPUMCPU.Host.cr0Fpu]
         CPUMRZ_RESTORE_CR0_IF_TS_OR_EM_SET xCX
         and     dword [pCpumCpu + CPUMCPU.fUseFlags], ~(CPUM_USED_FPU_GUEST | CPUM_USED_FPU_HOST)
-        mov     byte [pCpumCpu + CPUMCPU.Guest.fUsedFpuGuest], 0
 
         popf
 %ifdef RT_ARCH_X86

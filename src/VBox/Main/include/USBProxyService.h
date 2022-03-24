@@ -1,10 +1,10 @@
-/* $Id: USBProxyService.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBProxyService.h $ */
 /** @file
  * VirtualBox USB Proxy Service (base) class.
  */
 
 /*
- * Copyright (C) 2005-2022 Oracle Corporation
+ * Copyright (C) 2005-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -42,11 +42,9 @@ namespace settings
  * Base class for the USB Proxy service.
  */
 class USBProxyService
-    : public Lockable
+    : public VirtualBoxTranslatable
 {
 public:
-    DECLARE_TRANSLATE_METHODS(USBProxyService)
-
     USBProxyService(Host *aHost);
     virtual HRESULT init(void);
     virtual ~USBProxyService();

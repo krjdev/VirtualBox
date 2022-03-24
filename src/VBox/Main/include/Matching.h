@@ -1,11 +1,11 @@
-/* $Id: Matching.h 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: Matching.h $ */
 /** @file
  * Declaration of template classes that provide simple API to
  * do matching between values and value filters constructed from strings.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -81,9 +81,6 @@ protected:
 
 class ParsedIntervalFilter_base : public ParsedFilter_base
 {
-public:
-    virtual ~ParsedIntervalFilter_base() { /* Make VC++ 14.2 happy */ }
-
 protected:
 
     enum Mode { Single, Start, End };
@@ -320,14 +317,16 @@ protected:
 
     ParsedRegexpFilter_base (bool aDefIgnoreCase = false,
                              size_t aMinLen = 0, size_t aMaxLen = 0)
-        : mIgnoreCase (aDefIgnoreCase)
+        : mDefIgnoreCase (aDefIgnoreCase)
+        , mIgnoreCase (aDefIgnoreCase)
         , mMinLen (aMinLen)
         , mMaxLen (aMaxLen)
         {}
 
     ParsedRegexpFilter_base (const Bstr &aFilter, bool aDefIgnoreCase = false,
                              size_t aMinLen = 0, size_t aMaxLen = 0)
-        : mIgnoreCase (aDefIgnoreCase)
+        : mDefIgnoreCase (aDefIgnoreCase)
+        , mIgnoreCase (aDefIgnoreCase)
         , mMinLen (aMinLen)
         , mMaxLen (aMaxLen)
     {
@@ -346,6 +345,7 @@ private:
 
     void parse (const Bstr &aFilter);
 
+    bool mDefIgnoreCase : 1;
     bool mIgnoreCase : 1;
 
     size_t mMinLen;

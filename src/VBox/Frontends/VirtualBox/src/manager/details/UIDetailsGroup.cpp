@@ -1,10 +1,10 @@
-/* $Id: UIDetailsGroup.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIDetailsGroup.cpp $ */
 /** @file
  * VBox Qt GUI - UIDetailsGroup class implementation.
  */
 
 /*
- * Copyright (C) 2012-2022 Oracle Corporation
+ * Copyright (C) 2012-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -80,19 +80,16 @@ void UIDetailsGroup::buildGroup(const QList<UIVirtualMachineItem*> &machineItems
     /* Filter out cloud VM items for now: */
     QList<UIVirtualMachineItem*> filteredItems;
     foreach (UIVirtualMachineItem *pItem, machineItems)
-        if (   pItem->itemType() == UIVirtualMachineItemType_Local
-            || pItem->itemType() == UIVirtualMachineItemType_CloudReal)
+        if (pItem->itemType() == UIVirtualMachineItem::ItemType_Local)
             filteredItems << pItem;
 
     /* Remember passed machine-items: */
     m_machineItems = filteredItems;
 
     /* Cleanup superflous items: */
-    const bool fCleanupPerformed = m_items.size() > m_machineItems.size();
+    bool fCleanupPerformed = m_items.size() > m_machineItems.size();
     while (m_items.size() > m_machineItems.size())
         delete m_items.last();
-    foreach (UIDetailsItem *pItem, m_items)
-        pItem->toSet()->clearSet();
     if (fCleanupPerformed)
         updateGeometry();
 
@@ -194,6 +191,12 @@ void UIDetailsGroup::sltBuildStep(const QUuid &uStepId, int iStepNumber)
     }
 }
 
+void UIDetailsGroup::paint(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions, QWidget *)
+{
+    /* Paint background: */
+    paintBackground(pPainter, pOptions);
+}
+
 void UIDetailsGroup::addItem(UIDetailsItem *pItem)
 {
     switch (pItem->type())
@@ -266,4 +269,24 @@ void UIDetailsGroup::prepareConnections()
     /* Prepare group-item connections: */
     connect(this, &UIDetailsGroup::sigMinimumWidthHintChanged,
             model(), &UIDetailsModel::sigRootItemMinimumWidthHintChanged);
+}
+
+void UIDetailsGroup::paintBackground(QPainter *pPainter, const QStyleOptionGraphicsItem *pOptions) const
+{
+    /* Save painter: */
+    pPainter->save();
+
+    /* Prepare variables: */
+    const QRect optionRect = pOptions->rect;
+
+    /* Paint default background: */
+#ifdef VBOX_WS_MAC
+    const QColor defaultColor = palette().color(QPalette::Active, QPalette::Mid).lighter(145);
+#else
+    const QColor defaultColor = palette().color(QPalette::Active, QPalette::Mid).lighter(160);
+#endif
+    pPainter->fillRect(optionRect, defaultColor);
+
+    /* Restore painter: */
+    pPainter->restore();
 }

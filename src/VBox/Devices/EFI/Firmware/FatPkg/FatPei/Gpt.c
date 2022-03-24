@@ -48,7 +48,7 @@ PartitionCheckGptHeaderCRC (
   GptHdrCrc = PartHeader->Header.CRC32;
 
   //
-  // Set CRC field to zero when doing calculation
+  // Set CRC field to zero when doing calcuation
   //
   PartHeader->Header.CRC32 = 0;
 

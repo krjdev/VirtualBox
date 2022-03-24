@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -114,7 +114,7 @@
  *
  * @thread  EMT(0)
  */
-typedef DECLCALLBACKTYPE(bool, FNPDMUSBASYNCNOTIFY,(PPDMUSBINS pUsbIns));
+typedef DECLCALLBACK(bool) FNPDMUSBASYNCNOTIFY(PPDMUSBINS pUsbIns);
 /** Pointer to a FNPDMUSBASYNCNOTIFY. */
 typedef FNPDMUSBASYNCNOTIFY *PFNPDMUSBASYNCNOTIFY;
 
@@ -130,7 +130,7 @@ typedef FNPDMUSBASYNCNOTIFY *PFNPDMUSBASYNCNOTIFY;
  * @remarks The caller will enter the device critical section.
  * @thread  EMT(0)
  */
-typedef DECLCALLBACKTYPE(bool, FNPDMDEVASYNCNOTIFY,(PPDMDEVINS pDevIns));
+typedef DECLCALLBACK(bool) FNPDMDEVASYNCNOTIFY(PPDMDEVINS pDevIns);
 /** Pointer to a FNPDMDEVASYNCNOTIFY. */
 typedef FNPDMDEVASYNCNOTIFY *PFNPDMDEVASYNCNOTIFY;
 
@@ -146,7 +146,7 @@ typedef FNPDMDEVASYNCNOTIFY *PFNPDMDEVASYNCNOTIFY;
  *
  * @thread  EMT(0)
  */
-typedef DECLCALLBACKTYPE(bool, FNPDMDRVASYNCNOTIFY,(PPDMDRVINS pDrvIns));
+typedef DECLCALLBACK(bool) FNPDMDRVASYNCNOTIFY(PPDMDRVINS pDrvIns);
 /** Pointer to a FNPDMDRVASYNCNOTIFY. */
 typedef FNPDMDRVASYNCNOTIFY *PFNPDMDRVASYNCNOTIFY;
 
@@ -159,7 +159,7 @@ typedef FNPDMDRVASYNCNOTIFY *PFNPDMDRVASYNCNOTIFY;
  * @param   uOperation  The operation.
  * @param   u64Arg      Optional integer argument for the operation.
  */
-typedef DECLCALLBACKTYPE(int, FNPDMDEVREQHANDLERR0,(PPDMDEVINS pDevIns, uint32_t uOperation, uint64_t u64Arg));
+typedef DECLCALLBACK(int) FNPDMDEVREQHANDLERR0(PPDMDEVINS pDevIns, uint32_t uOperation, uint64_t u64Arg);
 /** Ring-0 pointer to a FNPDMDEVREQHANDLERR0. */
 typedef R0PTRTYPE(FNPDMDEVREQHANDLERR0 *) PFNPDMDEVREQHANDLERR0;
 
@@ -171,7 +171,7 @@ typedef R0PTRTYPE(FNPDMDEVREQHANDLERR0 *) PFNPDMDEVREQHANDLERR0;
  * @param   uOperation  The operation.
  * @param   u64Arg      Optional integer argument for the operation.
  */
-typedef DECLCALLBACKTYPE(int, FNPDMDRVREQHANDLERR0,(PPDMDRVINS pDrvIns, uint32_t uOperation, uint64_t u64Arg));
+typedef DECLCALLBACK(int) FNPDMDRVREQHANDLERR0(PPDMDRVINS pDrvIns, uint32_t uOperation, uint64_t u64Arg);
 /** Ring-0 pointer to a FNPDMDRVREQHANDLERR0. */
 typedef R0PTRTYPE(FNPDMDRVREQHANDLERR0 *) PFNPDMDRVREQHANDLERR0;
 

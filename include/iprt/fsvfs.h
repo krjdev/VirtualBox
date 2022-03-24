@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -120,15 +120,6 @@ RTDECL(int) RTFsFatVolFormat(RTVFSFILE hVfsFile, uint64_t offVol, uint64_t cbVol
  */
 RTDECL(int) RTFsFatVolFormat144(RTVFSFILE hVfsFile, bool fQuick);
 
-/**
- * Formats a 2.88MB floppy image.
- *
- * @returns IPRT status code.
- * @param   hVfsFile            The image.  Will be grown to 1.44MB if
- *                              necessary.
- * @param   fQuick              Whether to quick format the floppy or not.
- */
-RTDECL(int) RTFsFatVolFormat288(RTVFSFILE hVfsFile, bool fQuick);
 
 
 /**

@@ -1,10 +1,10 @@
-/* $Id: UIVMLogViewerTextEdit.cpp 93998 2022-02-28 22:42:04Z vboxsync $ */
+/* $Id: UIVMLogViewerTextEdit.cpp $ */
 /** @file
  * VBox Qt GUI - UIVMLogViewer class implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -74,7 +74,7 @@ public:
 
 protected:
 
-    virtual void paintEvent(QPaintEvent *pEvent) RT_OVERRIDE;
+    virtual void paintEvent(QPaintEvent *pEvent) /* override */;
 
 private:
 
@@ -202,7 +202,7 @@ void UIVMLogViewerTextEdit::configure()
     setMouseTracking(true);
 
     /* Prepare modified standard palette: */
-    QPalette pal = QApplication::palette();
+    QPalette pal = style() ? style()->standardPalette() : palette(); // fallback if no style exist.
     pal.setColor(QPalette::Inactive, QPalette::Highlight, pal.color(QPalette::Active, QPalette::Highlight));
     pal.setColor(QPalette::Inactive, QPalette::HighlightedText, pal.color(QPalette::Active, QPalette::HighlightedText));
     setPalette(pal);
@@ -252,11 +252,7 @@ int UIVMLogViewerTextEdit::lineNumberAreaWidth()
         ++digits;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-    int space = 3 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits;
-#else
     int space = 3 + fontMetrics().width(QLatin1Char('9')) * digits;
-#endif
 
     return space;
 }
@@ -417,12 +413,6 @@ void UIVMLogViewerTextEdit::scrollToLine(int lineNumber)
     int halfPageLineCount = 0.5 * visibleLineCount() ;
     QTextCursor cursor(pDocument->findBlockByLineNumber(qMax(lineNumber - halfPageLineCount, 0)));
     setTextCursor(cursor);
-}
-
-void UIVMLogViewerTextEdit::scrollToEnd()
-{
-    moveCursor(QTextCursor::End);
-    ensureCursorVisible();
 }
 
 int UIVMLogViewerTextEdit::visibleLineCount()

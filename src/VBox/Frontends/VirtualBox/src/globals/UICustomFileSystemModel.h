@@ -1,10 +1,10 @@
-/* $Id: UICustomFileSystemModel.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UICustomFileSystemModel.h $ */
 /** @file
  * VBox Qt GUI - UICustomFileSystemModel class declaration.
  */
 
 /*
- * Copyright (C) 2016-2022 Oracle Corporation
+ * Copyright (C) 2016-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -143,9 +143,9 @@ public:
 
 protected:
 
-    virtual bool lessThan(const QModelIndex &left, const QModelIndex &right) const RT_OVERRIDE;
+    virtual bool lessThan(const QModelIndex &left, const QModelIndex &right) const /* override */;
     /** Currently filters out hidden objects if options is set to "not showing them". */
-    virtual bool filterAcceptsRow(int iSourceRow, const QModelIndex &sourceParent) const RT_OVERRIDE;
+    virtual bool filterAcceptsRow(int iSourceRow, const QModelIndex &sourceParent) const /* override */;
 
 private:
 
@@ -170,18 +170,18 @@ public:
     explicit UICustomFileSystemModel(QObject *parent = 0);
     ~UICustomFileSystemModel();
 
-    QVariant       data(const QModelIndex &index, int role) const RT_OVERRIDE;
+    QVariant       data(const QModelIndex &index, int role) const /* override */;
     bool           setData(const QModelIndex &index, const QVariant &value, int role);
 
-    Qt::ItemFlags  flags(const QModelIndex &index) const RT_OVERRIDE;
+    Qt::ItemFlags  flags(const QModelIndex &index) const /* override */;
     QVariant       headerData(int section, Qt::Orientation orientation,
-                              int role = Qt::DisplayRole) const RT_OVERRIDE;
+                              int role = Qt::DisplayRole) const /* override */;
     QModelIndex    index(int row, int column,
-                      const QModelIndex &parent = QModelIndex()) const RT_OVERRIDE;
+                      const QModelIndex &parent = QModelIndex()) const /* override */;
     QModelIndex    index(UICustomFileSystemItem* item);
-    QModelIndex    parent(const QModelIndex &index) const RT_OVERRIDE;
-    int            rowCount(const QModelIndex &parent = QModelIndex()) const RT_OVERRIDE;
-    int            columnCount(const QModelIndex &parent = QModelIndex()) const RT_OVERRIDE;
+    QModelIndex    parent(const QModelIndex &index) const /* override */;
+    int            rowCount(const QModelIndex &parent = QModelIndex()) const /* override */;
+    int            columnCount(const QModelIndex &parent = QModelIndex()) const /* override */;
     void           signalUpdate();
     QModelIndex    rootIndex() const;
     void           beginReset();

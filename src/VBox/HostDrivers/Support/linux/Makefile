@@ -1,10 +1,10 @@
-# $Id: Makefile 93911 2022-02-24 11:16:08Z vboxsync $
+# $Id: Makefile $
 ## @file
 # Makefile for the VirtualBox Linux Host Driver.
 #
 
 #
-# Copyright (C) 2006-2022 Oracle Corporation
+# Copyright (C) 2006-2020 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -37,15 +37,6 @@ VBOXMOD_OBJS = \
 	SUPDrvSem.o \
 	SUPDrvTracer.o \
 	SUPLibAll.o \
-	common/string/strformatrt.o
-
-ifndef VBOX_WITHOUT_COMBINED_SOURCES
-VBOXMOD_OBJS += \
-	combined-agnostic1.o \
-	combined-agnostic2.o \
-	combined-os-specific.o
-else  # VBOX_WITHOUT_COMBINED_SOURCES
-VBOXMOD_OBJS += \
 	r0drv/alloc-r0drv.o \
 	r0drv/initterm-r0drv.o \
 	r0drv/memobj-r0drv.o \
@@ -84,7 +75,6 @@ VBOXMOD_OBJS += \
 	common/log/logrelellipsis.o \
 	common/log/logcom.o \
 	common/log/logformat.o \
-	common/log/RTLogCreateEx.o \
 	common/misc/RTAssertMsg1Weak.o \
 	common/misc/RTAssertMsg2.o \
 	common/misc/RTAssertMsg2Add.o \
@@ -100,18 +90,16 @@ VBOXMOD_OBJS += \
 	common/string/RTStrCopy.o \
 	common/string/RTStrCopyEx.o \
 	common/string/RTStrCopyP.o \
-	common/string/RTStrEnd.o \
 	common/string/RTStrNCmp.o \
 	common/string/RTStrNLen.o \
 	common/string/stringalloc.o \
 	common/string/strformat.o \
 	common/string/RTStrFormat.o \
 	common/string/strformatnum.o \
+	common/string/strformatrt.o \
 	common/string/strformattype.o \
 	common/string/strprintf.o \
 	common/string/strprintf-ellipsis.o \
-	common/string/strprintf2.o \
-	common/string/strprintf2-ellipsis.o \
 	common/string/strtonum.o \
 	common/table/avlpv.o \
 	common/time/time.o \
@@ -131,11 +119,7 @@ VBOXMOD_OBJS += \
 	generic/mppresent-generic.o \
 	generic/uuid-generic.o \
 	VBox/log-vbox.o
- ifeq ($(VBOX_KBUILD_TARGET_ARCH),amd64)
-VBOXMOD_OBJS += common/alloc/heapsimple.o
- endif
-endif # VBOX_WITHOUT_COMBINED_SOURCES
-ifeq ($(VBOX_KBUILD_TARGET_ARCH),x86)
+ifeq ($(BUILD_TARGET_ARCH),x86)
 VBOXMOD_OBJS += \
 	math/gcc/divdi3.o \
 	math/gcc/divmoddi4.o \
@@ -146,10 +130,12 @@ VBOXMOD_OBJS += \
 	math/gcc/divdi3.o \
 	math/gcc/umoddi3.o
 endif
+ifeq ($(BUILD_TARGET_ARCH),amd64)
+VBOXMOD_OBJS += common/alloc/heapsimple.o
+endif
 ifdef VBOX_WITH_NATIVE_DTRACE
 VBOXMOD_OBJS += SUPDrvDTrace.o
 endif
-
 VBOXMOD_INCL  = \
 	$(VBOXDRV_DIR) \
 	$(VBOXDRV_DIR)include \
@@ -159,7 +145,6 @@ VBOXMOD_INCL += \
 	/usr/include/linux \
 	/usr/include
 endif
-
 VBOXMOD_DEFS = \
 	RT_OS_LINUX \
 	IN_RING0 \
@@ -170,7 +155,9 @@ VBOXMOD_DEFS = \
 	VBOX_WITH_HARDENING \
 	SUPDRV_WITH_RELEASE_LOGGER \
 	VBOX_WITHOUT_EFLAGS_AC_SET_IN_VBOXDRV \
+	VBOX_WITH_EFLAGS_AC_SET_IN_VBOXDRV \
 	IPRT_WITHOUT_EFLAGS_AC_PRESERVING \
+	IPRT_WITH_EFLAGS_AC_PRESERVING \
 	VBOX_WITH_64_BITS_GUESTS # <-- must be consistent with Config.kmk!
 ifndef CONFIG_VBOXDRV_FIXEDMAJOR
 VBOXMOD_DEFS += CONFIG_VBOXDRV_AS_MISC

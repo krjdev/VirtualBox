@@ -1,11 +1,11 @@
-/* $Id: webtest.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: webtest.cpp $ */
 /** @file
  * webtest.cpp:
  *      demo webservice client in C++. This mimics some of the
  *      functionality of VBoxManage for testing purposes.
  */
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,8 @@
 #include "vboxwebsrv.nsmap"
 
 #include <iostream>
-#include <iprt/sanitized/sstream>
-#include <iprt/sanitized/string>
+#include <sstream>
+#include <string>
 
 #include <iprt/initterm.h>
 #include <iprt/message.h>

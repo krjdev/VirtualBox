@@ -1,10 +1,10 @@
-/* $Id: UIStarter.h 93990 2022-02-28 15:34:57Z vboxsync $ */
+/* $Id: UIStarter.h $ */
 /** @file
  * VBox Qt GUI - UIStarter class declaration.
  */
 
 /*
- * Copyright (C) 2018-2022 Oracle Corporation
+ * Copyright (C) 2018-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -33,7 +33,7 @@ class UIStarter : public QObject
     /** Constructs UI starter. */
     UIStarter();
     /** Destructs UI starter. */
-    virtual ~UIStarter();
+    virtual ~UIStarter() /* override */;
 
 public:
 
@@ -52,12 +52,19 @@ public:
 
 private slots:
 
+    /** Prepares everything. */
+    void prepare();
+
     /** Starts corresponding part of the UI. */
     void sltStartUI();
     /** Restarts corresponding part of the UI. */
     void sltRestartUI();
-    /** Closes corresponding part of the UI. */
-    void sltCloseUI();
+
+    /** Cleanups everything. */
+    void cleanup();
+
+    /** Handles commit data request. */
+    void sltHandleCommitDataRequest();
 
 private:
 

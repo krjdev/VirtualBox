@@ -1,10 +1,10 @@
-/* $Id: USBInstall.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: USBInstall.cpp $ */
 /** @file
  * VBox host drivers - USB drivers - Filter & driver installation, Installation code.
  */
 
 /*
- * Copyright (C) 2006-2022 Oracle Corporation
+ * Copyright (C) 2006-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -151,7 +151,7 @@ int usblibOsChangeService(const char *pszDriverPath)
         SC_HANDLE hService = OpenService(hSMgrCreate,
                                          SERVICE_NAME,
                                          GENERIC_ALL);
-        dwLastError = GetLastError();
+        DWORD dwLastError = GetLastError();
         if (hService == NULL)
         {
             AssertMsg(hService, ("OpenService failed! LastError=%Rwa, pszDriver=%s\n", dwLastError, pszDriverPath));
@@ -207,7 +207,7 @@ int usblibOsCreateService(void)
     if (hSMgrCreate)
     {
         char szDriver[RTPATH_MAX];
-        rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxUSBMon.sys"));
+        int rc = RTPathExecDir(szDriver, sizeof(szDriver) - sizeof("\\VBoxUSBMon.sys"));
         if (RT_SUCCESS(rc))
         {
             strcat(szDriver, "\\VBoxUSBMon.sys");
@@ -221,7 +221,7 @@ int usblibOsCreateService(void)
                                                SERVICE_ERROR_NORMAL,
                                                szDriver,
                                                NULL, NULL, NULL, NULL, NULL);
-            dwLastError = GetLastError();
+            DWORD dwLastError = GetLastError();
             if (dwLastError == ERROR_SERVICE_EXISTS)
             {
                 RTPrintf("USB monitor driver service already exists, skipping creation.\n");

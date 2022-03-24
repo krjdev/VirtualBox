@@ -1,10 +1,10 @@
-/* $Id: nttimesources.cpp 93302 2022-01-18 11:25:24Z vboxsync $ */
+/* $Id: nttimesources.cpp $ */
 /** @file
  * Check the various time sources on Windows NT.
  */
 
 /*
- * Copyright (C) 2009-2022 Oracle Corporation
+ * Copyright (C) 2009-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -211,9 +211,9 @@ int main(int argc, char **argv)
 
         /* Recalc to micro seconds. */
         uint64_t u64MicroSecMs  = (uint64_t)cMsTicks * 1000;
-        uint64_t u64MicroSecTsc = u64TscHz ? (long double)cTscTicks / (long double)u64TscHz       * 1000000 : u64MicroSecMs;
-        uint64_t u64MicroSecPrf =   (long double)cPrfTicks.QuadPart / (long double)PrfHz.QuadPart * 1000000;
+        uint64_t u64MicroSecTsc = u64TscHz ? (long double)cTscTicks /       u64TscHz * 1000000 : u64MicroSecMs;
         uint64_t u64MicroSecInt = cIntTicks.QuadPart / 10; /* 100ns units*/
+        uint64_t u64MicroSecPrf =   (long double)cPrfTicks.QuadPart / PrfHz.QuadPart * 1000000;
 
         /* check how much they differ using the millisecond tick count as the standard candle. */
         RTTestPrintf(hTest, RTTESTLVL_ALWAYS, " %9llu / %7lld us - GetTickCount\n", u64MicroSecMs, 0);

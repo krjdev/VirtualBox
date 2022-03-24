@@ -1,10 +1,10 @@
-/* $Id: UIPopupBox.cpp 93115 2022-01-01 11:31:46Z vboxsync $ */
+/* $Id: UIPopupBox.cpp $ */
 /** @file
  * VBox Qt GUI - UIPopupBox/UIPopupBoxGroup classes implementation.
  */
 
 /*
- * Copyright (C) 2010-2022 Oracle Corporation
+ * Copyright (C) 2010-2020 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -281,7 +281,7 @@ void UIPopupBox::paintEvent(QPaintEvent *pEvent)
     QPainter painter(this);
     painter.setClipRect(pEvent->rect());
 
-    QPalette pal = QApplication::palette();
+    QPalette pal = palette();
     painter.setClipPath(*m_pLabelPath);
     QColor base = pal.color(QPalette::Active, QPalette::Window);
     QRect rect = QRect(QPoint(0, 0), size()).adjusted(0, 0, -1, -1);

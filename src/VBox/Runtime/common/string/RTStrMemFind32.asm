@@ -1,10 +1,10 @@
-; $Id: RTStrMemFind32.asm 93115 2022-01-01 11:31:46Z vboxsync $
+; $Id: RTStrMemFind32.asm $
 ;; @file
 ; IPRT - RTStrMemFind32 - AMD64 & X86.
 ;
 
 ;
-; Copyright (C) 2019-2022 Oracle Corporation
+; Copyright (C) 2019-2020 Oracle Corporation
 ;
 ; This file is part of VirtualBox Open Source Edition (OSE), as
 ; available from http://www.virtualbox.org. This file is free software;
@@ -35,7 +35,7 @@ BEGINCODE
 ; @param    pvHaystack      gcc: rdi  msc: ecx  x86:[esp+4]   wcall: eax
 ; @param    uNeedle         gcc: esi  msc: edx  x86:[esp+8]   wcall: edx
 ; @param    cbHaystack      gcc: rdx  msc: r8   x86:[esp+0ch] wcall: ebx
-RT_BEGINPROC RTStrMemFind32
+BEGINPROC_EXPORTED RTStrMemFind32
         cld
 %ifdef RT_ARCH_AMD64
  %ifdef ASM_CALL64_MSC
