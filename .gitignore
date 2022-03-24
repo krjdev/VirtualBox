@@ -12,3 +12,10 @@ test
 # GIT templates
 GIT_commit.txt
 GIT_tag.txt
+
+# Auto-generated
+AutoConfig.kmk
+build/
+configure.log
+env.sh
+out/
